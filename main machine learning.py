@@ -41,7 +41,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.modalview import ModalView
 from kivy.metrics import dp
 from kivy.core.audio import SoundLoader
-from kivy_garden.matplotlib import FigureCanvasKivyAgg
+#from kivy_garden.matplotlib import FigureCanvasKivyAgg
 
 from fyers_apiv3 import fyersModel
 from fyers_apiv3.FyersWebsocket import data_ws
@@ -1827,7 +1827,10 @@ def plot_training_chart(ax, regression_scalers, y_pred_lr, y_pred_lstm, y_pred_g
     ax.set_facecolor('black')
     ax.figure.patch.set_facecolor('black')
 
-    ax.plot(regression_scalers['close'].inverse_transform(y_test.reshape(-1, 1)), label=f'Actual Price ({round(regression_scalers['close'].inverse_transform(y_test.reshape(-1, 1))[-1][0], 2)})', color='white')
+    ax.plot(
+    regression_scalers['close'].inverse_transform(y_test.reshape(-1, 1)),
+    label=f"Actual Price ({round(regression_scalers['close'].inverse_transform(y_test.reshape(-1, 1))[-1][0], 2)})",
+    color='white')
     ax.plot(y_pred_ensemble_original, label=f'Final Model Prediction ({round(y_pred_ensemble_original[-1], 2)})', color=(0.95, 0.38, 0.25, 1))
 
     legend = ax.legend()
@@ -3423,9 +3426,22 @@ class FinalScreen(Screen):
 
         # Create addplot elements for predicted prices and actual close prices
         ap = [
-            mpf.make_addplot(final_df['close'][-num_candles:], color='none', panel=0, secondary_y=False, label=f'Actual Price: {final_df['close'].iloc[-1]}\nPredicted Price:{y_pred_ensemble_latest_original}'),
-            #mpf.make_addplot(y_pred_ensemble_final_plot, color=(0.95, 0.38, 0.25, 1), panel=0, secondary_y=False, label=f'Predicted Prices ({y_pred_ensemble_final_plot[-1]:.2f})')
+            mpf.make_addplot(
+                final_df['close'][-num_candles:], 
+                color='none', 
+                panel=0, 
+                secondary_y=False, 
+                label=f"Actual Price: {final_df['close'].iloc[-1]}\nPredicted Price: {y_pred_ensemble_latest_original}"
+            ),
+            # mpf.make_addplot(
+            #     y_pred_ensemble_final_plot, 
+            #     color=(0.95, 0.38, 0.25, 1), 
+            #     panel=0, 
+            #     secondary_y=False, 
+            #     label=f'Predicted Prices ({y_pred_ensemble_final_plot[-1]:.2f})'
+            # )
         ]
+
 
         # Add trendlines to the plot
         if most_recent_high is not None:
