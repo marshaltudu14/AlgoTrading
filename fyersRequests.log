@@ -11034,3 +11034,4 @@
 {"level":"DEBUG","location":"[get_call:137] fyersModel","message":{"Status Code":200,"API":"/profile"},"timestamp":"2025-02-12 15:20:47,114+0530","service":"FyersAPIRequest"}
 {"level":"DEBUG","location":"[get_call:137] fyersModel","message":{"Status Code":200,"API":"/profile"},"timestamp":"2025-02-12 15:27:38,952+0530","service":"FyersAPIRequest"}
 {"level":"DEBUG","location":"[get_call:137] fyersModel","message":{"Status Code":200,"API":"/profile"},"timestamp":"2025-02-13 10:12:47,725+0530","service":"FyersAPIRequest"}
+{"level":"DEBUG","location":"[get_call:137] fyersModel","message":{"Status Code":200,"API":"/profile"},"timestamp":"2025-02-13 17:03:37,240+0530","service":"FyersAPIRequest"}
