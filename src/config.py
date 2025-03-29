@@ -130,3 +130,38 @@ def save_dynamic_config(config_data, config_path=os.path.join(BASE_DIR, 'dynamic
 
 # Load config on import
 # load_dynamic_config() # Might be better to load explicitly when needed
+
+
+# --- Reinforcement Learning Config ---
+RL_BASE_DIR = BASE_DIR # Or specify a different base if needed
+RL_LOG_DIR = os.path.join(RL_BASE_DIR, "logs/rl_logs/")
+RL_MODEL_SAVE_DIR = os.path.join(RL_BASE_DIR, "models/rl_models/")
+RL_STATS_FILE = os.path.join(RL_BASE_DIR, 'normalization_stats.json')
+RL_PROCESSED_DATA_DIR = HISTORICAL_PROCESSED_DIR # Use existing path
+
+# Ensure RL directories exist
+os.makedirs(RL_LOG_DIR, exist_ok=True)
+os.makedirs(RL_MODEL_SAVE_DIR, exist_ok=True)
+
+# Environment Params
+RL_LOOKBACK_WINDOW = 50
+RL_INITIAL_BALANCE = 100000
+RL_TRANSACTION_COST_PERCENT = 0.0005 # 0.05% per trade (entry/exit)
+RL_RISK_FREE_RATE = 0.0
+RL_COST_PENALTY_MULTIPLIER = 0.01 # Penalty for transaction costs relative to Sharpe
+
+# Training Params
+RL_MODEL_FILENAME = "ppo_trading_agent"
+RL_TOTAL_TIMESTEPS = 2048 # Set low for quick test run
+RL_CHECKPOINT_FREQ = 1000 # Ensure checkpoint is saved during short run
+RL_N_ENVS = 4 # Number of parallel environments (adjust based on CPU cores)
+
+# Evaluation Params
+# Default model to load (can be overridden in script)
+# Update this to match the checkpoint we expect from the short run
+RL_EVAL_MODEL_FILENAME = "ppo_trading_agent_1000_steps.zip"
+RL_N_EVAL_EPISODES = 5 # Reduce eval episodes for quick test
+RL_DETERMINISTIC_EVAL = True
+# Default evaluation data source (can be overridden)
+RL_EVAL_DATA_DIR = RL_PROCESSED_DATA_DIR
+RL_EVAL_STATS_FILE = RL_STATS_FILE

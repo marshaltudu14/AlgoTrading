@@ -3,49 +3,52 @@ import pandas as pd
 import numpy as np
 import json
 from tqdm import tqdm
+# Import config variables
+from src.config import RL_PROCESSED_DATA_DIR, RL_STATS_FILE
 
 # Configuration
-PROCESSED_DATA_DIR = 'data/historical_processed'
-OUTPUT_STATS_FILE = 'normalization_stats.json'
+# PROCESSED_DATA_DIR = 'data/historical_processed' # Replaced by config
+# OUTPUT_STATS_FILE = 'normalization_stats.json' # Replaced by config
 # Features for which to calculate normalization statistics
 # We calculate stats for the base features used in the state representation
+# Note: These are the base features needed by the environment state
 FEATURES_TO_NORMALIZE = [
-    'close',
+    'close', # Needed directly and for diffs
     'atr_14',
     'rsi_14',
     'MACDh_12_26_9',
     'adx_14',
-    'ema_50',
-    'ema_200'
+    'ema_50', # Needed for diff
+    'ema_200' # Needed for diff
 ]
 # Small epsilon to prevent division by zero if std dev is zero
 EPSILON = 1e-8
 
-def calculate_stats():
+def calculate_stats(processed_data_dir=RL_PROCESSED_DATA_DIR, output_stats_file=RL_STATS_FILE):
     """
     Calculates mean and standard deviation for specified features
     across all processed CSV files and saves them to a JSON file.
     """
     all_stats = {}
-    
-    if not os.path.exists(PROCESSED_DATA_DIR):
-        print(f"Error: Processed data directory not found at {PROCESSED_DATA_DIR}")
+
+    if not os.path.exists(processed_data_dir):
+        print(f"Error: Processed data directory not found at {processed_data_dir}")
         return
 
-    print(f"Calculating normalization statistics from files in {PROCESSED_DATA_DIR}...")
-    
+    print(f"Calculating normalization statistics from files in {processed_data_dir}...")
+
     try:
-        file_list = [f for f in os.listdir(PROCESSED_DATA_DIR) if f.endswith('_processed.csv')]
+        file_list = [f for f in os.listdir(processed_data_dir) if f.endswith('_processed.csv')]
     except FileNotFoundError:
-        print(f"Error: Could not list files in {PROCESSED_DATA_DIR}. Does the directory exist?")
+        print(f"Error: Could not list files in {processed_data_dir}. Does the directory exist?")
         return
-        
+
     if not file_list:
-        print(f"Error: No '*_processed.csv' files found in {PROCESSED_DATA_DIR}.")
+        print(f"Error: No '*_processed.csv' files found in {processed_data_dir}.")
         return
 
     for filename in tqdm(file_list, desc="Processing files"):
-        file_path = os.path.join(PROCESSED_DATA_DIR, filename)
+        file_path = os.path.join(processed_data_dir, filename)
         try:
             df = pd.read_csv(file_path)
             file_stats = {}
@@ -93,11 +96,12 @@ def calculate_stats():
 
     # Save the calculated stats
     try:
-        with open(OUTPUT_STATS_FILE, 'w') as f:
+        with open(output_stats_file, 'w') as f:
             json.dump(all_stats, f, indent=4)
-        print(f"Normalization statistics saved to {OUTPUT_STATS_FILE}")
+        print(f"Normalization statistics saved to {output_stats_file}")
     except Exception as e:
-        print(f"Error saving statistics file: {e}")
+        print(f"Error saving statistics file to {output_stats_file}: {e}")
 
 if __name__ == "__main__":
+    # Uses defaults from src.config if no args provided
     calculate_stats()
