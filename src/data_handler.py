@@ -6,8 +6,7 @@ import gc
 from datetime import date, timedelta
 from pytz import timezone
 import pandas_ta as ta
-from statsmodels.tsa.stattools import acf, pacf
-from scipy.stats import skew, kurtosis # Use scipy for rolling skew/kurtosis
+# Removed statsmodels and scipy imports as they are no longer needed
 
 # Assuming fyersModel is initialized elsewhere and passed or accessed globally
 # from fyers_apiv3 import fyersModel # Import if needed directly
@@ -21,207 +20,10 @@ except ImportError:
     from signals import label_signals_jit # Fallback
 
 
-# --- New Feature Calculation Functions ---
-
-def add_statistical_features(df: pd.DataFrame, window: int = 20) -> pd.DataFrame:
-    """Adds rolling statistical features like skewness, kurtosis, and ROC."""
-    print(f"  Adding statistical features (window={window})...")
-    # Skewness and Kurtosis using rolling apply for potentially better NaN handling
-    df[f'skew_close_{window}'] = df['close'].rolling(window=window, min_periods=window//2).apply(lambda x: skew(x.dropna()), raw=True).astype(np.float32).round(4)
-    df[f'kurt_close_{window}'] = df['close'].rolling(window=window, min_periods=window//2).apply(lambda x: kurtosis(x.dropna()), raw=True).astype(np.float32).round(4) # Fisher's kurtosis (normal=0)
-
-    # Rate of Change (ROC)
-    for period in [5, 10, 20]: # Add a few ROC periods
-        df[f'roc_close_{period}'] = ta.roc(df['close'], length=period).astype(np.float32).round(4)
-
-    return df
-
-def add_acf_pacf_features(df: pd.DataFrame, nlags: int = 10) -> pd.DataFrame:
-    """Adds ACF and PACF features for the 'close' price."""
-    print(f"  Adding ACF/PACF features (nlags={nlags})...")
-    # Calculate ACF and PACF - Note: These are computationally more intensive
-    # We calculate them once and then assign to avoid recalculating in rolling fashion
-    try:
-        close_series = df['close'].dropna()
-        if len(close_series) > nlags * 2: # Need enough data points
-            acf_values = acf(close_series, nlags=nlags, fft=True) # Use fft for speed
-            pacf_values = pacf(close_series, nlags=nlags, method='ols') # Ordinary Least Squares method
-
-            # Assign calculated values - these are not rolling features
-            # They represent the overall series correlation up to that point
-            # For RL, maybe rolling versions are better, but let's start simple
-            # We'll add NaN for the first few rows where lags aren't available
-            for i in range(1, nlags + 1):
-                df[f'acf_close_lag{i}'] = acf_values[i] if i < len(acf_values) else np.nan
-                df[f'pacf_close_lag{i}'] = pacf_values[i] if i < len(pacf_values) else np.nan
-            # Fill initial NaNs if needed, or let dropna handle later
-            # df[[f'acf_close_lag{i}' for i in range(1, nlags + 1)]] = df[[f'acf_close_lag{i}' for i in range(1, nlags + 1)]].fillna(method='bfill')
-            # df[[f'pacf_close_lag{i}' for i in range(1, nlags + 1)]] = df[[f'pacf_close_lag{i}' for i in range(1, nlags + 1)]].fillna(method='bfill')
-        else:
-             print(f"  Warning: Not enough data points ({len(close_series)}) to calculate ACF/PACF with nlags={nlags}. Skipping.")
-             for i in range(1, nlags + 1):
-                 df[f'acf_close_lag{i}'] = np.nan
-                 df[f'pacf_close_lag{i}'] = np.nan
-
-    except Exception as e:
-        print(f"  Error calculating ACF/PACF: {e}. Skipping.")
-        for i in range(1, nlags + 1):
-            df[f'acf_close_lag{i}'] = np.nan
-            df[f'pacf_close_lag{i}'] = np.nan
-
-    # Cast to float32 after calculations
-    for i in range(1, nlags + 1):
-        if f'acf_close_lag{i}' in df.columns:
-            df[f'acf_close_lag{i}'] = df[f'acf_close_lag{i}'].astype(np.float32).round(4)
-        if f'pacf_close_lag{i}' in df.columns:
-            df[f'pacf_close_lag{i}'] = df[f'pacf_close_lag{i}'].astype(np.float32).round(4)
-
-    return df
-
-
-def add_refined_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Adds additional technical indicators like CCI and PSAR."""
-    print("  Adding refined indicators (CCI, PSAR)...")
-    # Commodity Channel Index (CCI)
-    df['cci_20'] = ta.cci(high=df['high'], low=df['low'], close=df['close'], length=20).astype(np.float32).round(2)
-
-    # Parabolic SAR (PSAR)
-    psar = ta.psar(high=df['high'], low=df['low'], close=df['close']) # Default parameters
-    if psar is not None and not psar.empty:
-        # Select and rename relevant columns (names might vary slightly with pandas_ta versions)
-        psar_cols = {col: col.lower().replace('.', '_') for col in psar.columns if 'psar' in col.lower()}
-        df = df.join(psar[psar_cols.keys()].astype(np.float32).round(2))
-        df.rename(columns=psar_cols, inplace=True)
-    else:
-        print("  Warning: PSAR calculation failed.")
-        # Add NaN columns manually if needed
-        df[['psarl_0.02_0.2', 'psars_0.02_0.2', 'psaraf_0.02_0.2', 'psarr_0.02_0.2']] = np.nan # Adjust names based on library version if needed
-
-    return df
+# --- Removed add_statistical_features, add_acf_pacf_features, and add_refined_indicators ---
 
 
 # --- Main Pipeline Class ---
-
-class FullFeaturePipeline:
-# from fyers_apiv3 import fyersModel # Import if needed directly
-
-# Import config and signal function from the same package
-try:
-    from . import config
-    from .signals import label_signals_jit
-except ImportError:
-    import config # Fallback for running script directly
-    """
-    Fetches historical candle data for a specified number of days back.
-
-    Args:
-        fyers_instance: An initialized fyersModel.FyersModel instance.
-        number (int): Number of days back from today to start fetching.
-        index_symbol (str): The symbol to fetch data for (e.g., "NSE:NIFTYBANK-INDEX").
-        interval_minutes (str or int): The candle interval (e.g., "5", 15).
-
-    Returns:
-        pd.DataFrame: DataFrame with candle data, or None if an error occurs.
-    """
-    while True:
-        try:
-            today = date.today()
-            # Ensure range_from is calculated correctly based on 'number' days ago
-            range_from = today - timedelta(days=number)
-            # Fetch up to today
-            range_to = today
-
-            data = {
-                "symbol": index_symbol,
-                "resolution": str(interval_minutes), # Ensure resolution is string
-                "date_format": "1", # Use '1' for epoch format
-                "range_from": range_from.strftime('%Y-%m-%d'), # Format as YYYY-MM-DD
-                "range_to": range_to.strftime('%Y-%m-%d'),   # Format as YYYY-MM-DD
-                "cont_flag": "1"
-            }
-
-            result = fyers_instance.history(data=data)
-
-            if result.get("code") != 200 or not result.get("candles"):
-                 print(f"Warning: No data received for {index_symbol} ({interval_minutes} min) from {range_from} to {range_to}. Response: {result.get('message', result)}")
-                 # Decide if you want to return empty DF or None or retry
-                 return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close', 'volume']) # Return empty DF
-
-            # Process candles if data is present
-            candles_df = pd.DataFrame(result['candles'], columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-            return candles_df
-
-        except Exception as e:
-            print(f"Error fetching Candle Data for {index_symbol}: {e}")
-            print("Retrying after delay...")
-            time.sleep(config.DEFAULT_TRADING_VARS.get("active_order_sleep", 1)) # Use sleep time from config
-
-
-def fetch_train_candle_data(fyers_instance, days_count, index_symbol, interval_minutes):
-    """
-    Fetches historical candle data over multiple periods for training.
-
-    Args:
-        fyers_instance: An initialized fyersModel.FyersModel instance.
-        days_count (int): Number of 100-day chunks to fetch back in time.
-        index_symbol (str): The symbol to fetch data for.
-        interval_minutes (str or int): The candle interval.
-
-    Returns:
-        pd.DataFrame: Concatenated DataFrame of historical data, or empty DataFrame if error.
-    """
-    all_candles_df = pd.DataFrame()
-    date_offset = 0 # Start from today
-
-    print(f"Fetching training data for {index_symbol} ({interval_minutes} min) over {days_count * 100} days...")
-
-    for i in range(days_count):
-        # Calculate date ranges for each 100-day chunk
-        range_to = date.today() - timedelta(days=date_offset)
-        range_from = range_to - timedelta(days=100) # Fetch 100 days per iteration
-
-        print(f"  Fetching chunk {i+1}/{days_count}: {range_from} to {range_to}")
-
-        data = {
-            "symbol": index_symbol,
-            "resolution": str(interval_minutes),
-            "date_format": "1",
-            "range_from": range_from.strftime('%Y-%m-%d'),
-            "range_to": range_to.strftime('%Y-%m-%d'),
-            "cont_flag": "1"
-        }
-
-        try:
-            result = fyers_instance.history(data=data)
-
-            if result.get("code") == 200 and result.get("candles"):
-                temp_df = pd.DataFrame(result['candles'], columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-                all_candles_df = pd.concat([temp_df, all_candles_df], ignore_index=True)
-                print(f"    Fetched {len(temp_df)} candles for chunk {i+1}.")
-            else:
-                 print(f"    Warning: No data or error for chunk {i+1}. Response: {result.get('message', result)}")
-
-            # Update offset for the next iteration
-            date_offset += 100
-            time.sleep(0.5) # Small delay between API calls
-
-        except Exception as e:
-            print(f"  Error fetching chunk {i+1} for {index_symbol}: {e}")
-            print("  Retrying chunk after delay...")
-            time.sleep(config.DEFAULT_TRADING_VARS.get("active_order_sleep", 2)) # Longer sleep on error
-            # Optional: Implement retry logic for the specific chunk here
-            # For simplicity, we continue to the next chunk for now
-
-    if not all_candles_df.empty:
-        # Sort by datetime and remove duplicates just in case
-        all_candles_df.sort_values('datetime', inplace=True)
-        all_candles_df.drop_duplicates(subset='datetime', keep='first', inplace=True)
-        print(f"Total unique candles fetched for {index_symbol}: {len(all_candles_df)}")
-    else:
-        print(f"Failed to fetch any training data for {index_symbol}.")
-
-    return all_candles_df
-
 
 class FullFeaturePipeline:
     """
@@ -352,88 +154,23 @@ class FullFeaturePipeline:
             print("Warning: DataFrame index is not DatetimeIndex. Cannot add time features.")
         return self
 
-    def add_adaptive_targets_and_stops(self):
-        """Calculates target and stoploss levels based on ATR."""
-        if 'atr_14' not in self.df.columns or self.df['atr_14'].isnull().all():
-             print("Warning: ATR not available or all NaN. Cannot calculate adaptive targets/stops.")
-             self.df['Target'] = np.nan
-             self.df['StopLoss'] = np.nan
-        else:
-             # Ensure ATR is positive before multiplication
-             valid_atr = self.df['atr_14'].fillna(0).clip(lower=0.01) # Fill NaN, ensure minimum value
-             self.df['Target'] = (4.0 * valid_atr).astype(np.float32).round(2)
-             self.df['StopLoss'] = (2.0 * valid_atr).astype(np.float32).round(2)
-        return self
+    # --- REMOVED add_adaptive_targets_and_stops method ---
 
-    def label_signals(self):
-        """Applies the JIT-compiled signal labeling function."""
-        if not all(col in self.df.columns for col in ['close', 'high', 'low', 'Target', 'StopLoss']):
-             print("Warning: Missing columns required for signal labeling (close, high, low, Target, StopLoss). Skipping.")
-             self.df['Signal'] = 0.0
-             self.df['Entry Price'] = np.nan
-             self.df['Exit Price'] = np.nan
-             self.df['candles_to_profit'] = 0.0
-             self.df['candles_to_loss'] = 0.0
-             return self
-
-        # Drop rows where target/stoploss might be NaN before passing to Numba
-        valid_rows = self.df.dropna(subset=['close', 'high', 'low', 'Target', 'StopLoss'])
-
-        if valid_rows.empty:
-             print("Warning: No valid rows with non-NaN Target/StopLoss for signal labeling. Skipping.")
-             self.df['Signal'] = 0.0
-             self.df['Entry Price'] = np.nan
-             self.df['Exit Price'] = np.nan
-             self.df['candles_to_profit'] = 0.0
-             self.df['candles_to_loss'] = 0.0
-             return self
-
-
-        close_arr = valid_rows['close'].values
-        high_arr = valid_rows['high'].values
-        low_arr = valid_rows['low'].values
-        target_arr = valid_rows['Target'].values
-        stoploss_arr = valid_rows['StopLoss'].values
-
-        # Call the imported JIT function
-        signals, entry_prices, exit_prices, ctp, ctl = label_signals_jit(
-            close_arr, high_arr, low_arr, target_arr, stoploss_arr
-        )
-
-        # Assign results back to the original DataFrame using the index of valid_rows
-        self.df.loc[valid_rows.index, 'Signal'] = signals.astype(np.float32)
-        self.df.loc[valid_rows.index, 'Entry Price'] = entry_prices.astype(np.float32).round(2)
-        self.df.loc[valid_rows.index, 'Exit Price'] = exit_prices.astype(np.float32).round(2)
-        self.df.loc[valid_rows.index, 'candles_to_profit'] = ctp.astype(np.float32)
-        self.df.loc[valid_rows.index, 'candles_to_loss'] = ctl.astype(np.float32)
-
-        # Fill NaN for rows that were initially dropped
-        self.df['Signal'].fillna(0.0, inplace=True)
-        self.df['candles_to_profit'].fillna(0.0, inplace=True)
-        self.df['candles_to_loss'].fillna(0.0, inplace=True)
-
-
-        return self
+    # --- REMOVED label_signals method ---
 
     def run_pipeline(self):
-        """Executes the full data processing pipeline for RL features."""
-        print("Running data processing pipeline for RL features...")
+        """Executes the simplified data processing pipeline for RL features."""
+        print("Running simplified data processing pipeline for RL features...")
         self.preprocess_datetime()
         self.clean_data()
         self.add_indicator_features() # Existing basic indicators
-        # Add new features
-        add_statistical_features(self.df)
-        add_acf_pacf_features(self.df)
-        add_refined_indicators(self.df)
+        # --- Removed call to add_refined_indicators ---
         # Add time features last
         self.add_time_features()
 
-        # --- REMOVED ---
-        # .add_adaptive_targets_and_stops()
-        # .label_signals()
-        # ---------------
+        # --- Calls to removed features/methods are removed ---
 
-        print("Pipeline finished.")
+        print("Simplified pipeline finished.")
         # Garbage collect after heavy processing
         gc.collect()
         return self # Return self to allow chaining if needed elsewhere

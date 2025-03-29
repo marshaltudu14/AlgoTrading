@@ -73,8 +73,31 @@ def run_setup():
     processed_folder_path = config.HISTORY_CONFIG["processed_data_folder"]
     os.makedirs(processed_folder_path, exist_ok=True) # Ensure directory exists
 
-    temp_data_list = [] # To store info for dynamic config
+    # --- Determine expected columns from the current pipeline ---
+    expected_columns = []
+    try:
+        print("Determining expected columns from current pipeline...")
+        # Create a minimal dummy DataFrame matching raw data structure
+        dummy_data = {
+            'datetime': [pd.Timestamp.now().timestamp() - 60, pd.Timestamp.now().timestamp()],
+            'open': [100, 101], 'high': [102, 102], 'low': [99, 100], 'close': [101, 101.5], 'volume': [1000, 1100]
+        }
+        dummy_df_raw = pd.DataFrame(dummy_data)
+        dummy_pipeline = data_handler.FullFeaturePipeline(dummy_df_raw)
+        dummy_pipeline.run_pipeline()
+        dummy_processed_df = dummy_pipeline.get_processed_df()
+        # Include the index name ('datetime') in expected columns
+        expected_columns = ['datetime'] + dummy_processed_df.columns.tolist()
+        print(f"Expected columns: {expected_columns}")
+        del dummy_df_raw, dummy_pipeline, dummy_processed_df # Cleanup dummy data
+        gc.collect()
+    except Exception as e:
+        print(f"Error determining expected columns: {e}. Cannot perform column check.")
+        # If we can't determine expected columns, we might fall back to always processing or always skipping.
+        # For safety, let's fall back to the original behavior (skip if exists).
+        expected_columns = [] # Reset to disable check
 
+    temp_data_list = [] # To store info for dynamic config
     raw_files = [f for f in os.listdir(raw_folder_path) if f.endswith(".csv")]
 
     for file in raw_files:
@@ -99,11 +122,36 @@ def run_setup():
             processed_file_name = f"{instrument_name}_{timeframe}_processed.csv"
             processed_file_path = os.path.join(processed_folder_path, processed_file_name)
 
+            # --- Check if file exists and if columns match ---
+            process_this_file = True # Default to processing
             if os.path.exists(processed_file_path):
-                print(f"Processed file already exists: {processed_file_path}. Skipping processing.")
-            else:
+                if expected_columns: # Only check if we could determine expected columns
+                    try:
+                        # Read only header to get columns
+                        existing_columns = pd.read_csv(processed_file_path, nrows=0).columns.tolist()
+                        if set(existing_columns) == set(expected_columns):
+                            print(f"Processed file exists and columns match: {processed_file_path}. Skipping processing.")
+                            process_this_file = False
+                        else:
+                            print(f"Processed file exists but columns mismatch: {processed_file_path}. Reprocessing...")
+                            # Optionally log the difference:
+                            # print(f"  Expected: {sorted(expected_columns)}")
+                            # print(f"  Existing: {sorted(existing_columns)}")
+                    except Exception as read_err:
+                        print(f"Error reading existing processed file header {processed_file_path}: {read_err}. Reprocessing...")
+                else:
+                    # Fallback if expected columns couldn't be determined: skip if exists
+                    print(f"Processed file already exists (column check disabled): {processed_file_path}. Skipping processing.")
+                    process_this_file = False
+
+            if process_this_file:
                 print(f"Processing raw file: {file_path}...")
-                raw_df = pd.read_csv(file_path)
+                try:
+                    raw_df = pd.read_csv(file_path)
+                except Exception as read_err:
+                     print(f"Error reading raw file {file_path}: {read_err}. Skipping.")
+                     continue # Skip to next file if raw file can't be read
+
                 # Ensure no duplicates based on datetime before processing
                 raw_df.drop_duplicates(subset='datetime', keep='first', inplace=True)
 
