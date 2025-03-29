@@ -14,3 +14,4 @@ fyers-apiv3
 scikit-learn
 statsmodels
 scipy
+stable-baselines3[extra]
