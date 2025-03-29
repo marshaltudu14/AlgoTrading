@@ -12,3 +12,5 @@ gymnasium
 tqdm
 fyers-apiv3
 scikit-learn
+statsmodels
+scipy
