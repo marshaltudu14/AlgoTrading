@@ -99,20 +99,21 @@ if __name__ == "__main__":
             env,
             verbose=1, # Print training progress
             tensorboard_log=RL_LOG_DIR, # Use config variable
-            # Common hyperparameters to tune:
-            # learning_rate=0.0003,
-            # n_steps=2048, # Steps per env before update
-            # batch_size=64,
-            # n_epochs=10,
-            # gamma=0.99, # Discount factor
-            # gae_lambda=0.95,
-            # clip_range=0.2,
-            # ent_coef=0.0, # Entropy coefficient
-            # vf_coef=0.5, # Value function coefficient
-            # max_grad_norm=0.5,
+            # --- Hyperparameters ---
+            learning_rate=0.0003, # Default: 0.0003
+            n_steps=2048,         # Default: 2048 (Steps per env before update)
+            batch_size=64,          # Default: 64
+            n_epochs=10,            # Default: 10
+            gamma=0.99,           # Default: 0.99 (Discount factor)
+            gae_lambda=0.95,        # Default: 0.95
+            clip_range=0.2,         # Default: 0.2
+            ent_coef=0.01,          # Default: 0.0 - Increased to encourage exploration
+            vf_coef=0.5,          # Default: 0.5 (Value function coefficient)
+            max_grad_norm=0.5,      # Default: 0.5
+            # -----------------------
             device="auto" # Use GPU if available, otherwise CPU
         )
-        print("PPO model defined.")
+        print("PPO model defined with custom hyperparameters (ent_coef=0.01).")
     except Exception as e:
         print(f"Error defining PPO model: {e}")
         import traceback

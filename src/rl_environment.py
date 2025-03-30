@@ -6,6 +6,7 @@ import os
 import random
 import json
 import warnings
+import time # Import time for potential delays if needed
 
 # Ignore RuntimeWarning from Sharpe calculation with zero std dev
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="invalid value encountered in scalar divide")
@@ -14,7 +15,8 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, message="Degrees of f
 # Import config variables
 from src.config import (
     RL_PROCESSED_DATA_DIR, RL_STATS_FILE, RL_LOOKBACK_WINDOW, RL_INITIAL_BALANCE,
-    RL_TRANSACTION_COST_PERCENT, RL_RISK_FREE_RATE, RL_COST_PENALTY_MULTIPLIER
+    RL_TRANSACTION_COST_PERCENT, RL_RISK_FREE_RATE, RL_COST_PENALTY_MULTIPLIER,
+    DYNAMIC_CONFIG_FILE, INDEX_MAPPING # Need dynamic config path
 )
 
 # --- Configuration ---
@@ -46,8 +48,22 @@ class TradingEnv(gym.Env):
     """
     metadata = {'render_modes': ['human', 'ansi', 'none'], 'render_fps': 1}
 
-    def __init__(self, render_mode='none'):
+    def __init__(self, render_mode='none', data_df: pd.DataFrame | None = None, norm_stats_override: dict | None = None):
+        """
+        Initializes the Trading Environment.
+
+        Args:
+            render_mode (str): Rendering mode ('human', 'ansi', 'none').
+            data_df (pd.DataFrame, optional): If provided, use this DataFrame directly
+                                              instead of loading from files. Defaults to None.
+            norm_stats_override (dict, optional): If provided alongside data_df, use these
+                                                  normalization stats. Defaults to None.
+        """
         super().__init__()
+
+        # Store provided data and stats if any
+        self.data_df = data_df
+        self.norm_stats_override = norm_stats_override
 
         # Store config values
         self.processed_data_dir = RL_PROCESSED_DATA_DIR
@@ -57,25 +73,46 @@ class TradingEnv(gym.Env):
         self.transaction_cost_percent = RL_TRANSACTION_COST_PERCENT
         self.risk_free_rate = RL_RISK_FREE_RATE
         self.cost_penalty_multiplier = RL_COST_PENALTY_MULTIPLIER
+        self.dynamic_config_path = DYNAMIC_CONFIG_FILE # Store path
 
         self.render_mode = render_mode
         self._validate_config() # Validate loaded config values
 
-        # Load normalization statistics
+        # Load dynamic config directly in each instance
+        try:
+            with open(self.dynamic_config_path, 'r') as f:
+                self.dynamic_config = json.load(f)
+            if not self.dynamic_config or 'instruments' not in self.dynamic_config:
+                 raise ValueError("Dynamic config is empty or missing 'instruments' key.")
+            # print(f"Dynamic config loaded successfully in TradingEnv instance from {self.dynamic_config_path}") # Optional debug print
+        except FileNotFoundError:
+             raise FileNotFoundError(f"Dynamic config file not found at {self.dynamic_config_path}. Run run_data_setup.py.")
+        except Exception as e:
+             raise RuntimeError(f"Failed to load or parse dynamic config {self.dynamic_config_path} in TradingEnv: {e}")
+
+        # Load normalization statistics from file (needed for file-based loading)
+        # If norm_stats_override is provided, it will be used in reset for the provided data_df
         try:
             with open(self.stats_file, 'r') as f:
-                self.norm_stats = json.load(f)
+                self.norm_stats_from_file = json.load(f)
         except FileNotFoundError:
-            raise FileNotFoundError(f"Normalization stats file not found at {self.stats_file}. "
-                                    "Run preprocess_norm_stats.py first.")
+             # Only raise error if we are NOT providing data_df directly
+             if self.data_df is None:
+                 raise FileNotFoundError(f"Normalization stats file not found at {self.stats_file} and no override provided. "
+                                         "Run preprocess_norm_stats.py first.")
+             else:
+                 print(f"Warning: Normalization stats file {self.stats_file} not found, but using provided override.")
+                 self.norm_stats_from_file = None # Set to None if file not found but override exists
         except json.JSONDecodeError:
              raise ValueError(f"Error decoding JSON from {self.stats_file}.")
 
-
-        # List available data files
-        self.available_files = [f for f in os.listdir(self.processed_data_dir) if f.endswith('_processed.csv')]
-        if not self.available_files:
-            raise FileNotFoundError(f"No '*_processed.csv' files found in {self.processed_data_dir}.")
+        # List available data files (only needed if data_df is not provided)
+        if self.data_df is None:
+            self.available_files = [f for f in os.listdir(self.processed_data_dir) if f.endswith('_processed.csv')]
+            if not self.available_files:
+                raise FileNotFoundError(f"No '*_processed.csv' files found in {self.processed_data_dir} and no data_df provided.")
+        else:
+             self.available_files = [] # Not needed if data_df is provided
 
         # Define action space: 0: Hold, 1: Buy, 2: Sell, 3: Close
         self.action_space = spaces.Discrete(4)
@@ -95,10 +132,13 @@ class TradingEnv(gym.Env):
         self.balance = self.initial_balance
         self.position = 0  # -1: Short, 0: Flat, 1: Long
         self.entry_price = 0.0
-        self.trade_pnl_points = 0.0 # PnL of the current open trade in points/currency
+        self.trade_pnl_points = 0.0 # PnL of the current open trade in points (before lot size)
+        self.lot_size = 1 # Default, will be updated in reset
         self.episode_portfolio_values = [] # List of portfolio values per step
         self.total_steps = 0
         self.num_trades = 0
+        self.winning_trades = 0
+        self.losing_trades = 0
         self.total_cost = 0.0
 
     def _validate_config(self):
@@ -112,6 +152,39 @@ class TradingEnv(gym.Env):
         if not (0 <= self.transaction_cost_percent < 1):
             raise ValueError("RL_TRANSACTION_COST_PERCENT must be between 0 and 1.")
         # Add more checks if needed (e.g., for risk_free_rate, cost_penalty)
+
+    # Removed _load_dynamic_config_data method as loading is now done in __init__
+
+    def _get_instrument_details(self, filename):
+         """Extracts instrument details (lot size) from the loaded dynamic config based on filename."""
+         # Extract base instrument name and timeframe from filename (e.g., "Nifty_5_processed.csv")
+         try:
+             parts = filename.replace("_processed.csv", "").split('_')
+             if len(parts) < 2:
+                 raise ValueError("Filename format incorrect")
+             timeframe = parts[-1]
+             instrument_base_name = "_".join(parts[:-1]) # Handle names like "Bank_Nifty"
+             dynamic_name_pattern = f"{instrument_base_name.upper()}_{timeframe}M"
+
+             for instrument in self.dynamic_config.get("instruments", []):
+                 if instrument.get("name") == dynamic_name_pattern:
+                     lot_size = instrument.get("lot_size")
+                     if lot_size is None:
+                          raise ValueError(f"Lot size not found for {dynamic_name_pattern}")
+                     return {"lot_size": int(lot_size)} # Ensure integer
+
+             # Fallback: Try matching with INDEX_MAPPING if dynamic config fails (less ideal)
+             print(f"Warning: Could not find {dynamic_name_pattern} in dynamic_config. Trying INDEX_MAPPING fallback.")
+             if instrument_base_name in INDEX_MAPPING:
+                  lot_size = INDEX_MAPPING[instrument_base_name].get("quantity")
+                  if lot_size:
+                       return {"lot_size": int(lot_size)}
+
+             raise ValueError(f"Instrument details not found for pattern {dynamic_name_pattern} or base {instrument_base_name}")
+
+         except Exception as e:
+             raise ValueError(f"Error parsing filename '{filename}' or finding instrument details: {e}")
+
 
     def _load_data(self, filename):
         """Loads data for a specific file and its normalization stats."""
@@ -145,16 +218,22 @@ class TradingEnv(gym.Env):
             if missing_cols:
                  raise ValueError(f"File {filename} missing required columns after processing: {missing_cols}")
 
-            stats = self.norm_stats.get(filename)
+            # Use self.norm_stats_from_file which was loaded in __init__
+            stats = self.norm_stats_from_file.get(filename)
             if not stats:
-                raise ValueError(f"Normalization stats not found for file: {filename}")
+                raise ValueError(f"Normalization stats not found for file: {filename} in {self.stats_file}")
 
             # Verify stats exist for all needed features
             for feature in MARKET_FEATURES:
-                 base_feature = feature.split('_')[0]
-                 if feature not in stats and base_feature not in stats:
-                     if feature not in ['close_ema50_diff', 'close_ema200_diff'] or 'close' not in stats or 'ema_50' not in stats or 'ema_200' not in stats:
-                        raise ValueError(f"Normalization stats missing for feature '{feature}' in file: {filename}")
+                 # Check if feature exists directly or if base feature exists (for derived like close_ema_diff)
+                 base_feature = feature.split('_')[0] # e.g., 'close' from 'close_ema50_diff'
+                 feature_present = feature in stats
+                 base_present = base_feature in stats
+                 derived_present = feature in ['close_ema50_diff', 'close_ema200_diff'] and 'close' in stats # Check base 'close' for derived
+
+                 if not feature_present and not derived_present:
+                     # If the feature itself isn't there AND it's not a derived feature with its base present
+                     raise ValueError(f"Normalization stats missing for feature '{feature}' in file: {filename}")
 
             return data, stats
         except FileNotFoundError:
@@ -341,74 +420,89 @@ class TradingEnv(gym.Env):
 
         cost = 0.0
         trade_executed = False
+        trade_profit_points = 0.0 # Profit of a closed trade in points
+        trade_profit_value = 0.0 # Profit of a closed trade in currency (points * lot_size)
 
         # --- Action Execution ---
         if action == ACTION_BUY:
-            if self.position == 0:
+            if self.position == 0: # Open long from flat
                 self.position = 1
                 self.entry_price = current_price
                 self.trade_pnl_points = 0.0
-                cost = self.entry_price * self.transaction_cost_percent
+                cost = self.entry_price * self.lot_size * self.transaction_cost_percent
                 self.num_trades += 1
                 trade_executed = True
-            elif self.position == -1: # Close short first
-                profit = self.entry_price - current_price
-                self.balance += profit
-                cost = self.entry_price * self.transaction_cost_percent # Cost for closing short
+            elif self.position == -1: # Close short and open long (reverse)
+                trade_profit_points = self.entry_price - current_price # Profit from short trade (points)
+                trade_profit_value = trade_profit_points * self.lot_size
+                self.balance += trade_profit_value
+                cost = self.entry_price * self.lot_size * self.transaction_cost_percent # Cost for closing short
                 self.position = 0
                 self.trade_pnl_points = 0.0
+                if trade_profit_value > 0: self.winning_trades += 1
+                else: self.losing_trades += 1
                 # Now enter long
                 self.position = 1
                 self.entry_price = current_price
-                cost += current_price * self.transaction_cost_percent # Cost for opening long
+                cost += current_price * self.lot_size * self.transaction_cost_percent # Cost for opening long
                 self.num_trades += 2 # Closed one, opened one
                 trade_executed = True
 
         elif action == ACTION_SELL:
-            if self.position == 0:
+            if self.position == 0: # Open short from flat
                 self.position = -1
                 self.entry_price = current_price
                 self.trade_pnl_points = 0.0
-                cost = self.entry_price * self.transaction_cost_percent
+                cost = self.entry_price * self.lot_size * self.transaction_cost_percent
                 self.num_trades += 1
                 trade_executed = True
-            elif self.position == 1: # Close long first
-                profit = current_price - self.entry_price
-                self.balance += profit
-                cost = self.entry_price * self.transaction_cost_percent # Cost for closing long
+            elif self.position == 1: # Close long and open short (reverse)
+                trade_profit_points = current_price - self.entry_price # Profit from long trade (points)
+                trade_profit_value = trade_profit_points * self.lot_size
+                self.balance += trade_profit_value
+                cost = self.entry_price * self.lot_size * self.transaction_cost_percent # Cost for closing long
                 self.position = 0
                 self.trade_pnl_points = 0.0
+                if trade_profit_value > 0: self.winning_trades += 1
+                else: self.losing_trades += 1
                 # Now enter short
                 self.position = -1
                 self.entry_price = current_price
-                cost += current_price * self.transaction_cost_percent # Cost for opening short
+                cost += current_price * self.lot_size * self.transaction_cost_percent # Cost for opening short
                 self.num_trades += 2
                 trade_executed = True
 
         elif action == ACTION_CLOSE:
             if self.position == 1: # Close long
-                profit = current_price - self.entry_price
-                self.balance += profit
-                cost = current_price * self.transaction_cost_percent
+                trade_profit_points = current_price - self.entry_price
+                trade_profit_value = trade_profit_points * self.lot_size
+                self.balance += trade_profit_value
+                cost = current_price * self.lot_size * self.transaction_cost_percent # Cost on closing value
                 self.position = 0
                 self.trade_pnl_points = 0.0
                 self.num_trades += 1
                 trade_executed = True
+                if trade_profit_value > 0: self.winning_trades += 1
+                else: self.losing_trades += 1
             elif self.position == -1: # Close short
-                profit = self.entry_price - current_price
-                self.balance += profit
-                cost = current_price * self.transaction_cost_percent
+                trade_profit_points = self.entry_price - current_price
+                trade_profit_value = trade_profit_points * self.lot_size
+                self.balance += trade_profit_value
+                cost = current_price * self.lot_size * self.transaction_cost_percent # Cost on closing value
                 self.position = 0
                 self.trade_pnl_points = 0.0
                 self.num_trades += 1
                 trade_executed = True
+                if trade_profit_value > 0: self.winning_trades += 1
+                else: self.losing_trades += 1
 
         # --- Update State & PnL ---
         self.balance -= cost
         self.total_cost += cost
         info['cost'] = cost
         if trade_executed:
-             info['trades'] = 1 if cost > 0 else 0 # Crude trade count for info
+             # Count actual trades based on cost > 0 (opening/closing)
+             info['trades'] = 1 if cost > 0 else 0 # Simplified: counts actions involving cost
 
         # Update PnL points for the current open trade
         if self.position == 1:
@@ -418,9 +512,9 @@ class TradingEnv(gym.Env):
         else: # Flat
             self.trade_pnl_points = 0.0
 
-        # Calculate current portfolio value (Balance + Unrealized PnL)
-        # Assuming 1 unit trade size for PnL calculation
-        current_portfolio_value = self.balance + self.trade_pnl_points
+        # Calculate current portfolio value (Balance + Unrealized PnL * Lot Size)
+        unrealized_pnl_value = self.trade_pnl_points * self.lot_size * self.position # Position handles sign
+        current_portfolio_value = self.balance + unrealized_pnl_value
         self.episode_portfolio_values.append(current_portfolio_value)
 
         # --- Check Termination/Truncation ---
@@ -428,10 +522,11 @@ class TradingEnv(gym.Env):
         if self.current_step >= self.total_steps:
             truncated = True # Reached end of data
 
-        # Optional: Add termination condition for excessive loss
-        # if current_portfolio_value < self.initial_balance * 0.5: # e.g., 50% drawdown
-        #     terminated = True
-        #     reward = -10 # Large penalty for blowing up
+        # Capital Drawdown Check
+        if current_portfolio_value < self.initial_balance * 0.25:
+            print(f"Terminating episode due to capital drawdown below 25% ({current_portfolio_value:.2f} < {self.initial_balance * 0.25:.2f})")
+            terminated = True
+            reward = -10.0 # Assign large penalty
 
         # --- Reward Calculation (Episode End Only) ---
         if terminated or truncated:
@@ -443,9 +538,14 @@ class TradingEnv(gym.Env):
             # Ensure reward is finite
             reward = np.nan_to_num(reward, nan=0.0, posinf=0.0, neginf=-1.0) # Penalize non-finite Sharpe
             info['episode_sharpe'] = sharpe_ratio
-            info['episode_trades'] = self.num_trades
+            info['total_trades'] = self.num_trades # Renamed for clarity
             info['episode_cost_penalty'] = cost_penalty
-            info['final_balance'] = current_portfolio_value
+            info['final_capital'] = current_portfolio_value # Renamed for clarity
+            info['total_cost'] = self.total_cost
+            info['winning_trades'] = self.winning_trades
+            info['losing_trades'] = self.losing_trades
+            total_closed_trades = self.winning_trades + self.losing_trades
+            info['win_rate'] = self.winning_trades / total_closed_trades if total_closed_trades > 0 else 0.0
 
         # --- Get Next Observation ---
         # Need to get observation *after* potentially incrementing step
@@ -457,15 +557,82 @@ class TradingEnv(gym.Env):
         """Resets the environment for a new episode."""
         super().reset(seed=seed)
 
-        # Select a random file
-        self.current_file = random.choice(self.available_files)
-        try:
-            self.current_data, self.current_norm_stats = self._load_data(self.current_file)
-        except Exception as e:
-             # If loading fails, try another file? Or raise error?
-             # Let's raise for now, indicates a data/stats issue.
-             raise RuntimeError(f"Failed to load data/stats for {self.current_file} during reset: {e}")
+        if self.data_df is not None:
+            # --- Use provided DataFrame ---
+            print("Resetting environment with provided DataFrame.")
+            if self.norm_stats_override is None:
+                raise ValueError("If data_df is provided, norm_stats_override must also be provided.")
 
+            # Perform cleaning and feature engineering similar to _load_data
+            # Assume data_df is already processed by FullFeaturePipeline before passing
+            self.current_data = self.data_df.copy()
+
+            # --- Data Validation/Cleaning (on the provided df) ---
+            essential_cols = ['open', 'high', 'low', 'close', 'atr_14'] # Add others if needed by logic/norm
+            missing_essentials = [col for col in essential_cols if col not in self.current_data.columns]
+            if missing_essentials:
+                 raise ValueError(f"Provided data_df is missing essential columns: {missing_essentials}")
+
+            # Ensure numeric types and handle potential NaNs introduced before passing
+            for col in self.current_data.columns:
+                 # Only attempt conversion if not already numeric-like
+                 if not pd.api.types.is_numeric_dtype(self.current_data[col]):
+                     self.current_data[col] = pd.to_numeric(self.current_data[col], errors='coerce')
+
+            # Drop rows with NaNs in essential columns (should ideally be clean already)
+            initial_len = len(self.current_data)
+            self.current_data.dropna(subset=essential_cols, inplace=True)
+            if len(self.current_data) < initial_len:
+                 print(f"Warning: Dropped {initial_len - len(self.current_data)} rows with NaNs from provided data_df.")
+
+            self.current_data.reset_index(drop=True, inplace=True)
+
+            if len(self.current_data) < self.lookback_window + 1:
+                 raise ValueError(f"Provided data_df has insufficient data after cleaning ({len(self.current_data)} rows). Needs > {self.lookback_window}.")
+
+            # --- Feature Engineering (ensure derived features exist) ---
+            # Assuming pipeline already added these, but double-check/add if missing
+            if 'close_ema50_diff' not in self.current_data.columns and 'close' in self.current_data.columns and 'ema_50' in self.current_data.columns:
+                 self.current_data['close_ema50_diff'] = self.current_data['close'] - self.current_data['ema_50']
+            if 'close_ema200_diff' not in self.current_data.columns and 'close' in self.current_data.columns and 'ema_200' in self.current_data.columns:
+                 self.current_data['close_ema200_diff'] = self.current_data['close'] - self.current_data['ema_200']
+
+            # Verify required market features exist
+            missing_market_features = [f for f in MARKET_FEATURES if f not in self.current_data.columns]
+            if missing_market_features:
+                 raise ValueError(f"Provided data_df is missing required market features after processing: {missing_market_features}")
+
+            self.current_norm_stats = self.norm_stats_override
+            self.current_file = "provided_data" # Indicate data was provided
+            # Try to infer lot size from provided stats dict if possible, or default
+            # This assumes norm_stats_override might contain metadata, which isn't ideal
+            # A better approach would be to pass lot_size explicitly with data_df
+            self.lot_size = self.norm_stats_override.get("_metadata", {}).get("lot_size", 1)
+            if self.lot_size == 1:
+                 print("Warning: Using default lot size 1 for provided data. Pass lot size via norm_stats_override['_metadata'] if needed.")
+
+
+        else:
+            # --- Load data from random file ---
+            print("Resetting environment by loading random file.")
+            if not self.available_files:
+                 raise RuntimeError("No data files available and no data_df provided.")
+            if self.norm_stats_from_file is None:
+                 raise RuntimeError(f"Stats file {self.stats_file} failed to load, cannot proceed with file-based reset.")
+
+            # Select a random file
+            self.current_file = random.choice(self.available_files)
+            try:
+                # Load data and stats from file
+                self.current_data, self.current_norm_stats = self._load_data(self.current_file)
+                # Get instrument details (lot size)
+                instrument_details = self._get_instrument_details(self.current_file)
+                self.lot_size = instrument_details["lot_size"]
+                print(f"Loaded file: {self.current_file}, Lot Size: {self.lot_size}")
+            except Exception as e:
+                # If loading fails, try another file? Or raise error?
+                # Let's raise for now, indicates a data/stats issue.
+                raise RuntimeError(f"Failed to load data/stats/details for {self.current_file} during reset: {e}")
 
         self.total_steps = len(self.current_data)
 
@@ -477,8 +644,11 @@ class TradingEnv(gym.Env):
         self.position = 0
         self.entry_price = 0.0
         self.trade_pnl_points = 0.0
-        self.episode_portfolio_values = [self.initial_balance] * self.lookback_window # Initialize with starting balance
+        # Initialize portfolio value list with initial balance for the lookback period
+        self.episode_portfolio_values = [self.initial_balance] * self.lookback_window
         self.num_trades = 0
+        self.winning_trades = 0
+        self.losing_trades = 0
         self.total_cost = 0.0
 
         observation = self._get_observation()
@@ -489,13 +659,18 @@ class TradingEnv(gym.Env):
     def render(self):
         """Renders the environment state (optional)."""
         if self.render_mode == 'human' or self.render_mode == 'ansi':
-            profit = self.episode_portfolio_values[-1] - self.initial_balance
+            # Calculate unrealized PnL value for rendering
+            unrealized_pnl_value = self.trade_pnl_points * self.lot_size * self.position
+            current_portfolio_value = self.balance + unrealized_pnl_value
+            profit = current_portfolio_value - self.initial_balance
+
             print(f"Step: {self.current_step}/{self.total_steps} | "
                   f"File: {self.current_file} | "
+                  f"Lot Size: {self.lot_size} | "
                   f"Position: {self.position} | "
                   f"Balance: {self.balance:.2f} | "
-                  f"Trade PnL: {self.trade_pnl_points:.2f} | "
-                  f"Portfolio Value: {self.episode_portfolio_values[-1]:.2f} | "
+                  f"Unrealized PnL: {unrealized_pnl_value:.2f} ({self.trade_pnl_points:.2f} pts) | "
+                  f"Portfolio Value: {current_portfolio_value:.2f} | "
                   f"Profit: {profit:.2f} | "
                   f"Trades: {self.num_trades}")
         elif self.render_mode == 'none':

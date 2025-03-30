@@ -3,9 +3,10 @@ import numpy as np
 import time
 import os
 import gc
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime # Added datetime
 from pytz import timezone
 import pandas_ta as ta
+from fyers_apiv3 import fyersModel # Added fyersModel import
 # Removed statsmodels and scipy imports as they are no longer needed
 
 # Assuming fyersModel is initialized elsewhere and passed or accessed globally
@@ -18,6 +19,72 @@ try:
 except ImportError:
     import config # Fallback for running script directly
     from signals import label_signals_jit # Fallback
+    # Import active_order_sleep from config
+    from .config import ACTIVE_ORDER_SLEEP_INTERVAL
+
+
+# --- Data Fetching ---
+
+def fetch_candle_data(fyers_instance: fyersModel.FyersModel, symbol: str, resolution: str, days_to_fetch: int) -> pd.DataFrame | None:
+    """
+    Fetches historical candle data from Fyers API for a specified number of days.
+
+    Args:
+        fyers_instance: Authenticated FyersModel instance.
+        symbol: The instrument symbol (e.g., 'NSE:NIFTY50-INDEX').
+        resolution: The candle interval/timeframe as a string (e.g., '1', '5', '15').
+        days_to_fetch: The number of past days to fetch data for (max ~100 due to API limits).
+
+    Returns:
+        A pandas DataFrame with raw candle data [datetime, open, high, low, close, volume],
+        or None if fetching fails. Returns datetime as Unix timestamp.
+    """
+    print(f"Fetching {days_to_fetch} days of {resolution} min data for {symbol}...")
+    try:
+        # Fyers API expects dates in 'YYYY-MM-DD' format
+        range_to = date.today()
+        range_from = range_to - timedelta(days=days_to_fetch)
+
+        data = {
+            "symbol": symbol,
+            "resolution": str(resolution), # Ensure resolution is a string
+            "date_format": "1", # 1 for YYYY-MM-DD
+            "range_from": range_from.strftime('%Y-%m-%d'),
+            "range_to": range_to.strftime('%Y-%m-%d'),
+            "cont_flag": "1" # Use continuous data for futures/options if applicable
+        }
+
+        # Add retry logic? For now, simple call.
+        result = fyers_instance.history(data=data)
+
+        if result is None:
+            print(f"Error fetching candle data: API returned None for {symbol}")
+            return None
+
+        if result.get('s') != 'ok' or 'candles' not in result:
+            print(f"Error fetching candle data for {symbol}: {result.get('message', 'No candle data found or unknown error')}")
+            return None
+
+        if not result['candles']:
+             print(f"No candle data returned for {symbol} in the specified range.")
+             return None
+
+        # Convert to DataFrame
+        df = pd.DataFrame(result['candles'], columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
+
+        # Ensure numeric types (datetime is already epoch)
+        for col in ['open', 'high', 'low', 'close', 'volume']:
+             df[col] = pd.to_numeric(df[col], errors='coerce')
+        df.dropna(inplace=True) # Drop rows where conversion failed
+
+        print(f"Successfully fetched {len(df)} candles for {symbol}.")
+        return df
+
+    except Exception as e:
+        print(f"Exception during fetch_candle_data for {symbol}: {e}")
+        # Consider adding a short sleep on exception if this is called in a loop elsewhere
+        # time.sleep(ACTIVE_ORDER_SLEEP_INTERVAL)
+        return None
 
 
 # --- Removed add_statistical_features, add_acf_pacf_features, and add_refined_indicators ---

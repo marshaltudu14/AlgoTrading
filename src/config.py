@@ -27,6 +27,7 @@ LOGS_DIR = os.path.join(BASE_DIR, "logs")
 SOUNDS_DIR = os.path.join(BASE_DIR, "sounds")
 HISTORICAL_RAW_DIR = os.path.join(DATA_DIR, "historical_raw")
 HISTORICAL_PROCESSED_DIR = os.path.join(DATA_DIR, "historical_processed")
+DYNAMIC_CONFIG_FILE = os.path.join(BASE_DIR, 'dynamic_config.json') # Added dynamic config path
 
 # Ensure directories exist
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -152,8 +153,8 @@ RL_COST_PENALTY_MULTIPLIER = 0.01 # Penalty for transaction costs relative to Sh
 
 # Training Params
 RL_MODEL_FILENAME = "ppo_trading_agent"
-RL_TOTAL_TIMESTEPS = 2048 # Set low for quick test run
-RL_CHECKPOINT_FREQ = 1000 # Ensure checkpoint is saved during short run
+RL_TOTAL_TIMESTEPS = 200000 # Increased training duration
+RL_CHECKPOINT_FREQ = 50000 # Save checkpoints every 50k steps
 RL_N_ENVS = 4 # Number of parallel environments (adjust based on CPU cores)
 
 # Evaluation Params
