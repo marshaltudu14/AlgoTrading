@@ -151,23 +151,32 @@ def run_batch_backtests():
     # Sort by Instrument (alphabetical) and then Timeframe (descending)
     results_df = results_df.sort_values(by=['Instrument', 'Timeframe (min)'], ascending=[True, False])
 
-    # Select and reorder columns for the final summary, including specific requested metrics
-    summary_cols = [
-        'Instrument', 'Timeframe (min)', 'Lot Size',
-        'Initial Cash', 'Final Equity',
-        'Total Return [%]', 'Win Rate [%]',
-        'Number of Trades', 'Number of Wins', 'Number of Losses', # Added win/loss counts
-        'Profit Factor', 'Max Drawdown [%]',
-        # 'Total PnL', 'Total Commission' # Optionally exclude these if covered by others
-    ]
-    # Filter out potential missing columns during error
+    # Select and reorder columns for the final summary - including ALL metrics
+    # Get all columns from the first result (assuming all results have the same keys)
+    if all_results:
+        all_metric_keys = list(all_results[0].keys())
+        # Define preferred order, put others at the end
+        preferred_order = [
+            'Instrument', 'Timeframe (min)', 'Lot Size', 'Start Date', 'End Date', 'Duration',
+            'Initial Cash', 'Final Equity', 'Total Return [%]', 'Total PnL',
+            'Number of Trades', 'Number of Wins', 'Number of Losses', 'Win Rate [%]',
+            'Average Win PnL', 'Average Loss PnL', 'Profit Factor', 'Expectancy',
+            'Max Drawdown [%]', 'Total Commission'
+        ]
+        # Combine preferred order with any remaining keys
+        summary_cols = preferred_order + [key for key in all_metric_keys if key not in preferred_order]
+    else:
+        summary_cols = [] # Should not happen if check above works, but prevents error
+
+    # Filter out potential missing columns during error (though less likely now)
     summary_cols = [col for col in summary_cols if col in results_df.columns]
     results_summary = results_df[summary_cols].copy()
 
     # Format numeric columns (excluding cash for now)
     numeric_cols_to_format = [
-        'Total Return [%]', 'Win Rate [%]', 'Profit Factor', 'Max Drawdown [%]'
-        # Add 'Total PnL', 'Total Commission' back here if they are included in summary_cols and need formatting
+        'Total Return [%]', 'Total PnL', 'Win Rate [%]',
+        'Average Win PnL', 'Average Loss PnL', 'Profit Factor', 'Expectancy',
+        'Max Drawdown [%]', 'Total Commission'
     ]
     for col in numeric_cols_to_format:
         if col in results_summary.columns:
