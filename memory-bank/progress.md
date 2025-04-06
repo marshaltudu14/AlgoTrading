@@ -13,19 +13,32 @@
 *   **Logging Cleanup:** Removed verbose per-trade logging from the custom backtester.
 *   **Output Formatting:** Improved formatting of backtest results printed by `run_custom_backtest.py`.
 *   **Documentation:** Created `memory-bank/strategies.md` and updated other memory bank files to reflect current system state.
+*   **Fyers API V3 Integration (Real-Time):**
+    *   Refactored WebSocket handling based on V3 docs, separating market data (`RealtimeMarketDataHandler`) and order/trade/position updates (`RealtimeOrderUpdateHandler`).
+    *   Corrected WebSocket token formatting (`appId:accessToken`) and usage (`fyers_auth.py`).
+    *   Fixed WebSocket subscription parameters and shutdown logic.
+    *   Created `options_utils.py` for option chain fetching and ITM strike selection.
+    *   Implemented core options trading logic in `RealtimeStrategyExecutor`:
+        *   Handles signals on underlying index.
+        *   Selects ITM option (CE/PE based on signal).
+        *   Places option order (Buy/Sell based on `TRADING_MODE` in `config.py`).
+        *   Calculates index-based SL/TP levels.
+        *   Stores position metadata (`position_meta`).
+        *   Handles trade updates (subscribes/unsubscribes option data).
+        *   Checks exits based on underlying index price vs stored index SL/TP.
+        *   Logs open position status.
+    *   Centralized strategy parameters (`STRATEGY_CONFIGS`) in `config.py`.
+    *   Updated `run_realtime_bot.py` for dynamic strategy loading and correct component initialization.
+    *   Added `get_last_atr` method to `InsideCandleRealtimeSignalGenerator`.
+    *   Tested core real-time pipeline via forced entry.
 
 **Current Focus:**
-*   Enhancing backtesting metrics.
-*   Transitioning to implementing real-time trading capabilities using the Fyers API.
+*   Refining and testing the real-time options trading implementation.
+*   Implementing the `TODO` logic within the real-time callback handlers.
 
 **Next Steps:**
+*   **Implement Callback Logic:** Fill in the `TODO` sections in `_handle_order_update`, `_handle_trade_update`, and `_handle_position_update` within `RealtimeStrategyExecutor` for robust state management (e.g., updating `PositionManager` correctly, handling rejected/cancelled orders).
+*   **Verify Position Manager:** Ensure `src/position_manager.py` correctly handles option symbols, quantities (including negative for shorts), and provides necessary methods like `update_position_on_fill`.
+*   **Refine Error Handling:** Add more specific error handling around API calls (option chain, order placement) and WebSocket events.
+*   **Testing:** Conduct thorough testing during market hours to validate order placement, SL/TP triggering, position updates, and P/L calculations.
 *   **Backtesting Enhancement:** Add "Max Points Captured" and "Max Points Lost" per trade metrics to `src/custom_backtester.py`.
-*   **(Phase 1: Core Real-Time Trading):** Establish connection to Fyers WebSocket for real-time market data.
-*   Integrate Fyers Order API for placing/modifying/cancelling orders.
-*   Adapt strategy logic (e.g., Inside Candle) to work with real-time data streams.
-*   Implement core real-time signal generation.
-*   Implement automated order placement for entry signals.
-*   Implement basic position tracking (knowing what the bot holds).
-*   Implement automated exit logic (stop-loss/take-profit based on real-time data).
-*   Implement robust error handling and logging suitable for live trading.
-*   Develop a main execution script/module for the real-time bot.

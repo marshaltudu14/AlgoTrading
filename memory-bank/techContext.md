@@ -3,7 +3,7 @@
 **Language:** Python 3
 
 **Key Libraries:**
-*   **fyers-apiv3:** Official Fyers API V3 library for authentication and data interaction.
+*   **fyers-apiv3:** Official Fyers API V3 library for authentication, REST API interaction (order placement, history, positions, etc.), and WebSocket connections (`data_ws`, `order_ws`) for real-time market data and order/trade/position updates.
 *   **requests:** Used internally by `fyers_auth.py` for the multi-step authentication flow.
 *   **pyotp:** Used for generating Time-based One-Time Passwords (TOTP) required for Fyers login.
 *   **pandas:** Core library for data manipulation (DataFrames), used in data handling, processing, and backtesting.
@@ -21,3 +21,10 @@
 *   Data Setup: `run_data_setup.py`
 *   Data Processing: `run_data_processing.py`
 *   Backtesting: `run_custom_backtest.py`
+*   Real-Time Trading: `run_realtime_bot.py`
+
+**Core Real-Time Components:**
+*   `src/realtime_data_handler.py` (Class: `RealtimeMarketDataHandler`): Manages WebSocket for market data.
+*   `src/order_update_handler.py` (Class: `RealtimeOrderUpdateHandler`): Manages WebSocket for order/trade/position updates.
+*   `src/realtime_strategy_executor.py` (Class: `RealtimeStrategyExecutor`): Orchestrates real-time data, signals, and order management.
+*   `src/options_utils.py`: Contains helpers for option chain fetching and strike selection.
