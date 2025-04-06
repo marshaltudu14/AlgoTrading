@@ -1,41 +1,20 @@
-# Technical Context: RL Algorithmic Trading Agent
+# Technical Context: AlgoTrading - Fyers Data Fetcher
 
-## Core Technologies
+**Language:** Python 3
 
-- **Language:** Python 3.x
-- **Reinforcement Learning:**
-  - `stable-baselines3[extra]`: Core library for RL algorithms (PPO confirmed from logs/models). The `[extra]` likely includes TensorBoard support.
-  - `gymnasium`: Standard API for RL environments. The custom environment (`src/rl_environment.py`) adheres to this.
-- **Data Handling & Analysis:**
-  - `pandas`: Primary library for data manipulation and time series analysis.
-  - `numpy`: Foundational library for numerical operations.
-  - `scikit-learn`: Used for data preprocessing, specifically normalization/scaling.
-  - `pandas-ta`: Likely used for calculating technical indicators as features.
-  - `statsmodels`, `scipy`: Available for more advanced statistical analysis if needed.
-  - `numba`: Potentially used for performance optimization of numerical code.
-- **API Integration (Fyers):**
-  - `fyers-apiv3`: Official Fyers API v3 library for Python.
-  - `requests`: Underlying HTTP library, likely used by `fyers-apiv3` or for other potential API calls.
-  - `pyotp`: Used for Time-based One-Time Password (TOTP) generation, required for Fyers API authentication.
-- **Visualization:**
-  - `matplotlib`: Standard plotting library.
-  - `mplfinance`: Specialized library for financial data visualization (candlestick charts, etc.).
-- **Utilities:**
-  - `pytz`: Handling timezones, crucial for financial data.
-  - `tqdm`: Progress bars for long-running processes like training.
-  - `pygame`: Used for playing sound alerts found in the `sounds/` directory.
+**Key Libraries:**
+*   **fyers-apiv3:** Official Fyers API V3 library for authentication and data interaction.
+*   **requests:** Used internally by `fyers_auth.py` for the multi-step authentication flow.
+*   **pyotp:** Used for generating Time-based One-Time Passwords (TOTP) required for Fyers login.
+*   **pandas:** Used for handling and manipulating the fetched candle data (creating DataFrames, saving to CSV).
+*   **numpy:** Used by pandas and potentially for numerical operations (though direct usage is minimal after cleanup).
+*   **pytz:** Used for timezone handling (converting UTC timestamps from Fyers to IST).
+*   **numba:** Used in the (now removed) `signals.py` for JIT compilation. Kept in requirements for now as `data_handler.py` still uses `pandas-ta` which might have optional numba dependency.
+*   **pandas-ta:** Used in `data_handler.py` for calculating technical indicators (ATR, RSI, MACD, etc.) within the `FullFeaturePipeline`.
 
-## Development Setup
+**Environment:**
+*   Assumes Python 3 environment with libraries listed in `requirements.txt` installed.
+*   Requires Fyers API credentials (APP_ID, SECRET_KEY, FYERS_USER, FYERS_PIN, FYERS_TOTP_KEY) to be correctly set in `src/config.py` (or environment variables).
 
-- **Dependencies:** Managed via `requirements.txt`. Install using `pip install -r requirements.txt`.
-- **Configuration:** Key parameters are managed through `dynamic_config.json`.
-- **Environment:** Assumed to be a standard Python environment (virtual environment recommended).
-- **Operating System:** Developed on Windows 11 (based on system info), but likely cross-platform compatible due to Python usage.
-
-## Technical Constraints & Considerations
-
-- **API Limits:** Fyers API will have rate limits and usage constraints that need to be handled gracefully.
-- **Data Quality:** Performance is highly dependent on the quality and relevance of the historical data used for training.
-- **Computational Resources:** Training RL models can be computationally intensive, requiring significant CPU time and potentially RAM.
-- **Real-time Performance:** If deployed live, the system needs to process data and make decisions within acceptable latency limits.
-- **Backtesting vs. Reality:** Simulation results may not perfectly translate to live trading due to factors like slippage, latency, and changing market dynamics.
+**Execution:**
+*   The primary entry point for data setup is running the `run_data_setup.py` script.

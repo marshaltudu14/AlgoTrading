@@ -1,21 +1,17 @@
-# Project Brief: RL Algorithmic Trading Agent
+# Project Brief: AlgoTrading - Fyers Data Fetcher
 
-## Core Goal
+**Objective:** Establish a robust system to fetch historical market data for multiple Indian indices (Nifty, Bank Nifty, Finnifty, Sensex, Bankex) across various timeframes from the Fyers API.
 
-Develop, train, evaluate, and potentially deploy a Reinforcement Learning (RL) agent capable of making automated trading decisions on specified financial instruments using the Fyers API.
+**Core Functionality:**
+1.  **Authentication:** Securely authenticate with the Fyers API using App ID, Secret Key, User ID, PIN, and TOTP.
+2.  **Data Fetching:** Retrieve historical candle data (OHLCV) for configured indices and timeframes (2m, 3m, 5m, 10m, 15m, 20m, 30m, 45m, 60m, 120m, 180m, 240m).
+3.  **Data Storage:** Save the fetched raw data into CSV files organized by instrument and timeframe within the `data/historical_raw/` directory.
+4.  **Configuration:** Manage Fyers credentials, API settings, instrument mappings, and data fetching parameters via `src/config.py`.
 
-## Key Objectives
-
-1.  **Data Handling:** Ingest, process, and normalize historical market data for training and evaluation.
-2.  **RL Environment:** Create a stable and realistic trading simulation environment compatible with standard RL libraries (e.g., Gymnasium, Stable Baselines3).
-3.  **Agent Training:** Implement and tune RL algorithms (e.g., PPO) to train a trading agent that optimizes a defined reward function (e.g., profit, risk-adjusted return).
-4.  **Agent Evaluation:** Develop robust methods to evaluate the trained agent's performance on unseen data, including relevant financial metrics.
-5.  **Fyers Integration:** Integrate with the Fyers API for authentication, potentially fetching live data, and executing trades (if deployed).
-6.  **Configuration:** Allow for dynamic configuration of parameters like instruments, timeframes, RL hyperparameters, etc.
-7.  **Monitoring & Logging:** Implement logging for training progress, evaluation results, API interactions, and potential live trading activity.
-
-## Scope
-
-- Focus on specific indices (e.g., Nifty, Bank Nifty) and timeframes as indicated by the existing data.
-- Utilize the Proximal Policy Optimization (PPO) algorithm as suggested by existing models and logs.
-- The initial phase involves robust training and evaluation based on historical data. Live deployment is a potential future phase.
+**Current Status:**
+*   Project structure established.
+*   Fyers authentication mechanism implemented (`src/fyers_auth.py`).
+*   Raw data fetching logic implemented (`src/data_handler.py`).
+*   Configuration file set up (`src/config.py`).
+*   Main setup script (`run_data_setup.py`) orchestrates authentication and raw data fetching.
+*   Reinforcement learning components and processed data have been removed for a fresh start.

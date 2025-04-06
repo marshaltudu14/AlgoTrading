@@ -26,7 +26,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 SOUNDS_DIR = os.path.join(BASE_DIR, "sounds")
 HISTORICAL_RAW_DIR = os.path.join(DATA_DIR, "historical_raw")
-HISTORICAL_PROCESSED_DIR = os.path.join(DATA_DIR, "historical_processed")
+# HISTORICAL_PROCESSED_DIR = os.path.join(DATA_DIR, "historical_processed") # Removed as directory is deleted
 DYNAMIC_CONFIG_FILE = os.path.join(BASE_DIR, 'dynamic_config.json') # Added dynamic config path
 
 # Ensure directories exist
@@ -34,7 +34,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(LOGS_DIR, exist_ok=True)
 os.makedirs(SOUNDS_DIR, exist_ok=True)
 os.makedirs(HISTORICAL_RAW_DIR, exist_ok=True)
-os.makedirs(HISTORICAL_PROCESSED_DIR, exist_ok=True)
+# os.makedirs(HISTORICAL_PROCESSED_DIR, exist_ok=True) # Removed as directory is deleted
 
 
 # --- Instrument Mapping ---
@@ -68,7 +68,7 @@ INDEX_MAPPING = {
 HISTORY_CONFIG = {
     "timeframes": [2, 3, 5, 10, 15, 20, 30, 45, 60, 120, 180, 240],
     "raw_data_folder": HISTORICAL_RAW_DIR,
-    "processed_data_folder": HISTORICAL_PROCESSED_DIR,
+    # "processed_data_folder": HISTORICAL_PROCESSED_DIR, # Removed as directory is deleted
     "fetch_days_limit": 10  # parameter for fetch_train_candle_data (renamed from bar_limit for clarity)
 }
 
@@ -133,36 +133,4 @@ def save_dynamic_config(config_data, config_path=os.path.join(BASE_DIR, 'dynamic
 # load_dynamic_config() # Might be better to load explicitly when needed
 
 
-# --- Reinforcement Learning Config ---
-RL_BASE_DIR = BASE_DIR # Or specify a different base if needed
-RL_LOG_DIR = os.path.join(RL_BASE_DIR, "logs/rl_logs/")
-RL_MODEL_SAVE_DIR = os.path.join(RL_BASE_DIR, "models/rl_models/")
-RL_STATS_FILE = os.path.join(RL_BASE_DIR, 'normalization_stats.json')
-RL_PROCESSED_DATA_DIR = HISTORICAL_PROCESSED_DIR # Use existing path
-
-# Ensure RL directories exist
-os.makedirs(RL_LOG_DIR, exist_ok=True)
-os.makedirs(RL_MODEL_SAVE_DIR, exist_ok=True)
-
-# Environment Params
-RL_LOOKBACK_WINDOW = 50
-RL_INITIAL_BALANCE = 100000
-RL_TRANSACTION_COST_PERCENT = 0.0005 # 0.05% per trade (entry/exit)
-RL_RISK_FREE_RATE = 0.0
-RL_COST_PENALTY_MULTIPLIER = 0.01 # Penalty for transaction costs relative to Sharpe
-
-# Training Params
-RL_MODEL_FILENAME = "ppo_trading_agent"
-RL_TOTAL_TIMESTEPS = 200000 # Increased training duration
-RL_CHECKPOINT_FREQ = 50000 # Save checkpoints every 50k steps
-RL_N_ENVS = 4 # Number of parallel environments (adjust based on CPU cores)
-
-# Evaluation Params
-# Default model to load (can be overridden in script)
-# Update this to match the checkpoint we expect from the short run
-RL_EVAL_MODEL_FILENAME = "ppo_trading_agent_1000_steps.zip"
-RL_N_EVAL_EPISODES = 5 # Reduce eval episodes for quick test
-RL_DETERMINISTIC_EVAL = True
-# Default evaluation data source (can be overridden)
-RL_EVAL_DATA_DIR = RL_PROCESSED_DATA_DIR
-RL_EVAL_STATS_FILE = RL_STATS_FILE
+# --- Reinforcement Learning Config Removed ---

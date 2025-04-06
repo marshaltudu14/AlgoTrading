@@ -4,14 +4,5 @@ pytz
 pandas
 numpy
 numba
-matplotlib
-mplfinance
 pandas-ta
-pygame
-gymnasium
-tqdm
 fyers-apiv3
-scikit-learn
-statsmodels
-scipy
-stable-baselines3[extra]

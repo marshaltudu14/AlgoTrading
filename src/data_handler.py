@@ -12,15 +12,15 @@ from fyers_apiv3 import fyersModel # Added fyersModel import
 # Assuming fyersModel is initialized elsewhere and passed or accessed globally
 # from fyers_apiv3 import fyersModel # Import if needed directly
 
-# Import config and signal function from the same package
+# Import config from the same package
 try:
     from . import config
-    from .signals import label_signals_jit
+    # from .signals import label_signals_jit # Removed RL-related signal import
 except ImportError:
     import config # Fallback for running script directly
-    from signals import label_signals_jit # Fallback
+    # from signals import label_signals_jit # Removed RL-related signal import # Fallback
     # Import active_order_sleep from config
-    from .config import ACTIVE_ORDER_SLEEP_INTERVAL
+    # from .config import ACTIVE_ORDER_SLEEP_INTERVAL # Assuming this is not needed without trading logic yet
 
 
 # --- Data Fetching ---
@@ -246,50 +246,19 @@ class FullFeaturePipeline:
         """Returns the processed DataFrame, dropping NaNs."""
         print(f"Shape before dropping NaN: {self.df.shape}")
         # Drop rows with any NaN values resulting from indicator calculations (lookback periods)
-        # This is crucial as RL environments typically cannot handle NaNs
         initial_len = len(self.df)
         self.df.dropna(axis=0, how='any', inplace=True)
         dropped_rows = initial_len - len(self.df)
         print(f"Shape after dropping {dropped_rows} NaN rows: {self.df.shape}")
 
         # Columns like 'Target', 'StopLoss', 'Signal' etc. are no longer added in run_pipeline
-        # So no need to explicitly drop them here.
 
-        print(f"Final columns for RL: {self.df.columns.tolist()}")
+        print(f"Final columns: {self.df.columns.tolist()}") # Removed RL mention
         return self.df
 
 
-def get_dataframe_by_name(instrument_name, dynamic_config):
-    """
-    Loads a processed DataFrame based on the instrument name from the dynamic config.
+# Removed get_dataframe_by_name function as it relied on deleted processed data
 
-    Args:
-        instrument_name (str): The dynamic name, e.g., "BANK_NIFTY_5M".
-        dynamic_config (dict): The loaded dynamic configuration dictionary.
-
-    Returns:
-        pd.DataFrame: The loaded DataFrame, or None if not found or error.
-    """
-    if not dynamic_config or 'instruments' not in dynamic_config:
-        print("Error: Dynamic configuration is empty or invalid.")
-        return None
-
-    for instrument in dynamic_config["instruments"]:
-        if instrument.get("name") == instrument_name:
-            file_path = instrument.get("file_path")
-            if file_path and os.path.exists(file_path):
-                try:
-                    # Ensure datetime index is parsed correctly
-                    return pd.read_csv(file_path, parse_dates=['datetime'], index_col='datetime')
-                except Exception as e:
-                    print(f"Error reading processed file {file_path}: {e}")
-                    return None
-            else:
-                print(f"Error: Processed file path not found or invalid for {instrument_name}: {file_path}")
-                return None
-
-    print(f"Warning: Instrument '{instrument_name}' not found in dynamic configuration.")
-    return None
 
 # Example usage (for testing within this module)
 if __name__ == "__main__":
@@ -310,16 +279,4 @@ if __name__ == "__main__":
     else:
         print(f"Skipping FullFeaturePipeline test: {sample_file} not found.")
 
-    # Test loading dynamic config (requires 'dynamic_config.json' to exist)
-    # config.load_dynamic_config()
-    # if config.DYNAMIC_INSTRUMENTS_CONFIG["instruments"]:
-    #     test_instrument_name = config.DYNAMIC_INSTRUMENTS_CONFIG["instruments"][0]["name"]
-    #     print(f"\nTesting get_dataframe_by_name for: {test_instrument_name}")
-    #     loaded_df = get_dataframe_by_name(test_instrument_name, config.DYNAMIC_INSTRUMENTS_CONFIG)
-    #     if loaded_df is not None:
-    #         print("Successfully loaded DataFrame:")
-    #         print(loaded_df.head())
-    #     else:
-    #         print("Failed to load DataFrame.")
-    # else:
-    #     print("\nSkipping get_dataframe_by_name test: No instruments in dynamic config.")
+    # Removed test for get_dataframe_by_name
