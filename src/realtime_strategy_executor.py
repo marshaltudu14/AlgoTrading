@@ -55,6 +55,7 @@ class RealtimeStrategyExecutor:
         self.active_orders = {} # Store details of pending entry/exit orders {symbol: order_id}
         # Store metadata associated with positions {option_symbol: {'sl': index_sl, 'tp': index_tp, 'entry_order_id': id, 'underlying_symbol': ul_sym, 'option_trade_side': side, 'entry_price': price, 'original_signal': sig}}
         self.position_meta = {}
+        self.forced_entry_done = {} # Flag to track if forced entry happened {symbol: True}
 
         # Assign callbacks
         self.market_data_handler.on_tick_callback = self._handle_tick
@@ -163,16 +164,26 @@ class RealtimeStrategyExecutor:
         # logger.debug(f"Handling tick for {symbol}: LTP={ltp}")
 
         with self.lock: # Ensure thread safety for state changes
-            # 1. Update signal generator if the tick is for an underlying symbol
-            signal = 0
-            if symbol in self.symbols_to_trade:
-                signal = self.signal_generator.update(tick_data)
+            # --- Forced Entry Logic for Testing ---
+            force_signal_now = False
+            if symbol in self.symbols_to_trade and not self.forced_entry_done.get(symbol, False):
+                logger.warning(f"FORCING TEST ENTRY (BUY SIGNAL=1) for {symbol}")
+                signal = 1 # Force a buy signal for testing
+                force_signal_now = True
+                self.forced_entry_done[symbol] = True # Mark as done for this symbol
+            else:
+                # 1. Update signal generator if the tick is for an underlying symbol (normal operation)
+                signal = 0
+                if symbol in self.symbols_to_trade:
+                    signal = self.signal_generator.update(tick_data)
 
             # 2. Check for exits based on the tick (could be underlying or option)
+            # Run exit check regardless of signal generation
             self._check_exits(symbol, ltp) # Pass current tick symbol and price
 
-            # 3. Process any new signal generated for the underlying
-            if signal != 0 and symbol in self.symbols_to_trade: # Only process signals for configured underlyings
+            # 3. Process signal (either forced or generated) for the underlying
+            if (signal != 0 or force_signal_now) and symbol in self.symbols_to_trade:
+                # Use the potentially forced signal value
                 self._process_signal(symbol, signal, tick_data) # Pass underlying symbol and tick data
 
             # 4. Log current status of open OPTION positions
@@ -351,9 +362,10 @@ class RealtimeStrategyExecutor:
             product_type=product_type
         )
 
-        if entry_order_response and entry_order_response.get('id'):
+        # Check if order placement was successful before logging and tracking
+        if entry_order_response and entry_order_response.get('s') == 'ok' and entry_order_response.get('id'):
             order_id = entry_order_response['id']
-            logger.info(f"Entry order placed successfully for {option_symbol}. Order ID: {order_id}. Underlying Index SL: {index_sl_price}, TP: {index_tp_price}")
+            logger.info(f"Entry order successfully submitted for {option_symbol}. Order ID: {order_id}. Underlying Index SL: {index_sl_price}, TP: {index_tp_price}")
             self.active_orders[option_symbol] = order_id # Track order using *option* symbol
             # Store metadata using *option* symbol as key
             self.position_meta[option_symbol] = {
@@ -362,10 +374,14 @@ class RealtimeStrategyExecutor:
                 'entry_order_id': order_id,
                 'underlying_symbol': underlying_symbol, # Store the related underlying
                 'option_trade_side': option_trade_side, # Store if we bought or sold the option
-                'original_signal': signal # Store the signal that triggered this
+                'original_signal': signal, # Store the signal that triggered this
+                'entry_price': None # Initialize entry price, will be updated on trade confirmation
             }
         else:
-            logger.error(f"Failed to place entry order for {option_symbol}. Response: {entry_order_response}")
+            # Log the actual error message from Fyers
+            error_message = entry_order_response.get('message', 'Unknown error') if entry_order_response else 'No response'
+            logger.error(f"Failed to place entry order for {option_symbol}: {error_message} (Full Response: {entry_order_response})")
+            # Do not add to active_orders or position_meta if placement failed
 
         # --- Signal-based Exit Logic (for underlying) ---
         # Removed as exits are handled by _check_exits based on index SL/TP

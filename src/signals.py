@@ -242,5 +242,24 @@ class InsideCandleRealtimeSignalGenerator:
              logger.warning(f"KeyError during signal generation (missing data?): {e}")
              return 0
 
-
         return 0 # No signal
+
+    def get_last_atr(self, symbol: str) -> float | None:
+        """
+        Returns the last calculated ATR value for the given symbol.
+        Note: This implementation assumes ATR is calculated for the underlying symbol
+              passed during the update method. It doesn't handle per-symbol ATR if
+              multiple underlyings were tracked by the same instance (which isn't
+              the current design).
+
+        Args:
+            symbol (str): The symbol (currently ignored, returns the latest ATR).
+
+        Returns:
+            float | None: The last calculated ATR value, or None if not available.
+        """
+        if self.history:
+            last_candle = self.history[-1]
+            atr_col_name = f'atr_{self.atr_period}'
+            return last_candle.get(atr_col_name) # Returns None if key doesn't exist
+        return None
