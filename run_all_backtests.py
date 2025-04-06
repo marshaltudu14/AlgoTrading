@@ -19,7 +19,7 @@ except ImportError as e:
 PROCESSED_DATA_DIR = Path("data/historical_processed")
 STRATEGY_NAME = "Inside Candle Breakout (Custom)"
 STRATEGY_SIGNAL_FUNC = get_inside_candle_signals
-RESULTS_FILE = Path("memory-bank/strategies.md")
+# RESULTS_FILE = Path("memory-bank/strategies.md") # No longer used directly here
 
 # Backtest Parameters (Match defaults or specify)
 INITIAL_CASH = 100_000
@@ -193,9 +193,20 @@ def run_batch_backtests():
     print(results_summary.to_string())
 
     # Append to strategy log file
-    print(f"\nAppending results to {RESULTS_FILE}...")
+    # Generate strategy-specific filename
+    safe_strategy_name = re.sub(r'[^\w\-]+', '_', STRATEGY_NAME) # Replace non-alphanumeric with underscore
+    results_file_path = Path("memory-bank") / f"results_{safe_strategy_name}.md"
+    print(f"\nAppending results to {results_file_path}...")
     try:
-        with open(RESULTS_FILE, "a") as f:
+        # Ensure memory-bank directory exists (optional, Path.mkdir can handle it)
+        results_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(results_file_path, "a") as f:
+            # Add a header if the file is new/empty
+            if f.tell() == 0:
+                 f.write(f"# Backtest Results: {STRATEGY_NAME}\n\n")
+                 f.write("This file logs the results of backtest runs for this specific strategy.\n")
+
             f.write("\n\n" + "="*80 + "\n")
             f.write(f"Batch Run: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Strategy: {STRATEGY_NAME}\n")
@@ -205,7 +216,7 @@ def run_batch_backtests():
             f.write("\n\n" + "="*80 + "\n")
         print("Results appended successfully.")
     except Exception as e:
-        print(f"Error appending results to {RESULTS_FILE}: {e}")
+        print(f"Error appending results to {results_file_path}: {e}")
 
 
 if __name__ == "__main__":
