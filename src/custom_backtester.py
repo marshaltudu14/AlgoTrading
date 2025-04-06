@@ -43,6 +43,10 @@ def run_custom_backtest(df: pd.DataFrame,
     take_profit_price = np.nan
     trades = []
     equity_curve = [initial_cash] # Track equity over time
+    max_points_captured_overall = 0.0 # Initialize overall max points captured
+    max_points_lost_overall = 0.0 # Initialize overall max points lost (will be negative)
+    current_trade_peak_pnl_points = 0.0 # Track peak profit points during current trade
+    current_trade_valley_pnl_points = 0.0 # Track peak loss points during current trade
 
     # --- Validate Inputs ---
     if not isinstance(signals, pd.Series):
@@ -64,6 +68,19 @@ def run_custom_backtest(df: pd.DataFrame,
         # ATR from the *previous* bar (signal bar) for SL/TP calculation
         current_atr = df[f'atr_{atr_period}'].iloc[i-1]
 
+        # --- Track intra-trade PnL points ---
+        if position == 1:
+             # Max potential profit points if exited at current high
+            current_trade_peak_pnl_points = max(current_trade_peak_pnl_points, current_high - entry_price)
+             # Max potential loss points if exited at current low (will be negative)
+            current_trade_valley_pnl_points = min(current_trade_valley_pnl_points, current_low - entry_price)
+        elif position == -1:
+             # Max potential profit points if exited at current low (price diff is negative, multiply by -1)
+            current_trade_peak_pnl_points = max(current_trade_peak_pnl_points, (entry_price - current_low))
+             # Max potential loss points if exited at current high (price diff is positive, multiply by -1)
+            current_trade_valley_pnl_points = min(current_trade_valley_pnl_points, (entry_price - current_high))
+
+
         # --- Check for SL/TP Hit ---
         exit_price = np.nan
         exit_reason = None
@@ -84,8 +101,14 @@ def run_custom_backtest(df: pd.DataFrame,
 
         # --- Process Exit ---
         if not np.isnan(exit_price):
-            pnl = (exit_price - entry_price) * position * lot_size - (2 * commission_per_trade) # Commission on entry & exit
+            trade_pnl_points = (exit_price - entry_price) * position # PnL in points for this trade
+            pnl = trade_pnl_points * lot_size - (2 * commission_per_trade) # Commission on entry & exit
             cash += pnl
+
+            # Update overall max points captured/lost
+            max_points_captured_overall = max(max_points_captured_overall, trade_pnl_points)
+            max_points_lost_overall = min(max_points_lost_overall, trade_pnl_points)
+
             trades.append({
                 "EntryTime": entry_time,
                 "ExitTime": current_time,
@@ -97,13 +120,16 @@ def run_custom_backtest(df: pd.DataFrame,
                 "ExitReason": exit_reason,
                 "PnL": pnl,
                 "Commission": 2 * commission_per_trade,
-                "Equity": cash
+                "Equity": cash,
+                "Points": trade_pnl_points # Add points captured/lost for this trade
             })
             # print(f"{current_time}: EXIT {trades[-1]['Direction']} at {exit_price:.2f} ({exit_reason}). PnL: {pnl:.2f}. Cash: {cash:.2f}")
             position = 0
             entry_price = np.nan
             stop_loss_price = np.nan
             take_profit_price = np.nan
+            current_trade_peak_pnl_points = 0.0 # Reset for next trade
+            current_trade_valley_pnl_points = 0.0 # Reset for next trade
 
         # --- Process Entry ---
         if position == 0 and signal != 0:
@@ -127,6 +153,8 @@ def run_custom_backtest(df: pd.DataFrame,
                 cash -= commission_per_trade # Commission on entry
                 stop_loss_price_initial = stop_loss_price # Store for record
                 take_profit_price_initial = take_profit_price # Store for record
+                current_trade_peak_pnl_points = 0.0 # Reset for new trade
+                current_trade_valley_pnl_points = 0.0 # Reset for new trade
                 # print(f"{current_time}: ENTER LONG at {entry_price:.2f}. SL: {stop_loss_price:.2f}, TP: {take_profit_price:.2f}. Cash: {cash:.2f}")
 
             elif signal == -1: # Sell Signal
@@ -141,6 +169,8 @@ def run_custom_backtest(df: pd.DataFrame,
                 cash -= commission_per_trade # Commission on entry
                 stop_loss_price_initial = stop_loss_price # Store for record
                 take_profit_price_initial = take_profit_price # Store for record
+                current_trade_peak_pnl_points = 0.0 # Reset for new trade
+                current_trade_valley_pnl_points = 0.0 # Reset for new trade
                 # print(f"{current_time}: ENTER SHORT at {entry_price:.2f}. SL: {stop_loss_price:.2f}, TP: {take_profit_price:.2f}. Cash: {cash:.2f}")
 
         equity_curve.append(cash) # Record equity at end of bar
@@ -148,8 +178,14 @@ def run_custom_backtest(df: pd.DataFrame,
     # --- Final Position Close (if any) ---
     if position != 0:
         exit_price = df['Close'].iloc[-1] # Close at last bar's close
-        pnl = (exit_price - entry_price) * position * lot_size - (2 * commission_per_trade)
+        trade_pnl_points = (exit_price - entry_price) * position # PnL in points for this trade
+        pnl = trade_pnl_points * lot_size - (2 * commission_per_trade)
         cash += pnl
+
+        # Update overall max points captured/lost
+        max_points_captured_overall = max(max_points_captured_overall, trade_pnl_points)
+        max_points_lost_overall = min(max_points_lost_overall, trade_pnl_points)
+
         trades.append({
             "EntryTime": entry_time,
             "ExitTime": df.index[-1],
@@ -161,19 +197,25 @@ def run_custom_backtest(df: pd.DataFrame,
             "ExitReason": "EndOfData",
             "PnL": pnl,
             "Commission": 2 * commission_per_trade,
-            "Equity": cash
+            "Equity": cash,
+            "Points": trade_pnl_points # Add points captured/lost for this trade
         })
         # print(f"{df.index[-1]}: FORCE EXIT {trades[-1]['Direction']} at {exit_price:.2f}. PnL: {pnl:.2f}. Cash: {cash:.2f}")
         equity_curve[-1] = cash # Update last equity point
 
     # --- Calculate Metrics ---
     trades_df = pd.DataFrame(trades)
-    # Pass lot_size to the metrics calculation
-    metrics = calculate_performance_metrics(trades_df, initial_cash, equity_curve, df.index[0], df.index[-1], lot_size)
+    # Pass new metrics to the calculation function
+    metrics = calculate_performance_metrics(
+        trades_df, initial_cash, equity_curve, df.index[0], df.index[-1], lot_size,
+        max_points_captured_overall, max_points_lost_overall # Pass new metrics
+    )
 
     return trades_df, metrics
 
-def calculate_performance_metrics(trades_df: pd.DataFrame, initial_cash: float, equity_curve: list, start_date, end_date, lot_size: int) -> dict: # Added lot_size
+def calculate_performance_metrics(trades_df: pd.DataFrame, initial_cash: float, equity_curve: list,
+                                start_date, end_date, lot_size: int,
+                                max_points_captured: float, max_points_lost: float) -> dict: # Added new metrics
     """Calculates performance metrics from trades."""
     metrics = {}
     num_trades = len(trades_df)
@@ -195,9 +237,15 @@ def calculate_performance_metrics(trades_df: pd.DataFrame, initial_cash: float, 
         metrics["Win Rate [%]"] = (len(wins) / num_trades) * 100 if num_trades > 0 else 0
         metrics["Average Win PnL"] = wins['PnL'].mean() if len(wins) > 0 else 0
         metrics["Average Loss PnL"] = losses['PnL'].mean() if len(losses) > 0 else 0
+        metrics["Average Win Points"] = wins['Points'].mean() if len(wins) > 0 else 0 # Added Points metric
+        metrics["Average Loss Points"] = losses['Points'].mean() if len(losses) > 0 else 0 # Added Points metric
+        metrics["Max Points Captured"] = max_points_captured # Added new metric
+        metrics["Max Points Lost"] = max_points_lost # Added new metric
         metrics["Profit Factor"] = abs(wins['PnL'].sum() / losses['PnL'].sum()) if losses['PnL'].sum() != 0 else np.inf
-        metrics["Expectancy"] = trades_df['PnL'].mean()
+        metrics["Expectancy PnL"] = trades_df['PnL'].mean()
+        metrics["Expectancy Points"] = trades_df['Points'].mean() # Added Points metric
         metrics["Total PnL"] = trades_df['PnL'].sum()
+        metrics["Total Points"] = trades_df['Points'].sum() # Added Points metric
         metrics["Total Commission"] = trades_df['Commission'].sum()
 
         # Drawdown calculation (simplified)
@@ -213,9 +261,15 @@ def calculate_performance_metrics(trades_df: pd.DataFrame, initial_cash: float, 
         metrics["Win Rate [%]"] = 0
         metrics["Average Win PnL"] = 0
         metrics["Average Loss PnL"] = 0
+        metrics["Average Win Points"] = 0
+        metrics["Average Loss Points"] = 0
+        metrics["Max Points Captured"] = 0
+        metrics["Max Points Lost"] = 0
         metrics["Profit Factor"] = np.nan
-        metrics["Expectancy"] = 0
+        metrics["Expectancy PnL"] = 0
+        metrics["Expectancy Points"] = 0
         metrics["Total PnL"] = 0
+        metrics["Total Points"] = 0
         metrics["Total Commission"] = 0
         metrics["Max Drawdown [%]"] = 0
 

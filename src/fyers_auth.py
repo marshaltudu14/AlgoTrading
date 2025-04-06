@@ -110,8 +110,13 @@ def get_fyers_access_token():
              raise Exception(f"Failed to generate final access token: {auth_response.get('message', 'Unknown error')}")
 
         access_token = auth_response["access_token"]
+        formatted_token = f"{config.APP_ID}:{access_token}" # Format for WebSocket
         print("Successfully obtained Fyers Access Token.")
-        return access_token
+        # Return both raw and formatted tokens
+        return {
+            "access_token": access_token, # Raw token for fyersModel (REST)
+            "ws_token": formatted_token   # Formatted token for WebSockets
+        }
 
     except requests.exceptions.RequestException as e:
         print(f"Network error during Fyers authentication: {e}")
@@ -126,11 +131,12 @@ def get_fyers_access_token():
 if __name__ == "__main__":
     # Example usage when running the script directly
     try:
-        token = get_fyers_access_token()
-        if token:
-            print(f"\nSuccessfully retrieved Access Token (prefix): {token[:10]}...")
+        token_info = get_fyers_access_token()
+        if token_info:
+            print(f"\nSuccessfully retrieved Access Token (prefix): {token_info['access_token'][:10]}...")
+            print(f"WebSocket Token (prefix): {token_info['ws_token'][:15]}...")
             # Initialize FyersModel here if needed for testing
-            # fyers = fyersModel.FyersModel(client_id=config.APP_ID, token=token)
+            # fyers = fyersModel.FyersModel(client_id=config.APP_ID, token=token_info['access_token'])
             # profile = fyers.get_profile()
             # print("\nFyers Profile:", profile)
         else:

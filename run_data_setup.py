@@ -18,15 +18,16 @@ def run_setup():
     print("Starting data setup process...")
 
     # --- 1. Authentication ---
-    access_token = None
+    token_info = None
     try:
         print("Attempting Fyers authentication...")
-        access_token = fyers_auth.get_fyers_access_token()
-        if not access_token:
-            print("Authentication failed. Exiting.")
+        token_info = fyers_auth.get_fyers_access_token() # Returns a dict
+        if not token_info or 'access_token' not in token_info:
+            print("Authentication failed or did not return expected token format. Exiting.")
             return
         print("Authentication successful.")
-        fyers = fyersModel.FyersModel(client_id=config.APP_ID, token=access_token)
+        # Use the raw access_token for fyersModel (REST API)
+        fyers = fyersModel.FyersModel(client_id=config.APP_ID, token=token_info['access_token'])
         # Optional: Verify connection
         profile = fyers.get_profile()
         print(f"Successfully connected. Profile FY_ID: {profile.get('data', {}).get('fy_id')}")

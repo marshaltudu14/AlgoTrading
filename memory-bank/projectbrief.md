@@ -1,6 +1,6 @@
 # Project Brief: AlgoTrading System
 
-**Objective:** Develop an algorithmic trading system capable of fetching historical data, processing it, backtesting strategies, and potentially deploying them.
+**Objective:** Develop an algorithmic trading system capable of fetching historical data, processing it, backtesting strategies, and executing strategies in real-time using the Fyers API.
 
 **Core Functionality:**
 1.  **Authentication:** Securely authenticate with the Fyers API (`src/fyers_auth.py`).
@@ -10,13 +10,9 @@
 5.  **Backtesting:** Implement and run trading strategies using a custom backtesting engine (`src/custom_backtester.py`, `run_custom_backtest.py`).
 6.  **Configuration:** Manage Fyers credentials, API settings, instrument mappings, and parameters via `src/config.py`.
 7.  **Strategy Documentation:** Maintain documentation for implemented strategies (`memory-bank/strategies.md`).
+8.  **Real-Time Trading Engine:** Connect to Fyers API for live data, generate signals, execute orders, and manage positions (Future Phase).
 
 **Current Status:**
-*   Project structure established.
-*   Fyers authentication implemented.
-*   Raw data fetching implemented.
-*   Data processing pipeline implemented (calculates indicators like ATR).
-*   Custom backtesting engine implemented for Inside Candle strategy.
-*   Strategy documentation initiated.
-*   Removed previous `backtesting.py` library integration.
-*   Removed previous RL components.
+*   Backtesting framework established and functional (`src/custom_backtester.py`).
+*   Data fetching and processing pipelines are operational.
+*   Focus shifted towards implementing real-time trading capabilities.

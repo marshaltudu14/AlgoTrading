@@ -15,10 +15,17 @@
 *   **Documentation:** Created `memory-bank/strategies.md` and updated other memory bank files to reflect current system state.
 
 **Current Focus:**
-*   Refining and testing the custom backtesting framework and the Inside Candle strategy.
+*   Enhancing backtesting metrics.
+*   Transitioning to implementing real-time trading capabilities using the Fyers API.
 
 **Next Steps:**
-*   Further analyze the Inside Candle strategy performance across different instruments/timeframes.
-*   Implement and test additional trading strategies using the custom backtester.
-*   Consider adding more robust logging instead of just print statements.
-*   Explore potential optimizations or further refactoring of the backtester or signal generation.
+*   **Backtesting Enhancement:** Add "Max Points Captured" and "Max Points Lost" per trade metrics to `src/custom_backtester.py`.
+*   **(Phase 1: Core Real-Time Trading):** Establish connection to Fyers WebSocket for real-time market data.
+*   Integrate Fyers Order API for placing/modifying/cancelling orders.
+*   Adapt strategy logic (e.g., Inside Candle) to work with real-time data streams.
+*   Implement core real-time signal generation.
+*   Implement automated order placement for entry signals.
+*   Implement basic position tracking (knowing what the bot holds).
+*   Implement automated exit logic (stop-loss/take-profit based on real-time data).
+*   Implement robust error handling and logging suitable for live trading.
+*   Develop a main execution script/module for the real-time bot.

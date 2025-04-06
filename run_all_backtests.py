@@ -23,8 +23,8 @@ STRATEGY_SIGNAL_FUNC = get_inside_candle_signals
 
 # Backtest Parameters (Match defaults or specify)
 INITIAL_CASH = 100_000
-COMMISSION_PER_TRADE = 5.0 # Fixed amount per leg
-STOP_LOSS_ATR_MULTIPLIER = 1.5
+COMMISSION_PER_TRADE = 20.0 # Fixed amount per leg
+STOP_LOSS_ATR_MULTIPLIER = 1.0
 RISK_REWARD_RATIO = 2.0
 ATR_PERIOD = 14
 
@@ -66,7 +66,7 @@ def run_batch_backtests():
     print(f"Found {len(processed_files)} processed files. Starting batch backtest...")
     print("-" * 60)
     print(f"Strategy: {STRATEGY_NAME}")
-    print(f"Parameters: SL ATR Mult={STOP_LOSS_ATR_MULTIPLIER}, RR={RISK_REWARD_RATIO}, ATR Period={ATR_PERIOD}, Commission={COMMISSION_PER_TRADE*2:.2f} (Round Trip)")
+    print(f"Parameters: SL ATR Mult=1.0, RR=2.0, ATR Period={ATR_PERIOD}, Commission=40.00 (Round Trip)")
     print("-" * 60)
 
     for data_file_path in processed_files:
@@ -158,13 +158,16 @@ def run_batch_backtests():
         # Define preferred order, put others at the end
         preferred_order = [
             'Instrument', 'Timeframe (min)', 'Lot Size', 'Start Date', 'End Date', 'Duration',
-            'Initial Cash', 'Final Equity', 'Total Return [%]', 'Total PnL',
+            'Initial Cash', 'Final Equity', 'Total Return [%]', 'Total PnL', 'Total Points',
             'Number of Trades', 'Number of Wins', 'Number of Losses', 'Win Rate [%]',
-            'Average Win PnL', 'Average Loss PnL', 'Profit Factor', 'Expectancy',
+            'Average Win PnL', 'Average Loss PnL', 'Average Win Points', 'Average Loss Points',
+            'Max Points Captured', 'Max Points Lost',
+            'Profit Factor', 'Expectancy PnL', 'Expectancy Points',
             'Max Drawdown [%]', 'Total Commission'
         ]
-        # Combine preferred order with any remaining keys
-        summary_cols = preferred_order + [key for key in all_metric_keys if key not in preferred_order]
+        # Combine preferred order with any remaining keys (ensure no duplicates)
+        remaining_keys = [key for key in all_metric_keys if key not in preferred_order]
+        summary_cols = preferred_order + remaining_keys
     else:
         summary_cols = [] # Should not happen if check above works, but prevents error
 
@@ -174,8 +177,10 @@ def run_batch_backtests():
 
     # Format numeric columns (excluding cash for now)
     numeric_cols_to_format = [
-        'Total Return [%]', 'Total PnL', 'Win Rate [%]',
-        'Average Win PnL', 'Average Loss PnL', 'Profit Factor', 'Expectancy',
+        'Total Return [%]', 'Total PnL', 'Total Points', 'Win Rate [%]',
+        'Average Win PnL', 'Average Loss PnL', 'Average Win Points', 'Average Loss Points',
+        'Max Points Captured', 'Max Points Lost',
+        'Profit Factor', 'Expectancy PnL', 'Expectancy Points',
         'Max Drawdown [%]', 'Total Commission'
     ]
     for col in numeric_cols_to_format:
@@ -210,7 +215,7 @@ def run_batch_backtests():
             f.write("\n\n" + "="*80 + "\n")
             f.write(f"Batch Run: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
             f.write(f"Strategy: {STRATEGY_NAME}\n")
-            f.write(f"Parameters: SL ATR Mult={STOP_LOSS_ATR_MULTIPLIER}, RR={RISK_REWARD_RATIO}, ATR Period={ATR_PERIOD}, Commission={COMMISSION_PER_TRADE*2:.2f} (Round Trip)\n")
+            f.write(f"Parameters: SL ATR Mult=1.0, RR=2.0, ATR Period={ATR_PERIOD}, Commission=40.00 (Round Trip)\n")
             f.write("-" * 80 + "\n\n")
             f.write(results_summary.to_markdown(index=False))
             f.write("\n\n" + "="*80 + "\n")

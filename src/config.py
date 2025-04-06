@@ -72,7 +72,25 @@ HISTORY_CONFIG = {
     "fetch_days_limit": 10  # parameter for fetch_train_candle_data (renamed from bar_limit for clarity)
 }
 
-# --- Trading Variables (Defaults) ---
+# --- Real-Time Trading Config ---
+REALTIME_SYMBOLS = ["NSE:NIFTYBANK-INDEX"] # List of symbols to trade in real-time
+REALTIME_TIMEFRAME_MINUTES = 5 # Timeframe for real-time candle aggregation and signal generation
+REALTIME_ATR_PERIOD = 14 # ATR period for real-time signals/SL/TP calculation
+REALTIME_SL_ATR_MULTIPLIER = 1.0 # ATR multiplier for Stop Loss in real-time
+REALTIME_RR_RATIO = 2.0 # Risk/Reward ratio for Take Profit in real-time
+# TODO: Add real-time order quantity/sizing logic (e.g., fixed quantity per symbol)
+REALTIME_ORDER_QUANTITY = {
+    "NSE:NIFTYBANK-INDEX": 30 # Example: Fixed quantity for Bank Nifty
+    # Add other symbols as needed
+}
+REALTIME_PRODUCT_TYPE = "INTRADAY" # Fyers product type (e.g., INTRADAY, MARGIN, CNC, CO, BO)
+REALTIME_ORDER_TYPE = 2 # Fyers order type (e.g., 1: Limit, 2: Market)
+TRADING_MODE = "OptionBuy" # Can be "OptionBuy" or "OptionSell"
+OPTION_EXPIRY_OFFSET = 0 # 0 for current week/month, 1 for next, etc.
+STRIKE_SELECTION_MODE = "NearestITM" # e.g., "NearestITM", "ATM" (only ITM implemented for now)
+
+
+# --- Trading Variables (Defaults) --- - Consider removing or refactoring for real-time
 # These might be better managed in a state class or main script
 DEFAULT_TRADING_VARS = {
     "ce_ltp": 0,
@@ -134,3 +152,24 @@ def save_dynamic_config(config_data, config_path=os.path.join(BASE_DIR, 'dynamic
 
 
 # --- Reinforcement Learning Config Removed ---
+
+
+# --- Strategy Configurations ---
+STRATEGY_CONFIGS = {
+    "InsideCandleBreakout": {
+        "signal_generator_class": "InsideCandleRealtimeSignalGenerator", # Class name in src.signals
+        "timeframe_minutes": REALTIME_TIMEFRAME_MINUTES, # Use existing config
+        "atr_period": REALTIME_ATR_PERIOD, # Use existing config (ensure it's 14)
+        "sl_atr_multiplier": 1.5, # From InsideCandleStrategy
+        "rr_ratio": 2.0,          # From InsideCandleStrategy
+        "order_quantity_map": REALTIME_ORDER_QUANTITY, # Use existing config
+        "product_type": REALTIME_PRODUCT_TYPE, # Use existing config
+        "order_type": REALTIME_ORDER_TYPE # Use existing config
+    },
+    # Add configurations for other strategies here in the future
+    # "AnotherStrategy": { ... }
+}
+
+# --- Active Strategy Selection ---
+# Select which strategy configuration to use for the real-time bot
+ACTIVE_STRATEGY_NAME = "InsideCandleBreakout" # Default to InsideCandleBreakout

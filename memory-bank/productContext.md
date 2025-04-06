@@ -1,6 +1,6 @@
 # Product Context: AlgoTrading System
 
-**Goal:** Develop an end-to-end algorithmic trading system foundation, including data acquisition, processing, strategy backtesting, and potential future deployment.
+**Goal:** Develop an end-to-end algorithmic trading system, including data acquisition, processing, strategy backtesting, and real-time strategy execution via the Fyers API. The system aims to automate trading decisions and provide real-time market analysis.
 
 **Key Components:**
 *   **Fyers API Integration:** Connects to Fyers V3 API for authentication and historical data retrieval (`src/fyers_auth.py`).
@@ -13,4 +13,4 @@
 
 **User:** The primary user is the developer (Marshal Tudu) building and testing algorithmic trading strategies.
 
-**Use Case:** The system allows the user to fetch historical data, process it with relevant indicators, backtest custom trading strategies against this data to evaluate their performance, and iterate on strategy development.
+**Use Case:** The system allows the user to fetch historical data, process it, backtest strategies, and deploy validated strategies for automated real-time trading. It will also aim to provide real-time market insights during live trading.
