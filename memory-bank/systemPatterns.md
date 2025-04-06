@@ -1,8 +1,9 @@
-# System Patterns: AlgoTrading - Fyers Data Fetcher
+# System Patterns: AlgoTrading System
 
-*   **Configuration Management:** Centralized configuration (`src/config.py`) for API keys, paths, instrument lists, and fetching parameters. Sensitive credentials should ideally be moved to environment variables or a more secure store.
-*   **Modular Design:** Code is separated into modules for authentication (`fyers_auth.py`), data handling/fetching (`data_handler.py`), and configuration (`config.py`).
-*   **Scripted Execution:** A main script (`run_data_setup.py`) orchestrates the workflow (authentication -> data fetching -> saving).
-*   **Idempotency (Partial):** The `run_data_setup.py` script checks if raw data files already exist and skips fetching, making the raw data download step partially idempotent.
-*   **Error Handling:** Basic error handling (try/except blocks) is present in authentication and data fetching, printing messages to the console. More robust logging could be added.
-*   **Data Persistence:** Raw historical data is persisted as CSV files on the local filesystem.
+*   **Configuration Management:** Centralized configuration (`src/config.py`) for API keys, paths, instrument lists, fetching parameters, and backtesting settings. Sensitive credentials should ideally be moved to environment variables or a more secure store.
+*   **Modular Design:** Code is separated into modules for authentication (`fyers_auth.py`), data handling/processing (`data_handler.py`), backtesting logic (`custom_backtester.py`), and configuration (`config.py`).
+*   **Scripted Execution:** Separate scripts orchestrate distinct workflows: data setup (`run_data_setup.py`), data processing (`run_data_processing.py`), and backtesting (`run_custom_backtest.py`).
+*   **Idempotency (Partial):** Data fetching (`run_data_setup.py`) and processing (`run_data_processing.py`) scripts include checks to avoid re-downloading/re-processing existing data.
+*   **Error Handling:** Basic error handling (try/except blocks) is present, printing messages to the console. More robust logging could be added.
+*   **Data Persistence:** Raw data stored as CSV (`data/historical_raw/`), processed data with indicators stored as Parquet (`data/historical_processed/`). Backtest results (metrics) are printed; trade logs can be optionally saved.
+*   **Strategy Encapsulation:** Strategy logic (signal generation) is currently within the custom backtester module (`src/custom_backtester.py`). Could be further modularized if more strategies are added.

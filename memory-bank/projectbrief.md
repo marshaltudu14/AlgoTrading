@@ -1,17 +1,22 @@
-# Project Brief: AlgoTrading - Fyers Data Fetcher
+# Project Brief: AlgoTrading System
 
-**Objective:** Establish a robust system to fetch historical market data for multiple Indian indices (Nifty, Bank Nifty, Finnifty, Sensex, Bankex) across various timeframes from the Fyers API.
+**Objective:** Develop an algorithmic trading system capable of fetching historical data, processing it, backtesting strategies, and potentially deploying them.
 
 **Core Functionality:**
-1.  **Authentication:** Securely authenticate with the Fyers API using App ID, Secret Key, User ID, PIN, and TOTP.
-2.  **Data Fetching:** Retrieve historical candle data (OHLCV) for configured indices and timeframes (2m, 3m, 5m, 10m, 15m, 20m, 30m, 45m, 60m, 120m, 180m, 240m).
-3.  **Data Storage:** Save the fetched raw data into CSV files organized by instrument and timeframe within the `data/historical_raw/` directory.
-4.  **Configuration:** Manage Fyers credentials, API settings, instrument mappings, and data fetching parameters via `src/config.py`.
+1.  **Authentication:** Securely authenticate with the Fyers API (`src/fyers_auth.py`).
+2.  **Data Fetching:** Retrieve historical candle data for configured indices and timeframes (`src/data_handler.py`, `run_data_setup.py`).
+3.  **Raw Data Storage:** Save fetched raw data into CSV files (`data/historical_raw/`).
+4.  **Data Processing:** Process raw data, calculate technical indicators, and save to Parquet format (`src/data_handler.py`, `run_data_processing.py`, `data/historical_processed/`).
+5.  **Backtesting:** Implement and run trading strategies using a custom backtesting engine (`src/custom_backtester.py`, `run_custom_backtest.py`).
+6.  **Configuration:** Manage Fyers credentials, API settings, instrument mappings, and parameters via `src/config.py`.
+7.  **Strategy Documentation:** Maintain documentation for implemented strategies (`memory-bank/strategies.md`).
 
 **Current Status:**
 *   Project structure established.
-*   Fyers authentication mechanism implemented (`src/fyers_auth.py`).
-*   Raw data fetching logic implemented (`src/data_handler.py`).
-*   Configuration file set up (`src/config.py`).
-*   Main setup script (`run_data_setup.py`) orchestrates authentication and raw data fetching.
-*   Reinforcement learning components and processed data have been removed for a fresh start.
+*   Fyers authentication implemented.
+*   Raw data fetching implemented.
+*   Data processing pipeline implemented (calculates indicators like ATR).
+*   Custom backtesting engine implemented for Inside Candle strategy.
+*   Strategy documentation initiated.
+*   Removed previous `backtesting.py` library integration.
+*   Removed previous RL components.
