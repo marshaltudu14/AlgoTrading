@@ -1,11 +1,5 @@
+fyers-apiv3
 requests
 pyotp
 pytz
 pandas
-numpy
-numba
-pandas-ta
-fyers-apiv3
-pyarrow
-matplotlib
-tabulate
