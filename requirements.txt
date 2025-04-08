@@ -1,5 +1,0 @@
-fyers-apiv3
-requests
-pyotp
-pytz
-pandas
