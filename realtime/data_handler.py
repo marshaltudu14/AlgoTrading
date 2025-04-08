@@ -2,4 +2,8 @@
 Handles real-time market data streams from Fyers WebSocket.
 """
 
-# Placeholder for real-time data handling logic
+def subscribe_market_data():
+    """
+    Placeholder: Initialize market data WebSocket subscription.
+    """
+    print("Market data WebSocket subscription initialized (placeholder).")

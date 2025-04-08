@@ -2,4 +2,8 @@
 Handles real-time order, trade, and position updates from Fyers WebSocket.
 """
 
-# Placeholder for real-time order update handling logic
+def subscribe_order_updates():
+    """
+    Placeholder: Initialize order update WebSocket subscription.
+    """
+    print("Order update WebSocket subscription initialized (placeholder).")

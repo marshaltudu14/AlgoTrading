@@ -1,62 +1,48 @@
-# Active Context: AlgoTrading System (2025-04-08 ~8:02 PM)
+# Active Context: AlgoTrading System (2025-04-08 ~9:33 PM)
 
 ---
 
 ### **Current State**
 
-- The project has been reset and modularized with a clean architecture.
-- Fyers authentication is working and modularized.
-- Data fetching functions for both real-time and training data have been implemented in `data/fetcher.py`.
-- The system is designed to support both traditional rule-based strategies and future ML-driven strategies.
+- The project is modularized with clear separation of concerns.
+- Fyers authentication is working and centralized.
+- Data fetching functions retrieve recent historical candles successfully.
+- A `DataProcessor` class:
+  - Converts timestamps to IST.
+  - Cleans data, drops duplicates and missing.
+  - Adds EMA and ATR indicators using `pandas_ta`.
+- The main script fetches and processes data **without errors**.
+- Placeholder WebSocket subscriptions are initialized.
+- The system is ready for strategy development and real-time integration.
 
 ---
 
 ### **Design Goals**
 
-- **Fully automated multi-instrument trading bot** (options, futures, stocks).
-- **Multiple strategies**: Inside Candle, EMA crossover, and ML-based models.
-- **ATR-based risk management** for SL/TP.
-- **Modular architecture** with clear separation:
-  - Authentication
-  - Data fetching and processing
-  - Strategy modules
-  - Risk management
-  - Order and position management
-  - Real-time data and execution
-  - Utilities
-- **Machine Learning integration**:
-  - Fetch and process historical data for training.
-  - Feature engineering pipeline.
-  - Model inference for entry/exit signals.
-  - Real-time data feeding into models.
+- Fully automated multi-instrument trading bot (options, futures, stocks).
+- Multiple strategies: Inside Candle, EMA crossover, ML models.
+- ATR-based risk management.
+- Event-driven real-time trading using WebSockets.
+- Configurable timeframes and instruments.
+- Future ML integration with feature engineering and model inference.
 
 ---
 
 ### **Next Steps**
 
-1. **Feature Engineering**:
-   - Implement in `data/processor.py`.
-   - Calculate features like EMA, ATR, candle patterns, etc.
-2. **Strategy Modules**:
-   - Implement Inside Candle and EMA crossover in `strategies/`.
-   - Design ML strategy interface for future models.
-3. **Model Integration**:
-   - Train models in Jupyter notebooks.
-   - Export trained models.
-   - Load and run inference in production bot.
-4. **Real-Time Pipeline**:
-   - Use WebSocket for tick data and order updates.
-   - Feed real-time data into strategies and models.
-   - Execute trades automatically.
-5. **Testing and Deployment**:
-   - Test each module independently.
-   - Integrate and test full pipeline in paper trading.
-   - Deploy live with monitoring.
+1. **Implement strategy modules:**
+   - Inside Candle breakout.
+   - EMA crossover.
+2. **Integrate strategy signals into the main pipeline.**
+3. **Develop order management and risk modules.**
+4. **Replace placeholders with real WebSocket handlers.**
+5. **Add a web-based UI (Streamlit or Dash) for control and visualization.**
+6. **Prepare for ML model integration.**
 
 ---
 
 ### **Notes**
 
-- Use **Jupyter notebooks** for ML development, visualization, and experimentation.
-- Use **terminal scripts** for live trading and automation.
-- Continuously update the memory bank as the project evolves.
+- The data pipeline is verified and operational.
+- The architecture supports incremental, testable development.
+- The memory bank will be updated continuously as progress is made.
