@@ -1,0 +1,11 @@
+fyers-apiv3
+pyotp
+pytz
+requests
+websocket-client
+pandas-ta
+tqdm
+gymnasium
+stable-baselines3
+torch
+sb3-contrib
