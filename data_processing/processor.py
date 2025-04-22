@@ -1,7 +1,9 @@
 import os
 import pandas as pd
-import pandas_ta as ta
 import numpy as np
+# Monkey-patch for pandas_ta compatibility (numpy.NaN alias)
+setattr(np, 'NaN', np.nan)
+import pandas_ta as ta
 from tqdm import tqdm
 
 def process_df(df, rr_ratio=2):

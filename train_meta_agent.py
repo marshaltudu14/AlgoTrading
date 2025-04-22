@@ -36,7 +36,12 @@ def train_multitask_ppo(total_timesteps=100_000):
     env_fns = [make_env(instr, tf) for instr in INSTRUMENTS for tf in TIMEFRAMES]
     vec_env = DummyVecEnv(env_fns)
 
-    model = PPO('MlpPolicy', vec_env, verbose=0)
+    model = PPO(
+        'MlpPolicy', vec_env, verbose=1,
+        ent_coef=float(os.getenv('PPO_ENT_COEF', 0.01)),
+        gamma=float(os.getenv('PPO_GAMMA', 0.99)),
+        learning_rate=float(os.getenv('PPO_LR', 3e-4))
+    )
     model.learn(total_timesteps=total_timesteps)
     os.makedirs('models', exist_ok=True)
     model.save('models/ppo_multitask')
@@ -73,7 +78,12 @@ def train_rl2(total_timesteps=100_000, chunk_size=None):
         model_path = f'models/rl2_multitask_chunk_{idx}.zip'
         if model is None:
             print(f"[train_rl2] Initializing RecurrentPPO for chunk {idx+1}...")
-            model = RecurrentPPO('MlpLstmPolicy', vec_env, verbose=1)
+            model = RecurrentPPO(
+                'MlpLstmPolicy', vec_env, verbose=1,
+                ent_coef=float(os.getenv('RL2_ENT_COEF', 0.01)),
+                gamma=float(os.getenv('RL2_GAMMA', 0.99)),
+                learning_rate=float(os.getenv('RL2_LR', 3e-4))
+            )
         else:
             prev_envs = model.get_env().num_envs if model.get_env() is not None else None
             curr_envs = vec_env.num_envs

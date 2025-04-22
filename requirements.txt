@@ -2,6 +2,7 @@ fyers-apiv3
 pyotp
 pytz
 requests
+pandas
 websocket-client
 pandas-ta
 tqdm
