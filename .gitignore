@@ -2,3 +2,6 @@
 fyersApi.log
 fyersDataSocket.log
 fyersRequests.log
+
+# Ignore processed data only
+processed_data/

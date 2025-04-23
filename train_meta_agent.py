@@ -6,6 +6,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv
 from stable_baselines3.common.monitor import Monitor
 from sb3_contrib import RecurrentPPO
+from stable_baselines3.common.evaluation import evaluate_policy
 import itertools
 import math
 import gc
@@ -117,6 +118,16 @@ def train_rl2(total_timesteps=100_000, chunk_size=None):
     return model
 
 
+def evaluate_multitask(model, n_eval_episodes=5):
+    """Evaluate model across all instrument-timeframes and print mean/std rewards."""
+    print("Evaluating model performance per instrument/timeframe:")
+    for instr in INSTRUMENTS:
+        for tf in TIMEFRAMES:
+            env = TradingEnv(instr, tf)
+            mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=n_eval_episodes)
+            print(f"{instr} @ {tf}min - Mean reward: {mean_reward:.4f}, Std: {std_reward:.4f}")
+
 
 if __name__ == '__main__':
-    train_rl2()
+    model = train_rl2()
+    evaluate_multitask(model)
