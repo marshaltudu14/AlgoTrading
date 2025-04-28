@@ -6,6 +6,7 @@ from urllib.parse import urlparse, parse_qs
 import pytz
 from fyers_apiv3 import fyersModel
 from fyers_apiv3.FyersWebsocket import data_ws
+import json
 
 ist_timezone = pytz.timezone("Asia/Kolkata")
 
@@ -68,3 +69,36 @@ def authenticate_fyers(app_id, secret_key, redirect_uri, fyers_user, fyers_pin, 
     ws_token = f"{app_id}:{access_token}"
     fyers_socket = data_ws.FyersDataSocket(access_token=ws_token, log_path="")
     return fyers, fyers_socket
+
+
+def place_order(fyers, data):
+    """Place an order via REST API"""
+    # data should include keys: symbol, qty, type, limitPrice, stopLoss, takeProfit, productType, etc.
+    return fyers.place_order(data=data)
+
+
+def get_order_status(fyers, order_id):
+    """Fetch status of an existing order"""
+    params = {"id": order_id}
+    return fyers.order_book(data=params)
+
+
+def cancel_order(fyers, order_id):
+    """Cancel an existing order"""
+    params = {"id": order_id}
+    return fyers.cancel_order(data=params)
+
+
+def subscribe_ticks(fyers_socket, symbols, on_message):
+    """Subscribe to real-time ticks for given option symbols"""
+    # symbols: list of string instrument tokens
+    payload = {"symbol": symbols}
+    fyers_socket.subscribe(payload)
+    fyers_socket.on_message = on_message
+    # fyers_socket.connect() handled externally
+
+
+def unsubscribe_ticks(fyers_socket, symbols):
+    """Unsubscribe from real-time ticks"""
+    payload = json.dumps({"T": "MSUB", "symbols": symbols, "SLIST": [], "SUB_T": -1})
+    fyers_socket.send(payload)

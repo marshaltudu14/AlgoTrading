@@ -43,3 +43,13 @@ RLHF_WEIGHT = float(os.getenv("RLHF_WEIGHT", 1.0))  # weight for learned human p
 
 # Risk-reward ratio for labeling
 RR_RATIO = 2
+
+# Live trading settings
+WINDOW_SIZE      = int(os.getenv("WINDOW_SIZE", 50))
+LIVE_FETCH_DAYS  = int(os.getenv("LIVE_FETCH_DAYS", 15))
+MODEL_PATH       = os.getenv("MODEL_PATH", "models/ppo_multitask.zip")
+FEATURES_DIR     = os.getenv("FEATURES_DIR", PROCESSED_DIR)
+STRIKE_STEP      = int(os.getenv("STRIKE_STEP", 50))
+SL_ATR_MULT      = float(os.getenv("SL_ATR_MULT", 1.0))
+TP_ATR_MULT      = float(os.getenv("TP_ATR_MULT", RR_RATIO))
+OPTION_MASTER_FO = os.getenv("OPTION_MASTER_FO", "https://public.fyers.in/sym_details/NSE_FO_sym_master.json")

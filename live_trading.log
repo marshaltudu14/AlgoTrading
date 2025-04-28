@@ -1,0 +1,21 @@
+2025-04-28 19:57:38,267 INFO Websocket connected
+2025-04-28 19:57:39,793 INFO WebSocket connected
+2025-04-28 19:57:54,595 INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-04-28 19:57:54,598 INFO Starting live trading scheduler...
+2025-04-28 19:57:54,598 INFO Added job "run_cycle" to job store "default"
+2025-04-28 19:57:54,598 INFO Scheduler started
+2025-04-28 19:59:47,685 ERROR Connection to remote host was lost. - goodbye
+2025-04-28 19:59:52,699 ERROR [Errno 11001] getaddrinfo failed - goodbye
+2025-04-28 19:59:54,602 INFO Running job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 19:59:54 IST)" (scheduled at 2025-04-28 19:59:54.595560+05:30)
+2025-04-28 19:59:57,702 ERROR [Errno 11001] getaddrinfo failed - goodbye
+2025-04-28 20:00:02,706 ERROR [Errno 11001] getaddrinfo failed - goodbye
+2025-04-28 20:00:07,708 ERROR [Errno 11001] getaddrinfo failed - goodbye
+2025-04-28 20:00:12,712 ERROR [Errno 11001] getaddrinfo failed - goodbye
+2025-04-28 20:00:25,681 ERROR Error in run_cycle for Nifty: Error: Unexpected observation shape (1, 60) for Box environment, please use (50, 5) or (n_env, 50, 5) for the observation shape.
+2025-04-28 20:00:26,188 INFO Job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:01:54 IST)" executed successfully
+2025-04-28 20:01:54,600 INFO Running job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:03:54 IST)" (scheduled at 2025-04-28 20:01:54.595560+05:30)
+2025-04-28 20:01:55,849 ERROR Error in run_cycle for Nifty: Error: Unexpected observation shape (1, 60) for Box environment, please use (50, 5) or (n_env, 50, 5) for the observation shape.
+2025-04-28 20:01:56,353 INFO Job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:03:54 IST)" executed successfully
+2025-04-28 20:03:54,596 INFO Running job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:05:54 IST)" (scheduled at 2025-04-28 20:03:54.595560+05:30)
+2025-04-28 20:03:55,851 ERROR Error in run_cycle for Nifty: Error: Unexpected observation shape (1, 60) for Box environment, please use (50, 5) or (n_env, 50, 5) for the observation shape.
+2025-04-28 20:03:56,359 INFO Job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:05:54 IST)" executed successfully
