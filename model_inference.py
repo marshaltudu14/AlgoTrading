@@ -1,5 +1,6 @@
 from stable_baselines3 import PPO
 import os, glob, re
+import numpy as np
 from config import MODEL_PATH
 
 _model = None
@@ -35,4 +36,7 @@ def predict_action(features):
     """Infer action: 0=HOLD,1=BUY_CE,2=BUY_PE"""
     model = load_model()
     action, _states = model.predict(features, deterministic=True)
+    # Ensure action is Python int (not numpy.ndarray)
+    if hasattr(action, 'item'):
+        action = action.item()
     return {0: "HOLD", 1: "BUY_CE", 2: "BUY_PE"}.get(action, "HOLD")

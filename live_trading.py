@@ -1,8 +1,9 @@
 import time
 import datetime
 import logging
-
+import pytz
 from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from envs.data_fetcher import fetch_candle_data
 from broker.broker_api import authenticate_fyers
 from feature_engine import build_live_features
@@ -47,9 +48,10 @@ TEST_FETCH_DAYS = LIVE_FETCH_DAYS
 # Track open positions to prevent new entries until exit
 open_positions = {instr: False for instr in TEST_INSTRUMENTS}
 
-scheduler = BlockingScheduler()
+tz = pytz.timezone('Asia/Kolkata')
+# Scheduler with IST timezone
+scheduler = BlockingScheduler(timezone=tz)
 
-@scheduler.scheduled_job('interval', minutes=TEST_TIMEFRAME)
 def run_cycle():
     for instrument, index_symbol in TEST_INSTRUMENTS.items():
         # skip if a position is already open
@@ -72,6 +74,11 @@ def run_cycle():
         except Exception as e:
             logger.error(f"Error in run_cycle for {instrument}: {e}")
         time.sleep(0.5)
+
+# Schedule run_cycle at nearest round times starting 9:15 IST with given interval
+start_time = datetime.datetime.now(tz).replace(hour=9, minute=15, second=0, microsecond=0)
+trigger = IntervalTrigger(minutes=TEST_TIMEFRAME, start_date=start_time, timezone=tz)
+scheduler.add_job(run_cycle, trigger)
 
 if __name__ == '__main__':
     logger.info("Starting live trading scheduler...")
