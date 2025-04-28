@@ -49,3 +49,16 @@
 2025-04-28 20:19:00,012 INFO Running job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:21:00 IST)" (scheduled at 2025-04-28 20:19:00+05:30)
 2025-04-28 20:19:02,158 ERROR Error in run_cycle for Nifty: Error: Unexpected observation shape (1, 250) for Box environment, please use (50, 5) or (n_env, 50, 5) for the observation shape.
 2025-04-28 20:19:02,663 INFO Job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:21:00 IST)" executed successfully
+2025-04-28 20:23:30,439 INFO Websocket connected
+2025-04-28 20:23:31,896 INFO WebSocket connected
+2025-04-28 20:23:34,945 INFO Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2025-04-28 20:23:34,945 INFO Starting live trading scheduler...
+2025-04-28 20:23:34,945 INFO Added job "run_cycle" to job store "default"
+2025-04-28 20:23:34,945 INFO Scheduler started
+2025-04-28 20:25:00,016 INFO Running job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:25:00 IST)" (scheduled at 2025-04-28 20:25:00+05:30)
+2025-04-28 20:25:02,382 INFO Nifty prediction: HOLD
+2025-04-28 20:25:02,883 INFO Job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:27:00 IST)" executed successfully
+2025-04-28 20:27:00,003 INFO Running job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:29:00 IST)" (scheduled at 2025-04-28 20:27:00+05:30)
+2025-04-28 20:27:02,514 INFO Nifty prediction: HOLD
+2025-04-28 20:27:03,016 INFO Job "run_cycle (trigger: interval[0:02:00], next run at: 2025-04-28 20:29:00 IST)" executed successfully
+2025-04-28 20:29:00,010 INFO Shutting down...
