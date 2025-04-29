@@ -3,6 +3,7 @@ Basic data processor for AlgoTrading.
 Handles feature engineering and signal generation.
 """
 import os
+import sys
 import pandas as pd
 import numpy as np
 # Monkey-patch for pandas_ta compatibility (numpy.NaN alias)
@@ -11,6 +12,7 @@ import pandas_ta as ta
 from tqdm import tqdm
 
 from core.logging_setup import get_logger
+from data_processing.feature_cache import should_process_data, save_feature_hash
 
 logger = get_logger(__name__)
 
@@ -18,17 +20,17 @@ logger = get_logger(__name__)
 def process_df(df, rr_ratio=2):
     """
     Process DataFrame with basic feature engineering.
-    
+
     Args:
         df: Input DataFrame with OHLC data
         rr_ratio: Risk-reward ratio for signal generation
-        
+
     Returns:
         Processed DataFrame with features
     """
     logger.info("Processing DataFrame with basic features")
     df = df.copy()
-    
+
     # === Price-based Features ===
     df['delta_close'] = df['close'].diff()
     df['log_return'] = np.log(df['close'] / df['close'].shift(1))
@@ -131,55 +133,69 @@ def process_df(df, rr_ratio=2):
         signals[i] = label
 
     df['signal'] = signals
-    
+
     # Drop initial rows with NaN from ATR or lookback
     df.dropna(axis=0, how='any', inplace=True)
-    
+
     logger.info(f"Processed DataFrame with {len(df)} rows and {len(df.columns)} columns")
     return df
 
 
-def process_all(input_dir='historical_data', output_dir='processed_data', rr_ratio=2):
+def process_all(input_dir='historical_data', output_dir='processed_data', rr_ratio=2, force=False):
     """
     Process all CSV files in the input directory and save to output directory.
-    
+    Only processes if features have changed or force=True.
+
     Args:
         input_dir: Directory containing raw CSV files
         output_dir: Directory to save processed CSV files
         rr_ratio: Risk-reward ratio for signal generation
+        force: Force processing regardless of feature hash
+
+    Returns:
+        bool: True if processing was performed, False if skipped
     """
+    # Check if processing is needed
+    if not force and not should_process_data(sys.modules[__name__], output_dir):
+        logger.info(f"Skipping processing: feature definitions unchanged")
+        return False
+
     logger.info(f"Processing all files in {input_dir}")
     os.makedirs(output_dir, exist_ok=True)
-    
+
     csv_files = [f for f in os.listdir(input_dir) if f.lower().endswith('.csv')]
     logger.info(f"Found {len(csv_files)} CSV files to process")
-    
+
     for fname in csv_files:
         in_path = os.path.join(input_dir, fname)
         out_path = os.path.join(output_dir, fname)
-        
+
         logger.info(f"Processing {fname}")
-        
+
         # Load data
         df = pd.read_csv(in_path)
-        
+
         # Process data
         processed = process_df(df, rr_ratio=rr_ratio)
-        
+
         # Save processed data
         processed.to_csv(out_path, index=False)
-        
+
         # Save feature columns for RL env
         exclude = {'signal', 'datetime', 'Unnamed: 0'}
         feature_cols = [c for c in processed.columns if c not in exclude]
-        
+
         import json
         with open(out_path.replace('.csv', '.features.json'), 'w') as f:
             json.dump(feature_cols, f, indent=2)
-        
+
         logger.info(f"Saved processed file: {out_path} with {len(feature_cols)} features")
-    
+
+    # Save the feature hash after successful processing
+    save_feature_hash(sys.modules[__name__], output_dir)
+
     logger.info("Processing completed successfully")
+    return True
 
 
 if __name__ == '__main__':

@@ -13,7 +13,7 @@ import gc
 
 from config import INSTRUMENTS, TIMEFRAMES
 from historical_data_fetcher import fetch_historical_data
-from data_processing.processor import process_all
+from process_data import process_data
 from envs.trading_env import TradingEnv
 
 
@@ -28,11 +28,12 @@ def make_env(instrument, timeframe, log_dir=None):
     return _init
 
 
-def train_multitask_ppo(total_timesteps=100_000):
+def train_multitask_ppo(total_timesteps=100_000, enhanced_features=True):
     """Train PPO across all instrument-timeframe tasks."""
     # Fetch and process data
     fetch_historical_data()
-    process_all()
+    # Process data with feature caching (only processes if needed)
+    process_data(enhanced=enhanced_features)
     # Build vectorized multi-task env without logging
     env_fns = [make_env(instr, tf) for instr in INSTRUMENTS for tf in TIMEFRAMES]
     vec_env = DummyVecEnv(env_fns)
@@ -49,7 +50,7 @@ def train_multitask_ppo(total_timesteps=100_000):
     return model
 
 
-def train_rl2(total_timesteps=100_000, chunk_size=None):
+def train_rl2(total_timesteps=100_000, chunk_size=None, enhanced_features=True):
     """Train RL^2 with RecurrentPPO across all tasks in manageable chunks."""
     # Prepare task list
     tasks = [(instr, tf) for instr in INSTRUMENTS for tf in TIMEFRAMES]
@@ -70,7 +71,8 @@ def train_rl2(total_timesteps=100_000, chunk_size=None):
         if idx == 0:
             print("[train_rl2] Fetching and processing all data...")
             fetch_historical_data()
-            process_all()
+            # Process data with feature caching (only processes if needed)
+            process_data(enhanced=enhanced_features)
             print("[train_rl2] Data ready.")
         # Build environments for this chunk
         env_fns = [make_env(instr, tf) for instr, tf in chunk_tasks]
@@ -129,5 +131,18 @@ def evaluate_multitask(model, n_eval_episodes=5):
 
 
 if __name__ == '__main__':
-    model = train_rl2()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Train meta-agent for AlgoTrading")
+    parser.add_argument("--basic", action="store_true", help="Use basic features instead of enhanced features")
+    parser.add_argument("--timesteps", type=int, default=100_000, help="Total timesteps for training")
+    parser.add_argument("--chunk_size", type=int, default=None, help="Chunk size for RL^2 training")
+
+    args = parser.parse_args()
+
+    model = train_rl2(
+        total_timesteps=args.timesteps,
+        chunk_size=args.chunk_size,
+        enhanced_features=not args.basic  # Use enhanced by default unless --basic is specified
+    )
     evaluate_multitask(model)
