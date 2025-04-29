@@ -1,4 +1,4 @@
-RL# Advanced Algorithmic Trading Bot with RLHF and MoE
+# Advanced Algorithmic Trading Bot with RLHF and MoE
 
 This project implements an advanced algorithmic trading bot using state-of-the-art reinforcement learning techniques with human feedback (RLHF) and Mixture of Experts (MoE) architecture. The bot is designed to trade index options based on market data and position information, with a focus on Indian market indices.
 
@@ -44,82 +44,130 @@ pip install -r requirements.txt
 - `live_trading.py`: Runs the model in live trading mode
 - `train_model.py`: Script to train the Decision Transformer model
 - `train_moe_model.py`: Script to train the Mixture of Experts model
+- `train_meta_agent.py`: Script to train the meta-agent across all instruments and timeframes
 - `evaluate_transformer.py`: Script to evaluate the Decision Transformer model
 - `evaluate_moe_model.py`: Script to evaluate the Mixture of Experts model
+- `evaluate_model.py`: Script to evaluate trained RL models
 - `process_enhanced_data.py`: Script to process data with enhanced features
-- `cleanup.py`: Script to remove deprecated files
 
-## Processing Data with Enhanced Features
+## Training and Trading Workflow
 
-To process data with enhanced features, run:
+### Step 1: Training the Models (Sequential Pipeline)
+
+The training process follows a specific sequence to build increasingly sophisticated models. Each training script automatically handles data fetching and processing, so you don't need to run these steps separately.
+
+#### 1.1 Train the Meta-Agent (Base RL Model)
 
 ```bash
-python process_enhanced_data.py --input_dir historical_data --output_dir processed_data --normalize
+# Train the meta-agent across all instruments and timeframes
+python train_meta_agent.py
 ```
 
-This will process all CSV files in the input directory with enhanced features and save them to the output directory.
+This creates a base model that understands trading across different instruments and timeframes. The script automatically:
+- Fetches historical data
+- Processes the data with basic features
+- Trains on all instruments and timeframes defined in the config file
 
-## Training the Models
-
-### Training the Decision Transformer Model
-
-To train the Decision Transformer model, run:
+#### 1.2 Train the Decision Transformer Model
 
 ```bash
+# Train the Decision Transformer with RLHF pipeline
+python train_model.py
+```
+
+This trains the model in three stages:
+1. Behavioral Cloning: Learns to mimic profitable trades
+2. Reward Modeling: Learns to predict the value of actions
+3. RL Fine-tuning: Fine-tunes using PPO with KL constraint to the BC policy
+
+The script uses all instruments and timeframes from the config file by default. If you want to override these defaults, you can use optional parameters:
+
+```bash
+# Example with optional parameters
 python train_model.py --instruments Nifty "Bank Nifty" --timeframes 5 15 --bc_epochs 50 --rm_epochs 30 --rl_epochs 100
 ```
 
-### Training the Mixture of Experts Model
-
-To train the Mixture of Experts model, run:
+#### 1.3 Train the Mixture of Experts Model
 
 ```bash
-python train_moe_model.py --instruments Nifty "Bank Nifty" --timeframes 5 15 --num_experts 4 --k 2 --ensemble_size 3 --balance_instruments --balance_signals --use_enhanced_features
+# Train the MoE model with ensemble learning
+python train_moe_model.py
 ```
 
-Both models use the three-stage RLHF pipeline:
+The MoE model builds on the Decision Transformer by adding specialized expert networks for different market regimes. Like the previous script, it uses all instruments and timeframes from the config file by default.
 
-1. **Behavioral Cloning**: Learns to mimic profitable trades from the signal column
-2. **Reward Modeling**: Learns to predict the value of actions based on the signal column
-3. **RL Fine-tuning**: Fine-tunes the model using PPO with KL constraint to the BC policy
-
-## Evaluating the Models
-
-### Evaluating the Decision Transformer Model
-
-To evaluate the Decision Transformer model, run:
+Optional parameters are available if you need to customize the training:
 
 ```bash
+# Example with optional parameters
+python train_moe_model.py --num_experts 4 --k 2 --ensemble_size 3 --balance_instruments --balance_signals --use_enhanced_features
+```
+
+### Step 2: Model Evaluation
+
+After training, evaluate the models to ensure they perform well:
+
+```bash
+# Evaluate the Decision Transformer
+python evaluate_transformer.py
+
+# Evaluate the MoE model
+python evaluate_moe_model.py
+
+# Evaluate the RL model
+python evaluate_model.py
+```
+
+Each evaluation script uses the latest trained models by default and evaluates on all instruments and timeframes defined in the config file. If you want to evaluate specific models or instruments, you can use optional parameters:
+
+```bash
+# Examples with optional parameters
 python evaluate_transformer.py --model_path models/trading_transformer.pt --instruments Nifty --timeframes 5 --plot
-```
 
-### Evaluating the Mixture of Experts Model
-
-To evaluate the Mixture of Experts model, run:
-
-```bash
 python evaluate_moe_model.py --model_dir models --instruments Nifty --timeframes 5 --use_ensemble --ensemble_size 3 --plot --use_enhanced_features
+
+python evaluate_model.py --model models/rl2_multitask_chunk_9.zip --eval_days 90
 ```
 
-Both evaluation scripts will generate performance plots and metrics for the specified instruments and timeframes.
+### Step 3: Live Trading
 
-## Live Trading
-
-To run the model in live trading mode, run:
+Once you're satisfied with the model performance, you can start live trading:
 
 ```bash
+# Start live trading
 python live_trading.py
 ```
 
-This will connect to the broker API, fetch market data, and make trading decisions based on the model's predictions.
+This will:
+1. Connect to the Fyers broker API
+2. Authenticate using your credentials from the config file
+3. Fetch real-time market data
+4. Make trading decisions based on the model's predictions
+5. Execute trades according to the risk management rules
+
+The live trading system runs on a scheduler that operates during market hours and handles all aspects of the trading process automatically. By default, it uses the best-performing model (typically the MoE model) for making trading decisions.
 
 ## Configuration
 
 The model and training parameters can be configured in `config.py`. The main configuration sections are:
 
 - `TRANSFORMER_CONFIG`: Configuration for the transformer model
+- `MOE_CONFIG`: Configuration for the Mixture of Experts model
 - `TRAINING_CONFIG`: Configuration for the training pipeline
 - `RLHF_CONFIG`: Configuration for the RLHF components
+- `OVERFITTING_CONFIG`: Configuration for anti-overfitting measures
+
+For live trading, you'll need to set up your broker credentials in `config.py` or as environment variables:
+
+```python
+# Credentials
+APP_ID = os.getenv("FY_APP_ID", "your_app_id")
+SECRET_KEY = os.getenv("FY_SECRET_KEY", "your_secret_key")
+REDIRECT_URI = os.getenv("FY_REDIRECT_URI", "your_redirect_uri")
+FYERS_USER = os.getenv("FYERS_USER", "your_username")
+FYERS_PIN = os.getenv("FYERS_PIN", "your_pin")
+FYERS_TOTP = os.getenv("FYERS_TOTP", "your_totp_secret")
+```
 
 ## Signal Column
 
