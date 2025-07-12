@@ -17,7 +17,10 @@ Author: AlgoTrading System
 Version: 1.0
 """
 
-from .core.reasoning_orchestrator import ReasoningOrchestrator
+from .core.enhanced_orchestrator import EnhancedReasoningOrchestrator
+
+# Enhanced orchestrator is now the only orchestrator
+ReasoningOrchestrator = EnhancedReasoningOrchestrator
 from .core.base_engine import BaseReasoningEngine
 from .context.historical_context_manager import HistoricalContextManager
 from .engines.pattern_recognition_engine import PatternRecognitionEngine
@@ -32,7 +35,8 @@ __version__ = "1.0.0"
 __author__ = "AlgoTrading System"
 
 __all__ = [
-    'ReasoningOrchestrator',
+    'ReasoningOrchestrator',  # Points to EnhancedReasoningOrchestrator
+    'EnhancedReasoningOrchestrator',
     'BaseReasoningEngine',
     'HistoricalContextManager',
     'PatternRecognitionEngine',

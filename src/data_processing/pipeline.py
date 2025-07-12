@@ -255,9 +255,11 @@ class DataProcessingPipeline:
             from reasoning_system import ReasoningOrchestrator
             from config.config import get_config
 
-            # Initialize reasoning orchestrator
             config = get_config()
+
+            # Use enhanced reasoning orchestrator (only option now)
             self.reasoning_orchestrator = ReasoningOrchestrator(config)
+            logger.info("Using Enhanced Reasoning System")
 
             # Process directory
             summary = self.reasoning_orchestrator.process_directory(input_dir, output_dir)
@@ -425,7 +427,7 @@ def main():
                        help='Run only feature generation step')
     parser.add_argument('--reasoning-only', action='store_true',
                        help='Run only reasoning generation step')
-    parser.add_argument('--config-file', 
+    parser.add_argument('--config-file',
                        help='Custom configuration file path')
     
     args = parser.parse_args()
@@ -439,7 +441,16 @@ def main():
     try:
         # Initialize pipeline
         pipeline = DataProcessingPipeline()
-        
+
+        print("ENHANCED REASONING SYSTEM:")
+        print("  - Decision column with signal-based logic (no signal references in text)")
+        print("  - Historical pattern analysis (20-50 and 100-200 candle timeframes)")
+        print("  - Feature relationship analysis across 65+ indicators")
+        print("  - Market condition detection with confidence scoring")
+        print("  - Advanced natural language generation (>60% unique content)")
+        print("  - Fast processing (<1 second per row target)")
+        print()
+
         if args.features_only:
             print("Running FEATURES ONLY mode...")
             result = pipeline.run_feature_generation(args.input_dir, "data/processed")

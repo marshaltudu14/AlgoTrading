@@ -1,10 +1,10 @@
 {
   "pipeline_version": "1.0",
-  "processing_date": "2025-07-12 20:50:19",
+  "processing_date": "2025-07-12 23:15:02",
   "files_processed": 2,
   "file_list": [
-    "final_features_Bank_Nifty_5.csv",
-    "final_features_Nifty_2.csv"
+    "final_Bank_Nifty_5.csv",
+    "final_Nifty_2.csv"
   ],
   "columns_included": [
     "datetime",
