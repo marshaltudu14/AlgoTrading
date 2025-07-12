@@ -1,0 +1,155 @@
+2025-07-12 20:27:25,789 - __main__ - INFO - Ensured directory exists: data/processed
+2025-07-12 20:27:25,791 - __main__ - INFO - Ensured directory exists: data/processed/reasoning
+2025-07-12 20:27:25,792 - __main__ - INFO - Ensured directory exists: reports/quality
+2025-07-12 20:27:25,792 - __main__ - INFO - Configuration loaded successfully
+2025-07-12 20:27:25,792 - __main__ - INFO - Initializing reasoning orchestrator...
+2025-07-12 20:27:25,792 - reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 100
+2025-07-12 20:27:25,793 - reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-12 20:27:25,795 - reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-12 20:27:25,795 - reasoning_system.core.reasoning_orchestrator - INFO - ReasoningOrchestrator initialized with all engines
+2025-07-12 20:27:25,796 - __main__ - INFO - Found 2 files to process
+2025-07-12 20:27:25,796 - __main__ - INFO - Processing file: features_Bank_Nifty_1.csv
+2025-07-12 20:27:25,796 - reasoning_system.core.reasoning_orchestrator - INFO - Processing file: data\processed\features_Bank_Nifty_1.csv
+2025-07-12 20:27:25,902 - reasoning_system.core.reasoning_orchestrator - INFO - Loaded 4800 rows from data\processed\features_Bank_Nifty_1.csv
+2025-07-12 20:27:25,903 - reasoning_system.core.reasoning_orchestrator - INFO - Input data validation passed
+2025-07-12 20:27:25,903 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 0/4800
+2025-07-12 20:27:32,518 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 1000/4800
+2025-07-12 20:27:36,724 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 2000/4800
+2025-07-12 20:27:41,028 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 3000/4800
+2025-07-12 20:27:46,474 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 4000/4800
+2025-07-12 20:27:52,213 - reasoning_system.core.reasoning_orchestrator - INFO - Generated reasoning for 4800 rows
+2025-07-12 20:27:52,220 - reasoning_system.generators.quality_validator - INFO - Validating row 0/4800
+2025-07-12 20:27:53,946 - reasoning_system.generators.quality_validator - INFO - Validating row 1000/4800
+2025-07-12 20:27:55,296 - reasoning_system.generators.quality_validator - INFO - Validating row 2000/4800
+2025-07-12 20:27:56,722 - reasoning_system.generators.quality_validator - INFO - Validating row 3000/4800
+2025-07-12 20:27:58,511 - reasoning_system.generators.quality_validator - INFO - Validating row 4000/4800
+2025-07-12 20:28:00,304 - reasoning_system.core.reasoning_orchestrator - INFO - Saved processed data to data\processed\reasoning\reasoning_Bank_Nifty_1.csv
+2025-07-12 20:28:00,313 - __main__ - INFO -   - Input rows: 4800
+2025-07-12 20:28:00,313 - __main__ - INFO -   - Output rows: 4800
+2025-07-12 20:28:00,313 - __main__ - INFO -   - Reasoning columns added: 7
+2025-07-12 20:28:00,313 - __main__ - INFO -   - Quality score: 85.0
+2025-07-12 20:28:00,313 - __main__ - INFO -   - Output file: reasoning_Bank_Nifty_1.csv
+2025-07-12 20:28:00,313 - __main__ - INFO - Processing file: features_Nifty_5.csv
+2025-07-12 20:28:00,313 - reasoning_system.core.reasoning_orchestrator - INFO - Processing file: data\processed\features_Nifty_5.csv
+2025-07-12 20:28:00,388 - reasoning_system.core.reasoning_orchestrator - INFO - Loaded 4800 rows from data\processed\features_Nifty_5.csv
+2025-07-12 20:28:00,388 - reasoning_system.core.reasoning_orchestrator - INFO - Input data validation passed
+2025-07-12 20:28:00,388 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 0/4800
+2025-07-12 20:28:00,946 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 1000/4800
+2025-07-12 20:28:01,816 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 2000/4800
+2025-07-12 20:28:02,669 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 3000/4800
+2025-07-12 20:28:03,701 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 4000/4800
+2025-07-12 20:28:04,443 - reasoning_system.core.reasoning_orchestrator - INFO - Generated reasoning for 4800 rows
+2025-07-12 20:28:04,456 - reasoning_system.generators.quality_validator - INFO - Validating row 0/4800
+2025-07-12 20:28:06,421 - reasoning_system.generators.quality_validator - INFO - Validating row 1000/4800
+2025-07-12 20:28:09,792 - reasoning_system.generators.quality_validator - INFO - Validating row 2000/4800
+2025-07-12 20:28:12,498 - reasoning_system.generators.quality_validator - INFO - Validating row 3000/4800
+2025-07-12 20:28:14,526 - reasoning_system.generators.quality_validator - INFO - Validating row 4000/4800
+2025-07-12 20:28:17,072 - reasoning_system.core.reasoning_orchestrator - INFO - Saved processed data to data\processed\reasoning\reasoning_Nifty_5.csv
+2025-07-12 20:28:17,093 - __main__ - INFO -   - Input rows: 4800
+2025-07-12 20:28:17,093 - __main__ - INFO -   - Output rows: 4800
+2025-07-12 20:28:17,093 - __main__ - INFO -   - Reasoning columns added: 7
+2025-07-12 20:28:17,093 - __main__ - INFO -   - Quality score: 85.0
+2025-07-12 20:28:17,093 - __main__ - INFO -   - Output file: reasoning_Nifty_5.csv
+2025-07-12 20:28:17,094 - __main__ - ERROR - Fatal error in main processing: 'charmap' codec can't encode character '\u2713' in position 0: character maps to <undefined>
+2025-07-12 20:32:15,337 - __main__ - INFO - Ensured directory exists: data/processed
+2025-07-12 20:32:15,337 - __main__ - INFO - Ensured directory exists: data/processed/reasoning
+2025-07-12 20:32:15,341 - __main__ - ERROR - Fatal error in main processing: [WinError 3] The system cannot find the path specified: 'reports\\quality'
+2025-07-12 20:33:39,853 - __main__ - INFO - Ensured directory exists: data/processed
+2025-07-12 20:33:39,857 - __main__ - INFO - Ensured directory exists: data/processed/reasoning
+2025-07-12 20:33:39,857 - __main__ - ERROR - Fatal error in main processing: [WinError 3] The system cannot find the path specified: 'reports\\quality'
+2025-07-12 20:41:34,023 - __main__ - INFO - Ensured directory exists: data/processed
+2025-07-12 20:41:34,024 - __main__ - INFO - Ensured directory exists: data/processed/reasoning
+2025-07-12 20:41:34,024 - __main__ - INFO - Ensured directory exists: reports/quality
+2025-07-12 20:41:34,024 - __main__ - INFO - Configuration loaded successfully
+2025-07-12 20:41:34,025 - __main__ - INFO - Initializing reasoning orchestrator...
+2025-07-12 20:41:34,025 - reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 100
+2025-07-12 20:41:34,025 - reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-12 20:41:34,026 - reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-12 20:41:34,026 - reasoning_system.core.reasoning_orchestrator - INFO - ReasoningOrchestrator initialized with all engines
+2025-07-12 20:41:34,027 - __main__ - INFO - Found 4 files to process
+2025-07-12 20:41:34,030 - __main__ - INFO - Processing file: features_Bank_Nifty_1.csv
+2025-07-12 20:41:34,031 - reasoning_system.core.reasoning_orchestrator - INFO - Processing file: data\processed\features_Bank_Nifty_1.csv
+2025-07-12 20:41:34,127 - reasoning_system.core.reasoning_orchestrator - INFO - Loaded 4800 rows from data\processed\features_Bank_Nifty_1.csv
+2025-07-12 20:41:34,130 - reasoning_system.core.reasoning_orchestrator - INFO - Input data validation passed
+2025-07-12 20:41:34,130 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 0/4800
+2025-07-12 20:41:38,605 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 1000/4800
+2025-07-12 20:41:43,371 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 2000/4800
+2025-07-12 20:41:51,077 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 3000/4800
+2025-07-12 20:41:55,233 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 4000/4800
+2025-07-12 20:41:58,887 - reasoning_system.core.reasoning_orchestrator - INFO - Generated reasoning for 4800 rows
+2025-07-12 20:41:58,893 - reasoning_system.generators.quality_validator - INFO - Validating row 0/4800
+2025-07-12 20:42:00,294 - reasoning_system.generators.quality_validator - INFO - Validating row 1000/4800
+2025-07-12 20:42:01,676 - reasoning_system.generators.quality_validator - INFO - Validating row 2000/4800
+2025-07-12 20:42:03,129 - reasoning_system.generators.quality_validator - INFO - Validating row 3000/4800
+2025-07-12 20:42:04,718 - reasoning_system.generators.quality_validator - INFO - Validating row 4000/4800
+2025-07-12 20:42:12,061 - reasoning_system.core.reasoning_orchestrator - INFO - Saved processed data to data\processed\reasoning\reasoning_Bank_Nifty_1.csv
+2025-07-12 20:42:12,145 - __main__ - INFO - Successfully processed features_Bank_Nifty_1.csv
+2025-07-12 20:42:12,146 - __main__ - INFO -   - Input rows: 4800
+2025-07-12 20:42:12,146 - __main__ - INFO -   - Output rows: 4800
+2025-07-12 20:42:12,147 - __main__ - INFO -   - Reasoning columns added: 7
+2025-07-12 20:42:12,147 - __main__ - INFO -   - Quality score: 85.0
+2025-07-12 20:42:12,186 - __main__ - INFO -   - Output file: reasoning_Bank_Nifty_1.csv
+2025-07-12 20:42:12,192 - __main__ - INFO - Processing file: features_Bank_Nifty_5.csv
+2025-07-12 20:42:12,195 - reasoning_system.core.reasoning_orchestrator - INFO - Processing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-12 20:42:12,360 - reasoning_system.core.reasoning_orchestrator - INFO - Loaded 800 rows from data\processed\features_Bank_Nifty_5.csv
+2025-07-12 20:42:12,373 - reasoning_system.core.reasoning_orchestrator - INFO - Input data validation passed
+2025-07-12 20:42:12,373 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 0/800
+2025-07-12 20:42:15,379 - reasoning_system.core.reasoning_orchestrator - INFO - Generated reasoning for 800 rows
+2025-07-12 20:42:15,382 - reasoning_system.generators.quality_validator - INFO - Validating row 0/800
+2025-07-12 20:42:19,405 - reasoning_system.core.reasoning_orchestrator - INFO - Saved processed data to data\processed\reasoning\reasoning_Bank_Nifty_5.csv
+2025-07-12 20:42:19,407 - __main__ - INFO - Successfully processed features_Bank_Nifty_5.csv
+2025-07-12 20:42:19,408 - __main__ - INFO -   - Input rows: 800
+2025-07-12 20:42:19,408 - __main__ - INFO -   - Output rows: 800
+2025-07-12 20:42:19,408 - __main__ - INFO -   - Reasoning columns added: 7
+2025-07-12 20:42:19,408 - __main__ - INFO -   - Quality score: 84.8
+2025-07-12 20:42:19,409 - __main__ - INFO -   - Output file: reasoning_Bank_Nifty_5.csv
+2025-07-12 20:42:19,409 - __main__ - INFO - Processing file: features_Nifty_2.csv
+2025-07-12 20:42:19,409 - reasoning_system.core.reasoning_orchestrator - INFO - Processing file: data\processed\features_Nifty_2.csv
+2025-07-12 20:42:19,478 - reasoning_system.core.reasoning_orchestrator - INFO - Loaded 2300 rows from data\processed\features_Nifty_2.csv
+2025-07-12 20:42:19,481 - reasoning_system.core.reasoning_orchestrator - INFO - Input data validation passed
+2025-07-12 20:42:19,481 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 0/2300
+2025-07-12 20:42:20,221 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 1000/2300
+2025-07-12 20:42:20,954 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 2000/2300
+2025-07-12 20:42:21,178 - reasoning_system.core.reasoning_orchestrator - INFO - Generated reasoning for 2300 rows
+2025-07-12 20:42:21,182 - reasoning_system.generators.quality_validator - INFO - Validating row 0/2300
+2025-07-12 20:42:22,793 - reasoning_system.generators.quality_validator - INFO - Validating row 1000/2300
+2025-07-12 20:42:24,457 - reasoning_system.generators.quality_validator - INFO - Validating row 2000/2300
+2025-07-12 20:42:25,511 - reasoning_system.core.reasoning_orchestrator - INFO - Saved processed data to data\processed\reasoning\reasoning_Nifty_2.csv
+2025-07-12 20:42:25,514 - __main__ - INFO - Successfully processed features_Nifty_2.csv
+2025-07-12 20:42:25,514 - __main__ - INFO -   - Input rows: 2300
+2025-07-12 20:42:25,514 - __main__ - INFO -   - Output rows: 2300
+2025-07-12 20:42:25,514 - __main__ - INFO -   - Reasoning columns added: 7
+2025-07-12 20:42:25,515 - __main__ - INFO -   - Quality score: 85.1
+2025-07-12 20:42:25,515 - __main__ - INFO -   - Output file: reasoning_Nifty_2.csv
+2025-07-12 20:42:25,515 - __main__ - INFO - Processing file: features_Nifty_5.csv
+2025-07-12 20:42:25,515 - reasoning_system.core.reasoning_orchestrator - INFO - Processing file: data\processed\features_Nifty_5.csv
+2025-07-12 20:42:25,600 - reasoning_system.core.reasoning_orchestrator - INFO - Loaded 4800 rows from data\processed\features_Nifty_5.csv
+2025-07-12 20:42:25,601 - reasoning_system.core.reasoning_orchestrator - INFO - Input data validation passed
+2025-07-12 20:42:25,601 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 0/4800
+2025-07-12 20:42:26,281 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 1000/4800
+2025-07-12 20:42:26,943 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 2000/4800
+2025-07-12 20:42:27,580 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 3000/4800
+2025-07-12 20:42:28,247 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 4000/4800
+2025-07-12 20:42:28,835 - reasoning_system.core.reasoning_orchestrator - INFO - Generated reasoning for 4800 rows
+2025-07-12 20:42:28,845 - reasoning_system.generators.quality_validator - INFO - Validating row 0/4800
+2025-07-12 20:42:30,287 - reasoning_system.generators.quality_validator - INFO - Validating row 1000/4800
+2025-07-12 20:42:31,574 - reasoning_system.generators.quality_validator - INFO - Validating row 2000/4800
+2025-07-12 20:42:32,832 - reasoning_system.generators.quality_validator - INFO - Validating row 3000/4800
+2025-07-12 20:42:34,088 - reasoning_system.generators.quality_validator - INFO - Validating row 4000/4800
+2025-07-12 20:42:35,726 - reasoning_system.core.reasoning_orchestrator - INFO - Saved processed data to data\processed\reasoning\reasoning_Nifty_5.csv
+2025-07-12 20:42:35,731 - __main__ - INFO - Successfully processed features_Nifty_5.csv
+2025-07-12 20:42:35,732 - __main__ - INFO -   - Input rows: 4800
+2025-07-12 20:42:35,732 - __main__ - INFO -   - Output rows: 4800
+2025-07-12 20:42:35,733 - __main__ - INFO -   - Reasoning columns added: 7
+2025-07-12 20:42:35,733 - __main__ - INFO -   - Quality score: 85.0
+2025-07-12 20:42:35,733 - __main__ - INFO -   - Output file: reasoning_Nifty_5.csv
+2025-07-12 20:45:46,708 - __main__ - INFO - Ensured directory exists: data/processed
+2025-07-12 20:45:46,709 - __main__ - INFO - Ensured directory exists: data/processed/reasoning
+2025-07-12 20:45:46,710 - __main__ - INFO - Ensured directory exists: reports/quality
+2025-07-12 20:45:46,710 - __main__ - INFO - Configuration loaded successfully
+2025-07-12 20:45:46,710 - __main__ - INFO - Initializing reasoning orchestrator...
+2025-07-12 20:45:46,711 - reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 100
+2025-07-12 20:45:46,711 - reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-12 20:45:46,711 - reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-12 20:45:46,712 - reasoning_system.core.reasoning_orchestrator - INFO - ReasoningOrchestrator initialized with all engines
+2025-07-12 20:45:46,713 - __main__ - WARNING - No files found matching pattern 'features_*.csv' in data\processed

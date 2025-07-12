@@ -1,0 +1,109 @@
+2025-07-12 20:33:41,198 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-12 20:33:41,198 - __main__ - INFO - ================================================================================
+2025-07-12 20:33:41,198 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-12 20:33:41,198 - __main__ - INFO - ================================================================================
+2025-07-12 20:33:41,199 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-12 20:33:41,199 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:33:41,199 - __main__ - INFO - Found 3 files to process for features
+2025-07-12 20:33:41,203 - __main__ - INFO - Backed up existing files to temp\raw_backup_1752332621
+2025-07-12 20:33:41,204 - __main__ - ERROR - Feature generation step failed: [WinError 2] The system cannot find the file specified
+2025-07-12 20:33:55,215 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-12 20:33:55,215 - __main__ - INFO - ================================================================================
+2025-07-12 20:33:55,215 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-12 20:33:55,216 - __main__ - INFO - ================================================================================
+2025-07-12 20:33:55,216 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-12 20:33:55,216 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:39:40,821 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-12 20:39:40,824 - __main__ - INFO - ================================================================================
+2025-07-12 20:39:40,824 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-12 20:39:40,825 - __main__ - INFO - ================================================================================
+2025-07-12 20:39:40,826 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-12 20:39:40,826 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:39:40,827 - __main__ - INFO - Found 2 files to process for features
+2025-07-12 20:39:40,828 - __main__ - INFO - Backed up existing files to temp\raw_backup_1752332980
+2025-07-12 20:39:40,829 - __main__ - ERROR - Feature generation step failed: [WinError 2] The system cannot find the file specified
+2025-07-12 20:42:49,462 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-12 20:42:49,462 - __main__ - INFO - ================================================================================
+2025-07-12 20:42:49,463 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-12 20:42:49,463 - __main__ - INFO - ================================================================================
+2025-07-12 20:42:49,463 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-12 20:42:49,463 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:42:49,464 - __main__ - INFO - Found 2 files to process for features
+2025-07-12 20:42:49,466 - __main__ - INFO - Backed up existing files to temp\raw_backup_1752333169
+2025-07-12 20:42:49,467 - __main__ - ERROR - Feature generation step failed: [WinError 2] The system cannot find the file specified
+2025-07-12 20:43:37,452 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-12 20:43:37,453 - __main__ - INFO - ================================================================================
+2025-07-12 20:43:37,453 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-12 20:43:37,453 - __main__ - INFO - ================================================================================
+2025-07-12 20:43:37,454 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-12 20:43:37,454 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:43:37,455 - __main__ - INFO - Found 2 files to process for features
+2025-07-12 20:43:37,460 - __main__ - INFO - Backed up existing files to temp\raw_backup_1752333217
+2025-07-12 20:43:37,462 - __main__ - ERROR - Feature generation step failed: [WinError 2] The system cannot find the file specified
+2025-07-12 20:44:56,182 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-12 20:44:56,182 - __main__ - INFO - ================================================================================
+2025-07-12 20:44:56,182 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-12 20:44:56,182 - __main__ - INFO - ================================================================================
+2025-07-12 20:44:56,182 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-12 20:44:56,182 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:44:56,182 - __main__ - INFO - Found 2 files to process for features
+2025-07-12 20:44:56,182 - __main__ - INFO - Backed up existing files to temp\raw_backup_1752333296
+2025-07-12 20:44:56,182 - __main__ - ERROR - Feature generation step failed: [WinError 2] The system cannot find the file specified
+2025-07-12 20:49:56,066 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-12 20:49:56,067 - __main__ - INFO - ================================================================================
+2025-07-12 20:49:56,067 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-12 20:49:56,067 - __main__ - INFO - ================================================================================
+2025-07-12 20:49:56,067 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-12 20:49:56,068 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:49:56,068 - __main__ - INFO - Running feature generator...
+2025-07-12 20:49:56,469 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-12 20:49:56,469 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-12 20:49:56,478 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-12 20:49:56,707 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-12 20:49:58,627 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-12 20:49:58,628 - feature_generator - INFO - Generated 59 features for Bank_Nifty_5.csv
+2025-07-12 20:49:58,724 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-12 20:49:58,748 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-12 20:49:58,760 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-12 20:50:03,369 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-12 20:50:03,369 - feature_generator - INFO - Generated 59 features for Nifty_2.csv
+2025-07-12 20:50:03,590 - __main__ - INFO - Feature generator completed successfully
+2025-07-12 20:50:03,663 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-12 20:50:03,663 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-12 20:50:03,664 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:50:03,664 - __main__ - INFO - Running reasoning generator...
+2025-07-12 20:50:03,679 - reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 100
+2025-07-12 20:50:03,680 - reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-12 20:50:03,680 - reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-12 20:50:03,681 - reasoning_system.core.reasoning_orchestrator - INFO - ReasoningOrchestrator initialized with all engines
+2025-07-12 20:50:03,681 - reasoning_system.core.reasoning_orchestrator - INFO - Processing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-12 20:50:03,707 - reasoning_system.core.reasoning_orchestrator - INFO - Loaded 800 rows from data\processed\features_Bank_Nifty_5.csv
+2025-07-12 20:50:03,708 - reasoning_system.core.reasoning_orchestrator - INFO - Input data validation passed
+2025-07-12 20:50:03,708 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 0/800
+2025-07-12 20:50:07,252 - reasoning_system.core.reasoning_orchestrator - INFO - Generated reasoning for 800 rows
+2025-07-12 20:50:07,254 - reasoning_system.generators.quality_validator - INFO - Validating row 0/800
+2025-07-12 20:50:08,484 - reasoning_system.core.reasoning_orchestrator - INFO - Saved processed data to data\processed\reasoning\reasoning_features_Bank_Nifty_5.csv
+2025-07-12 20:50:08,485 - reasoning_system.core.reasoning_orchestrator - INFO - Processing file: data\processed\features_Nifty_2.csv
+2025-07-12 20:50:08,536 - reasoning_system.core.reasoning_orchestrator - INFO - Loaded 2300 rows from data\processed\features_Nifty_2.csv
+2025-07-12 20:50:08,537 - reasoning_system.core.reasoning_orchestrator - INFO - Input data validation passed
+2025-07-12 20:50:08,537 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 0/2300
+2025-07-12 20:50:09,962 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 1000/2300
+2025-07-12 20:50:14,253 - reasoning_system.core.reasoning_orchestrator - INFO - Processing row 2000/2300
+2025-07-12 20:50:15,687 - reasoning_system.core.reasoning_orchestrator - INFO - Generated reasoning for 2300 rows
+2025-07-12 20:50:15,691 - reasoning_system.generators.quality_validator - INFO - Validating row 0/2300
+2025-07-12 20:50:16,979 - reasoning_system.generators.quality_validator - INFO - Validating row 1000/2300
+2025-07-12 20:50:18,318 - reasoning_system.generators.quality_validator - INFO - Validating row 2000/2300
+2025-07-12 20:50:19,030 - reasoning_system.core.reasoning_orchestrator - INFO - Saved processed data to data\processed\reasoning\reasoning_features_Nifty_2.csv
+2025-07-12 20:50:19,031 - reasoning_system.core.reasoning_orchestrator - INFO - Processed 2 files: 2 successful, 0 failed
+2025-07-12 20:50:19,032 - __main__ - INFO - Reasoning generator completed successfully
+2025-07-12 20:50:19,032 - __main__ - INFO - Reasoning generation completed: 2 files
+2025-07-12 20:50:19,032 - __main__ - INFO - 
+STEP 3: FINAL DATA ORGANIZATION
+2025-07-12 20:50:19,033 - __main__ - INFO - ----------------------------------------
+2025-07-12 20:50:19,039 - __main__ - INFO - Organized: final_features_Bank_Nifty_5.csv
+2025-07-12 20:50:19,045 - __main__ - INFO - Organized: final_features_Nifty_2.csv
+2025-07-12 20:50:19,047 - __main__ - INFO - Pipeline report saved: reports\pipeline\pipeline_report_1752333619.txt
+2025-07-12 20:50:19,052 - __main__ - INFO - ================================================================================
+2025-07-12 20:50:19,052 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
+2025-07-12 20:50:19,052 - __main__ - INFO - ================================================================================
