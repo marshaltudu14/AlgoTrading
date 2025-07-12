@@ -11,6 +11,9 @@ requests
 pyotp
 pandas
 requests
+pytz
+numpy
+pandas-ta
 
 setuptools
 
