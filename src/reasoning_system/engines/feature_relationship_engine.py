@@ -63,12 +63,31 @@ class FeatureRelationshipEngine(BaseReasoningEngine):
     def get_required_columns(self) -> List[str]:
         """Get required columns for feature relationship analysis."""
         return [
-            'rsi_14', 'rsi_21', 'macd', 'macd_signal', 'macd_histogram',
+            # Oscillators
+            'rsi_14', 'rsi_21', 'stoch_k', 'stoch_d', 'williams_r', 'cci',
+            # MACD
+            'macd', 'macd_signal', 'macd_histogram',
+            # Moving Averages
             'sma_5', 'sma_10', 'sma_20', 'sma_50', 'sma_100', 'sma_200',
             'ema_5', 'ema_10', 'ema_20', 'ema_50', 'ema_100', 'ema_200',
+            # Bollinger Bands
             'bb_upper', 'bb_middle', 'bb_lower', 'bb_position', 'bb_width',
-            'stoch_k', 'stoch_d', 'williams_r', 'cci', 'adx',
-            'volatility_20', 'atr', 'close'
+            # Trend and Directional Movement
+            'adx', 'di_plus', 'di_minus', 'trend_strength', 'trend_direction',
+            # Momentum
+            'momentum_10', 'roc_10', 'trix',
+            # Volatility
+            'volatility_10', 'volatility_20', 'atr',
+            # Support/Resistance
+            'support_level', 'resistance_level', 'support_distance', 'resistance_distance',
+            # Pattern Recognition
+            'doji', 'hammer', 'bullish_engulfing', 'bearish_engulfing',
+            # Price Action
+            'body_size', 'upper_shadow', 'lower_shadow', 'gap_up', 'gap_down',
+            # Crossovers
+            'sma_5_20_cross', 'sma_10_50_cross', 'price_vs_sma_20', 'price_vs_ema_20',
+            # Basic OHLC
+            'open', 'high', 'low', 'close'
         ]
     
     def generate_reasoning(self, current_data: pd.Series, context: Dict[str, Any]) -> str:
@@ -88,16 +107,16 @@ class FeatureRelationshipEngine(BaseReasoningEngine):
             
             # Analyze indicator relationships and confluence
             relationship_analysis = self._analyze_indicator_relationships(current_data, context)
-            
+
             # Detect divergence patterns
             divergence_analysis = self._analyze_divergence_patterns(current_data, context)
-            
+
             # Analyze temporal indicator trends
             temporal_analysis = self._analyze_temporal_trends(current_data, context)
-            
+
             # Generate comprehensive reasoning
             reasoning = self._construct_relationship_reasoning(
-                indicator_analysis, relationship_analysis, divergence_analysis, temporal_analysis
+                indicator_analysis, relationship_analysis, divergence_analysis, temporal_analysis, current_data
             )
             
             return reasoning
@@ -114,9 +133,15 @@ class FeatureRelationshipEngine(BaseReasoningEngine):
             'ma_analysis': self._analyze_ma_alignment(current_data),
             'bb_analysis': self._analyze_bollinger_condition(current_data),
             'momentum_analysis': self._analyze_momentum_indicators(current_data),
-            'volatility_analysis': self._analyze_volatility_indicators(current_data)
+            'volatility_analysis': self._analyze_volatility_indicators(current_data),
+            'stochastic_analysis': self._analyze_stochastic_condition(current_data),
+            'adx_analysis': self._analyze_adx_condition(current_data),
+            'cci_analysis': self._analyze_cci_condition(current_data),
+            'support_resistance_analysis': self._analyze_support_resistance(current_data),
+            'pattern_analysis': self._analyze_pattern_recognition(current_data),
+            'price_action_analysis': self._analyze_price_action(current_data)
         }
-        
+
         return analysis
     
     def _analyze_rsi_condition(self, current_data: pd.Series) -> Dict[str, Any]:
@@ -539,33 +564,90 @@ class FeatureRelationshipEngine(BaseReasoningEngine):
     def _construct_relationship_reasoning(self, indicator_analysis: Dict[str, Any],
                                         relationship_analysis: Dict[str, Any],
                                         divergence_analysis: Dict[str, Any],
-                                        temporal_analysis: Dict[str, Any]) -> str:
+                                        temporal_analysis: Dict[str, Any], current_data: pd.Series = None) -> str:
         """Construct comprehensive feature relationship reasoning."""
         reasoning_parts = []
 
-        # Overall confluence assessment
-        confluence_score = relationship_analysis.get('overall_confluence_score', 0.5)
-        if confluence_score > 0.7:
-            reasoning_parts.append("Technical indicators show strong confluence supporting current directional bias")
-        elif confluence_score > 0.5:
-            reasoning_parts.append("Technical indicators display moderate agreement across multiple timeframes")
-        else:
-            reasoning_parts.append("Technical indicators present mixed signals requiring selective interpretation")
+        # Use comprehensive indicator analysis like a professional trader
+        if current_data is not None:
+            # Get comprehensive indicator values
+            rsi_14 = self._safe_get_value(current_data, 'rsi_14', 50)
+            rsi_21 = self._safe_get_value(current_data, 'rsi_21', 50)
+            macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+            bb_position = self._safe_get_value(current_data, 'bb_position', 50)
+            ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+            ema_50 = self._safe_get_value(current_data, 'ema_50', 0)
+            close_price = self._safe_get_value(current_data, 'close', 0)
+            adx = self._safe_get_value(current_data, 'adx', 25)
+            stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
+            williams_r = self._safe_get_value(current_data, 'williams_r', -50)
+            cci = self._safe_get_value(current_data, 'cci', 0)
+            atr = self._safe_get_value(current_data, 'atr', 50)
 
-        # Momentum analysis
-        momentum_confluence = relationship_analysis.get('momentum_confluence', {})
-        momentum_direction = momentum_confluence.get('direction', 'neutral')
-        momentum_strength = momentum_confluence.get('strength', 'moderate')
+            # Comprehensive indicator analysis
+            indicator_insights = []
+
+            # RSI analysis with specific conditions
+            rsi_condition = self._get_rsi_condition_detailed(rsi_14)
+            if close_price and ema_20:
+                price_vs_ema = "above" if close_price > ema_20 else "below"
+                indicator_insights.append(f"RSI at {rsi_14:.1f} {rsi_condition} with price {price_vs_ema} EMA-20 at {ema_20:.1f}")
+
+            # Moving average trend analysis with specific percentages
+            if ema_20 and ema_50:
+                ma_diff = ((ema_20 - ema_50) / ema_50) * 100
+                ma_bias = "bullish" if ma_diff > 0.1 else "bearish" if ma_diff < -0.1 else "neutral"
+                indicator_insights.append(f"EMA-20 at {ema_20:.1f} is {abs(ma_diff):.2f}% {'above' if ma_diff > 0 else 'below'} EMA-50 indicating {ma_bias} trend structure")
+
+            # Bollinger Band position analysis
+            bb_condition = "upper" if bb_position > 80 else "lower" if bb_position < 20 else "middle"
+            bb_implication = "resistance" if bb_position > 80 else "support" if bb_position < 20 else "equilibrium"
+            indicator_insights.append(f"Bollinger band position at {bb_position:.2f} shows price near {bb_condition} band suggesting potential {bb_implication}")
+
+            # ADX trend strength analysis
+            trend_strength = "strong" if adx > 25 else "moderate" if adx > 20 else "weak"
+            indicator_insights.append(f"ADX at {adx:.1f} indicates {trend_strength} trend strength")
+
+            # Momentum oscillator analysis
+            stoch_condition = "overbought" if stoch_k > 80 else "oversold" if stoch_k < 20 else "neutral"
+            williams_condition = "overbought" if williams_r > -20 else "oversold" if williams_r < -80 else "neutral"
+
+            if stoch_condition != "neutral" or williams_condition != "neutral":
+                indicator_insights.append(f"Stochastic at {stoch_k:.1f} in {stoch_condition} territory, Williams %R at {williams_r:.1f} confirms {williams_condition} conditions")
+
+            # Volatility analysis
+            volatility_regime = "high" if atr > 60 else "low" if atr < 40 else "moderate"
+            indicator_insights.append(f"ATR at {atr:.1f} indicates {volatility_regime} volatility environment")
+
+            # Momentum confluence analysis
+            bullish_signals = sum([
+                rsi_14 > 50, macd_hist > 0, stoch_k > 50, williams_r > -50,
+                ema_20 > ema_50 if ema_20 and ema_50 else False
+            ])
+            total_signals = 5
+            confluence_pct = (bullish_signals / total_signals) * 100
+            bias_direction = "bullish" if confluence_pct > 60 else "bearish" if confluence_pct < 40 else "mixed"
+            indicator_insights.append(f"Momentum indicators show {bias_direction} bias with {bullish_signals} of {total_signals} measures in agreement")
+
+            if indicator_insights:
+                reasoning_parts.extend(indicator_insights)
+        else:
+            reasoning_parts.append("Technical indicators require current market data for analysis")
+
+        # Momentum analysis with specific indicator insights
+        momentum_analysis = relationship_analysis.get('momentum_confluence', {})
+        momentum_direction = momentum_analysis.get('direction', 'neutral')
+        momentum_strength = momentum_analysis.get('strength', 'moderate')
 
         if momentum_direction != 'neutral':
             reasoning_parts.append(
                 f"Momentum indicators demonstrate {momentum_strength} {momentum_direction} alignment"
             )
 
-        # Trend analysis
-        trend_confluence = relationship_analysis.get('trend_confluence', {})
-        trend_direction = trend_confluence.get('direction', 'neutral')
-        agreement_count = trend_confluence.get('agreement_count', 2)
+        # Trend analysis with specific moving average relationships
+        trend_analysis = relationship_analysis.get('trend_confluence', {})
+        trend_direction = trend_analysis.get('direction', 'neutral')
+        agreement_count = trend_analysis.get('agreement_count', 2)
 
         if trend_direction != 'neutral':
             reasoning_parts.append(
@@ -577,20 +659,244 @@ class FeatureRelationshipEngine(BaseReasoningEngine):
         if conflicts:
             reasoning_parts.append(f"However, {conflicts[0].lower()}")
 
+        # Add specific indicator divergence/convergence analysis
+        divergence_insights = self._generate_divergence_insights(divergence_analysis, indicator_analysis)
+        if divergence_insights:
+            reasoning_parts.append(divergence_insights)
+
         # Volatility context
-        volatility_confluence = relationship_analysis.get('volatility_confluence', {})
-        volatility_condition = volatility_confluence.get('condition', 'normal')
+        volatility_analysis = relationship_analysis.get('volatility_confluence', {})
+        volatility_condition = volatility_analysis.get('condition', 'normal')
 
         if volatility_condition != 'normal':
             reasoning_parts.append(f"Operating within {volatility_condition} volatility environment")
 
         return ". ".join(reasoning_parts) + "."
 
+    def _get_rsi_condition_detailed(self, rsi_value: float) -> str:
+        """Get detailed RSI condition description."""
+        if rsi_value > 80:
+            return "in extremely overbought territory"
+        elif rsi_value > 70:
+            return "in overbought territory"
+        elif rsi_value > 60:
+            return "showing strong bullish momentum"
+        elif rsi_value > 50:
+            return "showing bullish momentum"
+        elif rsi_value > 40:
+            return "showing bearish momentum"
+        elif rsi_value > 30:
+            return "showing strong bearish momentum"
+        elif rsi_value > 20:
+            return "in oversold territory"
+        else:
+            return "in extremely oversold territory"
+
+    def _generate_divergence_insights(self, divergence_analysis: Dict[str, Any],
+                                    indicator_analysis: Dict[str, Any]) -> str:
+        """Generate specific insights about indicator divergence and convergence."""
+        insights = []
+
+        # Check for RSI and MACD divergence
+        rsi_condition = indicator_analysis.get('rsi_analysis', {}).get('condition', 'neutral')
+        macd_condition = indicator_analysis.get('macd_analysis', {}).get('condition', 'neutral')
+
+        if rsi_condition != macd_condition and rsi_condition != 'neutral' and macd_condition != 'neutral':
+            insights.append("rsi and macd showing divergent momentum signals")
+
+        # Check for moving average convergence/divergence
+        ma_analysis = indicator_analysis.get('ma_analysis', {})
+        ma_alignment = ma_analysis.get('alignment', 'mixed')
+
+        if ma_alignment == 'bullish_convergence':
+            insights.append("moving averages converging in bullish formation")
+        elif ma_alignment == 'bearish_convergence':
+            insights.append("moving averages converging in bearish formation")
+        elif ma_alignment == 'diverging':
+            insights.append("moving averages showing divergent signals")
+
+        if insights:
+            return f"However, {', '.join(insights)}"
+
+        return ""
+
     def _get_fallback_reasoning(self) -> str:
         """Get fallback reasoning when analysis fails."""
         return ("Technical indicator analysis reveals standard market conditions with typical "
                 "indicator relationships. Multiple timeframe analysis suggests balanced approach "
                 "with attention to key momentum and trend confirmation signals.")
+
+    def _analyze_stochastic_condition(self, current_data: pd.Series) -> Dict[str, Any]:
+        """Analyze Stochastic oscillator conditions."""
+        stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
+        stoch_d = self._safe_get_value(current_data, 'stoch_d', 50)
+
+        analysis = {
+            'stoch_k_value': stoch_k,
+            'stoch_d_value': stoch_d,
+            'condition': 'neutral',
+            'crossover': 'none'
+        }
+
+        if stoch_k > 80 and stoch_d > 80:
+            analysis['condition'] = 'overbought'
+        elif stoch_k < 20 and stoch_d < 20:
+            analysis['condition'] = 'oversold'
+        elif stoch_k > 50:
+            analysis['condition'] = 'bullish'
+        else:
+            analysis['condition'] = 'bearish'
+
+        # Check for crossover
+        if stoch_k > stoch_d and stoch_k > 50:
+            analysis['crossover'] = 'bullish'
+        elif stoch_k < stoch_d and stoch_k < 50:
+            analysis['crossover'] = 'bearish'
+
+        return analysis
+
+    def _analyze_adx_condition(self, current_data: pd.Series) -> Dict[str, Any]:
+        """Analyze ADX and Directional Movement indicators."""
+        adx = self._safe_get_value(current_data, 'adx', 25)
+        di_plus = self._safe_get_value(current_data, 'di_plus', 25)
+        di_minus = self._safe_get_value(current_data, 'di_minus', 25)
+
+        analysis = {
+            'adx_value': adx,
+            'di_plus_value': di_plus,
+            'di_minus_value': di_minus,
+            'trend_strength': 'weak',
+            'trend_direction': 'neutral'
+        }
+
+        # Determine trend strength
+        if adx > 40:
+            analysis['trend_strength'] = 'very_strong'
+        elif adx > 25:
+            analysis['trend_strength'] = 'strong'
+        elif adx > 20:
+            analysis['trend_strength'] = 'moderate'
+
+        # Determine trend direction
+        if di_plus > di_minus and adx > 20:
+            analysis['trend_direction'] = 'bullish'
+        elif di_minus > di_plus and adx > 20:
+            analysis['trend_direction'] = 'bearish'
+
+        return analysis
+
+    def _analyze_cci_condition(self, current_data: pd.Series) -> Dict[str, Any]:
+        """Analyze Commodity Channel Index conditions."""
+        cci = self._safe_get_value(current_data, 'cci', 0)
+
+        analysis = {
+            'cci_value': cci,
+            'condition': 'neutral',
+            'strength': 'moderate'
+        }
+
+        if cci > 100:
+            analysis['condition'] = 'overbought'
+            analysis['strength'] = 'strong' if cci > 200 else 'moderate'
+        elif cci < -100:
+            analysis['condition'] = 'oversold'
+            analysis['strength'] = 'strong' if cci < -200 else 'moderate'
+        elif cci > 0:
+            analysis['condition'] = 'bullish'
+        else:
+            analysis['condition'] = 'bearish'
+
+        return analysis
+
+    def _analyze_support_resistance(self, current_data: pd.Series) -> Dict[str, Any]:
+        """Analyze support and resistance levels."""
+        support_distance = self._safe_get_value(current_data, 'support_distance', 0.5)
+        resistance_distance = self._safe_get_value(current_data, 'resistance_distance', 0.5)
+        close = self._safe_get_value(current_data, 'close', 0)
+
+        analysis = {
+            'support_distance': support_distance,
+            'resistance_distance': resistance_distance,
+            'position': 'middle',
+            'key_level_proximity': 'moderate'
+        }
+
+        # Determine position relative to support/resistance
+        if support_distance < 0.2:
+            analysis['position'] = 'near_support'
+            analysis['key_level_proximity'] = 'very_close'
+        elif resistance_distance < 0.2:
+            analysis['position'] = 'near_resistance'
+            analysis['key_level_proximity'] = 'very_close'
+        elif support_distance < 0.5 or resistance_distance < 0.5:
+            analysis['key_level_proximity'] = 'close'
+
+        return analysis
+
+    def _analyze_pattern_recognition(self, current_data: pd.Series) -> Dict[str, Any]:
+        """Analyze candlestick pattern recognition."""
+        doji = self._safe_get_value(current_data, 'doji', 0)
+        hammer = self._safe_get_value(current_data, 'hammer', 0)
+        bullish_engulfing = self._safe_get_value(current_data, 'bullish_engulfing', 0)
+        bearish_engulfing = self._safe_get_value(current_data, 'bearish_engulfing', 0)
+
+        analysis = {
+            'patterns_detected': [],
+            'pattern_significance': 'none',
+            'reversal_potential': 'low'
+        }
+
+        if doji:
+            analysis['patterns_detected'].append('doji')
+            analysis['pattern_significance'] = 'moderate'
+        if hammer:
+            analysis['patterns_detected'].append('hammer')
+            analysis['pattern_significance'] = 'strong'
+            analysis['reversal_potential'] = 'high'
+        if bullish_engulfing:
+            analysis['patterns_detected'].append('bullish_engulfing')
+            analysis['pattern_significance'] = 'strong'
+            analysis['reversal_potential'] = 'high'
+        if bearish_engulfing:
+            analysis['patterns_detected'].append('bearish_engulfing')
+            analysis['pattern_significance'] = 'strong'
+            analysis['reversal_potential'] = 'high'
+
+        return analysis
+
+    def _analyze_price_action(self, current_data: pd.Series) -> Dict[str, Any]:
+        """Analyze price action characteristics."""
+        body_size = self._safe_get_value(current_data, 'body_size', 0.5)
+        upper_shadow = self._safe_get_value(current_data, 'upper_shadow', 0.2)
+        lower_shadow = self._safe_get_value(current_data, 'lower_shadow', 0.2)
+        gap_up = self._safe_get_value(current_data, 'gap_up', 0)
+        gap_down = self._safe_get_value(current_data, 'gap_down', 0)
+
+        analysis = {
+            'body_size': body_size,
+            'upper_shadow': upper_shadow,
+            'lower_shadow': lower_shadow,
+            'candle_type': 'normal',
+            'sentiment': 'neutral'
+        }
+
+        # Determine candle characteristics
+        if body_size < 0.3:
+            analysis['candle_type'] = 'small_body'
+        elif body_size > 0.7:
+            analysis['candle_type'] = 'large_body'
+
+        if upper_shadow > 0.5:
+            analysis['sentiment'] = 'rejection_above'
+        elif lower_shadow > 0.5:
+            analysis['sentiment'] = 'rejection_below'
+
+        if gap_up:
+            analysis['gap'] = 'gap_up'
+        elif gap_down:
+            analysis['gap'] = 'gap_down'
+
+        return analysis
 
     def _safe_get_value(self, data: pd.Series, column: str, default: Any = 0) -> Any:
         """Safely get value from pandas Series."""

@@ -57,7 +57,7 @@ class PsychologyAssessmentEngine(BaseReasoningEngine):
         try:
             # Analyze current sentiment indicators
             sentiment_analysis = self._analyze_sentiment_indicators(current_data)
-            
+
             # Analyze price action psychology
             price_action_psychology = self._analyze_price_action_psychology(current_data)
             
@@ -69,8 +69,8 @@ class PsychologyAssessmentEngine(BaseReasoningEngine):
             
             # Construct psychology reasoning
             reasoning = self._construct_psychology_reasoning(
-                sentiment_analysis, price_action_psychology, crowd_behavior, 
-                institutional_analysis, context
+                sentiment_analysis, price_action_psychology, crowd_behavior,
+                institutional_analysis, context, current_data
             )
             
             self._log_reasoning_generation(len(reasoning), "good")
@@ -357,7 +357,7 @@ class PsychologyAssessmentEngine(BaseReasoningEngine):
     
     def _construct_psychology_reasoning(self, sentiment_analysis: Dict, price_action_psychology: Dict,
                                       crowd_behavior: Dict, institutional_analysis: Dict,
-                                      context: Dict) -> str:
+                                      context: Dict, current_data: pd.Series = None) -> str:
         """
         Construct comprehensive psychology assessment reasoning.
         
@@ -373,34 +373,21 @@ class PsychologyAssessmentEngine(BaseReasoningEngine):
         """
         reasoning_parts = []
         
-        # Primary sentiment assessment
+        # Primary sentiment assessment using specific price action analysis
         overall_sentiment = sentiment_analysis['overall_sentiment']
         sentiment_strength = sentiment_analysis['sentiment_strength']
+
+        # Generate comprehensive sentiment analysis with specific indicator values
+        sentiment_description = self._generate_comprehensive_sentiment_analysis(
+            sentiment_analysis, price_action_psychology, crowd_behavior, current_data
+        )
+        reasoning_parts.append(sentiment_description)
         
-        if overall_sentiment in self.psychology_templates:
-            template = self.psychology_templates[overall_sentiment]
-            reasoning_parts.append(
-                f"Market participants demonstrate {template['description']} based on momentum indicators"
-            )
-        else:
-            reasoning_parts.append(
-                "Market participants show balanced sentiment with no clear emotional bias"
-            )
-        
-        # Price action psychology integration
-        candle_psychology = price_action_psychology['candle_psychology']
-        shadow_analysis = price_action_psychology['shadow_analysis']
-        
-        if candle_psychology == 'strong_conviction':
-            reasoning_parts.append("evidenced by strong conviction in current price action")
-        elif candle_psychology == 'indecision':
-            reasoning_parts.append("reflected in indecisive price action with limited conviction")
-        
-        if price_action_psychology['price_rejection']:
-            if shadow_analysis == 'lower_rejection':
-                reasoning_parts.append("with clear rejection of lower price levels indicating buying interest")
-            elif shadow_analysis == 'upper_rejection':
-                reasoning_parts.append("showing rejection of higher prices suggesting selling pressure")
+        # Price action psychology integration with specific analysis
+        price_action_insight = self._generate_price_action_psychology_insight(price_action_psychology)
+        if price_action_insight:
+            reasoning_parts.append(price_action_insight)
+
         
         # Crowd behavior analysis
         crowd_sentiment = crowd_behavior['crowd_sentiment']
@@ -426,7 +413,130 @@ class PsychologyAssessmentEngine(BaseReasoningEngine):
             )
         
         return ". ".join(reasoning_parts) + "."
-    
+
+    def _generate_comprehensive_sentiment_analysis(self, sentiment_analysis: Dict[str, Any],
+                                                 price_action_psychology: Dict[str, Any],
+                                                 crowd_behavior: Dict[str, Any],
+                                                 current_data: pd.Series) -> str:
+        """Generate comprehensive sentiment analysis with specific indicator values."""
+
+        # Get actual indicator values
+        rsi_14 = self._safe_get_value(current_data, 'rsi_14', 50)
+        williams_r = self._safe_get_value(current_data, 'williams_r', -50)
+        cci = self._safe_get_value(current_data, 'cci', 0)
+        atr = self._safe_get_value(current_data, 'atr', 50)
+        stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
+
+        sentiment_parts = []
+
+        # RSI sentiment analysis
+        rsi_sentiment = self._get_rsi_sentiment_detailed(rsi_14)
+        sentiment_parts.append(f"RSI at {rsi_14:.1f} {rsi_sentiment}")
+
+        # Williams %R analysis
+        if williams_r > -20:
+            williams_sentiment = "confirms overbought conditions suggesting caution"
+        elif williams_r < -80:
+            williams_sentiment = "indicates oversold levels suggesting potential reversal"
+        else:
+            williams_sentiment = "shows neutral sentiment with balanced buyer-seller dynamics"
+        sentiment_parts.append(f"Williams %R at {williams_r:.1f} {williams_sentiment}")
+
+        # Volatility sentiment
+        if atr > 60:
+            volatility_sentiment = f"Current volatility at {atr/50:.1f}x ATR shows heightened emotional trading"
+            sentiment_parts.append(volatility_sentiment)
+        elif atr < 30:
+            volatility_sentiment = f"Low volatility at {atr/50:.1f}x ATR suggests calm market sentiment"
+            sentiment_parts.append(volatility_sentiment)
+
+        # Market psychology context
+        psychology_context = self._get_market_psychology_context_detailed(sentiment_analysis, crowd_behavior)
+        if psychology_context:
+            sentiment_parts.append(psychology_context)
+
+        return ". ".join(sentiment_parts) + "."
+
+    def _generate_specific_sentiment_analysis(self, sentiment_analysis: Dict,
+                                            price_action_psychology: Dict,
+                                            crowd_behavior: Dict, current_data: pd.Series = None) -> str:
+        """Generate specific sentiment analysis using actual market data like a real trader."""
+        if current_data is None:
+            return "Market sentiment analysis requires current data"
+
+        # Get actual indicator values using correct column names
+        rsi = self._safe_get_value(current_data, 'rsi_14', 50)
+        williams_r = self._safe_get_value(current_data, 'williams_r', -50)
+        close_price = self._safe_get_value(current_data, 'close', 0)
+        volume_sma = self._safe_get_value(current_data, 'volume_sma', 0)
+        atr = self._safe_get_value(current_data, 'atr', 0)
+
+        # Analyze sentiment using actual data like a trader would
+        sentiment_parts = []
+
+        # RSI-based sentiment analysis
+        if rsi > 75:
+            sentiment_parts.append(f"RSI at {rsi:.1f} indicates extreme bullish sentiment with potential for profit-taking")
+        elif rsi > 60:
+            sentiment_parts.append(f"RSI at {rsi:.1f} shows strong bullish sentiment with buyers in control")
+        elif rsi < 25:
+            sentiment_parts.append(f"RSI at {rsi:.1f} reflects extreme bearish sentiment with potential for oversold bounce")
+        elif rsi < 40:
+            sentiment_parts.append(f"RSI at {rsi:.1f} indicates bearish sentiment with sellers dominating")
+        else:
+            sentiment_parts.append(f"RSI at {rsi:.1f} suggests neutral sentiment with balanced buyer-seller dynamics")
+
+        # Williams %R confirmation
+        if williams_r > -20:
+            sentiment_parts.append(f"Williams %R at {williams_r:.1f} confirms overbought conditions suggesting caution")
+        elif williams_r < -80:
+            sentiment_parts.append(f"Williams %R at {williams_r:.1f} confirms oversold levels indicating potential reversal")
+
+        # Volume and volatility context for sentiment
+        if atr > 0:
+            # Calculate current volatility relative to ATR
+            open_price = self._safe_get_value(current_data, 'open', close_price)
+            current_range = abs(self._safe_get_value(current_data, 'high', close_price) -
+                               self._safe_get_value(current_data, 'low', close_price))
+            volatility_ratio = current_range / atr if atr > 0 else 1
+
+            if volatility_ratio > 1.5:
+                sentiment_parts.append(f"Current volatility at {volatility_ratio:.1f}x ATR indicates heightened emotional trading")
+            elif volatility_ratio < 0.5:
+                sentiment_parts.append(f"Low volatility at {volatility_ratio:.1f}x ATR suggests calm market sentiment")
+
+        return ". ".join(sentiment_parts) if sentiment_parts else "Market sentiment analysis requires sufficient data"
+
+    def _generate_price_action_psychology_insight(self, price_action_psychology: Dict) -> str:
+        """Generate specific insights from price action psychology."""
+        candle_psychology = price_action_psychology.get('candle_psychology', 'neutral')
+        shadow_analysis = price_action_psychology.get('shadow_analysis', 'balanced')
+        price_rejection = price_action_psychology.get('price_rejection', False)
+
+        insights = []
+
+        # Analyze conviction levels
+        if candle_psychology == 'strong_conviction':
+            insights.append("evidenced by strong conviction in current price action")
+        elif candle_psychology == 'indecision':
+            insights.append("reflected in indecisive price action with limited conviction")
+
+        # Analyze rejection patterns for psychology
+        if price_rejection:
+            if shadow_analysis == 'lower_rejection':
+                insights.append("with clear rejection of lower price levels indicating buying interest")
+            elif shadow_analysis == 'upper_rejection':
+                insights.append("showing rejection of higher prices suggesting selling pressure")
+
+        # Analyze gaps for psychology (if available)
+        gap_psychology = price_action_psychology.get('gap_psychology')
+        if gap_psychology == 'gap_up':
+            insights.append("with opening gap higher reflecting overnight optimism")
+        elif gap_psychology == 'gap_down':
+            insights.append("with opening gap lower indicating overnight pessimism")
+
+        return ". ".join(insights) if insights else ""
+
     def _get_fallback_reasoning(self, current_data: pd.Series, context: Dict) -> str:
         """
         Generate fallback reasoning when main analysis fails.
@@ -443,3 +553,47 @@ class PsychologyAssessmentEngine(BaseReasoningEngine):
             "Current price action reflects normal trading behavior without significant fear or greed indicators. "
             "Crowd psychology appears neutral with standard risk appetite and positioning characteristics."
         )
+
+    def _safe_get_value(self, data, column: str, default_value):
+        """Safely get value from pandas Series with fallback to default."""
+        try:
+            if hasattr(data, 'get'):
+                return data.get(column, default_value)
+            elif hasattr(data, column):
+                return getattr(data, column)
+            else:
+                return default_value
+        except (KeyError, AttributeError, TypeError):
+            return default_value
+
+    def _get_rsi_sentiment_detailed(self, rsi_value: float) -> str:
+        """Get detailed RSI sentiment description."""
+        if rsi_value > 80:
+            return "shows extreme bullish sentiment with potential for profit-taking"
+        elif rsi_value > 70:
+            return "indicates strong bullish sentiment with buyers in control"
+        elif rsi_value > 60:
+            return "shows bullish sentiment with positive momentum"
+        elif rsi_value > 40:
+            return "suggests neutral sentiment with balanced buyer-seller dynamics"
+        elif rsi_value > 30:
+            return "indicates bearish sentiment with sellers dominating"
+        elif rsi_value > 20:
+            return "shows strong bearish sentiment with oversold conditions"
+        else:
+            return "demonstrates extreme bearish sentiment with potential for reversal"
+
+    def _get_market_psychology_context_detailed(self, sentiment_analysis: Dict[str, Any],
+                                              crowd_behavior: Dict[str, Any]) -> str:
+        """Get detailed market psychology context."""
+        context_parts = []
+
+        # Add crowd behavior insights
+        if crowd_behavior.get('contrarian_signals'):
+            context_parts.append("Extreme sentiment conditions suggest potential contrarian opportunities as crowd positioning reaches unsustainable levels")
+
+        # Add historical precedent for extreme conditions
+        if sentiment_analysis.get('extreme_conditions'):
+            context_parts.append("Historical precedent suggests such extreme sentiment conditions often precede significant reversals")
+
+        return ". ".join(context_parts) if context_parts else ""

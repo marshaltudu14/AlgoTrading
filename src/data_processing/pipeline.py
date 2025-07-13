@@ -332,11 +332,16 @@ class DataProcessingPipeline:
                 # Generate final filename (remove reasoning_ prefix)
                 final_name = reasoning_file.name.replace('reasoning_', 'final_')
                 final_path = output_path / final_name
-                
-                # Copy file to final location
-                import shutil
-                shutil.copy2(reasoning_file, final_path)
-                
+
+                # Read and clean the CSV file to remove any unwanted index columns
+                df = pd.read_csv(reasoning_file)
+
+                # Remove any unnamed index columns
+                df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
+                # Save cleaned file to final location
+                df.to_csv(final_path, index=False)
+
                 organized_files.append(final_name)
                 logger.info(f"Organized: {final_name}")
             

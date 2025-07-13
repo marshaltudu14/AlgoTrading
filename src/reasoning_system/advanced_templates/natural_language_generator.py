@@ -40,31 +40,29 @@ class NaturalLanguageGenerator:
     def enhance_reasoning_text(self, text: str, reasoning_type: str = 'general',
                              market_strength: float = 0.5, confidence_level: float = 0.5) -> str:
         """
-        Enhance reasoning text with natural language variations.
-        
+        Enhance reasoning text with focus on technical accuracy over language flow.
+
         Args:
             text: Base reasoning text to enhance
             reasoning_type: Type of reasoning (pattern, context, psychology, etc.)
             market_strength: Market strength (0-1) for intensity selection
             confidence_level: Confidence level (0-1) for certainty expressions
-            
+
         Returns:
-            Enhanced natural language reasoning text
+            Enhanced reasoning text focused on accuracy and specificity
         """
         if not text or not text.strip():
             return self._get_default_text(reasoning_type)
-        
+
         try:
-            # Apply natural language enhancements
-            enhanced_text = self._apply_sentence_variations(text)
-            enhanced_text = self._apply_technical_synonyms(enhanced_text)
+            # Apply minimal enhancements focused on technical accuracy
+            enhanced_text = self._apply_technical_synonyms(text)
             enhanced_text = self._apply_market_descriptors(enhanced_text, market_strength)
-            enhanced_text = self._apply_professional_language(enhanced_text, confidence_level)
-            enhanced_text = self._apply_transition_improvements(enhanced_text)
-            enhanced_text = self._ensure_natural_flow(enhanced_text)
-            
+            # Removed excessive transition improvements and natural flow for better accuracy
+            enhanced_text = self._ensure_technical_precision(enhanced_text)
+
             return enhanced_text
-            
+
         except Exception as e:
             logger.error(f"Error enhancing text: {str(e)}")
             return text  # Return original text if enhancement fails
@@ -94,14 +92,14 @@ class NaturalLanguageGenerator:
         """Load sentence starter variations."""
         return {
             'analysis': [
-                "Technical analysis reveals",
-                "Market analysis indicates",
-                "Current assessment shows",
-                "Detailed examination demonstrates",
-                "Comprehensive analysis suggests",
-                "Technical evaluation confirms",
-                "Market examination reveals",
-                "Current analysis indicates"
+                "Price action reveals",
+                "Market dynamics show",
+                "Trading patterns indicate",
+                "Chart analysis demonstrates",
+                "Market structure suggests",
+                "Price behavior confirms",
+                "Technical setup reveals",
+                "Market conditions show"
             ],
             'pattern': [
                 "Pattern recognition identifies",
@@ -169,14 +167,14 @@ class NaturalLanguageGenerator:
                 "notwithstanding"
             ],
             'emphasis': [
-                "particularly noteworthy",
-                "especially significant",
-                "of particular importance",
                 "notably",
                 "remarkably",
                 "significantly",
                 "crucially",
-                "fundamentally"
+                "fundamentally",
+                "clearly",
+                "evidently",
+                "substantially"
             ],
             'conclusion': [
                 "suggesting",
@@ -203,7 +201,7 @@ class NaturalLanguageGenerator:
     def _load_technical_synonyms(self) -> Dict[str, List[str]]:
         """Load technical term synonyms for variety."""
         return {
-            'price': ['price', 'market value', 'trading level', 'quotation', 'market price'],
+            'price': ['price'],  # Keep it simple - just use 'price'
             'trend': ['trend', 'direction', 'trajectory', 'movement', 'bias', 'inclination'],
             'momentum': ['momentum', 'velocity', 'acceleration', 'thrust', 'impetus', 'drive'],
             'volatility': ['volatility', 'variability', 'fluctuation', 'instability', 'uncertainty'],
@@ -300,48 +298,83 @@ class NaturalLanguageGenerator:
         return variation_func(sentence)
     
     def _add_professional_qualifier(self, sentence: str) -> str:
-        """Add professional qualifier to sentence."""
+        """Add professional qualifier to sentence (reduced frequency to prevent overuse)."""
         qualifiers = [
-            "Based on current analysis,",
-            "Technical evaluation suggests",
-            "Market assessment indicates",
-            "Current examination reveals"
+            "Technical analysis shows",
+            "Market conditions indicate",
+            "Current data suggests"
         ]
-        
-        if random.random() < 0.3:  # 30% chance to add qualifier
+
+        if random.random() < 0.1:  # Reduced to 10% chance to prevent overuse
             qualifier = random.choice(qualifiers)
             return f"{qualifier} {sentence.lower()}"
-        
+
         return sentence
     
     def _restructure_with_emphasis(self, sentence: str) -> str:
-        """Restructure sentence with emphasis."""
-        emphasis_patterns = [
-            "Particularly noteworthy is",
-            "Of special significance is",
-            "Especially important is",
-            "Notably evident is"
-        ]
-        
-        if random.random() < 0.2:  # 20% chance to restructure
-            emphasis = random.choice(emphasis_patterns)
-            return f"{emphasis} {sentence.lower()}"
-        
+        """Restructure sentence with natural emphasis (removed robotic phrases)."""
+        # REMOVED: Robotic emphasis patterns that cause quality issues
+        # Instead, use natural sentence flow without artificial restructuring
+
+        # Apply natural emphasis through word choice rather than sentence restructuring
+        if random.random() < 0.15:  # Reduced probability and use natural enhancement
+            return self._add_natural_emphasis(sentence)
+
         return sentence
+
+    def _add_natural_emphasis(self, sentence: str) -> str:
+        """Add natural emphasis through word choice rather than sentence restructuring."""
+        # Natural emphasis words that can be inserted naturally
+        natural_emphasis = [
+            "clearly", "evidently", "notably", "significantly",
+            "importantly", "remarkably", "substantially"
+        ]
+
+        # Minimal emphasis for technical accuracy - focus on data not language
+        return sentence
+
+    def _ensure_technical_precision(self, text: str) -> str:
+        """Ensure technical precision and remove excessive transitions."""
+        # Remove excessive transition words that make text robotic
+        excessive_transitions = [
+            "Additionally, ", "Furthermore, ", "Significantly, ", "Moreover, ",
+            "Importantly, ", "Notably, ", "In addition, ", "Current data suggests ",
+            "Technical comprehensive evaluation shows ", "immediate data suggests ",
+            "present data suggests ", "ongoing data suggests ", "existing data suggests ",
+            "active data suggests "
+        ]
+
+        for transition in excessive_transitions:
+            text = text.replace(transition, "")
+
+        # Fix decimal number formatting issues
+        # Pattern: "48600. 2" -> "48600.2", "50. 0" -> "50.0"
+        text = re.sub(r'(\d+)\.\s+(\d+)', r'\1.\2', text)
+
+        # Fix "at X. Y" patterns for indicators
+        # Pattern: "RSI at 50. 0" -> "RSI at 50.0"
+        text = re.sub(r'(at \d+)\.\s+(\d+)', r'\1.\2', text)
+
+        # Fix percentage patterns
+        # Pattern: "0. 1%" -> "0.1%"
+        text = re.sub(r'(\d+)\.\s+(\d+%)', r'\1.\2', text)
+
+        # Clean up double spaces and ensure proper formatting
+        text = " ".join(text.split())
+
+        return text
     
     def _add_contextual_phrase(self, sentence: str) -> str:
-        """Add contextual phrase to sentence."""
+        """Add contextual phrase to sentence (reduced frequency to prevent overuse)."""
         contextual_phrases = [
-            "within the current market environment",
-            "given present market conditions",
-            "considering current technical factors",
-            "in the context of recent market behavior"
+            "given current conditions",
+            "based on technical factors"
         ]
-        
-        if random.random() < 0.25:  # 25% chance to add context
+
+        if random.random() < 0.05:  # Reduced to 5% chance to prevent overuse
             context = random.choice(contextual_phrases)
             return f"{sentence}, {context}"
-        
+
         return sentence
 
     def _apply_technical_synonyms(self, text: str) -> str:
@@ -436,6 +469,9 @@ class NaturalLanguageGenerator:
 
     def _ensure_natural_flow(self, text: str) -> str:
         """Ensure natural flow and readability."""
+        # CRITICAL: Fix broken sentence structures first
+        text = self._fix_sentence_fragments(text)
+
         # Remove redundant phrases
         text = re.sub(r'\b(very very|really really|quite quite)\b', r'\1', text, flags=re.IGNORECASE)
 
@@ -450,6 +486,77 @@ class NaturalLanguageGenerator:
                 sentences[i] = sentences[i].strip().capitalize()
 
         return ''.join(sentences)
+
+    def _fix_sentence_fragments(self, text: str) -> str:
+        """Fix broken sentence structures and number formatting issues."""
+        # CRITICAL: Fix decimal numbers being split incorrectly
+        # Pattern: "48600. 2" -> "48600.2", "50. 0" -> "50.0"
+        text = re.sub(r'(\d+)\.\s+(\d+)', r'\1.\2', text)
+
+        # CRITICAL: Fix patterns where sentences are broken by missing spaces after periods
+        # Pattern: "word.CapitalLetter" -> "word. CapitalLetter"
+        text = re.sub(r'([a-z])\.([A-Z])', r'\1. \2', text)
+
+        # CRITICAL: Fix fragments like "score of 0.Of special significance"
+        # Pattern: "score of X.SomePhrase" -> "score of X. SomePhrase"
+        text = re.sub(r'(score of \d+(?:\.\d+)?)\.([A-Z])', r'\1. \2', text)
+
+        # CRITICAL: Fix fragments like "ratio 2.5:1.Technical"
+        # Pattern: "ratio X:Y.SomePhrase" -> "ratio X:Y. SomePhrase"
+        text = re.sub(r'(ratio \d+(?:\.\d+)?:\d+)\.([A-Z])', r'\1. \2', text)
+
+        # CRITICAL: Fix "at X. Y" patterns for indicators
+        # Pattern: "RSI at 50. 0" -> "RSI at 50.0"
+        text = re.sub(r'(at \d+)\.\s+(\d+)', r'\1.\2', text)
+
+        # CRITICAL: Fix percentage patterns
+        # Pattern: "0. 1%" -> "0.1%"
+        text = re.sub(r'(\d+)\.\s+(\d+%)', r'\1.\2', text)
+
+        # Fix indicator name capitalization and formatting
+        text = re.sub(r'\bRsi\b', 'RSI', text)
+        text = re.sub(r'\bMacd\b', 'MACD', text)
+        text = re.sub(r'\bEma-(\d+)\b', r'EMA-\1', text)
+        text = re.sub(r'\bSma-(\d+)\b', r'SMA-\1', text)
+        text = re.sub(r'\bAtr\b', 'ATR', text)
+        text = re.sub(r'\bAdx\b', 'ADX', text)
+        text = re.sub(r'\bCci\b', 'CCI', text)
+
+        # Fix awkward phrases
+        text = re.sub(r'\bimpetus\b', 'momentum', text)
+        text = re.sub(r'\bthrust\b', 'momentum', text)
+        text = re.sub(r'\bvelocity\b', 'momentum', text)
+        text = re.sub(r'\bdrive\b', 'momentum', text)
+        text = re.sub(r'\bacceleration\b', 'momentum', text)
+        text = re.sub(r'\bfloor levels\b', 'support levels', text)
+        text = re.sub(r'\bceiling levels\b', 'resistance levels', text)
+        text = re.sub(r'\bbarrier\b', 'resistance', text)
+        text = re.sub(r'\bobstacle\b', 'resistance', text)
+        text = re.sub(r'\bimpediment\b', 'resistance', text)
+        text = re.sub(r'\bhurdle\b', 'resistance', text)
+        text = re.sub(r'\bfoundation\b', 'support', text)
+        text = re.sub(r'\bunderpinning\b', 'support', text)
+        text = re.sub(r'\bbacking\b', 'support', text)
+        text = re.sub(r'\bbase\b', 'support', text)
+
+        # Fix redundant phrases
+        text = re.sub(r'\bHowever, rsi and macd showing divergent momentum signals\. However, rsi and macd showing divergent momentum signals\b',
+                     'However, RSI and MACD showing divergent momentum signals', text)
+        text = re.sub(r'\bgiven current conditions\b', '', text)
+        text = re.sub(r'\bgiven ongoing context\b', '', text)
+        text = re.sub(r'\bgiven present dynamics\b', '', text)
+        text = re.sub(r'\bbased on technical factors\b', '', text)
+        text = re.sub(r'\bTechnical analysis shows\b', '', text)
+        text = re.sub(r'\bMarket conditions indicate\b', '', text)
+
+        # Clean up multiple consecutive periods and spaces
+        text = re.sub(r'\.{2,}', '.', text)
+        text = re.sub(r'\s+', ' ', text)
+
+        # Ensure sentences end properly
+        text = re.sub(r'([^.!?])\s*$', r'\1.', text)
+
+        return text.strip()
 
     def _get_contextual_starter(self, concept: str, context: Dict[str, Any]) -> str:
         """Get contextual sentence starter."""

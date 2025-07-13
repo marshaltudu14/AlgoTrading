@@ -272,6 +272,9 @@ class DynamicFileProcessor:
         try:
             df = pd.read_csv(file_path)
 
+            # Remove any unnamed index columns that may exist in raw data
+            df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
             # Validate required columns (removed volume as it's not always available)
             required_cols = ['datetime', 'open', 'high', 'low', 'close']
             missing_cols = [col for col in required_cols if col not in df.columns]

@@ -250,16 +250,19 @@ class TextGenerator:
     
     def _ensure_sentence_structure(self, text: str) -> str:
         """Ensure proper sentence structure and flow."""
-        sentences = text.split('.')
+        # Use regex to split on sentence-ending periods, not decimal points
+        # This pattern matches periods that are followed by whitespace and a capital letter
+        # or periods at the end of the text, but not decimal points in numbers
+        sentences = re.split(r'\.(?=\s+[A-Z]|$)', text)
         sentences = [s.strip() for s in sentences if s.strip()]
-        
+
         # Capitalize first letter of each sentence
         formatted_sentences = []
         for sentence in sentences:
             if sentence:
                 sentence = sentence[0].upper() + sentence[1:] if len(sentence) > 1 else sentence.upper()
                 formatted_sentences.append(sentence)
-        
+
         return '. '.join(formatted_sentences) + '.'
     
     def _validate_length(self, text: str, reasoning_type: str) -> str:

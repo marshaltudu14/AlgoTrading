@@ -111,31 +111,47 @@ class HistoricalPatternEngine(BaseReasoningEngine):
             logger.error(f"Error in historical pattern analysis: {str(e)}")
             return self._get_fallback_reasoning()
     
-    def _analyze_short_term_patterns(self, historical_data: pd.DataFrame, 
+    def _analyze_short_term_patterns(self, historical_data: pd.DataFrame,
                                    current_data: pd.Series) -> Dict[str, Any]:
-        """Analyze short-term patterns (20-50 candles)."""
-        # Use last 30 candles for short-term analysis (middle of 20-50 range)
-        lookback = min(30, len(historical_data))
+        """Analyze short-term patterns with dynamic lookback period."""
+        # Dynamic lookback based on data availability and market conditions
+        max_lookback = min(50, len(historical_data))
+        min_lookback = min(20, len(historical_data))
+
+        # Use adaptive lookback based on volatility
+        if len(historical_data) > 0:
+            recent_volatility = historical_data['volatility_20'].tail(10).mean() if 'volatility_20' in historical_data.columns else 0.02
+            if recent_volatility > 0.03:  # High volatility - use shorter period
+                lookback = min_lookback
+            elif recent_volatility < 0.015:  # Low volatility - use longer period
+                lookback = max_lookback
+            else:  # Normal volatility - use medium period
+                lookback = min(30, max_lookback)
+        else:
+            lookback = min_lookback
+
         recent_data = historical_data.tail(lookback) if lookback > 0 else pd.DataFrame()
-        
+
         if recent_data.empty:
             return self._get_default_short_term_analysis()
-        
+
         analysis = {
             'lookback_period': lookback,
+            'actual_data_points': len(recent_data),
             'trend_consistency': self._calculate_trend_consistency(recent_data),
             'momentum_pattern': self._analyze_momentum_pattern(recent_data),
             'volatility_trend': self._analyze_volatility_trend(recent_data),
             'support_resistance_tests': self._analyze_sr_tests(recent_data, current_data),
-            'pattern_strength': 'moderate'
+            'pattern_strength': 'moderate',
+            'data_quality': 'good' if len(recent_data) >= min_lookback else 'limited'
         }
-        
-        # Determine pattern strength
+
+        # Determine pattern strength based on actual data analysis
         if analysis['trend_consistency'] > 0.7 and analysis['momentum_pattern']['strength'] > 0.6:
             analysis['pattern_strength'] = 'strong'
         elif analysis['trend_consistency'] < 0.3 or analysis['momentum_pattern']['strength'] < 0.3:
             analysis['pattern_strength'] = 'weak'
-        
+
         return analysis
     
     def _analyze_medium_term_patterns(self, historical_data: pd.DataFrame,
@@ -287,14 +303,20 @@ class HistoricalPatternEngine(BaseReasoningEngine):
         current_resistance_dist = self._safe_get_value(current_data, 'resistance_distance', 999)
         
         if 'support_distance' in data.columns:
-            support_distances = data['support_distance'].dropna()
-            # Count how many times price was near support (within 1% distance)
-            sr_analysis['support_tests'] = len(support_distances[support_distances < 1.0])
-        
+            try:
+                support_distances = data['support_distance'].dropna()
+                # Count how many times price was near support (within 1% distance)
+                sr_analysis['support_tests'] = len(support_distances[support_distances < 1.0])
+            except Exception:
+                sr_analysis['support_tests'] = 0
+
         if 'resistance_distance' in data.columns:
-            resistance_distances = data['resistance_distance'].dropna()
-            # Count how many times price was near resistance
-            sr_analysis['resistance_tests'] = len(resistance_distances[resistance_distances < 1.0])
+            try:
+                resistance_distances = data['resistance_distance'].dropna()
+                # Count how many times price was near resistance
+                sr_analysis['resistance_tests'] = len(resistance_distances[resistance_distances < 1.0])
+            except Exception:
+                sr_analysis['resistance_tests'] = 0
         
         # Determine level strength
         total_tests = sr_analysis['support_tests'] + sr_analysis['resistance_tests']

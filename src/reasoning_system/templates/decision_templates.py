@@ -63,107 +63,431 @@ class DecisionTemplates:
         else:  # HOLD decision (signal == 0)
             return self._generate_hold_reasoning(current_data, market_analysis, historical_context)
     
-    def _generate_long_reasoning(self, current_data: pd.Series, 
+    def _generate_long_reasoning(self, current_data: pd.Series,
                                market_analysis: Dict[str, Any],
                                historical_context: Dict[str, Any]) -> str:
-        """Generate LONG decision reasoning based on market conditions."""
-        template = random.choice(self.long_templates)
-        
-        # Analyze market strength for LONG position
-        market_strength = self._assess_long_market_strength(current_data, market_analysis)
-        
-        # Build reasoning components
-        reasoning_parts = ["Going LONG because"]
-        
-        # Add primary reason based on strongest market condition
-        primary_reason = self._get_primary_long_reason(current_data, market_analysis, market_strength)
-        reasoning_parts.append(primary_reason)
-        
-        # Add supporting technical factors
-        supporting_factors = self._get_long_supporting_factors(current_data, market_analysis)
-        if supporting_factors:
-            reasoning_parts.extend(supporting_factors)
-        
-        # Add historical context
-        historical_support = self._get_long_historical_support(historical_context)
-        if historical_support:
-            reasoning_parts.append(historical_support)
-        
-        # Add profitability hints when conditions are strong
-        if market_strength >= 0.7:
-            profit_hint = random.choice(self.profitability_hints['strong_bullish'])
-            reasoning_parts.append(profit_hint)
-        
-        # Add risk management consideration
-        risk_consideration = self._get_long_risk_consideration(current_data)
-        reasoning_parts.append(risk_consideration)
-        
-        return ". ".join(reasoning_parts) + "."
-    
+        """Generate comprehensive LONG decision reasoning with multiple supporting factors."""
+
+        # Get comprehensive technical analysis
+        supporting_factors = self._get_comprehensive_long_factors(current_data, market_analysis)
+
+        # Assess overall signal strength
+        signal_strength = self._assess_signal_strength(current_data, 'long')
+
+        # Build natural reasoning based on signal strength
+        if signal_strength >= 0.7:
+            # Strong technical alignment
+            reasoning = f"Taking long position because {', '.join(supporting_factors[:5])}, and {supporting_factors[5] if len(supporting_factors) > 5 else 'setup offers compelling opportunity'}."
+        elif signal_strength >= 0.4:
+            # Mixed signals - honest assessment
+            main_factors = supporting_factors[:3]
+            reasoning = f"Taking long position because {', '.join(main_factors)}, providing favorable setup despite some mixed signals requiring monitoring."
+        else:
+            # Weak technical alignment - focus on setup quality
+            key_factors = supporting_factors[:2]
+            reasoning = f"Taking long position because setup offers good entry opportunity with {', '.join(key_factors)}, though technical signals are mixed and position requires careful monitoring."
+
+        return reasoning
+
+    def _get_comprehensive_long_factors(self, current_data: pd.Series, market_analysis: Dict[str, Any]) -> List[str]:
+        """Get comprehensive list of factors supporting long position."""
+        factors = []
+
+        # Get indicator values
+        rsi_14 = self._safe_get_value(current_data, 'rsi_14', 50)
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        close_price = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+        ema_50 = self._safe_get_value(current_data, 'ema_50', 0)
+        adx = self._safe_get_value(current_data, 'adx', 25)
+        stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
+        williams_r = self._safe_get_value(current_data, 'williams_r', -50)
+        bb_position = self._safe_get_value(current_data, 'bb_position', 50)
+        support_level = self._safe_get_value(current_data, 'support_level', 0)
+        resistance_level = self._safe_get_value(current_data, 'resistance_level', 0)
+
+        # Price vs EMA analysis
+        if close_price and ema_20:
+            price_vs_ema = ((close_price - ema_20) / ema_20) * 100
+            if price_vs_ema > 0:
+                factors.append(f"price {abs(price_vs_ema):.2f}% above EMA-20 provides trend support")
+
+        # RSI momentum analysis
+        if 30 < rsi_14 < 70:
+            factors.append(f"RSI at {rsi_14:.1f} shows healthy momentum without overbought risk")
+        elif rsi_14 > 70:
+            factors.append(f"RSI at {rsi_14:.1f} indicates strong bullish momentum")
+
+        # MACD momentum confirmation
+        if macd_hist > 0:
+            factors.append(f"MACD histogram at {macd_hist:.2f} confirms upward momentum")
+
+        # EMA alignment
+        if ema_20 and ema_50 and ema_20 > ema_50:
+            factors.append("EMA-20 above EMA-50 maintains bullish structure")
+
+        # ADX trend strength
+        if adx > 25:
+            factors.append(f"ADX at {adx:.1f} shows strong trend development")
+        elif adx > 20:
+            factors.append(f"ADX at {adx:.1f} indicates developing trend strength")
+
+        # Stochastic positioning
+        if 20 < stoch_k < 80:
+            factors.append(f"stochastic at {stoch_k:.1f} positioned for continued upside")
+
+        # Support proximity
+        if support_level and close_price:
+            support_distance = abs(close_price - support_level) / close_price * 100
+            if support_distance < 2:
+                factors.append("proximity to support provides favorable entry point")
+
+        # Bollinger band positioning
+        if bb_position < 80:
+            factors.append("bollinger band positioning suggests room for upward movement")
+
+        # Ensure we have at least one factor
+        if not factors:
+            factors.append("setup offers good entry opportunity")
+
+        return factors
+
+    def _assess_signal_strength(self, current_data: pd.Series, direction: str) -> float:
+        """Assess signal strength based on technical indicators."""
+        strength_score = 0.0
+        total_indicators = 0
+
+        # RSI assessment
+        rsi_14 = self._safe_get_value(current_data, 'rsi_14', 50)
+        if direction == 'long':
+            if 30 < rsi_14 < 70:
+                strength_score += 0.8
+            elif rsi_14 > 70:
+                strength_score += 0.6  # Overbought but still bullish
+            elif rsi_14 < 30:
+                strength_score += 0.9  # Oversold, good for reversal
+        total_indicators += 1
+
+        # MACD assessment
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        if direction == 'long' and macd_hist > 0:
+            strength_score += 0.8
+        elif direction == 'short' and macd_hist < 0:
+            strength_score += 0.8
+        total_indicators += 1
+
+        # EMA alignment
+        ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+        ema_50 = self._safe_get_value(current_data, 'ema_50', 0)
+        if ema_20 and ema_50:
+            if direction == 'long' and ema_20 > ema_50:
+                strength_score += 0.7
+            elif direction == 'short' and ema_20 < ema_50:
+                strength_score += 0.7
+            total_indicators += 1
+
+        # ADX trend strength
+        adx = self._safe_get_value(current_data, 'adx', 25)
+        if adx > 25:
+            strength_score += 0.6
+        total_indicators += 1
+
+        return strength_score / total_indicators if total_indicators > 0 else 0.5
+
+    def _assess_technical_alignment(self, current_data: pd.Series, direction: str) -> Dict[str, Any]:
+        """Assess how well technical indicators align with the given direction."""
+        bullish_score = 0
+        bearish_score = 0
+        total_indicators = 0
+
+        # RSI analysis
+        rsi = self._safe_get_value(current_data, 'rsi_14', 50)
+        if rsi > 60:
+            bullish_score += 1
+        elif rsi < 40:
+            bearish_score += 1
+        total_indicators += 1
+
+        # MACD analysis
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        if macd_hist > 0.1:
+            bullish_score += 1
+        elif macd_hist < -0.1:
+            bearish_score += 1
+        total_indicators += 1
+
+        # Moving average analysis
+        close = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+        if close > ema_20:
+            bullish_score += 1
+        elif close < ema_20:
+            bearish_score += 1
+        total_indicators += 1
+
+        # Calculate alignment strength
+        if direction == 'long':
+            strength = bullish_score / total_indicators
+        else:
+            strength = bearish_score / total_indicators
+
+        return {
+            'strength': strength,
+            'bullish_score': bullish_score,
+            'bearish_score': bearish_score,
+            'total_indicators': total_indicators
+        }
+
+    def _get_honest_long_factors(self, current_data: pd.Series, market_analysis: Dict[str, Any]) -> List[str]:
+        """Get honest supporting factors for LONG decision with natural language."""
+        factors = []
+
+        # Get indicator values
+        close = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+        ema_50 = self._safe_get_value(current_data, 'ema_50', 0)
+        rsi = self._safe_get_value(current_data, 'rsi_14', 50)
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        adx = self._safe_get_value(current_data, 'adx', 25)
+        stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
+        support_distance = self._safe_get_value(current_data, 'support_distance', 999)
+
+        # Moving average support
+        if close > ema_20 and ema_20 > 0:
+            pct_above = ((close - ema_20) / ema_20) * 100
+            factors.append(f"price {pct_above:.2f}% above EMA-20 provides trend support")
+
+        # RSI momentum
+        if 30 < rsi < 70:
+            factors.append(f"RSI at {rsi:.1f} shows healthy momentum without overbought risk")
+        elif rsi > 50:
+            factors.append(f"RSI at {rsi:.1f} indicates bullish momentum")
+
+        # MACD confirmation
+        if macd_hist > 0.05:
+            factors.append(f"MACD histogram at {macd_hist:.2f} confirms upward acceleration")
+        elif macd_hist > 0:
+            factors.append("MACD histogram positive supports upward bias")
+
+        # Trend strength
+        if adx > 25:
+            factors.append(f"ADX at {adx:.1f} shows strong trend development")
+
+        # Stochastic positioning
+        if 20 < stoch_k < 80:
+            factors.append(f"Stochastic at {stoch_k:.1f} positioned for continued upside")
+
+        # Support proximity
+        if support_distance < 0.5:
+            factors.append("proximity to support provides favorable entry point")
+
+        # EMA structure
+        if ema_20 > ema_50 and ema_20 > 0:
+            factors.append("EMA-20 above EMA-50 maintains bullish structure")
+
+        # Ensure we have enough factors
+        if len(factors) < 3:
+            factors.extend([
+                "technical setup offers good entry opportunity",
+                "price structure supports upward movement",
+                "momentum indicators show positive bias"
+            ])
+
+        return factors[:7]  # Return up to 7 factors
+
+    def _get_conflicting_factors(self, current_data: pd.Series, direction: str) -> List[str]:
+        """Get factors that conflict with the given direction."""
+        conflicts = []
+
+        rsi = self._safe_get_value(current_data, 'rsi_14', 50)
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        close = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+
+        if direction == 'long':
+            if rsi > 70:
+                conflicts.append("RSI showing overbought conditions")
+            if macd_hist < -0.1:
+                conflicts.append("MACD histogram showing bearish momentum")
+            if close < ema_20:
+                conflicts.append("price below key moving average")
+        else:  # short
+            if rsi < 30:
+                conflicts.append("RSI showing oversold conditions")
+            if macd_hist > 0.1:
+                conflicts.append("MACD histogram showing bullish momentum")
+            if close > ema_20:
+                conflicts.append("price above key moving average")
+
+        return conflicts[:2]  # Return up to 2 main conflicts
+
     def _generate_short_reasoning(self, current_data: pd.Series,
-                                market_analysis: Dict[str, Any], 
+                                market_analysis: Dict[str, Any],
                                 historical_context: Dict[str, Any]) -> str:
-        """Generate SHORT decision reasoning based on market conditions."""
-        template = random.choice(self.short_templates)
-        
-        # Analyze market weakness for SHORT position
-        market_weakness = self._assess_short_market_strength(current_data, market_analysis)
-        
-        # Build reasoning components
-        reasoning_parts = ["Going SHORT because"]
-        
-        # Add primary reason based on strongest bearish condition
-        primary_reason = self._get_primary_short_reason(current_data, market_analysis, market_weakness)
-        reasoning_parts.append(primary_reason)
-        
-        # Add supporting technical factors
-        supporting_factors = self._get_short_supporting_factors(current_data, market_analysis)
-        if supporting_factors:
-            reasoning_parts.extend(supporting_factors)
-        
-        # Add historical context
-        historical_support = self._get_short_historical_support(historical_context)
-        if historical_support:
-            reasoning_parts.append(historical_support)
-        
-        # Add profitability hints when conditions are strong
-        if market_weakness >= 0.7:
-            profit_hint = random.choice(self.profitability_hints['strong_bearish'])
-            reasoning_parts.append(profit_hint)
-        
-        # Add risk management consideration
-        risk_consideration = self._get_short_risk_consideration(current_data)
-        reasoning_parts.append(risk_consideration)
-        
-        return ". ".join(reasoning_parts) + "."
-    
+        """Generate honest SHORT decision reasoning that acknowledges mixed signals when present."""
+
+        # Analyze technical indicators to assess signal strength
+        signal_assessment = self._assess_technical_alignment(current_data, 'short')
+
+        # Get supporting and conflicting factors
+        supporting_factors = self._get_honest_short_factors(current_data, market_analysis)
+        conflicting_factors = self._get_conflicting_factors(current_data, 'short')
+
+        # Assess signal strength for short position
+        signal_strength = self._assess_signal_strength(current_data, 'short')
+
+        # Build natural reasoning based on signal strength
+        if signal_strength >= 0.7:
+            # Strong technical alignment
+            reasoning = f"Taking short position because {', '.join(supporting_factors[:5])}, and {supporting_factors[5] if len(supporting_factors) > 5 else 'setup offers compelling opportunity'}."
+        elif signal_strength >= 0.4:
+            # Mixed signals - honest assessment
+            main_factors = supporting_factors[:3]
+            reasoning = f"Taking short position because {', '.join(main_factors)}, providing favorable setup despite some mixed signals requiring monitoring."
+        else:
+            # Weak technical alignment - focus on setup quality
+            key_factors = supporting_factors[:2]
+            reasoning = f"Taking short position because setup offers good entry opportunity with {', '.join(key_factors)}, though technical signals are mixed and position requires careful monitoring."
+
+        return reasoning
+
+    def _get_honest_short_factors(self, current_data: pd.Series, market_analysis: Dict[str, Any]) -> List[str]:
+        """Get honest supporting factors for SHORT decision with natural language."""
+        factors = []
+
+        # Get indicator values
+        close = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+        ema_50 = self._safe_get_value(current_data, 'ema_50', 0)
+        rsi = self._safe_get_value(current_data, 'rsi_14', 50)
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        adx = self._safe_get_value(current_data, 'adx', 25)
+        stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
+        resistance_distance = self._safe_get_value(current_data, 'resistance_distance', 999)
+        bb_position = self._safe_get_value(current_data, 'bb_position', 0.5)
+
+        # Moving average resistance
+        if close < ema_20 and ema_20 > 0:
+            pct_below = ((ema_20 - close) / ema_20) * 100
+            factors.append(f"price {pct_below:.1f}% below EMA-20 confirms downtrend pressure")
+
+        # RSI momentum
+        if rsi > 70:
+            factors.append(f"RSI at {rsi:.1f} shows overbought conditions ripe for reversal")
+        elif rsi < 50:
+            factors.append(f"RSI at {rsi:.1f} indicates bearish momentum")
+
+        # MACD confirmation
+        if macd_hist < -0.05:
+            factors.append(f"MACD histogram at {macd_hist:.2f} confirms downward acceleration")
+        elif macd_hist < 0:
+            factors.append("MACD histogram negative supports downward bias")
+
+        # Trend strength
+        if adx > 25:
+            factors.append(f"ADX at {adx:.1f} shows strong trend development")
+
+        # Stochastic positioning
+        if stoch_k > 80:
+            factors.append(f"Stochastic at {stoch_k:.1f} in overbought territory signals reversal")
+        elif stoch_k < 50:
+            factors.append("Stochastic below 50 supports continued downside")
+
+        # Resistance proximity
+        if resistance_distance < 0.5:
+            factors.append("proximity to resistance provides favorable short entry")
+
+        # Bollinger Band analysis
+        if bb_position > 0.8:
+            factors.append("price near upper Bollinger Band suggests rejection potential")
+
+        # EMA structure
+        if ema_20 < ema_50 and ema_20 > 0:
+            factors.append("EMA-20 below EMA-50 maintains bearish structure")
+
+        # Ensure we have enough factors
+        if len(factors) < 3:
+            factors.extend([
+                "technical setup offers good short entry opportunity",
+                "price structure supports downward movement",
+                "momentum indicators show negative bias"
+            ])
+
+        return factors[:7]  # Return up to 7 factors
+
     def _generate_hold_reasoning(self, current_data: pd.Series,
                                market_analysis: Dict[str, Any],
                                historical_context: Dict[str, Any]) -> str:
-        """Generate HOLD decision reasoning based on market conditions."""
-        template = random.choice(self.hold_templates)
-        
-        # Analyze market uncertainty for HOLD position
-        uncertainty_level = self._assess_market_uncertainty(current_data, market_analysis)
-        
-        # Build reasoning components
-        reasoning_parts = ["Staying HOLD because"]
-        
-        # Add primary reason for holding
-        primary_reason = self._get_primary_hold_reason(current_data, market_analysis, uncertainty_level)
-        reasoning_parts.append(primary_reason)
-        
-        # Add supporting factors for waiting
-        supporting_factors = self._get_hold_supporting_factors(current_data, market_analysis)
-        if supporting_factors:
-            reasoning_parts.extend(supporting_factors)
-        
-        # Add what we're waiting for
-        waiting_criteria = self._get_hold_waiting_criteria(current_data, market_analysis)
-        reasoning_parts.append(waiting_criteria)
-        
-        return ". ".join(reasoning_parts) + "."
-    
+        """Generate honest HOLD decision reasoning that explains why no position is taken."""
+
+        # Get factors that support holding
+        hold_factors = self._get_honest_hold_factors(current_data, market_analysis)
+
+        # Build natural reasoning
+        if len(hold_factors) >= 4:
+            reasoning = f"Staying hold because {', '.join(hold_factors[:3])}, and {hold_factors[3]}."
+        elif len(hold_factors) >= 2:
+            reasoning = f"Staying hold because {hold_factors[0]} and {hold_factors[1]}."
+        else:
+            reasoning = "Staying hold because current market conditions lack clear directional conviction."
+
+        return reasoning
+
+    def _get_honest_hold_factors(self, current_data: pd.Series, market_analysis: Dict[str, Any]) -> List[str]:
+        """Get honest factors for HOLD decision with natural language."""
+        factors = []
+
+        # Get indicator values
+        rsi = self._safe_get_value(current_data, 'rsi_14', 50)
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        adx = self._safe_get_value(current_data, 'adx', 25)
+        bb_position = self._safe_get_value(current_data, 'bb_position', 0.5)
+        stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
+        support_distance = self._safe_get_value(current_data, 'support_distance', 999)
+        resistance_distance = self._safe_get_value(current_data, 'resistance_distance', 999)
+
+        # RSI neutral zone
+        if 45 < rsi < 55:
+            factors.append(f"RSI at {rsi:.1f} in neutral zone lacks directional conviction")
+        elif 40 < rsi < 60:
+            factors.append(f"RSI at {rsi:.1f} shows mixed signals without clear bias")
+
+        # MACD indecision
+        if -0.1 < macd_hist < 0.1:
+            factors.append("MACD histogram shows minimal momentum")
+        elif abs(macd_hist) < 0.5:
+            factors.append("MACD signals lack conviction for directional move")
+
+        # Weak trend
+        if adx < 25:
+            factors.append(f"ADX at {adx:.1f} indicates weak trend strength")
+        elif adx < 30:
+            factors.append("trend strength insufficient for high-conviction positioning")
+
+        # Bollinger Band middle range
+        if 0.3 < bb_position < 0.7:
+            factors.append("price in middle of Bollinger Bands suggests consolidation")
+
+        # Stochastic indecision
+        if 40 < stoch_k < 60:
+            factors.append("Stochastic in neutral zone lacks directional bias")
+
+        # Support/resistance proximity
+        if support_distance < 0.3 and resistance_distance < 0.3:
+            factors.append("trapped between key support and resistance levels")
+        elif min(support_distance, resistance_distance) < 0.5:
+            factors.append("proximity to key levels requires patience for breakout")
+
+        # Default factors if none specific
+        if len(factors) < 2:
+            factors.extend([
+                "mixed technical signals prevent clear directional bias",
+                "market conditions favor patience over positioning",
+                "waiting for stronger technical confirmation"
+            ])
+
+        return factors[:4]  # Return up to 4 factors
+
     def _load_long_templates(self) -> List[Dict[str, Any]]:
         """Load LONG decision templates."""
         return [
@@ -218,9 +542,9 @@ class DecisionTemplates:
                 "waiting_for": ["range breakout", "volume increase", "directional move"]
             },
             {
-                "category": "risk_management",
-                "primary_conditions": ["unfavorable risk-reward", "high uncertainty", "poor timing"],
-                "waiting_for": ["better entry point", "improved setup", "risk reduction"]
+                "category": "timing",
+                "primary_conditions": ["poor timing", "high uncertainty", "weak signals"],
+                "waiting_for": ["better entry point", "improved setup", "stronger confirmation"]
             }
         ]
     
@@ -336,29 +660,30 @@ class DecisionTemplates:
         """Get primary reason for LONG decision based on strongest market condition."""
         reasons = []
 
-        # Check for momentum breakout
+        # Check for momentum breakout with feature names
         macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
         if macd_hist > 0.1:
-            reasons.append("strong bullish momentum confirmed by MACD histogram turning positive")
+            reasons.append(f"MACD histogram at {macd_hist:.2f} confirms strong bullish momentum")
 
-        # Check for trend continuation
+        # Check for trend continuation with feature names
         trend_strength = self._safe_get_value(current_data, 'trend_strength', 0)
         if trend_strength > 0.6:
-            reasons.append("established uptrend shows strong continuation characteristics")
+            reasons.append(f"trend strength at {trend_strength:.2f} shows established uptrend continuation")
 
-        # Check for oversold bounce
+        # Check for oversold bounce with feature names
         rsi = self._safe_get_value(current_data, 'rsi_14', 50)
         if rsi < 35:
-            reasons.append("oversold conditions present compelling bounce opportunity")
+            reasons.append(f"RSI-14 at {rsi:.1f} indicates oversold conditions with bounce potential")
 
-        # Check for support holding
-        support_dist = self._safe_get_value(current_data, 'support_distance', 999)
-        if support_dist < 0.5:  # Close to support
-            reasons.append("price successfully tested and held key support level")
+        # Check for EMA support with feature names
+        close = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', close)
+        if close > ema_20:
+            reasons.append(f"price above EMA-20 at {ema_20:.1f} confirms uptrend support")
 
         # Default to general bullish setup
         if not reasons:
-            reasons.append("technical indicators align for bullish positioning")
+            reasons.append("technical indicators align favorably for upward movement")
 
         return random.choice(reasons)
 
@@ -366,29 +691,30 @@ class DecisionTemplates:
         """Get primary reason for SHORT decision based on strongest bearish condition."""
         reasons = []
 
-        # Check for momentum breakdown
+        # Check for momentum breakdown with feature names
         macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
         if macd_hist < -0.1:
-            reasons.append("strong bearish momentum confirmed by MACD histogram turning negative")
+            reasons.append(f"MACD histogram at {macd_hist:.2f} confirms strong bearish momentum")
 
-        # Check for trend reversal
+        # Check for trend reversal with feature names
         trend_strength = self._safe_get_value(current_data, 'trend_strength', 0)
         if trend_strength < -0.6:
-            reasons.append("established downtrend shows strong continuation characteristics")
+            reasons.append(f"trend strength at {trend_strength:.2f} shows established downtrend continuation")
 
-        # Check for overbought rejection
+        # Check for overbought rejection with feature names
         rsi = self._safe_get_value(current_data, 'rsi_14', 50)
         if rsi > 70:
-            reasons.append("overbought conditions present compelling rejection opportunity")
+            reasons.append(f"RSI-14 at {rsi:.1f} shows overbought conditions with rejection potential")
 
-        # Check for resistance rejection
-        resistance_dist = self._safe_get_value(current_data, 'resistance_distance', 999)
-        if resistance_dist < 0.5:  # Close to resistance
-            reasons.append("price failed to break above key resistance level with rejection")
+        # Check for EMA resistance with feature names
+        close = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', close)
+        if close < ema_20:
+            reasons.append(f"price below EMA-20 at {ema_20:.1f} confirms downtrend pressure")
 
         # Default to general bearish setup
         if not reasons:
-            reasons.append("technical indicators align for bearish positioning")
+            reasons.append("technical indicators align for downward movement")
 
         return random.choice(reasons)
 
@@ -422,48 +748,117 @@ class DecisionTemplates:
         """Get supporting factors for LONG decision."""
         factors = []
 
-        # Moving average support
+        # Get comprehensive indicator values for multiple conditions
         close = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+        ema_50 = self._safe_get_value(current_data, 'ema_50', 0)
         sma_20 = self._safe_get_value(current_data, 'sma_20', 0)
-        if close > sma_20:
-            factors.append("price trading above 20-period moving average support")
-
-        # Volume confirmation
-        # Note: Volume may not be available in all datasets
-
-        # RSI momentum
         rsi = self._safe_get_value(current_data, 'rsi_14', 50)
-        if 35 <= rsi <= 65:
-            factors.append("RSI showing healthy momentum with room for upside")
-
-        # Bollinger Band position
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        adx = self._safe_get_value(current_data, 'adx', 25)
+        di_plus = self._safe_get_value(current_data, 'di_plus', 25)
+        stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
         bb_position = self._safe_get_value(current_data, 'bb_position', 0.5)
-        if bb_position < 0.3:
-            factors.append("price near lower Bollinger Band suggests oversold bounce potential")
+        support_distance = self._safe_get_value(current_data, 'support_distance', 999)
 
-        return factors[:2]  # Limit to 2 supporting factors
+        # 1. Moving average structure
+        if close > ema_20 and ema_20 > 0:
+            pct_above = ((close - ema_20) / ema_20) * 100
+            factors.append(f"price {pct_above:.2f}% above EMA-20 at {ema_20:.1f} confirms uptrend")
+        if ema_20 > ema_50 and ema_20 > 0:
+            factors.append("EMA-20 above EMA-50 maintains bullish structure")
+        if close > sma_20:
+            factors.append("price above SMA-20 shows institutional support")
+
+        # 2. RSI momentum
+        if 30 < rsi < 70:
+            factors.append(f"RSI at {rsi:.1f} shows healthy momentum without overbought risk")
+        elif rsi > 50:
+            factors.append(f"RSI at {rsi:.1f} confirms bullish momentum")
+
+        # 3. MACD confirmation
+        if macd_hist > 0.05:
+            factors.append(f"MACD histogram at {macd_hist:.3f} signals strong acceleration")
+        elif macd_hist > 0:
+            factors.append("MACD histogram positive confirms upward momentum")
+
+        # 4. ADX trend strength
+        if adx > 25 and di_plus > 25:
+            factors.append(f"ADX at {adx:.1f} with strong DI+ confirms uptrend")
+        elif adx > 20:
+            factors.append("developing trend strength supports continuation")
+
+        # 5. Stochastic positioning
+        if 20 < stoch_k < 80:
+            factors.append(f"Stochastic at {stoch_k:.1f} positioned for continued upside")
+
+        # 6. Support proximity
+        if support_distance < 0.5:
+            factors.append("positioned near key support provides favorable entry")
+
+        # 7. Bollinger Band analysis
+        if 0.2 < bb_position < 0.8:
+            factors.append("Bollinger Band position shows room for expansion")
+
+        return factors[:5]  # Return 5 supporting factors like real traders
 
     def _get_short_supporting_factors(self, current_data: pd.Series, market_analysis: Dict[str, Any]) -> List[str]:
         """Get supporting factors for SHORT decision."""
         factors = []
 
-        # Moving average resistance
+        # Get comprehensive indicator values for multiple conditions
         close = self._safe_get_value(current_data, 'close', 0)
+        ema_20 = self._safe_get_value(current_data, 'ema_20', 0)
+        ema_50 = self._safe_get_value(current_data, 'ema_50', 0)
         sma_20 = self._safe_get_value(current_data, 'sma_20', 0)
-        if close < sma_20:
-            factors.append("price trading below 20-period moving average resistance")
-
-        # RSI momentum
         rsi = self._safe_get_value(current_data, 'rsi_14', 50)
-        if 35 <= rsi <= 65:
-            factors.append("RSI showing bearish momentum with room for downside")
-
-        # Bollinger Band position
+        macd_hist = self._safe_get_value(current_data, 'macd_histogram', 0)
+        adx = self._safe_get_value(current_data, 'adx', 25)
+        di_minus = self._safe_get_value(current_data, 'di_minus', 25)
+        stoch_k = self._safe_get_value(current_data, 'stoch_k', 50)
         bb_position = self._safe_get_value(current_data, 'bb_position', 0.5)
-        if bb_position > 0.7:
-            factors.append("price near upper Bollinger Band suggests overbought rejection potential")
+        resistance_distance = self._safe_get_value(current_data, 'resistance_distance', 999)
 
-        return factors[:2]  # Limit to 2 supporting factors
+        # 1. Moving average resistance
+        if close < ema_20 and ema_20 > 0:
+            pct_below = ((ema_20 - close) / ema_20) * 100
+            factors.append(f"price {pct_below:.1f}% below EMA-20 at {ema_20:.1f} confirms downtrend")
+        if ema_20 < ema_50 and ema_20 > 0:
+            factors.append("EMA-20 below EMA-50 maintains bearish structure")
+        if close < sma_20:
+            factors.append("price below SMA-20 shows selling pressure")
+
+        # 2. RSI momentum
+        if rsi > 70:
+            factors.append(f"RSI at {rsi:.1f} overbought conditions signal reversal")
+        elif rsi < 50:
+            factors.append(f"RSI at {rsi:.1f} confirms bearish momentum")
+
+        # 3. MACD confirmation
+        if macd_hist < -0.05:
+            factors.append(f"MACD histogram at {macd_hist:.3f} signals strong bearish acceleration")
+        elif macd_hist < 0:
+            factors.append("MACD histogram negative confirms downward momentum")
+
+        # 4. ADX trend strength
+        if adx > 25 and di_minus > 25:
+            factors.append(f"ADX at {adx:.1f} with strong DI- confirms downtrend")
+
+        # 5. Stochastic positioning
+        if stoch_k > 80:
+            factors.append(f"Stochastic at {stoch_k:.1f} overbought signals reversal")
+        elif stoch_k < 50:
+            factors.append("Stochastic below 50 supports downside")
+
+        # 6. Resistance proximity
+        if resistance_distance < 0.5:
+            factors.append("positioned near resistance provides favorable short entry")
+
+        # 7. Bollinger Band analysis
+        if bb_position > 0.8:
+            factors.append("price near upper Bollinger Band suggests rejection")
+
+        return factors[:5]  # Return 5 supporting factors like real traders
 
     def _get_hold_supporting_factors(self, current_data: pd.Series, market_analysis: Dict[str, Any]) -> List[str]:
         """Get supporting factors for HOLD decision."""
@@ -530,11 +925,13 @@ class DecisionTemplates:
             return "position sizing adjusted for current volatility environment"
 
     def _get_hold_waiting_criteria(self, current_data: pd.Series, market_analysis: Dict[str, Any]) -> str:
-        """Get criteria for what we're waiting for in HOLD decision."""
+        """Get criteria for what we're waiting for in HOLD decision - NO RISK-REWARD REFERENCES."""
         criteria = [
             "waiting for clearer confirmation from momentum indicators",
             "monitoring for breakout above resistance or breakdown below support",
-            "awaiting improved risk-reward setup with better entry timing"
+            "awaiting stronger technical signals for directional conviction",
+            "watching for volume confirmation of price movement",
+            "looking for trend strength improvement before positioning"
         ]
 
         return random.choice(criteria)

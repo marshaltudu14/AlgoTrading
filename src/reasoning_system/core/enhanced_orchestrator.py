@@ -38,6 +38,8 @@ from ..engines.execution_decision_engine import ExecutionDecisionEngine
 from ..engines.risk_assessment_engine import RiskAssessmentEngine
 from ..generators.text_generator import TextGenerator
 from ..generators.quality_validator import QualityValidator
+from ..validators.reasoning_quality_validator import ReasoningQualityValidator
+from ..managers.content_diversity_manager import ContentDiversityManager
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +76,17 @@ class EnhancedReasoningOrchestrator:
         # Initialize text generation and validation
         self.text_generator = TextGenerator(self.config.get('text_generation', {}))
         self.quality_validator = QualityValidator(self.config.get('quality', {}))
-        
+
+        # Initialize new quality validation and content diversity management
+        self.reasoning_quality_validator = ReasoningQualityValidator()
+        self.content_diversity_manager = ContentDiversityManager(
+            diversity_threshold=self.config.get('diversity_threshold', 0.8)
+        )
+
         # Performance tracking
         self.processing_times = []
         self.target_processing_time = 1.0  # 1 second per row
+        self.generation_count = 0  # Track number of generations for diversity
         
         logger.info("EnhancedReasoningOrchestrator initialized with all engines")
     
@@ -114,7 +123,7 @@ class EnhancedReasoningOrchestrator:
             )
             
             # Validate quality and ensure no signal column references
-            validated_reasoning = self._validate_and_clean_reasoning(comprehensive_reasoning)
+            validated_reasoning = self._validate_and_clean_reasoning(comprehensive_reasoning, current_data)
             
             # Track processing time
             processing_time = time.time() - start_time
@@ -244,11 +253,8 @@ class EnhancedReasoningOrchestrator:
                 execution_reasoning, 'execution'
             )
             
-            # Risk reward analysis with enhancements
-            risk_reasoning = self.risk_engine.generate_reasoning(current_data, context)
-            traditional_reasoning['risk_reward'] = self.natural_language_generator.enhance_reasoning_text(
-                risk_reasoning, 'risk'
-            )
+            # Risk reward analysis removed per user preferences
+            # User prefers reasoning systems to exclude risk-reward text since it's hardcoded in config
             
             # Feature analysis (new enhanced column)
             feature_reasoning = enhanced_analysis.get('feature_relationships',
@@ -291,7 +297,7 @@ class EnhancedReasoningOrchestrator:
         
         return comprehensive_reasoning
 
-    def _validate_and_clean_reasoning(self, reasoning: Dict[str, str]) -> Dict[str, str]:
+    def _validate_and_clean_reasoning(self, reasoning: Dict[str, str], current_data: pd.Series) -> Dict[str, str]:
         """Validate reasoning quality and ensure no signal column references."""
         validated_reasoning = {}
 
@@ -305,16 +311,38 @@ class EnhancedReasoningOrchestrator:
                 logger.warning(f"Signal reference detected in {column}, cleaning...")
                 text = self._remove_signal_references(text)
 
-            # Apply quality validation (just return the text for now)
-            validated_text = text
+            validated_reasoning[column] = text
 
+        # Set current signal for validation
+        signal = self._safe_get_value(current_data, 'signal', 0)
+        self.reasoning_quality_validator.set_current_signal(signal)
+
+        # Apply comprehensive quality validation (silent mode for performance)
+        quality_assessment = self.reasoning_quality_validator.validate_reasoning(validated_reasoning)
+
+        # Apply content diversity enhancements
+        self.generation_count += 1
+        enhanced_reasoning = self.content_diversity_manager.enhance_content_diversity(
+            validated_reasoning, self.generation_count
+        )
+
+        # Final validation pass
+        final_reasoning = {}
+        for column, text in enhanced_reasoning.items():
             # Ensure minimum quality standards
-            if len(validated_text.strip()) < 20:
-                validated_text = self._expand_reasoning(validated_text, column)
+            if len(text.strip()) < 20:
+                text = self._expand_reasoning(text, column)
 
-            validated_reasoning[column] = validated_text
+            final_reasoning[column] = text
 
-        return validated_reasoning
+        return final_reasoning
+
+    def _safe_get_value(self, data: pd.Series, column: str, default: Any = 0) -> Any:
+        """Safely get value from pandas Series."""
+        try:
+            return data.get(column, default) if column in data.index else default
+        except Exception:
+            return default
 
     def _contains_signal_references(self, text: str) -> bool:
         """Check if text contains signal column references."""
