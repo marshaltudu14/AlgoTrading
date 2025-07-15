@@ -29,7 +29,7 @@ import argparse
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from reasoning_system import ReasoningOrchestrator
+from src.reasoning_system.core.enhanced_orchestrator import EnhancedReasoningOrchestrator
 from config.config import get_config
 
 # Configure logging
@@ -64,32 +64,7 @@ def get_reasoning_config() -> Dict[str, Any]:
     Returns:
         Configuration dictionary for reasoning system
     """
-    base_config = get_config()
-    
-    # Add reasoning-specific configuration
-    reasoning_config = {
-        'context_window_size': 100,
-        'quality_validation': {
-            'min_quality_score': 70,
-            'check_price_references': True,
-            'check_logical_consistency': True,
-            'check_professional_language': True
-        },
-        'text_generation': {
-            'min_reasoning_length': 50,
-            'max_reasoning_length': 300,
-            'use_professional_enhancement': True
-        },
-        'processing': {
-            'batch_size': 1000,
-            'progress_reporting_interval': 1000,
-            'save_quality_reports': True
-        }
-    }
-    
-    # Merge with base config
-    base_config.update(reasoning_config)
-    return base_config
+    return get_config()
 
 
 def process_single_file(orchestrator, input_file: Path,
@@ -207,7 +182,7 @@ def main():
         
         # Initialize reasoning orchestrator
         logger.info("Initializing enhanced reasoning orchestrator...")
-        orchestrator = ReasoningOrchestrator(config)
+        orchestrator = EnhancedReasoningOrchestrator(config)
         print("Using ENHANCED reasoning system with:")
         print("  - Decision column with signal-based logic (no signal references in text)")
         print("  - Historical pattern analysis (20-50 and 100-200 candle timeframes)")

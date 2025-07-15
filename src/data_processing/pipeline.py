@@ -252,17 +252,45 @@ class DataProcessingPipeline:
             logger.info("Running reasoning generator...")
 
             # Import reasoning system
-            from reasoning_system import ReasoningOrchestrator
+            from src.reasoning_system.core.enhanced_orchestrator import EnhancedReasoningOrchestrator
             from config.config import get_config
 
             config = get_config()
 
             # Use enhanced reasoning orchestrator (only option now)
-            self.reasoning_orchestrator = ReasoningOrchestrator(config)
+            self.reasoning_orchestrator = EnhancedReasoningOrchestrator(config)
             logger.info("Using Enhanced Reasoning System")
 
-            # Process directory
-            summary = self.reasoning_orchestrator.process_directory(input_dir, output_dir)
+            # Find feature files to process
+            input_path = Path(input_dir)
+            feature_files = list(input_path.glob("features_*.csv"))
+
+            if not feature_files:
+                return {
+                    'success': False,
+                    'error': f"No feature files found in {input_dir}",
+                    'files_processed': 0
+                }
+
+            results = []
+            total_rows_processed = 0
+            total_quality_score = 0
+
+            for feature_file in feature_files:
+                result = self.reasoning_orchestrator.process_file(str(feature_file), str(Path(output_dir) / feature_file.name.replace("features_", "reasoning_")))
+                results.append(result)
+                if result['status'] == 'success':
+                    total_rows_processed += result.get('input_rows', 0)
+                    total_quality_score += result.get('quality_score', 0) * result.get('input_rows', 0) # Weighted average
+
+            avg_quality = (total_quality_score / total_rows_processed) if total_rows_processed > 0 else 0
+
+            summary = {
+                'results': results,
+                'total_files': len(feature_files),
+                'total_rows': total_rows_processed,
+                'average_quality': avg_quality
+            }
 
             # Check if summary has results
             if 'results' not in summary:

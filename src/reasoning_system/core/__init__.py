@@ -8,7 +8,4 @@ reasoning generation system.
 from .enhanced_orchestrator import EnhancedReasoningOrchestrator
 from .base_engine import BaseReasoningEngine
 
-# Enhanced orchestrator is now the only orchestrator
-ReasoningOrchestrator = EnhancedReasoningOrchestrator
-
-__all__ = ['ReasoningOrchestrator', 'EnhancedReasoningOrchestrator', 'BaseReasoningEngine']
+__all__ = ['EnhancedReasoningOrchestrator', 'BaseReasoningEngine']

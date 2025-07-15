@@ -18,32 +18,26 @@ Version: 1.0
 """
 
 from .core.enhanced_orchestrator import EnhancedReasoningOrchestrator
-
-# Enhanced orchestrator is now the only orchestrator
-ReasoningOrchestrator = EnhancedReasoningOrchestrator
 from .core.base_engine import BaseReasoningEngine
 from .context.historical_context_manager import HistoricalContextManager
-from .engines.pattern_recognition_engine import PatternRecognitionEngine
+from .engines.historical_pattern_engine import HistoricalPatternEngine
 from .engines.context_analysis_engine import ContextAnalysisEngine
 from .engines.psychology_assessment_engine import PsychologyAssessmentEngine
-from .engines.execution_decision_engine import ExecutionDecisionEngine
-from .engines.risk_assessment_engine import RiskAssessmentEngine
-from .generators.text_generator import TextGenerator
-from .generators.quality_validator import QualityValidator
+from .engines.execution_decision_engine import ExecutionDecisionEngine # Assuming this exists
+from .engines.risk_assessment_engine import RiskAssessmentEngine # Assuming this exists
+
+# Removed TextGenerator and QualityValidator as they are not directly used here
 
 __version__ = "1.0.0"
 __author__ = "AlgoTrading System"
 
 __all__ = [
-    'ReasoningOrchestrator',  # Points to EnhancedReasoningOrchestrator
     'EnhancedReasoningOrchestrator',
     'BaseReasoningEngine',
     'HistoricalContextManager',
-    'PatternRecognitionEngine',
+    'HistoricalPatternEngine',
     'ContextAnalysisEngine',
     'PsychologyAssessmentEngine',
     'ExecutionDecisionEngine',
-    'RiskAssessmentEngine',
-    'TextGenerator',
-    'QualityValidator'
+    'RiskAssessmentEngine'
 ]

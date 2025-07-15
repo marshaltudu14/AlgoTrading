@@ -628,8 +628,8 @@ class DynamicFileProcessor:
                 processed_df.to_csv(output_path, index=False)
 
                 results[file_path.name] = f"Success: {len(processed_df)} rows, {len(processed_df.columns)} features"
-                logger.info(f"✓ Processed {file_path.name}: {len(processed_df)} rows, {len(processed_df.columns)} features")
-                logger.info(f"✓ Replaced existing file: {output_path}")
+                logger.info(f"Processed {file_path.name}: {len(processed_df)} rows, {len(processed_df.columns)} features")
+                logger.info(f"Replaced existing file: {output_path}")
 
             except Exception as e:
                 results[file_path.name] = f"Error: {str(e)}"

@@ -109,6 +109,23 @@ VALIDATION_CONFIG = {
     'max_correlation_threshold': 0.95, # Maximum allowed correlation between features
 }
 
+# === REASONING GENERATION CONFIGURATION ===
+REASONING_CONFIG = {
+    'context_window_size': 100, # Number of historical rows to consider for context
+    'volatility_threshold_high': 2.0, # ATR multiplier for high volatility
+    'volatility_threshold_low': 0.5, # ATR multiplier for low volatility
+    'consolidation_threshold': 0.02, # Percentage price range for consolidation detection
+    'breakout_threshold': 0.005, # Percentage price increase for breakout detection
+    'breakdown_threshold': 0.005, # Percentage price decrease for breakdown detection
+    'avg_volume': 100000, # Placeholder for average volume (should be dynamically calculated or set per instrument)
+    'avg_candle_range': 0.01, # Placeholder for average candle range (should be dynamically calculated or set per instrument)
+    'processing': {
+        'batch_size': 1000,
+        'progress_reporting_interval': 1000,
+        'save_quality_reports': True
+    }
+}
+
 def get_config():
     """
     Get the complete configuration dictionary.
@@ -123,6 +140,7 @@ def get_config():
         'logging': LOGGING_CONFIG,
         'performance': PERFORMANCE_CONFIG,
         'validation': VALIDATION_CONFIG,
+        'reasoning': REASONING_CONFIG, # Add reasoning config
     }
 
 def print_config():

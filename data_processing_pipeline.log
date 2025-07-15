@@ -4081,3 +4081,236 @@ STEP 3: FINAL DATA ORGANIZATION
 2025-07-13 12:50:07,419 - __main__ - INFO - ================================================================================
 2025-07-13 12:50:07,419 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
 2025-07-13 12:50:07,419 - __main__ - INFO - ================================================================================
+2025-07-15 14:17:12,913 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:17:12,913 - __main__ - INFO - ================================================================================
+2025-07-15 14:17:12,913 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:17:12,913 - __main__ - INFO - ================================================================================
+2025-07-15 14:17:12,913 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:17:12,913 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:17:12,913 - __main__ - INFO - Running feature generator...
+2025-07-15 14:17:12,975 - __main__ - ERROR - Feature generation step failed: No module named 'pandas_ta'
+2025-07-15 14:18:19,258 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:18:19,258 - __main__ - INFO - ================================================================================
+2025-07-15 14:18:19,258 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:18:19,258 - __main__ - INFO - ================================================================================
+2025-07-15 14:18:19,258 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:18:19,258 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:18:19,258 - __main__ - INFO - Running feature generator...
+2025-07-15 14:18:21,668 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:20:20,863 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:20:20,863 - __main__ - INFO - ================================================================================
+2025-07-15 14:20:20,879 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:20:20,879 - __main__ - INFO - ================================================================================
+2025-07-15 14:20:20,879 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:20:20,879 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:20:20,879 - __main__ - INFO - Running feature generator...
+2025-07-15 14:20:21,302 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:25:41,566 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:25:41,566 - __main__ - INFO - ================================================================================
+2025-07-15 14:25:41,566 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:25:41,566 - __main__ - INFO - ================================================================================
+2025-07-15 14:25:41,566 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:25:41,566 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:25:41,566 - __main__ - INFO - Running feature generator...
+2025-07-15 14:25:42,020 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:30:26,783 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:30:26,783 - __main__ - INFO - ================================================================================
+2025-07-15 14:30:26,783 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:30:26,783 - __main__ - INFO - ================================================================================
+2025-07-15 14:30:26,783 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:30:26,783 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:30:26,783 - __main__ - INFO - Running feature generator...
+2025-07-15 14:30:28,033 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:38:39,647 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:38:39,649 - __main__ - INFO - ================================================================================
+2025-07-15 14:38:39,650 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:38:39,650 - __main__ - INFO - ================================================================================
+2025-07-15 14:38:39,651 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:38:39,654 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:38:39,655 - __main__ - INFO - Running feature generator...
+2025-07-15 14:38:40,564 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:38:50,221 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:38:50,225 - __main__ - INFO - ================================================================================
+2025-07-15 14:38:50,226 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:38:50,227 - __main__ - INFO - ================================================================================
+2025-07-15 14:38:50,228 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:38:50,228 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:38:50,228 - __main__ - INFO - Running feature generator...
+2025-07-15 14:38:50,658 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:39:59,876 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:39:59,877 - __main__ - INFO - ================================================================================
+2025-07-15 14:39:59,877 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:39:59,877 - __main__ - INFO - ================================================================================
+2025-07-15 14:39:59,878 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:39:59,878 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:39:59,878 - __main__ - INFO - Running feature generator...
+2025-07-15 14:40:01,030 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:40:56,453 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:40:56,454 - __main__ - INFO - ================================================================================
+2025-07-15 14:40:56,455 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:40:56,455 - __main__ - INFO - ================================================================================
+2025-07-15 14:40:56,455 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:40:56,456 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:40:56,456 - __main__ - INFO - Running feature generator...
+2025-07-15 14:40:57,089 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:49:01,786 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:49:01,787 - __main__ - INFO - ================================================================================
+2025-07-15 14:49:01,789 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:49:01,789 - __main__ - INFO - ================================================================================
+2025-07-15 14:49:01,790 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:49:01,790 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:49:01,791 - __main__ - INFO - Running feature generator...
+2025-07-15 14:49:04,396 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 14:53:37,295 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 14:53:37,296 - __main__ - INFO - ================================================================================
+2025-07-15 14:53:37,296 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 14:53:37,296 - __main__ - INFO - ================================================================================
+2025-07-15 14:53:37,296 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 14:53:37,297 - __main__ - INFO - ----------------------------------------
+2025-07-15 14:53:37,297 - __main__ - INFO - Running feature generator...
+2025-07-15 14:53:40,745 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\iamma\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-15 15:04:27,119 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 15:04:27,120 - __main__ - INFO - ================================================================================
+2025-07-15 15:04:27,120 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 15:04:27,120 - __main__ - INFO - ================================================================================
+2025-07-15 15:04:27,120 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 15:04:27,121 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:04:27,121 - __main__ - INFO - Running feature generator...
+2025-07-15 15:04:27,626 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-15 15:04:27,626 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-15 15:04:27,664 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 15:04:33,449 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-15 15:04:35,045 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-15 15:04:35,046 - feature_generator - INFO - Generated 59 features for Bank_Nifty_5.csv
+2025-07-15 15:04:35,151 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-15 15:04:35,166 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 15:04:35,172 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-15 15:04:38,789 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-15 15:04:38,789 - feature_generator - INFO - Generated 59 features for Nifty_2.csv
+2025-07-15 15:04:38,980 - __main__ - INFO - Feature generator completed successfully
+2025-07-15 15:04:39,183 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-15 15:04:39,184 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-15 15:04:39,184 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:04:39,185 - __main__ - INFO - Running reasoning generator...
+2025-07-15 15:04:39,231 - __main__ - ERROR - Reasoning generation step failed: No module named 'src'
+2025-07-15 15:05:39,205 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 15:05:39,205 - __main__ - INFO - ================================================================================
+2025-07-15 15:05:39,205 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 15:05:39,205 - __main__ - INFO - ================================================================================
+2025-07-15 15:05:39,205 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 15:05:39,205 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:05:39,205 - __main__ - INFO - Running feature generator...
+2025-07-15 15:05:39,830 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-15 15:05:39,830 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-15 15:05:39,846 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 15:05:39,956 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-15 15:05:41,319 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-15 15:05:41,319 - feature_generator - INFO - Generated 59 features for Bank_Nifty_5.csv
+2025-07-15 15:05:41,381 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-15 15:05:41,397 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 15:05:41,397 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-15 15:05:45,043 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-15 15:05:45,043 - feature_generator - INFO - Generated 59 features for Nifty_2.csv
+2025-07-15 15:05:45,230 - __main__ - INFO - Feature generator completed successfully
+2025-07-15 15:05:45,371 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-15 15:05:45,371 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-15 15:05:45,371 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:05:45,371 - __main__ - INFO - Running reasoning generator...
+2025-07-15 15:05:45,371 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-15 15:05:45,371 - __main__ - ERROR - Reasoning generation step failed: 'EnhancedReasoningOrchestrator' object has no attribute 'process_directory'
+2025-07-15 15:07:35,158 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 15:07:35,158 - __main__ - INFO - ================================================================================
+2025-07-15 15:07:35,158 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 15:07:35,158 - __main__ - INFO - ================================================================================
+2025-07-15 15:07:35,158 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 15:07:35,158 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:07:35,158 - __main__ - INFO - Running feature generator...
+2025-07-15 15:07:35,580 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-15 15:07:35,580 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-15 15:07:35,580 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 15:07:35,690 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-15 15:07:36,894 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-15 15:07:36,894 - feature_generator - INFO - Generated 59 features for Bank_Nifty_5.csv
+2025-07-15 15:07:36,962 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 64 features
+2025-07-15 15:07:36,962 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-15 15:07:36,973 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 15:07:36,973 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-15 15:07:40,618 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-15 15:07:40,618 - feature_generator - INFO - Generated 59 features for Nifty_2.csv
+2025-07-15 15:07:40,900 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 64 features
+2025-07-15 15:07:40,900 - __main__ - INFO - Feature generator completed successfully
+2025-07-15 15:07:41,009 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-15 15:07:41,009 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-15 15:07:41,009 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:07:41,009 - __main__ - INFO - Running reasoning generator...
+2025-07-15 15:07:41,025 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-15 15:07:41,025 - src.reasoning_system.core.enhanced_orchestrator - INFO - Starting processing for data\processed\features_Bank_Nifty_5.csv
+2025-07-15 15:07:41,056 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from data\processed\features_Bank_Nifty_5.csv
+2025-07-15 15:07:43,794 - src.reasoning_system.core.enhanced_orchestrator - INFO - Successfully processed and saved to data\processed\reasoning\reasoning_Bank_Nifty_5.csv
+2025-07-15 15:07:43,903 - src.reasoning_system.core.enhanced_orchestrator - INFO - Starting processing for data\processed\features_Nifty_2.csv
+2025-07-15 15:07:43,966 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 2300 rows from data\processed\features_Nifty_2.csv
+2025-07-15 15:07:47,015 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1000/2300 rows for features_Nifty_2.csv
+2025-07-15 15:07:50,550 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 2000/2300 rows for features_Nifty_2.csv
+2025-07-15 15:07:51,865 - src.reasoning_system.core.enhanced_orchestrator - INFO - Successfully processed and saved to data\processed\reasoning\reasoning_Nifty_2.csv
+2025-07-15 15:07:52,256 - __main__ - INFO - Reasoning generator completed successfully
+2025-07-15 15:07:52,256 - __main__ - INFO - Reasoning generation completed: 2 files
+2025-07-15 15:07:52,256 - __main__ - INFO - 
+STEP 3: FINAL DATA ORGANIZATION
+2025-07-15 15:07:52,256 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:07:52,444 - __main__ - INFO - Organized: final_Bank_Nifty_5.csv
+2025-07-15 15:07:52,975 - __main__ - INFO - Organized: final_Nifty_2.csv
+2025-07-15 15:07:52,975 - __main__ - INFO - Pipeline report saved: reports\pipeline\pipeline_report_1752572272.txt
+2025-07-15 15:07:52,975 - __main__ - INFO - ================================================================================
+2025-07-15 15:07:52,975 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
+2025-07-15 15:07:52,975 - __main__ - INFO - ================================================================================
+2025-07-15 15:11:22,923 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 15:11:22,923 - __main__ - INFO - ================================================================================
+2025-07-15 15:11:22,923 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 15:11:22,923 - __main__ - INFO - ================================================================================
+2025-07-15 15:11:22,923 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 15:11:22,923 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:11:22,923 - __main__ - INFO - Running feature generator...
+2025-07-15 15:11:23,675 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-15 15:11:23,675 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-15 15:11:23,706 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 15:11:23,847 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-15 15:11:25,254 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-15 15:11:25,254 - feature_generator - INFO - Generated 59 features for Bank_Nifty_5.csv
+2025-07-15 15:11:25,347 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 64 features
+2025-07-15 15:11:25,347 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-15 15:11:25,347 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-15 15:11:25,363 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 15:11:25,363 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-15 15:11:29,230 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-15 15:11:29,230 - feature_generator - INFO - Generated 59 features for Nifty_2.csv
+2025-07-15 15:11:29,464 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 64 features
+2025-07-15 15:11:29,464 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-15 15:11:29,464 - __main__ - INFO - Feature generator completed successfully
+2025-07-15 15:11:29,543 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-15 15:11:29,543 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-15 15:11:29,543 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:11:29,543 - __main__ - INFO - Running reasoning generator...
+2025-07-15 15:11:29,558 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-15 15:11:29,558 - src.reasoning_system.core.enhanced_orchestrator - INFO - Starting processing for data\processed\features_Bank_Nifty_5.csv
+2025-07-15 15:11:29,589 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from data\processed\features_Bank_Nifty_5.csv
+2025-07-15 15:11:31,374 - src.reasoning_system.core.enhanced_orchestrator - INFO - Successfully processed and saved to data\processed\reasoning\reasoning_Bank_Nifty_5.csv
+2025-07-15 15:11:31,468 - src.reasoning_system.core.enhanced_orchestrator - INFO - Starting processing for data\processed\features_Nifty_2.csv
+2025-07-15 15:11:31,530 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 2300 rows from data\processed\features_Nifty_2.csv
+2025-07-15 15:11:34,130 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1000/2300 rows for features_Nifty_2.csv
+2025-07-15 15:11:36,334 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 2000/2300 rows for features_Nifty_2.csv
+2025-07-15 15:11:37,210 - src.reasoning_system.core.enhanced_orchestrator - INFO - Successfully processed and saved to data\processed\reasoning\reasoning_Nifty_2.csv
+2025-07-15 15:11:37,445 - __main__ - INFO - Reasoning generator completed successfully
+2025-07-15 15:11:37,445 - __main__ - INFO - Reasoning generation completed: 2 files
+2025-07-15 15:11:37,445 - __main__ - INFO - 
+STEP 3: FINAL DATA ORGANIZATION
+2025-07-15 15:11:37,445 - __main__ - INFO - ----------------------------------------
+2025-07-15 15:11:37,585 - __main__ - INFO - Organized: final_Bank_Nifty_5.csv
+2025-07-15 15:11:37,930 - __main__ - INFO - Organized: final_Nifty_2.csv
+2025-07-15 15:11:37,930 - __main__ - INFO - Pipeline report saved: reports\pipeline\pipeline_report_1752572497.txt
+2025-07-15 15:11:37,930 - __main__ - INFO - ================================================================================
+2025-07-15 15:11:37,930 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
+2025-07-15 15:11:37,930 - __main__ - INFO - ================================================================================
