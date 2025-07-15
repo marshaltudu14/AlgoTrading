@@ -6,39 +6,54 @@ class ContextAnalysisEngine(BaseReasoningEngine):
         super().__init__(config)
 
     def analyze(self, current_row_features: Dict[str, Any]) -> Dict[str, Any]:
-        # Rule-based context analysis
         overall_sentiment = "neutral"
         volatility = "moderate"
         key_events = "none"
 
-        # Get relevant features
         rsi = current_row_features.get('RSI')
         macd_hist = current_row_features.get('MACD_hist')
-        atr = current_row_features.get('ATR')
         close = current_row_features.get('close')
         open_price = current_row_features.get('open')
+        atr = current_row_features.get('ATR')
 
-        # Determine sentiment based on multiple indicators
-        bullish_signals = 0
-        bearish_signals = 0
+        bullish_score = 0
+        bearish_score = 0
 
+        # Stronger weighting for RSI and MACD
         if rsi is not None:
-            if rsi > 60: bullish_signals += 1
-            if rsi < 40: bearish_signals += 1
+            if rsi > 75: bullish_score += 3 # Very strong bullish
+            elif rsi > 60: bullish_score += 2
+            elif rsi > 50: bullish_score += 1
+            if rsi < 25: bearish_score += 3 # Very strong bearish
+            elif rsi < 40: bearish_score += 2
+            elif rsi < 50: bearish_score += 1
 
         if macd_hist is not None:
-            if macd_hist > 0: bullish_signals += 1
-            if macd_hist < 0: bearish_signals += 1
+            if macd_hist > 1.0: bullish_score += 3 # Very strong bullish MACD
+            elif macd_hist > 0.2: bullish_score += 2
+            elif macd_hist > 0: bullish_score += 1
+            if macd_hist < -1.0: bearish_score += 3 # Very strong bearish MACD
+            elif macd_hist < -0.2: bearish_score += 2
+            elif macd_hist < 0: bearish_score += 1
 
-        # Simple price action sentiment
+        # Price action sentiment
         if close is not None and open_price is not None:
-            if close > open_price: bullish_signals += 1
-            elif close < open_price: bearish_signals += 1
+            if close > open_price * 1.005: bullish_score += 1 # Significant bullish candle
+            elif close < open_price * 0.995: bearish_score += 1 # Significant bearish candle
 
-        if bullish_signals > bearish_signals:
+        # Determine overall sentiment based on scores
+        if bullish_score >= 4 and bullish_score > bearish_score + 1: 
+            overall_sentiment = "strongly bullish"
+        elif bullish_score >= 2 and bullish_score > bearish_score: 
             overall_sentiment = "bullish"
-        elif bearish_signals > bullish_signals:
+        elif bearish_score >= 4 and bearish_score > bullish_score + 1: 
+            overall_sentiment = "strongly bearish"
+        elif bearish_score >= 2 and bearish_score > bullish_score: 
             overall_sentiment = "bearish"
+        elif bullish_score > 0 and bearish_score == 0:
+            overall_sentiment = "mildly bullish"
+        elif bearish_score > 0 and bearish_score == 0:
+            overall_sentiment = "mildly bearish"
         else:
             overall_sentiment = "neutral"
 
@@ -50,9 +65,6 @@ class ContextAnalysisEngine(BaseReasoningEngine):
                 volatility = "low"
             else:
                 volatility = "moderate"
-
-        # Placeholder for key events (would typically come from external data or specific patterns)
-        # For now, keeping it simple.
 
         return {
             "overall_sentiment": overall_sentiment,

@@ -1,0 +1,21 @@
+DATA PROCESSING PIPELINE REPORT
+==================================================
+
+Pipeline Status: SUCCESS
+Total Processing Time: 26.5 seconds
+Files Processed: 2
+Rows Processed: 3,100
+Average Quality Score: 67.1
+Output Directory: data/final
+
+FEATURE GENERATION:
+  Status: SUCCESS
+  Files Processed: 2
+  Total Rows: 3,100
+
+REASONING GENERATION:
+  Status: SUCCESS
+  Files Processed: 2
+  Average Quality: 67.1
+
+Report generated: 2025-07-15 16:13:18

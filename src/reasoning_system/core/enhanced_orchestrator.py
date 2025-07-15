@@ -98,23 +98,54 @@ class EnhancedReasoningOrchestrator(BaseReasoningEngine):
         # 6. Generate rule-based natural language reasoning
         reasoning_parts = []
 
-        # Start with market conditions summary
-        market_summary = self.context_analyzer.generate_market_summary(market_conditions)
-        if market_summary: # Ensure it's not empty
-            reasoning_parts.append(market_summary)
+        # Get key insights from engines
+        overall_sentiment = market_conditions.get('overall_sentiment')
+        market_volatility = market_conditions.get('volatility')
+        trader_sentiment = psychological_factors.get('sentiment')
+        emotional_state = psychological_factors.get('emotional_state')
+        key_events = market_conditions.get('key_events')
+        pattern_explanation = self.pattern_engine.explain_patterns(historical_patterns)
+
+        # --- Constructing the narrative based on decision and signal strength ---
+
+        # Initial market and psychological assessment, tailored to the decision
+        # Prioritize strong market signals or strategic override
+        if decision == "Long":
+            if overall_sentiment in ["strongly bullish", "bullish"]:
+                reasoning_parts.append(f"The market is exhibiting a {overall_sentiment} sentiment with {market_volatility} volatility.")
+                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
+            elif overall_sentiment == "mildly bullish":
+                reasoning_parts.append(f"The market shows a mildly bullish bias with {market_volatility} volatility.")
+                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
+            else: # Neutral or bearish market, but Long decision (gut feeling/strategic)
+                reasoning_parts.append(f"Despite a {overall_sentiment} market with {market_volatility} volatility, a strategic long opportunity is identified.")
+                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
+
+        elif decision == "Short":
+            if overall_sentiment in ["strongly bearish", "bearish"]:
+                reasoning_parts.append(f"The market is exhibiting a {overall_sentiment} sentiment with {market_volatility} volatility.")
+                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
+            elif overall_sentiment == "mildly bearish":
+                reasoning_parts.append(f"The market shows a mildly bearish bias with {market_volatility} volatility.")
+                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
+            else: # Neutral or bullish market, but Short decision (gut feeling/strategic)
+                reasoning_parts.append(f"Despite a {overall_sentiment} market with {market_volatility} volatility, a strategic short opportunity is identified.")
+                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
+
+        else: # Hold
+            reasoning_parts.append(f"The market is currently exhibiting {overall_sentiment} sentiment with {market_volatility} volatility.")
+            reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
+
+        # Add key events if present
+        if key_events != "none":
+            reasoning_parts.append(f"Key events detected: {key_events}.")
 
         # Incorporate historical context and patterns
-        pattern_explanation = self.pattern_engine.explain_patterns(historical_patterns)
         if pattern_explanation:
             reasoning_parts.append(pattern_explanation)
 
-        # Add psychological insights
-        psychology_assessment = self.psychology_engine.explain_assessment(psychological_factors)
-        if psychology_assessment:
-            reasoning_parts.append(psychology_assessment)
-
         # Justify the decision based on all gathered context
-        decision_justification = self._justify_decision(decision, current_row_features, market_conditions, historical_patterns, psychological_factors, feature_relationships)
+        decision_justification = self._justify_decision(decision, current_row_features, market_conditions, historical_patterns, psychological_factors, feature_relationships, desired_signal)
         if decision_justification:
             reasoning_parts.append(decision_justification)
 
@@ -134,102 +165,99 @@ class EnhancedReasoningOrchestrator(BaseReasoningEngine):
         else: # desired_signal == 0
             return "Hold"
 
-    def _justify_decision(self, decision: str, current_row_features: Dict[str, Any], market_conditions: Dict[str, Any], historical_patterns: Dict[str, Any], psychological_factors: Dict[str, Any], feature_relationships: Dict[str, Any]) -> str:
+    def _justify_decision(self, decision: str, current_row_features: Dict[str, Any], market_conditions: Dict[str, Any], historical_patterns: Dict[str, Any], psychological_factors: Dict[str, Any], feature_relationships: Dict[str, Any], desired_signal: int) -> str:
         justification_parts = []
 
-        # Start with a general statement
-        justification_parts.append(f"Based on this analysis, the decision is to {decision}.")
+        # General opening statement, acknowledging the decision
+        justification_parts.append(f"The decision is to {decision}.")
+
+        # Incorporate market conditions
+        market_trend = market_conditions.get('trend')
+        market_momentum = market_conditions.get('momentum')
+        market_volatility = market_conditions.get('volatility')
+        overall_sentiment = market_conditions.get('overall_sentiment')
+
+        # Incorporate psychological factors
+        trader_sentiment = psychological_factors.get('sentiment')
+        emotional_state = psychological_factors.get('emotional_state')
+
+        # Incorporate historical patterns
+        has_breakout = historical_patterns.get('breakout_pattern')
+        has_breakdown = historical_patterns.get('breakdown_pattern')
+        has_consolidation = historical_patterns.get('consolidation_pattern')
+        trend_continuation = historical_patterns.get('trend_continuation')
+        has_golden_cross = historical_patterns.get('golden_cross')
+        has_death_cross = historical_patterns.get('death_cross')
+        has_bullish_engulfing = historical_patterns.get('bullish_engulfing_detected')
+        has_bearish_engulfing = historical_patterns.get('bearish_engulfing_detected')
+        has_doji = historical_patterns.get('doji_detected')
+        has_hammer = historical_patterns.get('hammer_detected')
+        has_double_top = historical_patterns.get('potential_double_top')
+        has_double_bottom = historical_patterns.get('potential_double_bottom')
+
+        # Incorporate feature relationships
+        volume_confirmation = feature_relationships.get('volume_confirmation')
+        indicator_divergence = feature_relationships.get('indicator_divergence')
+        price_action_strength = feature_relationships.get('price_action_strength')
+
+        # --- Justification Logic based on Decision and Context ---
 
         if decision == "Long":
-            # Market Conditions
-            if market_conditions.get('trend') == 'uptrend':
-                justification_parts.append("The prevailing uptrend provides a strong foundation for a long position.")
-            if market_conditions.get('momentum') == 'strong_positive':
-                justification_parts.append("Strong positive momentum indicates continued upward pressure.")
-            elif market_conditions.get('momentum') == 'positive':
-                justification_parts.append("Positive momentum supports a bullish outlook.")
+            if overall_sentiment == "strongly bullish" or overall_sentiment == "bullish":
+                justification_parts.append(f"The market exhibits a {overall_sentiment} outlook, supported by strong underlying indicators.")
+            elif overall_sentiment == "mildly bullish":
+                justification_parts.append("Despite a mildly bullish market, specific factors suggest an upward move.")
+            else: # Neutral or bearish market, but desired_signal is Long (gut feeling/strategic)
+                justification_parts.append("While the broader market remains somewhat subdued, a strategic opportunity for a long position is identified.")
 
-            # Historical Patterns
-            if historical_patterns.get('golden_cross'):
-                justification_parts.append("A Golden Cross formation signals potential long-term bullish continuation.")
-            if historical_patterns.get('breakout_pattern'):
-                justification_parts.append("A significant breakout confirms the bullish sentiment.")
-            if historical_patterns.get('bullish_engulfing_detected'):
-                justification_parts.append("The presence of a bullish engulfing pattern suggests a strong buying interest.")
-            if historical_patterns.get('potential_double_bottom'):
-                justification_parts.append("A potential Double Bottom formation indicates a strong reversal point.")
-            if historical_patterns.get('trend_continuation') == 'uptrend':
-                justification_parts.append("The existing uptrend is showing clear signs of continuation.")
+            if has_golden_cross: justification_parts.append("A recent Golden Cross reinforces the long-term bullish conviction.")
+            if has_breakout: justification_parts.append("A decisive breakout from resistance confirms the upward momentum.")
+            if has_bullish_engulfing: justification_parts.append("A bullish engulfing pattern signals strong buying interest.")
+            if has_double_bottom: justification_parts.append("The formation of a potential Double Bottom suggests a strong reversal point.")
+            if trend_continuation == "uptrend": justification_parts.append("The existing uptrend shows clear signs of continuation.")
 
-            # Psychological Factors
-            if psychological_factors.get('sentiment') == 'greedy' or psychological_factors.get('emotional_state') == 'euphoria':
-                justification_parts.append("Trader sentiment is leaning towards greed, often a precursor to continued rallies.")
-            elif psychological_factors.get('sentiment') == 'optimistic':
-                justification_parts.append("Optimistic trader sentiment provides a favorable backdrop.")
-
-            # Feature Relationships
-            if feature_relationships.get('volume_confirmation') == 'strong_bullish':
-                justification_parts.append("Strong bullish volume confirms the price action.")
-            if feature_relationships.get('price_action_strength') == 'strong':
-                justification_parts.append("Strong price action indicates conviction among buyers.")
+            if trader_sentiment == "optimistic" or trader_sentiment == "greedy":
+                justification_parts.append(f"Trader sentiment is {trader_sentiment}, providing a favorable backdrop for this move.")
+            if volume_confirmation == "strong_bullish":
+                justification_parts.append("Volume confirms the bullish price action, indicating strong conviction.")
 
         elif decision == "Short":
-            # Market Conditions
-            if market_conditions.get('trend') == 'downtrend':
-                justification_parts.append("The prevailing downtrend provides a strong foundation for a short position.")
-            if market_conditions.get('momentum') == 'strong_negative':
-                justification_parts.append("Strong negative momentum indicates continued downward pressure.")
-            elif market_conditions.get('momentum') == 'negative':
-                justification_parts.append("Negative momentum supports a bearish outlook.")
+            if overall_sentiment == "strongly bearish" or overall_sentiment == "bearish":
+                justification_parts.append(f"The market presents a {overall_sentiment} outlook, with indicators pointing to a downturn.")
+            elif overall_sentiment == "mildly bearish":
+                justification_parts.append("Even with a mildly bearish market, specific factors suggest a downward move.")
+            else: # Neutral or bullish market, but desired_signal is Short (gut feeling/strategic)
+                justification_parts.append("Despite a mixed market sentiment, a strategic opportunity for a short position is identified.")
 
-            # Historical Patterns
-            if historical_patterns.get('death_cross'):
-                justification_parts.append("A Death Cross formation signals potential long-term bearish continuation.")
-            if historical_patterns.get('breakdown_pattern'):
-                justification_parts.append("A significant breakdown confirms the bearish sentiment.")
-            if historical_patterns.get('bearish_engulfing_detected'):
-                justification_parts.append("The presence of a bearish engulfing pattern suggests strong selling pressure.")
-            if historical_patterns.get('potential_double_top'):
-                justification_parts.append("A potential Double Top formation indicates a strong reversal point.")
-            if historical_patterns.get('trend_continuation') == 'downtrend':
-                justification_parts.append("The existing downtrend appears to be continuing.")
+            if has_death_cross: justification_parts.append("A recent Death Cross reinforces the long-term bearish conviction.")
+            if has_breakdown: justification_parts.append("A decisive breakdown from support confirms the downward momentum.")
+            if has_bearish_engulfing: justification_parts.append("A bearish engulfing pattern signals strong selling pressure.")
+            if has_double_top: justification_parts.append("A potential Double Top formation indicates a strong reversal point.")
+            if trend_continuation == "downtrend": justification_parts.append("The existing downtrend appears to be continuing.")
 
-            # Psychological Factors
-            if psychological_factors.get('sentiment') == 'fearful' or psychological_factors.get('emotional_state') == 'panic':
-                justification_parts.append("Fear is gripping the market, often leading to sharp sell-offs.")
-            elif psychological_factors.get('sentiment') == 'pessimistic':
-                justification_parts.append("Pessimistic trader sentiment provides a favorable backdrop for shorts.")
-
-            # Feature Relationships
-            if feature_relationships.get('volume_confirmation') == 'strong_bearish':
-                justification_parts.append("Strong bearish volume confirms the price action.")
-            if feature_relationships.get('price_action_strength') == 'strong':
-                justification_parts.append("Strong price action indicates conviction among sellers.")
+            if trader_sentiment == "pessimistic" or trader_sentiment == "fearful":
+                justification_parts.append(f"Trader sentiment is {trader_sentiment}, contributing to the bearish pressure.")
+            if volume_confirmation == "strong_bearish":
+                justification_parts.append("Volume confirms the bearish price action, indicating strong conviction.")
 
         else: # Hold
-            # Market Conditions
-            if market_conditions.get('trend') == 'sideways':
-                justification_parts.append("The market is currently in a sideways trend, indicating a lack of clear direction.")
-            if market_conditions.get('momentum') == 'neutral':
-                justification_parts.append("Neutral momentum suggests balanced buying and selling pressure.")
-            if market_conditions.get('volatility') == 'low':
-                justification_parts.append("Low volatility points to a period of calm and indecision.")
+            justification_parts.append("The market is currently in a state of indecision.")
+            if has_consolidation: justification_parts.append("A tight consolidation phase suggests a lack of clear direction.")
+            if has_doji: justification_parts.append("The presence of a Doji candlestick signals market indecision.")
+            if market_volatility == "low": justification_parts.append("Low volatility points to a period of calm and indecision.")
+            if overall_sentiment == "neutral": justification_parts.append("Overall market sentiment remains neutral, with balanced forces.")
+            if trader_sentiment == "indecisive": justification_parts.append("Trader sentiment is indecisive, awaiting a clearer catalyst.")
 
-            # Historical Patterns
-            if historical_patterns.get('consolidation_pattern'):
-                justification_parts.append("A consolidation pattern is observed, indicating a lack of conviction among traders.")
-            if historical_patterns.get('doji_detected'):
-                justification_parts.append("A Doji candlestick pattern signals market indecision and potential trend reversal.")
+            # Add a strategic note for Hold
+            justification_parts.append("It is prudent to observe further price action before committing to a directional bias.")
 
-            # Psychological Factors
-            if psychological_factors.get('sentiment') == 'indecisive' or psychological_factors.get('emotional_state') == 'uncertain':
-                justification_parts.append("Trader sentiment remains indecisive, awaiting a clearer catalyst.")
-
-            # Feature Relationships
-            if feature_relationships.get('volume_confirmation') == 'neutral':
-                justification_parts.append("Volume remains neutral, not confirming any strong directional bias.")
-            if feature_relationships.get('price_action_strength') == 'weak':
-                justification_parts.append("Weak price action suggests a lack of strong conviction from either buyers or sellers.")
+        # Add a concluding remark about the strategic nature of the signal
+        if desired_signal == 1: # Long signal
+            justification_parts.append("This decision aligns with the system's long-term bullish strategy, targeting upward movements based on ATR-derived risk-reward.")
+        elif desired_signal == 2: # Short signal
+            justification_parts.append("This decision aligns with the system's long-term bearish strategy, targeting downward movements based on ATR-derived risk-reward.")
+        else: # Hold signal
+            justification_parts.append("This decision aligns with the system's risk management strategy, prioritizing capital preservation during uncertain market conditions.")
 
         return " ".join(justification_parts).strip()
 
