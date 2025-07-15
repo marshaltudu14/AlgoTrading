@@ -4938,3 +4938,159 @@ STEP 3: FINAL DATA ORGANIZATION
 2025-07-15 16:17:10,989 - __main__ - INFO - ================================================================================
 2025-07-15 16:17:10,989 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
 2025-07-15 16:17:10,989 - __main__ - INFO - ================================================================================
+2025-07-15 17:52:55,395 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 17:52:55,395 - __main__ - INFO - ================================================================================
+2025-07-15 17:52:55,395 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 17:52:55,395 - __main__ - INFO - ================================================================================
+2025-07-15 17:52:55,395 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 17:52:55,395 - __main__ - INFO - ----------------------------------------
+2025-07-15 17:52:55,395 - __main__ - INFO - Running feature generator...
+2025-07-15 17:52:58,021 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-15 17:52:58,021 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-15 17:52:58,068 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 17:53:02,343 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-15 17:53:03,312 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-15 17:53:03,312 - feature_generator - INFO - Generated 58 features for Bank_Nifty_5.csv
+2025-07-15 17:53:03,390 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-15 17:53:03,390 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-15 17:53:03,390 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-15 17:53:03,406 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 17:53:03,422 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-15 17:53:05,788 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-15 17:53:05,788 - feature_generator - INFO - Generated 58 features for Nifty_2.csv
+2025-07-15 17:53:06,007 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-15 17:53:06,007 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-15 17:53:06,007 - __main__ - INFO - Feature generator completed successfully
+2025-07-15 17:53:06,086 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-15 17:53:06,086 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-15 17:53:06,086 - __main__ - INFO - ----------------------------------------
+2025-07-15 17:53:06,086 - __main__ - INFO - Running reasoning generator...
+2025-07-15 17:53:06,086 - __main__ - ERROR - Reasoning generation step failed: No module named 'src'
+2025-07-15 17:54:34,473 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 17:54:34,473 - __main__ - INFO - ================================================================================
+2025-07-15 17:54:34,473 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 17:54:34,473 - __main__ - INFO - ================================================================================
+2025-07-15 17:54:34,473 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 17:54:34,473 - __main__ - INFO - ----------------------------------------
+2025-07-15 17:54:34,473 - __main__ - INFO - Running feature generator...
+2025-07-15 17:54:35,005 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-15 17:54:35,005 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-15 17:54:35,005 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 17:54:35,130 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-15 17:54:35,991 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-15 17:54:35,991 - feature_generator - INFO - Generated 58 features for Bank_Nifty_5.csv
+2025-07-15 17:54:36,085 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-15 17:54:36,085 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-15 17:54:36,085 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-15 17:54:36,100 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 17:54:36,100 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-15 17:54:38,744 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-15 17:54:38,744 - feature_generator - INFO - Generated 58 features for Nifty_2.csv
+2025-07-15 17:54:39,010 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-15 17:54:39,010 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-15 17:54:39,010 - __main__ - INFO - Feature generator completed successfully
+2025-07-15 17:54:39,120 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-15 17:54:39,120 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-15 17:54:39,120 - __main__ - INFO - ----------------------------------------
+2025-07-15 17:54:39,120 - __main__ - INFO - Running reasoning generator...
+2025-07-15 17:54:39,120 - __main__ - ERROR - Reasoning generation step failed: No module named 'src'
+2025-07-15 17:56:06,505 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 17:56:06,505 - __main__ - INFO - ================================================================================
+2025-07-15 17:56:06,505 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 17:56:06,505 - __main__ - INFO - ================================================================================
+2025-07-15 17:56:06,505 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 17:56:06,505 - __main__ - INFO - ----------------------------------------
+2025-07-15 17:56:06,505 - __main__ - INFO - Running feature generator...
+2025-07-15 17:56:07,007 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-15 17:56:07,007 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-15 17:56:07,007 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 17:56:07,116 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-15 17:56:08,038 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-15 17:56:08,038 - feature_generator - INFO - Generated 58 features for Bank_Nifty_5.csv
+2025-07-15 17:56:08,132 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-15 17:56:08,132 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-15 17:56:08,132 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-15 17:56:08,148 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 17:56:08,148 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-15 17:56:10,542 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-15 17:56:10,542 - feature_generator - INFO - Generated 58 features for Nifty_2.csv
+2025-07-15 17:56:10,746 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-15 17:56:10,746 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-15 17:56:10,746 - __main__ - INFO - Feature generator completed successfully
+2025-07-15 17:56:10,840 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-15 17:56:10,840 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-15 17:56:10,840 - __main__ - INFO - ----------------------------------------
+2025-07-15 17:56:10,840 - __main__ - INFO - Running reasoning generator...
+2025-07-15 17:56:11,044 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-15 17:56:11,044 - src.reasoning_system.core.enhanced_orchestrator - INFO - Starting processing for data\processed\features_Bank_Nifty_5.csv
+2025-07-15 17:56:11,075 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from data\processed\features_Bank_Nifty_5.csv
+2025-07-15 17:56:13,267 - src.reasoning_system.core.enhanced_orchestrator - INFO - Successfully processed and saved to data\processed\reasoning\reasoning_Bank_Nifty_5.csv
+2025-07-15 17:56:13,330 - src.reasoning_system.core.enhanced_orchestrator - INFO - Starting processing for data\processed\features_Nifty_2.csv
+2025-07-15 17:56:13,393 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 2300 rows from data\processed\features_Nifty_2.csv
+2025-07-15 17:56:15,614 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1000/2300 rows for features_Nifty_2.csv
+2025-07-15 17:56:17,851 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 2000/2300 rows for features_Nifty_2.csv
+2025-07-15 17:56:18,878 - src.reasoning_system.core.enhanced_orchestrator - INFO - Successfully processed and saved to data\processed\reasoning\reasoning_Nifty_2.csv
+2025-07-15 17:56:19,135 - __main__ - INFO - Reasoning generator completed successfully
+2025-07-15 17:56:19,135 - __main__ - INFO - Reasoning generation completed: 2 files
+2025-07-15 17:56:19,135 - __main__ - INFO - 
+STEP 3: FINAL DATA ORGANIZATION
+2025-07-15 17:56:19,135 - __main__ - INFO - ----------------------------------------
+2025-07-15 17:56:19,229 - __main__ - INFO - Organized: final_Bank_Nifty_5.csv
+2025-07-15 17:56:19,604 - __main__ - INFO - Organized: final_Nifty_2.csv
+2025-07-15 17:56:19,620 - __main__ - INFO - Pipeline report saved: reports\pipeline\pipeline_report_1752582379.txt
+2025-07-15 17:56:19,620 - __main__ - INFO - ================================================================================
+2025-07-15 17:56:19,620 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
+2025-07-15 17:56:19,620 - __main__ - INFO - ================================================================================
+2025-07-15 18:08:46,927 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-15 18:08:46,927 - __main__ - INFO - ================================================================================
+2025-07-15 18:08:46,927 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-15 18:08:46,927 - __main__ - INFO - ================================================================================
+2025-07-15 18:08:46,927 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-15 18:08:46,927 - __main__ - INFO - ----------------------------------------
+2025-07-15 18:08:46,927 - __main__ - INFO - Running feature generator...
+2025-07-15 18:08:47,443 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-15 18:08:47,443 - feature_generator - INFO - Processing Bank_Nifty_5.csv...
+2025-07-15 18:08:47,443 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 18:08:47,552 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-15 18:08:48,460 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-15 18:08:48,460 - feature_generator - INFO - Generated 58 features for Bank_Nifty_5.csv
+2025-07-15 18:08:48,538 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-15 18:08:48,538 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-15 18:08:48,538 - feature_generator - INFO - Processing Nifty_2.csv...
+2025-07-15 18:08:48,538 - feature_generator - INFO - Dropped volume column as it's not always reliable
+2025-07-15 18:08:48,554 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-15 18:08:50,856 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-15 18:08:50,856 - feature_generator - INFO - Generated 58 features for Nifty_2.csv
+2025-07-15 18:08:51,074 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-15 18:08:51,074 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-15 18:08:51,074 - __main__ - INFO - Feature generator completed successfully
+2025-07-15 18:08:51,137 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-15 18:08:51,137 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-15 18:08:51,137 - __main__ - INFO - ----------------------------------------
+2025-07-15 18:08:51,137 - __main__ - INFO - Running reasoning generator...
+2025-07-15 18:08:51,162 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-15 18:08:51,162 - src.reasoning_system.core.enhanced_orchestrator - INFO - Starting processing for data\processed\features_Bank_Nifty_5.csv
+2025-07-15 18:08:51,184 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from data\processed\features_Bank_Nifty_5.csv
+2025-07-15 18:08:53,033 - src.reasoning_system.core.enhanced_orchestrator - INFO - Successfully processed and saved to data\processed\reasoning\reasoning_Bank_Nifty_5.csv
+2025-07-15 18:09:30,203 - __main__ - INFO - Embeddings saved to data\processed\embeddings\embeddings_Bank_Nifty_5.joblib
+2025-07-15 18:09:30,203 - src.reasoning_system.core.enhanced_orchestrator - INFO - Starting processing for data\processed\features_Nifty_2.csv
+2025-07-15 18:09:30,235 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 2300 rows from data\processed\features_Nifty_2.csv
+2025-07-15 18:09:32,583 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1000/2300 rows for features_Nifty_2.csv
+2025-07-15 18:09:34,914 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 2000/2300 rows for features_Nifty_2.csv
+2025-07-15 18:09:35,930 - src.reasoning_system.core.enhanced_orchestrator - INFO - Successfully processed and saved to data\processed\reasoning\reasoning_Nifty_2.csv
+2025-07-15 18:11:31,401 - __main__ - INFO - Embeddings saved to data\processed\embeddings\embeddings_Nifty_2.joblib
+2025-07-15 18:11:31,401 - __main__ - INFO - Reasoning generator completed successfully
+2025-07-15 18:11:31,401 - __main__ - INFO - Reasoning generation completed: 2 files
+2025-07-15 18:11:31,401 - __main__ - INFO - 
+STEP 3: FINAL DATA ORGANIZATION
+2025-07-15 18:11:31,401 - __main__ - INFO - ----------------------------------------
+2025-07-15 18:11:31,526 - __main__ - INFO - Organized: final_Bank_Nifty_5.csv
+2025-07-15 18:11:31,839 - __main__ - INFO - Organized: final_Nifty_2.csv
+2025-07-15 18:11:31,839 - __main__ - INFO - Pipeline report saved: reports\pipeline\pipeline_report_1752583291.txt
+2025-07-15 18:11:31,839 - __main__ - INFO - ================================================================================
+2025-07-15 18:11:31,839 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
+2025-07-15 18:11:31,839 - __main__ - INFO - ================================================================================

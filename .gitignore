@@ -1,6 +1,3 @@
-# Ignore Fyers logs
-fyersApi.log
-fyersDataSocket.log
-fyersRequests.log
-
-# Ignore processed data only
+# Hugging Face models - can be very large, do not commit
+models/hf_tokenizer/
+models/hf_model/

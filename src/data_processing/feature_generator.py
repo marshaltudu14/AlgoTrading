@@ -456,9 +456,7 @@ class DynamicFileProcessor:
         features['volatility_10'] = close_prices.rolling(10).std() / close_prices.rolling(10).mean() * 100
         features['volatility_20'] = close_prices.rolling(20).std() / close_prices.rolling(20).mean() * 100
 
-        # === SIGNAL GENERATION ===
-        # Generate future-looking signals based on ATR targets/stops
-        features['signal'] = self.generate_signals(high_prices, low_prices, close_prices, features.get('atr'))
+        
 
         # Create DataFrame and ensure proper indexing
         features_df = pd.DataFrame(features)
@@ -470,91 +468,14 @@ class DynamicFileProcessor:
             min_len = min(len(features_df), len(close_prices))
             features_df = features_df.iloc[:min_len]
 
-        # Round all numeric columns to 2 decimal places except signal
+        # Round all numeric columns to 2 decimal places
         for col in features_df.columns:
-            if col != 'signal' and features_df[col].dtype in ['float64', 'float32']:
+            if features_df[col].dtype in ['float64', 'float32']:
                 features_df[col] = features_df[col].round(2)
-
-        # Ensure signal column is integer
-        if 'signal' in features_df.columns:
-            features_df['signal'] = features_df['signal'].astype(int)
 
         return features_df
 
-    def generate_signals(self, high_prices: pd.Series, low_prices: pd.Series,
-                        close_prices: pd.Series, atr_values: pd.Series) -> pd.Series:
-        """
-        Generate future-looking signals based on ATR targets and stops with infinite lookahead.
-
-        0 = Hold (no clear signal or would result in loss)
-        1 = Buy (technical conditions favor upward movement and would be profitable)
-        2 = Sell (technical conditions favor downward movement and would be profitable)
-        """
-        # Get signal configuration
-        signal_config = self.config['signal']
-        risk_multiplier = signal_config['risk_multiplier']      # 1.0
-        reward_multiplier = signal_config['reward_multiplier']  # 2.0
-
-        signals = pd.Series(0, index=close_prices.index)  # Default to hold
-
-        if atr_values is None:
-            logger.warning("ATR values not available for signal generation")
-            return signals
-
-        # Process all rows except the last few (need future data)
-        for i in range(len(close_prices) - 1):
-            current_price = close_prices.iloc[i]
-            current_atr = atr_values.iloc[i]
-
-            # Skip if ATR is NaN or zero
-            if pd.isna(current_atr) or current_atr == 0:
-                continue
-
-            # Calculate target and stop levels using config
-            buy_target = current_price + (current_atr * reward_multiplier)
-            buy_stop = current_price - (current_atr * risk_multiplier)
-            sell_target = current_price - (current_atr * reward_multiplier)
-            sell_stop = current_price + (current_atr * risk_multiplier)
-
-            # Look ahead infinitely (to end of data) to see what happens
-            future_highs = high_prices.iloc[i+1:]
-            future_lows = low_prices.iloc[i+1:]
-
-            # Check buy signal (look for target hit before stop)
-            buy_target_hit_mask = future_highs >= buy_target
-            buy_stop_hit_mask = future_lows <= buy_stop
-
-            buy_target_hit = buy_target_hit_mask.any()
-            buy_stop_hit = buy_stop_hit_mask.any()
-
-            if buy_target_hit and not buy_stop_hit:
-                # Target hit, stop never hit - profitable buy
-                signals.iloc[i] = 1
-            elif buy_target_hit and buy_stop_hit:
-                # Both hit - check which comes first
-                target_first_idx = buy_target_hit_mask.idxmax() if buy_target_hit else None
-                stop_first_idx = buy_stop_hit_mask.idxmax() if buy_stop_hit else None
-                if target_first_idx and stop_first_idx and target_first_idx < stop_first_idx:
-                    signals.iloc[i] = 1
-
-            # Check sell signal (look for target hit before stop)
-            sell_target_hit_mask = future_lows <= sell_target
-            sell_stop_hit_mask = future_highs >= sell_stop
-
-            sell_target_hit = sell_target_hit_mask.any()
-            sell_stop_hit = sell_stop_hit_mask.any()
-
-            if sell_target_hit and not sell_stop_hit:
-                # Target hit, stop never hit - profitable sell
-                signals.iloc[i] = 2
-            elif sell_target_hit and sell_stop_hit:
-                # Both hit - check which comes first
-                target_first_idx = sell_target_hit_mask.idxmax() if sell_target_hit else None
-                stop_first_idx = sell_stop_hit_mask.idxmax() if sell_stop_hit else None
-                if target_first_idx and stop_first_idx and target_first_idx < stop_first_idx:
-                    signals.iloc[i] = 2
-
-        return signals
+    
 
     def process_single_file(self, file_path: Path) -> pd.DataFrame:
         """Process a single CSV file and generate all features"""

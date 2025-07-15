@@ -31,26 +31,33 @@ class EnhancedReasoningOrchestrator(BaseReasoningEngine):
             logger.info(f"Loaded {len(df)} rows from {input_filepath}")
 
             # Ensure 'signal' column exists for training guidance
-            if 'signal' not in df.columns:
-                raise ValueError(f"'signal' column not found in {input_filepath}. This column is required for guiding decision generation.")
+            # if 'signal' not in df.columns:
+            #     raise ValueError(f"'signal' column not found in {input_filepath}. This column is required for guiding decision generation.")
 
             # Add new columns for reasoning and decision
             df['reasoning'] = ''
             df['decision'] = ''
+            df['signal'] = 0 # Initialize signal column
 
             # Process row by row to generate reasoning and decision
             for i in range(len(df)):
                 current_row_features = df.iloc[i].to_dict()
-                desired_signal = current_row_features.get('signal')
+                # desired_signal = current_row_features.get('signal') # No longer using future-looking signal
 
                 # Get historical data for context
                 historical_data = self.historical_context_manager.get_historical_context(df, i)
 
-                reasoning, decision = self._generate_reasoning_for_row(
-                    current_row_features, desired_signal, historical_data
+                # Calculate historical decision
+                decision = self._calculate_historical_decision(current_row_features)
+                
+                # Generate reasoning based purely on historical context
+                reasoning = self._generate_reasoning_for_row(
+                    current_row_features, historical_data
                 )
+                
                 df.at[i, 'reasoning'] = reasoning
                 df.at[i, 'decision'] = decision
+                df.at[i, 'signal'] = self._map_decision_to_signal(decision) # Map decision to signal
 
                 if (i + 1) % self.config['reasoning']['processing']['progress_reporting_interval'] == 0:
                     logger.info(f"Processed {i + 1}/{len(df)} rows for {Path(input_filepath).name}")
@@ -79,8 +86,52 @@ class EnhancedReasoningOrchestrator(BaseReasoningEngine):
                 'error': str(e)
             }
 
-    def _generate_reasoning_for_row(self, current_row_features: Dict[str, Any], desired_signal: int, historical_data: pd.DataFrame):
-        # 1. Analyze market conditions
+    def _calculate_historical_decision(self, features: Dict[str, Any]) -> str:
+        """
+        Calculates a historical decision (Long, Short, Hold) based on current features.
+        This method uses only historical data and does not look into the future.
+        """
+        sma_5 = features.get('sma_5')
+        sma_20 = features.get('sma_20')
+        rsi_14 = features.get('rsi_14')
+        close_price = features.get('close')
+        bb_middle = features.get('bb_middle')
+
+        # Ensure all necessary features are available
+        if any(x is None for x in [sma_5, sma_20, rsi_14, close_price, bb_middle]):
+            return "Hold" # Cannot make a decision if features are missing
+
+        # Long conditions
+        long_condition_1 = sma_5 > sma_20
+        long_condition_2 = rsi_14 < 40
+        long_condition_3 = close_price > bb_middle
+
+        if long_condition_1 and long_condition_2 and long_condition_3:
+            return "Long"
+
+        # Short conditions
+        short_condition_1 = sma_5 < sma_20
+        short_condition_2 = rsi_14 > 60
+        short_condition_3 = close_price < bb_middle
+
+        if short_condition_1 and short_condition_2 and short_condition_3:
+            return "Short"
+
+        return "Hold"
+
+    def _map_decision_to_signal(self, decision: str) -> int:
+        """
+        Maps a string decision (Long, Short, Hold) to an integer signal (1, 2, 0).
+        """
+        if decision == "Long":
+            return 1
+        elif decision == "Short":
+            return 2
+        else:
+            return 0
+
+    def _generate_reasoning_for_row(self, current_row_features: Dict[str, Any], historical_data: pd.DataFrame):
+        # 1. Analyze market conditions based on historical features
         market_conditions = self.market_detector.analyze(current_row_features)
 
         # 2. Identify historical patterns
@@ -92,10 +143,7 @@ class EnhancedReasoningOrchestrator(BaseReasoningEngine):
         # 4. Analyze feature relationships
         feature_relationships = self.feature_relationship_engine.analyze(current_row_features)
 
-        # 5. Infer the decision based on desired_signal and contextual factors
-        decision = self._infer_decision(desired_signal, market_conditions, historical_patterns, psychological_factors)
-
-        # 6. Generate rule-based natural language reasoning
+        # Generate rule-based natural language reasoning based on historical context
         reasoning_parts = []
 
         # Get key insights from engines
@@ -106,35 +154,10 @@ class EnhancedReasoningOrchestrator(BaseReasoningEngine):
         key_events = market_conditions.get('key_events')
         pattern_explanation = self.pattern_engine.explain_patterns(historical_patterns)
 
-        # --- Constructing the narrative based on decision and signal strength ---
+        # --- Constructing the narrative based on historical context ---
 
-        # Initial market and psychological assessment, tailored to the decision
-        # Prioritize strong market signals or strategic override
-        if decision == "Long":
-            if overall_sentiment in ["strongly bullish", "bullish"]:
-                reasoning_parts.append(f"The market is exhibiting a {overall_sentiment} sentiment with {market_volatility} volatility.")
-                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
-            elif overall_sentiment == "mildly bullish":
-                reasoning_parts.append(f"The market shows a mildly bullish bias with {market_volatility} volatility.")
-                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
-            else: # Neutral or bearish market, but Long decision (gut feeling/strategic)
-                reasoning_parts.append(f"Despite a {overall_sentiment} market with {market_volatility} volatility, a strategic long opportunity is identified.")
-                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
-
-        elif decision == "Short":
-            if overall_sentiment in ["strongly bearish", "bearish"]:
-                reasoning_parts.append(f"The market is exhibiting a {overall_sentiment} sentiment with {market_volatility} volatility.")
-                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
-            elif overall_sentiment == "mildly bearish":
-                reasoning_parts.append(f"The market shows a mildly bearish bias with {market_volatility} volatility.")
-                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
-            else: # Neutral or bullish market, but Short decision (gut feeling/strategic)
-                reasoning_parts.append(f"Despite a {overall_sentiment} market with {market_volatility} volatility, a strategic short opportunity is identified.")
-                reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
-
-        else: # Hold
-            reasoning_parts.append(f"The market is currently exhibiting {overall_sentiment} sentiment with {market_volatility} volatility.")
-            reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
+        reasoning_parts.append(f"The market is currently exhibiting {overall_sentiment} sentiment with {market_volatility} volatility.")
+        reasoning_parts.append(f"Trader sentiment appears {trader_sentiment}, reflecting an overall emotional state of {emotional_state}.")
 
         # Add key events if present
         if key_events != "none":
@@ -144,20 +167,20 @@ class EnhancedReasoningOrchestrator(BaseReasoningEngine):
         if pattern_explanation:
             reasoning_parts.append(pattern_explanation)
 
-        # Justify the decision based on all gathered context
-        decision_justification = self._justify_decision(decision, current_row_features, market_conditions, historical_patterns, psychological_factors, feature_relationships, desired_signal)
-        if decision_justification:
-            reasoning_parts.append(decision_justification)
+        # Add general concluding remark based on historical analysis
+        reasoning_parts.append("Based on historical technical indicators and market structure, the current market conditions suggest a specific trading posture.")
 
         reasoning = " ".join(reasoning_parts).strip()
         if not reasoning: # Fallback if no reasoning is generated
-            reasoning = f"The market is currently exhibiting {market_conditions.get('overall_sentiment', 'neutral')} sentiment. A decision to {decision} is made based on available indicators."
+            reasoning = f"The market is currently exhibiting {market_conditions.get('overall_sentiment', 'neutral')} sentiment based on historical data."
 
-        return reasoning, decision
+        return reasoning
 
     def _infer_decision(self, desired_signal: int, market_conditions: Dict[str, Any], historical_patterns: Dict[str, Any], psychological_factors: Dict[str, Any]) -> str:
-        # This method enforces the decision based on the desired_signal for training purposes,
-        # but the reasoning will justify it using the rich context.
+        # This method is no longer used for generating the decision column.
+        # The decision is now calculated historically by _calculate_historical_decision.
+        # This method is kept for compatibility if other parts of the system still call it,
+        # but its output is not used for the decision column in process_file.
         if desired_signal == 1:
             return "Long"
         elif desired_signal == 2:
@@ -166,6 +189,9 @@ class EnhancedReasoningOrchestrator(BaseReasoningEngine):
             return "Hold"
 
     def _justify_decision(self, decision: str, current_row_features: Dict[str, Any], market_conditions: Dict[str, Any], historical_patterns: Dict[str, Any], psychological_factors: Dict[str, Any], feature_relationships: Dict[str, Any], desired_signal: int) -> str:
+        # This method is no longer used for generating the reasoning text.
+        # The reasoning is now generated historically by _generate_reasoning_for_row.
+        # This method is kept for compatibility if other parts of the system still call it.
         justification_parts = []
 
         # General opening statement, acknowledging the decision

@@ -28,9 +28,12 @@ import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import pandas as pd
+from transformers import AutoTokenizer, AutoModel
+import torch
+import joblib
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent)) # Add project root to sys.path
 
 # Configure logging
 logging.basicConfig(
@@ -50,7 +53,10 @@ class DataProcessingPipeline:
     data with features and reasoning annotations.
     """
     
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: Optional[Dict] = None,
+                 hf_tokenizer_path="models/hf_tokenizer", 
+                 hf_model_path="models/hf_model",
+                 embeddings_output_dir="data/processed/embeddings"):
         """
         Initialize the data processing pipeline.
         
@@ -65,8 +71,57 @@ class DataProcessingPipeline:
         # Initialize components
         self.feature_generator = None
         self.reasoning_orchestrator = None
+
+        self.hf_tokenizer_path = hf_tokenizer_path
+        self.hf_model_path = hf_model_path
+        self.embeddings_output_dir = embeddings_output_dir
+
+        os.makedirs(self.embeddings_output_dir, exist_ok=True)
+        os.makedirs(hf_tokenizer_path, exist_ok=True)
+        os.makedirs(hf_model_path, exist_ok=True)
+
+        # Try loading Hugging Face tokenizer and model from local storage first
+        try:
+            print("Attempting to load Hugging Face model and tokenizer from local storage...")
+            self.hf_tokenizer = AutoTokenizer.from_pretrained(self.hf_tokenizer_path)
+            self.hf_model = AutoModel.from_pretrained(self.hf_model_path)
+            print("Successfully loaded Hugging Face model and tokenizer from local storage.")
+        except Exception as e:
+            print(f"Failed to load from local storage: {e}. Downloading Hugging Face model and tokenizer...")
+            self.hf_tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+            self.hf_model = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
+            self.hf_tokenizer.save_pretrained(self.hf_tokenizer_path)
+            self.hf_model.save_pretrained(self.hf_model_path)
+            print("Successfully downloaded and saved Hugging Face model and tokenizer.")
         
         logger.info("DataProcessingPipeline initialized")
+
+    def _mean_pooling(self, model_output, attention_mask):
+        token_embeddings = model_output[0] #First element of model_output contains all token embeddings
+        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+        return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+
+    def generate_embeddings_for_file(self, file_path, batch_size=32):
+        """Generates embeddings for the reasoning column of a single file and saves them."""
+        df = pd.read_csv(file_path)
+        X_reasoning = df['reasoning'].fillna('').tolist()
+
+        all_embeddings = []
+        for i in range(0, len(X_reasoning), batch_size):
+            batch = X_reasoning[i:i+batch_size]
+            encoded_input = self.hf_tokenizer(batch, padding=True, truncation=True, return_tensors='pt')
+            with torch.no_grad():
+                model_output = self.hf_model(**encoded_input)
+            sentence_embeddings = self._mean_pooling(model_output, encoded_input['attention_mask'])
+            all_embeddings.append(sentence_embeddings.numpy())
+        
+        embeddings_array = torch.cat([torch.from_numpy(e) for e in all_embeddings]).numpy()
+
+        output_filename = f"embeddings_{Path(file_path).stem.replace('reasoning_', '')}.joblib"
+        output_path = Path(self.embeddings_output_dir) / output_filename
+        joblib.dump(embeddings_array, output_path)
+        logger.info(f"Embeddings saved to {output_path}")
+
     
     def setup_directories(self):
         """Setup required directories for the pipeline."""
@@ -282,6 +337,10 @@ class DataProcessingPipeline:
                 if result['status'] == 'success':
                     total_rows_processed += result.get('input_rows', 0)
                     total_quality_score += result.get('quality_score', 0) * result.get('input_rows', 0) # Weighted average
+
+                    # Generate embeddings for the processed reasoning file
+                    reasoning_output_file = str(Path(output_dir) / feature_file.name.replace("features_", "reasoning_"))
+                    self.generate_embeddings_for_file(reasoning_output_file)
 
             avg_quality = (total_quality_score / total_rows_processed) if total_rows_processed > 0 else 0
 
