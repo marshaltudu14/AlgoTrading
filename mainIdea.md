@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-This document outlines the technical architecture for building a fully autonomous algorithmic trading bot that thinks and reasons like a human trader. The bot employs multi-layer decision making, narrative understanding, and adaptive learning to achieve true trading autonomy.
+This document outlines the technical architecture for building a fully autonomous algorithmic trading bot focused on maximizing risk-adjusted profits. The bot employs multi-layer decision making and adaptive learning through Reinforcement Learning to achieve true trading autonomy.
 
 ## Core Architecture Overview
 
@@ -20,50 +20,21 @@ This document outlines the technical architecture for building a fully autonomou
 - **Multi-timeframe Alignment**: Cross-timeframe momentum, trend convergence
 - **Market Microstructure**: Bid-ask spreads, order flow imbalance
 
-#### Reasoning Data Structure
-```
-Raw Data Columns:
-- timestamp, open, high, low, close, volume
-- technical_indicators (RSI, MACD, etc.)
-- price_action_features
-
-Reasoning Columns:
-- pattern_recognition_text
-- context_analysis_text
-- psychology_assessment_text
-- execution_decision_text
-- confidence_score
-- risk_assessment_text
-- alternative_scenarios_text
-```
 
 ### 2. Model Architecture
 
-#### Multi-Layer Decision Framework
+#### Ensemble Decision Framework
 
-**Layer 1: Pattern Recognition Engine**
-- **Technology**: Transformer-based sequence models (LSTM/GRU backbone with attention)
-- **Input**: Multi-timeframe OHLC + technical indicators
-- **Output**: Pattern identification with confidence scores
-- **Purpose**: Identifies candlestick patterns, chart patterns, support/resistance levels
-
-**Layer 2: Context Analysis Engine**
-- **Technology**: Bidirectional encoder with temporal attention
-- **Input**: Pattern layer output + market regime indicators
-- **Output**: Market context assessment and trend analysis
-- **Purpose**: Determines market regime, trend strength, volatility environment
-
-**Layer 3: Psychology Assessment Engine**
-- **Technology**: Sentiment analysis model with market psychology embeddings
-- **Input**: Price action sequences + volume analysis
-- **Output**: Crowd psychology assessment and contrarian signals
-- **Purpose**: Determines market sentiment, fear/greed levels, contrarian opportunities
-
-**Layer 4: Execution Decision Engine**
-- **Technology**: Reinforcement learning agent with multi-objective optimization
-- **Input**: All previous layers + risk parameters
-- **Output**: Trade decisions with position sizing and risk management
-- **Purpose**: Final decision making, position management, risk control
+**Core Component: Multi-Agent Reinforcement Learning System with Mixture of Experts (MoE)**
+- **Technology**: Integrates multiple specialized Deep Reinforcement Learning agents coordinated by a Gating Network.
+- **Input**: Comprehensive market state, including:
+    - Raw OHLCV data (current and historical sequence).
+    - Engineered technical indicators.
+    - Price action features.
+    - Current position details (e.g., holding status, P&L, capital).
+- **Internal Architecture**: Each specialized agent (e.g., Trend Following, Mean Reversion) utilizes LSTM/GRU layers to process sequential market data for robust state representation. A Gating Network dynamically selects or weights the outputs of these agents based on identified market regimes.
+- **Output**: Discrete trading actions: `BUY_LONG`, `SELL_SHORT`, `CLOSE_LONG`, `CLOSE_SHORT`, `HOLD`.
+- **Purpose**: Learns an optimal ensemble trading policy to maximize cumulative risk-adjusted profit by leveraging specialized strategies across diverse market conditions.
 
 ### 3. Multi-Agent Reinforcement Learning System
 
@@ -135,49 +106,31 @@ Reasoning Columns:
 
 ### 4. Training Strategy
 
-#### Phase 1: Individual Agent Foundation (Supervised Learning)
-- **Objective**: Each agent learns its specialized patterns independently
-- **Data**: Segmented historical data matching each agent's specialization
-- **Training**: Supervised learning on reasoning dataset for each specialty
-- **Validation**: Individual agent performance on specialized scenarios
+#### Phase 1: Individual Agent Foundation (Exploration & Policy Learning)
+- **Objective**: Each agent learns to interact with the market environment and develop initial policies.
+- **Environment**: Simulated trading environment with historical data.
+- **Training**: Reinforcement Learning algorithms (e.g., DQN, PPO) to optimize for reward function.
+- **Validation**: Agent performance on unseen historical data segments.
 
-#### Phase 2: Multi-Agent Coordination
-- **Objective**: Train gating network to coordinate specialist agents
-- **Environment**: Simulated trading with multiple market regimes
-- **Training**: Meta-learning for optimal agent selection and weighting
-- **Validation**: Ensemble performance across different market conditions
+#### Phase 2: Multi-Agent Coordination (if applicable)
+- **Objective**: Train gating network to coordinate specialist agents (if using MoE).
+- **Environment**: Simulated trading with multiple market regimes.
+- **Training**: Meta-learning for optimal agent selection and weighting.
+- **Validation**: Ensemble performance across different market conditions.
 
 #### Phase 3: Competitive Reinforcement Learning
-- **Objective**: Agents compete and collaborate for optimal performance
-- **Environment**: Full market simulation with realistic constraints
-- **Training**: Multi-agent RL with shared and individual rewards
-- **Validation**: Portfolio-level performance with risk-adjusted metrics
+- **Objective**: Agents compete and collaborate for optimal performance.
+- **Environment**: Full market simulation with realistic constraints.
+- **Training**: Multi-agent RL with shared and individual rewards.
+- **Validation**: Portfolio-level performance with risk-adjusted metrics.
 
 #### Phase 4: Continuous Learning and Adaptation
-- **Objective**: Real-time adaptation to changing market conditions
-- **Process**: Online learning with human feedback (RLHF)
-- **Monitoring**: Individual agent performance and ensemble coordination
-- **Updates**: Selective retraining of underperforming agents
+- **Objective**: Real-time adaptation to changing market conditions.
+- **Process**: Online learning or periodic retraining with new market data.
+- **Monitoring**: Individual agent performance and ensemble coordination.
+- **Updates**: Selective retraining of underperforming agents.
 
-### 4. Reasoning System Architecture
 
-#### Internal Reasoning Engine
-- **Technology**: Large Language Model fine-tuned for trading reasoning
-- **Input**: Market state + historical context + current analysis
-- **Output**: Structured reasoning text explaining decision process
-- **Constraints**: Sub-second inference time for real-time trading
-
-#### Memory System
-- **Short-term Memory**: Last 100 candles with decisions and outcomes
-- **Medium-term Memory**: Key market events and model responses
-- **Long-term Memory**: Pattern effectiveness over different market regimes
-- **Architecture**: Hierarchical memory with attention mechanisms
-
-#### Confidence Calibration
-- **Uncertainty Quantification**: Bayesian neural networks for confidence estimates
-- **Ensemble Methods**: Multiple model predictions with disagreement analysis
-- **Historical Validation**: Confidence score calibration against historical performance
-- **Dynamic Adjustment**: Confidence thresholds based on market conditions
 
 ### 5. Real-Time Processing Architecture
 
@@ -276,7 +229,7 @@ Reasoning Columns:
 - **Deep Learning**: PyTorch for model development and training
 - **Reinforcement Learning**: Ray RLlib for distributed RL training
 - **Feature Engineering**: Pandas, NumPy, Scikit-learn
-- **Natural Language**: Hugging Face Transformers for reasoning models
+
 
 #### Infrastructure
 - **Cloud Platform**: AWS/Azure/GCP for scalable compute and storage
@@ -352,6 +305,6 @@ Reasoning Columns:
 
 ## Conclusion
 
-This technical specification provides a comprehensive framework for building an autonomous trading bot that can think and reason like a human trader. The multi-layer architecture, combined with sophisticated reasoning capabilities and continuous learning, enables the bot to adapt to changing market conditions while maintaining robust risk management.
+This technical specification provides a comprehensive framework for building an autonomous trading bot focused on maximizing risk-adjusted profits. The multi-layer architecture, driven by Reinforcement Learning, enables the bot to adapt to changing market conditions while maintaining robust risk management.
 
-The key to success lies in the quality of the reasoning dataset, the effectiveness of the multi-layer decision framework, and the continuous learning capabilities that allow the bot to evolve with market dynamics. The technical implementation requires careful attention to latency, reliability, and risk management while maintaining the flexibility to adapt and improve over time.
+The key to success lies in the quality of the market environment simulation, the effectiveness of the multi-layer decision framework, and the continuous learning capabilities that allow the bot to evolve with market dynamics. The technical implementation requires careful attention to latency, reliability, and risk management while maintaining the flexibility to adapt and improve over time.
