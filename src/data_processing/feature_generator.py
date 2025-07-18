@@ -282,10 +282,7 @@ class DynamicFileProcessor:
             if missing_cols:
                 raise ValueError(f"Missing required columns: {missing_cols}")
 
-            # Drop volume column if it exists (not always reliable)
-            if 'volume' in df.columns:
-                df = df.drop('volume', axis=1)
-                logger.info("Dropped volume column as it's not always reliable")
+            
 
             # Convert datetime with timezone conversion
             ist = timezone('Asia/Kolkata')
@@ -531,6 +528,34 @@ class DynamicFileProcessor:
         return df
 
 
+    def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Process an in-memory DataFrame and generate all features"""
+        logger.info(f"Processing in-memory DataFrame with {len(df)} rows...")
+
+        # Ensure datetime is index
+        if 'datetime' in df.columns:
+            df = df.set_index('datetime')
+
+        # Extract OHLC data
+        open_prices = df['open']
+        high_prices = df['high']
+        low_prices = df['low']
+        close_prices = df['close']
+
+        # Generate all features
+        features_df = self.generate_all_features(
+            open_prices, high_prices, low_prices, close_prices
+        )
+
+        # Combine with original data
+        result_df = df.join(features_df)
+
+        # Clean up the final dataset
+        result_df = self.clean_final_dataset(result_df)
+
+        logger.info(f"Generated {len(features_df.columns)} features for DataFrame")
+        return result_df
+
     def process_all_files(self) -> Dict[str, str]:
         """Process all files and return summary"""
         files = self.scan_data_files()
@@ -542,7 +567,11 @@ class DynamicFileProcessor:
 
         for file_path in files:
             try:
-                processed_df = self.process_single_file(file_path)
+                # Load and validate data from file
+                df = self.load_and_validate_data(file_path)
+
+                # Process the dataframe
+                processed_df = self.process_dataframe(df)
 
                 # Save processed file (replace existing)
                 output_path = self.processed_folder / f"features_{file_path.name}"

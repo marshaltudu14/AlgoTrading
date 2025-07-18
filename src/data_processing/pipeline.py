@@ -308,9 +308,9 @@ class DataProcessingPipeline:
 
             # Import reasoning system
             from src.reasoning_system.core.enhanced_orchestrator import EnhancedReasoningOrchestrator
-            from config.config import get_config
+            from src.config.reasoning_config import get_reasoning_config
 
-            config = get_config()
+            config = get_reasoning_config()
 
             # Use enhanced reasoning orchestrator (only option now)
             self.reasoning_orchestrator = EnhancedReasoningOrchestrator(config)
