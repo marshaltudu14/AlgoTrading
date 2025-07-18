@@ -28,9 +28,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import pandas as pd
-from transformers import AutoTokenizer, AutoModel
-import torch
-import joblib
+
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent)) # Add project root to sys.path
@@ -54,9 +52,7 @@ class DataProcessingPipeline:
     """
     
     def __init__(self, config: Optional[Dict] = None,
-                 hf_tokenizer_path="models/hf_tokenizer", 
-                 hf_model_path="models/hf_model",
-                 embeddings_output_dir="data/processed/embeddings"):
+                 ):
         """
         Initialize the data processing pipeline.
         
@@ -70,82 +66,16 @@ class DataProcessingPipeline:
         
         # Initialize components
         self.feature_generator = None
-        self.reasoning_orchestrator = None
-
-        self.hf_tokenizer_path = hf_tokenizer_path
-        self.hf_model_path = hf_model_path
-        self.embeddings_output_dir = embeddings_output_dir
-
-        os.makedirs(self.embeddings_output_dir, exist_ok=True)
-        os.makedirs(hf_tokenizer_path, exist_ok=True)
-        os.makedirs(hf_model_path, exist_ok=True)
-
-        # Try loading Hugging Face tokenizer and model from local storage first
-        try:
-            print("Attempting to load Hugging Face model and tokenizer from local storage...")
-            self.hf_tokenizer = AutoTokenizer.from_pretrained(self.hf_tokenizer_path)
-            self.hf_model = AutoModel.from_pretrained(self.hf_model_path)
-            print("Successfully loaded Hugging Face model and tokenizer from local storage.")
-        except Exception as e:
-            print(f"Failed to load from local storage: {e}. Downloading Hugging Face model and tokenizer...")
-            self.hf_tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
-            self.hf_model = AutoModel.from_pretrained('sentence-transformers/all-MiniLM-L6-v2')
-            self.hf_tokenizer.save_pretrained(self.hf_tokenizer_path)
-            self.hf_model.save_pretrained(self.hf_model_path)
-            print("Successfully downloaded and saved Hugging Face model and tokenizer.")
         
         logger.info("DataProcessingPipeline initialized")
 
-    def _mean_pooling(self, model_output, attention_mask):
-        token_embeddings = model_output[0] #First element of model_output contains all token embeddings
-        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-        return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
-
-    def generate_embeddings_for_file(self, file_path, batch_size=32):
-        """Generates embeddings for individual reasoning columns of a single file and saves them."""
-        df = pd.read_csv(file_path)
-
-        # Define the reasoning columns to generate embeddings for
-        reasoning_columns = [
-            'pattern_recognition', 'context_analysis', 'psychology_assessment',
-            'execution_decision', 'feature_analysis', 'historical_analysis', 'decision'
-        ]
-
-        # Generate embeddings for each reasoning column that exists in the dataframe
-        embeddings_dict = {}
-
-        for column in reasoning_columns:
-            if column in df.columns:
-                logger.info(f"Generating embeddings for column: {column}")
-                X_reasoning = df[column].fillna('').tolist()
-
-                all_embeddings = []
-                for i in range(0, len(X_reasoning), batch_size):
-                    batch = X_reasoning[i:i+batch_size]
-                    encoded_input = self.hf_tokenizer(batch, padding=True, truncation=True, return_tensors='pt')
-                    with torch.no_grad():
-                        model_output = self.hf_model(**encoded_input)
-                    sentence_embeddings = self._mean_pooling(model_output, encoded_input['attention_mask'])
-                    all_embeddings.append(sentence_embeddings.numpy())
-
-                embeddings_array = torch.cat([torch.from_numpy(e) for e in all_embeddings]).numpy()
-                embeddings_dict[column] = embeddings_array
-
-        # Save embeddings for each column separately
-        base_filename = Path(file_path).stem.replace('reasoning_', '')
-        for column, embeddings in embeddings_dict.items():
-            output_filename = f"embeddings_{column}_{base_filename}.joblib"
-            output_path = Path(self.embeddings_output_dir) / output_filename
-            joblib.dump(embeddings, output_path)
-            logger.info(f"Embeddings for {column} saved to {output_path}")
+    
 
     
     def setup_directories(self):
         """Setup required directories for the pipeline."""
         directories = [
             'data/raw',
-            'data/processed',
-            'data/processed/reasoning',
             'data/final',
             'reports/pipeline',
             'reports/quality',
@@ -180,7 +110,7 @@ class DataProcessingPipeline:
             logger.info("STEP 1: FEATURE GENERATION")
             logger.info("-" * 40)
 
-            feature_results = self.run_feature_generation(input_dir, "data/processed")
+            feature_results = self.run_feature_generation(input_dir, output_dir)
             
             if not feature_results['success']:
                 return {
@@ -191,27 +121,6 @@ class DataProcessingPipeline:
             
             logger.info(f"Feature generation completed: {feature_results['files_processed']} files")
             
-            # Step 2: Reasoning Generation
-            logger.info("\nSTEP 2: REASONING GENERATION")
-            logger.info("-" * 40)
-
-            reasoning_results = self.run_reasoning_generation("data/processed", "data/processed/reasoning")
-            
-            if not reasoning_results['success']:
-                return {
-                    'success': False,
-                    'error': f"Reasoning generation failed: {reasoning_results['error']}",
-                    'step_failed': 'reasoning_generation'
-                }
-            
-            logger.info(f"Reasoning generation completed: {reasoning_results['files_processed']} files")
-            
-            # Step 3: Final Data Organization
-            logger.info("\nSTEP 3: FINAL DATA ORGANIZATION")
-            logger.info("-" * 40)
-            
-            final_results = self.organize_final_data("data/processed/reasoning", output_dir)
-            
             # Calculate total time
             total_time = time.time() - start_time
             
@@ -221,11 +130,8 @@ class DataProcessingPipeline:
                 'total_time_seconds': total_time,
                 'total_time_formatted': self.format_time(total_time),
                 'feature_generation': feature_results,
-                'reasoning_generation': reasoning_results,
-                'final_organization': final_results,
                 'total_files_processed': feature_results.get('files_processed', 0),
-                'total_rows_processed': reasoning_results.get('total_rows', 0),
-                'average_quality_score': reasoning_results.get('average_quality', 0),
+                'total_rows_processed': feature_results.get('total_rows', 0),
                 'output_directory': output_dir
             }
             
@@ -309,108 +215,14 @@ class DataProcessingPipeline:
                 'files_processed': 0
             }
     
-    def run_reasoning_generation(self, input_dir: str, output_dir: str) -> Dict[str, Any]:
-        """
-        Run reasoning generation step.
-
-        Args:
-            input_dir: Directory with feature data
-            output_dir: Directory to save reasoning data
-
-        Returns:
-            Reasoning generation results
-        """
-        try:
-            logger.info("Running reasoning generator...")
-
-            # Import reasoning system
-            from src.reasoning_system.core.enhanced_orchestrator import EnhancedReasoningOrchestrator
-            from src.config.reasoning_config import get_reasoning_config
-
-            config = get_reasoning_config()
-            
-
-            # Use enhanced reasoning orchestrator (only option now)
-            self.reasoning_orchestrator = EnhancedReasoningOrchestrator(config)
-            logger.info("Using Enhanced Reasoning System")
-
-            # Find feature files to process
-            input_path = Path(input_dir)
-            feature_files = list(input_path.glob("features_*.csv"))
-
-            if not feature_files:
-                return {
-                    'success': False,
-                    'error': f"No feature files found in {input_dir}",
-                    'files_processed': 0
-                }
-
-            results = []
-            total_rows_processed = 0
-            total_quality_score = 0
-
-            for feature_file in feature_files:
-                result = self.reasoning_orchestrator.process_file(str(feature_file), str(Path(output_dir) / feature_file.name.replace("features_", "reasoning_")))
-                results.append(result)
-                if result['status'] == 'success':
-                    total_rows_processed += result.get('input_rows', 0)
-                    total_quality_score += result.get('quality_score', 0) * result.get('input_rows', 0) # Weighted average
-
-                    # Generate embeddings for the processed reasoning file
-                    reasoning_output_file = str(Path(output_dir) / feature_file.name.replace("features_", "reasoning_"))
-                    self.generate_embeddings_for_file(reasoning_output_file)
-
-            avg_quality = (total_quality_score / total_rows_processed) if total_rows_processed > 0 else 0
-
-            summary = {
-                'results': results,
-                'total_files': len(feature_files),
-                'total_rows': total_rows_processed,
-                'average_quality': avg_quality
-            }
-
-            # Check if summary has results
-            if 'results' not in summary:
-                return {
-                    'success': False,
-                    'error': f"No results from reasoning orchestrator: {summary}",
-                    'files_processed': 0
-                }
-
-            # Extract results
-            successful = [r for r in summary['results'] if r['status'] == 'success']
-            failed = [r for r in summary['results'] if r['status'] == 'error']
-
-            total_rows = sum(r.get('input_rows', 0) for r in successful)
-            avg_quality = sum(r.get('quality_score', 0) for r in successful) / len(successful) if successful else 0
-
-            logger.info("Reasoning generator completed successfully")
-
-            return {
-                'success': len(successful) > 0,
-                'files_processed': len(successful),
-                'total_files': summary.get('total_files', 0),
-                'failed_files': len(failed),
-                'total_rows': total_rows,
-                'average_quality': avg_quality,
-                'output_directory': output_dir,
-                'detailed_results': summary['results']
-            }
-
-        except Exception as e:
-            logger.error(f"Reasoning generation step failed: {str(e)}")
-            return {
-                'success': False,
-                'error': str(e),
-                'files_processed': 0
-            }
+    
     
     def organize_final_data(self, input_dir: str, output_dir: str) -> Dict[str, Any]:
         """
         Organize final data with proper naming and structure.
         
         Args:
-            input_dir: Directory with reasoning data
+            input_dir: Directory with feature data
             output_dir: Final output directory
             
         Returns:
@@ -421,25 +233,25 @@ class DataProcessingPipeline:
             output_path = Path(output_dir)
             output_path.mkdir(exist_ok=True)
             
-            # Find reasoning files
-            reasoning_files = list(input_path.glob("reasoning_*.csv"))
+            # Find feature files
+            feature_files = list(input_path.glob("features_*.csv"))
             
-            if not reasoning_files:
+            if not feature_files:
                 return {
                     'success': False,
-                    'error': f"No reasoning files found in {input_dir}",
+                    'error': f"No feature files found in {input_dir}",
                     'files_organized': 0
                 }
             
             organized_files = []
             
-            for reasoning_file in reasoning_files:
-                # Generate final filename (remove reasoning_ prefix)
-                final_name = reasoning_file.name.replace('reasoning_', 'final_')
+            for feature_file in feature_files:
+                # Generate final filename (remove features_ prefix)
+                final_name = feature_file.name.replace('features_', 'final_')
                 final_path = output_path / final_name
 
                 # Read and clean the CSV file to remove any unwanted index columns
-                df = pd.read_csv(reasoning_file)
+                df = pd.read_csv(feature_file)
 
                 # Remove any unnamed index columns
                 df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
@@ -458,7 +270,7 @@ class DataProcessingPipeline:
                 'file_list': organized_files,
                 'columns_included': [
                     'datetime', 'open', 'high', 'low', 'close',
-                    'technical_indicators', 'signals', 'reasoning_columns'
+                    'technical_indicators'
                 ]
             }
             
@@ -493,7 +305,6 @@ class DataProcessingPipeline:
             f.write(f"Total Processing Time: {summary.get('total_time_formatted', 'Unknown')}\n")
             f.write(f"Files Processed: {summary.get('total_files_processed', 0)}\n")
             f.write(f"Rows Processed: {summary.get('total_rows_processed', 0):,}\n")
-            f.write(f"Average Quality Score: {summary.get('average_quality_score', 0):.1f}\n")
             f.write(f"Output Directory: {summary.get('output_directory', 'Unknown')}\n\n")
             
             # Feature generation details
@@ -502,13 +313,6 @@ class DataProcessingPipeline:
             f.write(f"  Status: {'SUCCESS' if feature_results.get('success') else 'FAILED'}\n")
             f.write(f"  Files Processed: {feature_results.get('files_processed', 0)}\n")
             f.write(f"  Total Rows: {feature_results.get('total_rows', 0):,}\n\n")
-            
-            # Reasoning generation details
-            reasoning_results = summary.get('reasoning_generation', {})
-            f.write("REASONING GENERATION:\n")
-            f.write(f"  Status: {'SUCCESS' if reasoning_results.get('success') else 'FAILED'}\n")
-            f.write(f"  Files Processed: {reasoning_results.get('files_processed', 0)}\n")
-            f.write(f"  Average Quality: {reasoning_results.get('average_quality', 0):.1f}\n\n")
             
             f.write(f"Report generated: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
         
@@ -535,8 +339,6 @@ def main():
                        help='Directory for final processed data (default: data/final)')
     parser.add_argument('--features-only', action='store_true',
                        help='Run only feature generation step')
-    parser.add_argument('--reasoning-only', action='store_true',
-                       help='Run only reasoning generation step')
     parser.add_argument('--config-file',
                        help='Custom configuration file path')
     
@@ -545,29 +347,20 @@ def main():
     print("=" * 80)
     print("INTEGRATED DATA PROCESSING PIPELINE")
     print("=" * 80)
-    print("Processing: Raw Historical Data -> Features -> Reasoning -> Training Data")
+    print("Processing: Raw Historical Data -> Features -> Training Data")
     print()
     
     try:
         # Initialize pipeline
         pipeline = DataProcessingPipeline()
 
-        print("ENHANCED REASONING SYSTEM:")
-        print("  - Decision column with signal-based logic (no signal references in text)")
-        print("  - Historical pattern analysis (20-50 and 100-200 candle timeframes)")
-        print("  - Feature relationship analysis across 65+ indicators")
-        print("  - Market condition detection with confidence scoring")
-        print("  - Advanced natural language generation (>60% unique content)")
-        print("  - Fast processing (<1 second per row target)")
-        print()
+        
 
         if args.features_only:
             print("Running FEATURES ONLY mode...")
             result = pipeline.run_feature_generation(args.input_dir, "data/processed")
 
-        elif args.reasoning_only:
-            print("Running REASONING ONLY mode...")
-            result = pipeline.run_reasoning_generation("data/processed", "data/processed/reasoning")
+        
             
         else:
             print("Running COMPLETE PIPELINE...")
@@ -579,7 +372,7 @@ def main():
             print("PIPELINE COMPLETED SUCCESSFULLY!")
             print("=" * 80)
             
-            if not args.features_only and not args.reasoning_only:
+            if not args.features_only:
                 print(f"Total processing time: {result.get('total_time_formatted', 'Unknown')}")
                 print(f"Files processed: {result.get('total_files_processed', 0)}")
                 print(f"Rows processed: {result.get('total_rows_processed', 0):,}")

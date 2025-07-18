@@ -253,7 +253,7 @@ class DynamicFileProcessor:
 
         # Set up folders
         self.data_folder = Path(data_folder or self.config['data']['input_folder'])
-        self.processed_folder = Path(self.config['data']['output_folder'])
+        self.processed_folder = Path("data/final")
         self.processed_folder.mkdir(exist_ok=True)
 
         # Initialize analyzers
@@ -274,6 +274,11 @@ class DynamicFileProcessor:
 
             # Remove any unnamed index columns that may exist in raw data
             df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+
+            # Explicitly drop 'volume' column if it exists
+            if 'volume' in df.columns:
+                df = df.drop(columns=['volume'])
+                logger.info(f"Dropped 'volume' column from {file_path.name}")
 
             # Validate required columns (removed volume as it's not always available)
             required_cols = ['datetime', 'open', 'high', 'low', 'close']

@@ -7,21 +7,6 @@ This file contains all configurable parameters for technical analysis
 feature generation and signal calculation.
 """
 
-# === SIGNAL GENERATION CONFIGURATION ===
-SIGNAL_CONFIG = {
-    # Risk-Reward Ratio Configuration (ATR-based only)
-    'risk_multiplier': 1.0,        # ATR multiplier for stop loss (risk)
-    'reward_multiplier': 2.0,      # ATR multiplier for target (reward)
-
-    # Signal Calculation Parameters
-    'infinite_lookahead': True,    # Look ahead to end of data (not limited periods)
-
-    # Signal Labels
-    'hold_signal': 0,              # No clear signal or would result in loss
-    'buy_signal': 1,               # Buy signal (profitable upward movement expected)
-    'sell_signal': 2,              # Sell signal (profitable downward movement expected)
-}
-
 # === FEATURE GENERATION CONFIGURATION ===
 FEATURE_CONFIG = {
     # Moving Average Periods
@@ -71,7 +56,7 @@ FEATURE_CONFIG = {
 DATA_CONFIG = {
     # File Processing
     'input_folder': 'data/raw',
-    'output_folder': 'data/processed',
+    'output_folder': 'data/final',
     'file_pattern': '*.csv',
     
     # Data Cleaning
@@ -103,28 +88,11 @@ PERFORMANCE_CONFIG = {
 
 # === VALIDATION CONFIGURATION ===
 VALIDATION_CONFIG = {
-    'validate_signals': True,          # Validate signal generation logic
-    'signal_distribution_check': True, # Check signal distribution (not all 0s)
     'feature_correlation_check': False, # Check for highly correlated features
     'max_correlation_threshold': 0.95, # Maximum allowed correlation between features
 }
 
-# === REASONING GENERATION CONFIGURATION ===
-REASONING_CONFIG = {
-    'context_window_size': 100, # Number of historical rows to consider for context
-    'volatility_threshold_high': 2.0, # ATR multiplier for high volatility
-    'volatility_threshold_low': 0.5, # ATR multiplier for low volatility
-    'consolidation_threshold': 0.02, # Percentage price range for consolidation detection
-    'breakout_threshold': 0.005, # Percentage price increase for breakout detection
-    'breakdown_threshold': 0.005, # Percentage price decrease for breakdown detection
-    'avg_volume': 100000, # Placeholder for average volume (should be dynamically calculated or set per instrument)
-    'avg_candle_range': 0.01, # Placeholder for average candle range (should be dynamically calculated or set per instrument)
-    'processing': {
-        'batch_size': 1000,
-        'progress_reporting_interval': 1000,
-        'save_quality_reports': True
-    }
-}
+
 
 def get_config():
     """
@@ -134,13 +102,11 @@ def get_config():
         dict: Complete configuration with all sections
     """
     return {
-        'signal': SIGNAL_CONFIG,
         'features': FEATURE_CONFIG,
         'data': DATA_CONFIG,
         'logging': LOGGING_CONFIG,
         'performance': PERFORMANCE_CONFIG,
         'validation': VALIDATION_CONFIG,
-        'reasoning': REASONING_CONFIG, # Add reasoning config
     }
 
 def print_config():
