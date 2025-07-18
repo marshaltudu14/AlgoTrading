@@ -19,7 +19,6 @@ Key Features:
 import time
 import random
 import pandas as pd
-import numpy as np # Added numpy import
 from typing import Dict, List, Any, Optional, Tuple
 import logging
 
@@ -68,11 +67,11 @@ class EnhancedReasoningOrchestrator:
         self.template_variations = TemplateVariations()
         
         # Initialize existing engines
-        self.pattern_engine = PatternRecognitionEngine(self.config.get('reasoning', {}).get('pattern_recognition', {}))
-        self.context_manager = HistoricalContextManager(self.config.get('reasoning', {}).get('context_window_size', 200))
-        self.psychology_engine = PsychologyAssessmentEngine(self.config.get('reasoning', {}).get('psychology_assessment', {}))
-        self.execution_engine = ExecutionDecisionEngine(self.config.get('reasoning', {}).get('execution_decision', {}))
-        self.risk_engine = RiskAssessmentEngine(self.config.get('reasoning', {}).get('risk_assessment', {}))
+        self.pattern_engine = PatternRecognitionEngine(self.config.get('pattern_recognition', {}))
+        self.context_manager = HistoricalContextManager(self.config.get('context_window_size', 200))
+        self.psychology_engine = PsychologyAssessmentEngine(self.config.get('psychology_assessment', {}))
+        self.execution_engine = ExecutionDecisionEngine(self.config.get('execution_decision', {}))
+        self.risk_engine = RiskAssessmentEngine(self.config.get('risk_assessment', {}))
         
         # Initialize text generation and validation
         self.text_generator = TextGenerator(self.config.get('text_generation', {}))
@@ -524,7 +523,7 @@ class EnhancedReasoningOrchestrator:
             'context_analysis': "Market context analysis reveals typical trading environment with moderate volatility and balanced dynamics.",
             'psychology_assessment': "Market psychology assessment shows measured participant sentiment with cautious positioning behavior.",
             'execution_decision': "Execution analysis suggests selective positioning with emphasis on risk management and timing considerations.",
-            'risk_assessment': "Risk assessment indicates moderate conditions with standard risk-reward parameters requiring measured approach.",
+            'risk_reward': "Risk assessment indicates moderate conditions with standard risk-reward parameters requiring measured approach.",
             'feature_analysis': "Technical indicators show balanced relationships across multiple timeframes with typical correlation patterns.",
             'historical_analysis': "Historical pattern analysis indicates standard market behavior with conventional technical characteristics."
         }
@@ -536,7 +535,7 @@ class EnhancedReasoningOrchestrator:
             'context_analysis': "Market context analysis reveals standard trading environment.",
             'psychology_assessment': "Market psychology assessment shows measured participant sentiment.",
             'execution_decision': "Execution analysis suggests cautious positioning approach.",
-            'risk_assessment': "Risk assessment indicates moderate conditions with standard parameters.",
+            'risk_reward': "Risk assessment indicates moderate conditions with standard parameters.",
             'feature_analysis': "Technical indicators show balanced relationships across timeframes.",
             'historical_analysis': "Historical pattern analysis indicates conventional market behavior."
         }
@@ -571,7 +570,7 @@ class EnhancedReasoningOrchestrator:
             'context_analysis': "Market context analysis reveals standard environment.",
             'psychology_assessment': "Market psychology shows measured sentiment.",
             'execution_decision': "Execution analysis suggests selective positioning.",
-            'risk_assessment': "Risk assessment indicates moderate conditions.",
+            'risk_reward': "Risk assessment indicates moderate conditions.",
             'feature_analysis': "Technical indicators show balanced relationships.",
             'historical_analysis': "Historical analysis indicates standard behavior."
         }
@@ -587,7 +586,7 @@ class EnhancedReasoningOrchestrator:
                 'context_analysis': " considering broader market environment and conditions",
                 'psychology_assessment': " reflecting current participant behavior and sentiment",
                 'execution_decision': " with emphasis on timing and risk management",
-                'risk_assessment': " accounting for current volatility and market structure",
+                'risk_reward': " accounting for current volatility and market structure",
                 'feature_analysis': " across multiple technical indicator timeframes",
                 'historical_analysis': " based on recent market behavior patterns"
             }
@@ -596,6 +595,13 @@ class EnhancedReasoningOrchestrator:
             return text + expansion
 
         return text
+
+    def _safe_get_value(self, data: pd.Series, column: str, default: Any = 0) -> Any:
+        """Safely get value from pandas Series."""
+        try:
+            return data.get(column, default) if column in data.index else default
+        except Exception:
+            return default
 
     def get_processing_statistics(self) -> Dict[str, float]:
         """Get processing performance statistics."""
@@ -617,68 +623,6 @@ class EnhancedReasoningOrchestrator:
             'target_compliance': target_compliance,
             'total_rows_processed': len(self.processing_times)
         }
-
-    def _calculate_atr_based_signal(self, df: pd.DataFrame, risk_multiplier: float = 1.0, reward_multiplier: float = 2.0, lookahead_period: int = 100) -> pd.Series:
-        """
-        Calculates signals based on an ATR-based risk/reward ratio.
-
-        Args:
-            df (pd.DataFrame): The input dataframe with OHLC and ATR values.
-            risk_multiplier (float): The multiplier for ATR to determine the stop loss.
-            reward_multiplier (float): The multiplier for ATR to determine the take profit.
-            lookahead_period (int): The number of future candles to check for a signal.
-
-        Returns:
-            pd.Series: A series of signals (1 for Buy, 2 for Sell, 0 for Hold).
-        """
-        signals = [0] * len(df)
-        high_prices = df['high'].values
-        low_prices = df['low'].values
-        close_prices = df['close'].values
-        atr_values = df['atr'].values
-
-        for i in range(len(df) - lookahead_period):
-            entry_price = close_prices[i]
-            atr = atr_values[i]
-
-            # Long signal
-            stop_loss_long = entry_price - (atr * risk_multiplier)
-            take_profit_long = entry_price + (atr * reward_multiplier)
-
-            # Short signal
-            stop_loss_short = entry_price + (atr * risk_multiplier)
-            take_profit_short = entry_price - (atr * reward_multiplier)
-
-            for j in range(1, lookahead_period + 1):
-                future_high = high_prices[i + j]
-                future_low = low_prices[i + j]
-
-                # Check for long signal
-                if future_high >= take_profit_long:
-                    signals[i] = 1  # Buy signal
-                    break
-                if future_low <= stop_loss_long:
-                    break  # Stop loss hit, no signal
-
-                # Check for short signal
-                if future_low <= take_profit_short:
-                    signals[i] = 2  # Sell signal
-                    break
-                if future_high >= stop_loss_short:
-                    break  # Stop loss hit, no signal
-        
-        return pd.Series(signals, index=df.index)
-
-    def _map_signal_to_decision(self, signal: int) -> str:
-        """
-        Maps an integer signal (1, 2, 0) to a string decision (Long, Short, Hold).
-        """
-        if signal == 1:
-            return "Long"
-        elif signal == 2:
-            return "Short"
-        else:
-            return "Hold"
 
     def process_directory(self, input_dir: str, output_dir: str) -> Dict[str, Any]:
         """
@@ -816,9 +760,9 @@ class EnhancedReasoningOrchestrator:
         Returns:
             Processing result dictionary
         """
-        from pathlib import Path
         import pandas as pd
         import time
+        from pathlib import Path
 
         try:
             start_time = time.time()
@@ -900,46 +844,3 @@ class EnhancedReasoningOrchestrator:
                 'input_rows': 0,
                 'output_rows': 0
             }
-
-    def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Process an in-memory DataFrame to add comprehensive reasoning columns.
-
-        Args:
-            df: Input DataFrame with features.
-
-        Returns:
-            DataFrame with added reasoning columns.
-        """
-        logger.info(f"Starting dataframe processing for {len(df)} rows")
-        try:
-            # Calculate signal for the entire DataFrame
-            df['signal'] = self._calculate_atr_based_signal(df)
-
-            reasoning_rows = []
-            for idx, row in df.iterrows():
-                # Map signal to decision for the current row
-                signal = row['signal']
-                decision = self._map_signal_to_decision(signal)
-                row['decision'] = decision # Add decision to the row for reasoning
-
-                # Get historical data for context
-                historical_start = max(0, idx - 200) # Assuming 200 is sufficient lookback
-                historical_data = df.iloc[historical_start:idx] if idx > 0 else pd.DataFrame()
-
-                # Generate comprehensive reasoning
-                reasoning = self.generate_comprehensive_reasoning(row, historical_data)
-                
-                # Combine original row data with generated reasoning
-                reasoning_row_data = row.to_dict()
-                reasoning_row_data.update(reasoning)
-                reasoning_rows.append(reasoning_row_data)
-
-            output_df = pd.DataFrame(reasoning_rows)
-            logger.info(f"Successfully processed dataframe with {len(output_df)} rows.")
-            return output_df
-
-        except Exception as e:
-            logger.error(f"Error processing dataframe: {e}", exc_info=True)
-            return pd.DataFrame()
-

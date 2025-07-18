@@ -41,7 +41,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
-        logging.FileHandler('data_processing_pipeline.log')
+        logging.FileHandler('data_processing_pipeline.log', encoding='utf-8')
     ]
 )
 logger = logging.getLogger(__name__)
@@ -102,25 +102,42 @@ class DataProcessingPipeline:
         return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
     def generate_embeddings_for_file(self, file_path, batch_size=32):
-        """Generates embeddings for the reasoning column of a single file and saves them."""
+        """Generates embeddings for individual reasoning columns of a single file and saves them."""
         df = pd.read_csv(file_path)
-        X_reasoning = df['reasoning'].fillna('').tolist()
 
-        all_embeddings = []
-        for i in range(0, len(X_reasoning), batch_size):
-            batch = X_reasoning[i:i+batch_size]
-            encoded_input = self.hf_tokenizer(batch, padding=True, truncation=True, return_tensors='pt')
-            with torch.no_grad():
-                model_output = self.hf_model(**encoded_input)
-            sentence_embeddings = self._mean_pooling(model_output, encoded_input['attention_mask'])
-            all_embeddings.append(sentence_embeddings.numpy())
-        
-        embeddings_array = torch.cat([torch.from_numpy(e) for e in all_embeddings]).numpy()
+        # Define the reasoning columns to generate embeddings for
+        reasoning_columns = [
+            'pattern_recognition', 'context_analysis', 'psychology_assessment',
+            'execution_decision', 'feature_analysis', 'historical_analysis', 'decision'
+        ]
 
-        output_filename = f"embeddings_{Path(file_path).stem.replace('reasoning_', '')}.joblib"
-        output_path = Path(self.embeddings_output_dir) / output_filename
-        joblib.dump(embeddings_array, output_path)
-        logger.info(f"Embeddings saved to {output_path}")
+        # Generate embeddings for each reasoning column that exists in the dataframe
+        embeddings_dict = {}
+
+        for column in reasoning_columns:
+            if column in df.columns:
+                logger.info(f"Generating embeddings for column: {column}")
+                X_reasoning = df[column].fillna('').tolist()
+
+                all_embeddings = []
+                for i in range(0, len(X_reasoning), batch_size):
+                    batch = X_reasoning[i:i+batch_size]
+                    encoded_input = self.hf_tokenizer(batch, padding=True, truncation=True, return_tensors='pt')
+                    with torch.no_grad():
+                        model_output = self.hf_model(**encoded_input)
+                    sentence_embeddings = self._mean_pooling(model_output, encoded_input['attention_mask'])
+                    all_embeddings.append(sentence_embeddings.numpy())
+
+                embeddings_array = torch.cat([torch.from_numpy(e) for e in all_embeddings]).numpy()
+                embeddings_dict[column] = embeddings_array
+
+        # Save embeddings for each column separately
+        base_filename = Path(file_path).stem.replace('reasoning_', '')
+        for column, embeddings in embeddings_dict.items():
+            output_filename = f"embeddings_{column}_{base_filename}.joblib"
+            output_path = Path(self.embeddings_output_dir) / output_filename
+            joblib.dump(embeddings, output_path)
+            logger.info(f"Embeddings for {column} saved to {output_path}")
 
     
     def setup_directories(self):
@@ -311,6 +328,7 @@ class DataProcessingPipeline:
             from src.config.reasoning_config import get_reasoning_config
 
             config = get_reasoning_config()
+            
 
             # Use enhanced reasoning orchestrator (only option now)
             self.reasoning_orchestrator = EnhancedReasoningOrchestrator(config)

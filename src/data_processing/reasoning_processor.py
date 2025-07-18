@@ -29,7 +29,7 @@ import argparse
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.reasoning_system.core.enhanced_orchestrator import EnhancedReasoningOrchestrator
+from reasoning_system import ReasoningOrchestrator
 from config.config import get_config
 
 # Configure logging

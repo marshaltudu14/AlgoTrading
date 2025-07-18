@@ -5294,3 +5294,707 @@ STEP 2: REASONING GENERATION
 2025-07-18 14:24:39,985 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
 2025-07-18 14:24:39,985 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
 2025-07-18 14:24:39,985 - __main__ - ERROR - Reasoning generation step failed: 'int' object has no attribute 'get'
+2025-07-18 20:59:55,845 - huggingface_hub.file_download - WARNING - Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+2025-07-18 21:00:59,575 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:00:59,576 - __main__ - INFO - ================================================================================
+2025-07-18 21:00:59,576 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:00:59,576 - __main__ - INFO - ================================================================================
+2025-07-18 21:00:59,576 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:00:59,576 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:00:59,576 - __main__ - INFO - Running feature generator...
+2025-07-18 21:00:59,594 - __main__ - ERROR - Feature generation step failed: No module named 'pandas_ta'
+2025-07-18 21:01:58,661 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:01:58,661 - __main__ - INFO - ================================================================================
+2025-07-18 21:01:58,661 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:01:58,661 - __main__ - INFO - ================================================================================
+2025-07-18 21:01:58,661 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:01:58,662 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:01:58,662 - __main__ - INFO - Running feature generator...
+2025-07-18 21:02:00,403 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\krish\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-18 21:06:50,367 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:06:50,367 - __main__ - INFO - ================================================================================
+2025-07-18 21:06:50,367 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:06:50,367 - __main__ - INFO - ================================================================================
+2025-07-18 21:06:50,367 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:06:50,367 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:06:50,367 - __main__ - INFO - Running feature generator...
+2025-07-18 21:06:50,570 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\krish\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-18 21:07:43,181 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:07:43,181 - __main__ - INFO - ================================================================================
+2025-07-18 21:07:43,197 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:07:43,197 - __main__ - INFO - ================================================================================
+2025-07-18 21:07:43,197 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:07:43,197 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:07:43,197 - __main__ - INFO - Running feature generator...
+2025-07-18 21:07:44,556 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\krish\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-18 21:15:28,216 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:15:28,216 - __main__ - INFO - ================================================================================
+2025-07-18 21:15:28,216 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:15:28,216 - __main__ - INFO - ================================================================================
+2025-07-18 21:15:28,216 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:15:28,216 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:15:28,216 - __main__ - INFO - Running feature generator...
+2025-07-18 21:15:28,412 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\krish\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-18 21:17:35,101 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:17:35,116 - __main__ - INFO - ================================================================================
+2025-07-18 21:17:35,116 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:17:35,116 - __main__ - INFO - ================================================================================
+2025-07-18 21:17:35,116 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:17:35,116 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:17:35,116 - __main__ - INFO - Running feature generator...
+2025-07-18 21:17:35,357 - __main__ - ERROR - Feature generation step failed: cannot import name 'NaN' from 'numpy' (C:\Users\krish\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\numpy\__init__.py)
+2025-07-18 21:20:10,656 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:20:10,672 - __main__ - INFO - ================================================================================
+2025-07-18 21:20:10,672 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:20:10,672 - __main__ - INFO - ================================================================================
+2025-07-18 21:20:10,672 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:20:10,672 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:20:10,672 - __main__ - INFO - Running feature generator...
+2025-07-18 21:20:11,177 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:20:14,473 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:20:14,473 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:20:15,352 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:20:15,352 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:20:15,417 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:20:15,417 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:20:15,447 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:20:15,448 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:20:17,492 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:20:17,492 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:20:17,632 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:20:17,632 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:20:17,632 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:20:17,679 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:20:17,679 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:20:17,679 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:20:17,679 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:20:18,226 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:20:18,242 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:20:18,242 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:20:18,242 - __main__ - ERROR - Reasoning generation step failed: 'int' object has no attribute 'get'
+2025-07-18 21:20:57,807 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:20:57,807 - __main__ - INFO - ================================================================================
+2025-07-18 21:20:57,807 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:20:57,807 - __main__ - INFO - ================================================================================
+2025-07-18 21:20:57,807 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:20:57,807 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:20:57,807 - __main__ - INFO - Running feature generator...
+2025-07-18 21:20:58,074 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:20:58,168 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:20:58,168 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:20:59,034 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:20:59,034 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:20:59,081 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:20:59,081 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:20:59,096 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:20:59,096 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:21:01,316 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:21:01,316 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:21:01,441 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:21:01,441 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:21:01,441 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:21:01,488 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:21:01,488 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:21:01,488 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:21:01,488 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:21:01,519 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:21:01,519 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:21:01,519 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:21:01,519 - __main__ - ERROR - Reasoning generation step failed: 'int' object has no attribute 'get'
+2025-07-18 21:22:30,037 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:22:30,037 - __main__ - INFO - ================================================================================
+2025-07-18 21:22:30,037 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:22:30,037 - __main__ - INFO - ================================================================================
+2025-07-18 21:22:30,037 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:22:30,037 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:22:30,037 - __main__ - INFO - Running feature generator...
+2025-07-18 21:22:30,249 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:22:30,342 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:22:30,342 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:22:31,157 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:22:31,157 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:22:31,218 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:22:31,218 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:22:31,222 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:22:31,222 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:22:33,264 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:22:33,264 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:22:33,406 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:22:33,406 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:22:33,406 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:22:33,462 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:22:33,462 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:22:33,462 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:22:33,462 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:22:33,502 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:22:33,502 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:22:33,502 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:22:33,502 - __main__ - ERROR - Reasoning generation step failed: 'int' object has no attribute 'get'
+2025-07-18 21:23:24,357 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:23:24,357 - __main__ - INFO - ================================================================================
+2025-07-18 21:23:24,357 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:23:24,357 - __main__ - INFO - ================================================================================
+2025-07-18 21:23:24,357 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:23:24,357 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:23:24,357 - __main__ - INFO - Running feature generator...
+2025-07-18 21:23:24,560 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:23:24,638 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:23:24,638 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:23:25,435 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:23:25,435 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:23:25,482 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:23:25,482 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:23:25,498 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:23:25,498 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:23:27,422 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:23:27,422 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:23:27,562 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:23:27,562 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:23:27,562 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:23:27,609 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:23:27,609 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:23:27,609 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:23:27,609 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:23:27,625 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:23:27,625 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:23:27,625 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:23:27,625 - __main__ - ERROR - Reasoning generation step failed: 'int' object has no attribute 'get'
+2025-07-18 21:24:17,313 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:24:17,313 - __main__ - INFO - ================================================================================
+2025-07-18 21:24:17,313 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:24:17,313 - __main__ - INFO - ================================================================================
+2025-07-18 21:24:17,313 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:24:17,313 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:24:17,313 - __main__ - INFO - Running feature generator...
+2025-07-18 21:24:17,516 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:24:17,610 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:24:17,610 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:24:18,360 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:24:18,375 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:24:18,422 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:24:18,422 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:24:18,422 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:24:18,422 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:24:20,360 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:24:20,360 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:24:20,485 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:24:20,485 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:24:20,485 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:24:20,532 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:24:20,532 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:24:20,532 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:24:20,532 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:24:20,563 - __main__ - INFO - Config type: <class 'dict'>
+2025-07-18 21:24:20,563 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:24:20,563 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:24:20,563 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:24:20,563 - __main__ - ERROR - Reasoning generation step failed: 'int' object has no attribute 'get'
+2025-07-18 21:27:21,898 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:27:21,898 - __main__ - INFO - ================================================================================
+2025-07-18 21:27:21,898 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:27:21,898 - __main__ - INFO - ================================================================================
+2025-07-18 21:27:21,898 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:27:21,898 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:27:21,898 - __main__ - INFO - Running feature generator...
+2025-07-18 21:27:22,117 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:27:22,195 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:27:22,195 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:27:23,007 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:27:23,007 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:27:23,070 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:27:23,070 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:27:23,070 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:27:23,070 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:27:25,054 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:27:25,054 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:27:25,195 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:27:25,195 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:27:25,195 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:27:25,226 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:27:25,226 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:27:25,226 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:27:25,226 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:27:25,257 - __main__ - INFO - Config type: <class 'dict'>
+2025-07-18 21:27:25,257 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:27:25,257 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:27:25,257 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:27:25,257 - __main__ - ERROR - Reasoning generation step failed: 'int' object has no attribute 'get'
+2025-07-18 21:28:17,983 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:28:17,983 - __main__ - INFO - ================================================================================
+2025-07-18 21:28:17,983 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:28:17,983 - __main__ - INFO - ================================================================================
+2025-07-18 21:28:17,983 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:28:17,983 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:28:17,983 - __main__ - INFO - Running feature generator...
+2025-07-18 21:28:18,186 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:28:18,280 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:28:18,280 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:28:19,077 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:28:19,077 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:28:19,124 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:28:19,124 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:28:19,140 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:28:19,140 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:28:21,140 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:28:21,140 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:28:21,265 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:28:21,265 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:28:21,265 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:28:21,312 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:28:21,312 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:28:21,312 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:28:21,312 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:28:21,358 - __main__ - INFO - Config type: <class 'dict'>
+2025-07-18 21:28:21,358 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:28:21,358 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:28:21,358 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:28:21,358 - __main__ - ERROR - Reasoning generation step failed: 'int' object has no attribute 'get'
+2025-07-18 21:30:29,430 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:30:29,430 - __main__ - INFO - ================================================================================
+2025-07-18 21:30:29,430 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:30:29,430 - __main__ - INFO - ================================================================================
+2025-07-18 21:30:29,430 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:30:29,430 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:30:29,430 - __main__ - INFO - Running feature generator...
+2025-07-18 21:30:29,648 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:30:29,758 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:30:29,758 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:30:30,766 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:30:30,766 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:30:30,813 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:30:30,813 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:30:30,828 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:30:30,828 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:30:33,237 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:30:33,237 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:30:33,377 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:30:33,377 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:30:33,377 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:30:33,424 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:30:33,424 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:30:33,424 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:30:33,424 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:30:33,580 - __main__ - INFO - Config type: <class 'dict'>
+2025-07-18 21:30:33,580 - __main__ - INFO - Config value: {'reasoning': {'context_window_size': 100, 'context_cache_size': 1000, 'pattern_recognition': {'support_resistance_threshold': 1.5, 'pattern_confidence_threshold': 0.7, 'use_historical_context': True, 'confluence_weight': 0.3}, 'context_analysis': {'trend_strength_thresholds': {'strong': 0.6, 'moderate': 0.3, 'weak': 0.0}, 'momentum_thresholds': {'overbought': 70, 'oversold': 30, 'neutral_high': 55, 'neutral_low': 45}, 'volatility_thresholds': {'high': 3.0, 'normal': 1.5, 'low': 0.8}}, 'psychology_assessment': {'fear_greed_thresholds': {'extreme_fear': 20, 'fear': 35, 'neutral': 65, 'greed': 80, 'extreme_greed': 95}, 'momentum_psychology_thresholds': {'panic': 15, 'fear': 30, 'neutral_low': 45, 'neutral_high': 55, 'euphoria': 85}, 'sentiment_indicators': {'rsi': {'extreme_oversold': 20, 'oversold': 30, 'overbought': 70, 'extreme_overbought': 80}, 'williams_r': {'extreme_oversold': -90, 'oversold': -80, 'overbought': -20, 'extreme_overbought': -10}, 'cci': {'extreme_oversold': -200, 'oversold': -100, 'overbought': 100, 'extreme_overbought': 200}}}, 'execution_decision': {'confluence_threshold': 0.7, 'risk_reward_minimum': 1.5, 'confidence_threshold': 60, 'position_sizing': {'aggressive': 1.0, 'normal': 0.7, 'cautious': 0.4, 'minimal': 0.2}}, 'risk_assessment': {'volatility_risk_thresholds': {'low': 1.0, 'normal': 2.5, 'high': 4.0, 'extreme': 6.0}, 'drawdown_thresholds': {'low': 2.0, 'moderate': 5.0, 'high': 10.0, 'severe': 20.0}, 'scenario_probabilities': {'high_confidence': 0.8, 'moderate_confidence': 0.6, 'low_confidence': 0.4}}, 'historical_pattern_engine': {}, 'feature_relationship_engine': {}, 'market_condition_detector': {}}, 'text_generation': {'min_reasoning_length': 50, 'max_reasoning_length': 300, 'target_reasoning_length': 150, 'use_professional_enhancement': True, 'avoid_absolute_prices': True, 'use_relative_language': True, 'professional_terminology': True, 'ensure_sentence_structure': True, 'capitalize_sentences': True, 'proper_punctuation': True, 'logical_flow': True, 'column_requirements': {'pattern_recognition_text': {'min_length': 50, 'max_length': 250, 'required_terms': ['pattern', 'formation', 'candle'], 'focus': 'pattern identification and context'}, 'context_analysis_text': {'min_length': 60, 'max_length': 300, 'required_terms': ['market', 'trend', 'technical'], 'focus': 'market structure and technical confluence'}, 'psychology_assessment_text': {'min_length': 60, 'max_length': 280, 'required_terms': ['participant', 'sentiment', 'behavior'], 'focus': 'market psychology and participant behavior'}, 'execution_decision_text': {'min_length': 70, 'max_length': 320, 'required_terms': ['position', 'risk', 'execution'], 'focus': 'trading decisions and risk management'}, 'risk_assessment_text': {'min_length': 80, 'max_length': 350, 'required_terms': ['risk', 'scenario', 'potential'], 'focus': 'risk analysis and scenario planning'}, 'alternative_scenarios_text': {'min_length': 60, 'max_length': 300, 'required_terms': ['scenario', 'alternative', 'consider'], 'focus': 'alternative interpretations and scenarios'}}}, 'quality_validation': {'min_quality_score': 70, 'target_quality_score': 85, 'excellent_quality_score': 95, 'check_price_references': True, 'check_logical_consistency': True, 'check_professional_language': True, 'check_text_structure': True, 'check_required_patterns': True, 'forbidden_price_patterns': ['\\b\\d{4,5}\\.\\d+\\b', '\\b\\d{4,5}\\b', '\\$\\d+', '₹\\d+', '\\b\\d+\\s*points?\\b'], 'unprofessional_terms': ['gonna', 'wanna', 'gotta', 'yeah', 'nah', 'ok', 'okay', 'stuff', 'things'], 'sentiment_consistency_weight': 0.3, 'risk_reward_alignment_weight': 0.4, 'pattern_context_alignment_weight': 0.3, 'quality_weights': {'professional_language': 0.25, 'text_structure': 0.2, 'required_patterns': 0.15, 'price_references': 0.2, 'logical_consistency': 0.2}}, 'processing': {'batch_size': 1000, 'progress_reporting_interval': 1000, 'memory_optimization': True, 'input_file_pattern': 'features_*.csv', 'output_file_prefix': 'reasoning_', 'backup_original_files': False, 'continue_on_error': True, 'max_errors_per_file': 100, 'log_detailed_errors': True, 'parallel_processing': False, 'cache_context_analysis': True, 'optimize_memory_usage': True, 'save_quality_reports': True, 'generate_summary_statistics': True, 'include_debug_columns': False}, 'logging': {'level': 'INFO', 'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s', 'log_to_file': True, 'log_file': 'reasoning_system.log', 'max_log_size': 10485760, 'backup_count': 5, 'log_reasoning_generation': False, 'log_quality_validation': False}}
+2025-07-18 21:30:33,580 - src.reasoning_system.engines.historical_pattern_engine - INFO - HistoricalPatternEngine initialized with realistic time horizons
+2025-07-18 21:30:33,580 - src.reasoning_system.engines.feature_relationship_engine - INFO - FeatureRelationshipEngine initialized with indicator thresholds
+2025-07-18 21:30:33,580 - src.reasoning_system.engines.market_condition_detector - INFO - MarketConditionDetector initialized with regime detection thresholds
+2025-07-18 21:30:33,580 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:30:33,580 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:30:33,580 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:30:33,580 - src.reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 200
+2025-07-18 21:30:33,580 - src.reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-18 21:30:33,580 - src.reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-18 21:30:33,580 - src.reasoning_system.validators.reasoning_quality_validator - INFO - ReasoningQualityValidator initialized
+2025-07-18 21:30:33,580 - src.reasoning_system.managers.content_diversity_manager - INFO - ContentDiversityManager initialized with 80.0% diversity threshold
+2025-07-18 21:30:33,580 - src.reasoning_system.core.enhanced_orchestrator - INFO - EnhancedReasoningOrchestrator initialized with all engines
+2025-07-18 21:30:33,580 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-18 21:30:33,596 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loading data from data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:30:33,596 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from features_Bank_Nifty_5.csv
+2025-07-18 21:30:34,518 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 100/800 rows, avg time: 0.009s/row
+2025-07-18 21:30:35,424 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 200/800 rows, avg time: 0.009s/row
+2025-07-18 21:30:36,112 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 300/800 rows, avg time: 0.007s/row
+2025-07-18 21:30:36,753 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 400/800 rows, avg time: 0.006s/row
+2025-07-18 21:30:37,410 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 500/800 rows, avg time: 0.006s/row
+2025-07-18 21:30:38,066 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 600/800 rows, avg time: 0.007s/row
+2025-07-18 21:30:38,706 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 700/800 rows, avg time: 0.006s/row
+2025-07-18 21:30:39,363 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 800/800 rows, avg time: 0.006s/row
+2025-07-18 21:30:39,472 - src.reasoning_system.core.enhanced_orchestrator - INFO - Enhanced processing completed in 5.88s
+2025-07-18 21:30:39,472 - src.reasoning_system.core.enhanced_orchestrator - INFO - Average time per row: 0.007s
+2025-07-18 21:30:39,472 - src.reasoning_system.core.enhanced_orchestrator - INFO - Target compliance: 100.0%
+2025-07-18 21:30:39,519 - __main__ - ERROR - Reasoning generation step failed: 'reasoning'
+2025-07-18 21:33:00,814 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:33:00,814 - __main__ - INFO - ================================================================================
+2025-07-18 21:33:00,814 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:33:00,814 - __main__ - INFO - ================================================================================
+2025-07-18 21:33:00,814 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:33:00,814 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:33:00,814 - __main__ - INFO - Running feature generator...
+2025-07-18 21:33:01,033 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:33:01,111 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:33:01,111 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:33:01,939 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:33:01,939 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:33:01,986 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:33:01,986 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:33:02,002 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:33:02,002 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:33:04,049 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:33:04,049 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:33:04,190 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:33:04,190 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:33:04,190 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:33:04,237 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:33:04,237 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:33:04,237 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:33:04,237 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:33:04,268 - __main__ - INFO - Config type: <class 'dict'>
+2025-07-18 21:33:04,268 - __main__ - INFO - Config value: {'reasoning': {'context_window_size': 100, 'context_cache_size': 1000, 'pattern_recognition': {'support_resistance_threshold': 1.5, 'pattern_confidence_threshold': 0.7, 'use_historical_context': True, 'confluence_weight': 0.3}, 'context_analysis': {'trend_strength_thresholds': {'strong': 0.6, 'moderate': 0.3, 'weak': 0.0}, 'momentum_thresholds': {'overbought': 70, 'oversold': 30, 'neutral_high': 55, 'neutral_low': 45}, 'volatility_thresholds': {'high': 3.0, 'normal': 1.5, 'low': 0.8}}, 'psychology_assessment': {'fear_greed_thresholds': {'extreme_fear': 20, 'fear': 35, 'neutral': 65, 'greed': 80, 'extreme_greed': 95}, 'momentum_psychology_thresholds': {'panic': 15, 'fear': 30, 'neutral_low': 45, 'neutral_high': 55, 'euphoria': 85}, 'sentiment_indicators': {'rsi': {'extreme_oversold': 20, 'oversold': 30, 'overbought': 70, 'extreme_overbought': 80}, 'williams_r': {'extreme_oversold': -90, 'oversold': -80, 'overbought': -20, 'extreme_overbought': -10}, 'cci': {'extreme_oversold': -200, 'oversold': -100, 'overbought': 100, 'extreme_overbought': 200}}}, 'execution_decision': {'confluence_threshold': 0.7, 'risk_reward_minimum': 1.5, 'confidence_threshold': 60, 'position_sizing': {'aggressive': 1.0, 'normal': 0.7, 'cautious': 0.4, 'minimal': 0.2}}, 'risk_assessment': {'volatility_risk_thresholds': {'low': 1.0, 'normal': 2.5, 'high': 4.0, 'extreme': 6.0}, 'drawdown_thresholds': {'low': 2.0, 'moderate': 5.0, 'high': 10.0, 'severe': 20.0}, 'scenario_probabilities': {'high_confidence': 0.8, 'moderate_confidence': 0.6, 'low_confidence': 0.4}}, 'historical_pattern_engine': {}, 'feature_relationship_engine': {}, 'market_condition_detector': {}}, 'text_generation': {'min_reasoning_length': 50, 'max_reasoning_length': 300, 'target_reasoning_length': 150, 'use_professional_enhancement': True, 'avoid_absolute_prices': True, 'use_relative_language': True, 'professional_terminology': True, 'ensure_sentence_structure': True, 'capitalize_sentences': True, 'proper_punctuation': True, 'logical_flow': True, 'column_requirements': {'pattern_recognition_text': {'min_length': 50, 'max_length': 250, 'required_terms': ['pattern', 'formation', 'candle'], 'focus': 'pattern identification and context'}, 'context_analysis_text': {'min_length': 60, 'max_length': 300, 'required_terms': ['market', 'trend', 'technical'], 'focus': 'market structure and technical confluence'}, 'psychology_assessment_text': {'min_length': 60, 'max_length': 280, 'required_terms': ['participant', 'sentiment', 'behavior'], 'focus': 'market psychology and participant behavior'}, 'execution_decision_text': {'min_length': 70, 'max_length': 320, 'required_terms': ['position', 'risk', 'execution'], 'focus': 'trading decisions and risk management'}, 'risk_assessment_text': {'min_length': 80, 'max_length': 350, 'required_terms': ['risk', 'scenario', 'potential'], 'focus': 'risk analysis and scenario planning'}, 'alternative_scenarios_text': {'min_length': 60, 'max_length': 300, 'required_terms': ['scenario', 'alternative', 'consider'], 'focus': 'alternative interpretations and scenarios'}}}, 'quality_validation': {'min_quality_score': 70, 'target_quality_score': 85, 'excellent_quality_score': 95, 'check_price_references': True, 'check_logical_consistency': True, 'check_professional_language': True, 'check_text_structure': True, 'check_required_patterns': True, 'forbidden_price_patterns': ['\\b\\d{4,5}\\.\\d+\\b', '\\b\\d{4,5}\\b', '\\$\\d+', '₹\\d+', '\\b\\d+\\s*points?\\b'], 'unprofessional_terms': ['gonna', 'wanna', 'gotta', 'yeah', 'nah', 'ok', 'okay', 'stuff', 'things'], 'sentiment_consistency_weight': 0.3, 'risk_reward_alignment_weight': 0.4, 'pattern_context_alignment_weight': 0.3, 'quality_weights': {'professional_language': 0.25, 'text_structure': 0.2, 'required_patterns': 0.15, 'price_references': 0.2, 'logical_consistency': 0.2}}, 'processing': {'batch_size': 1000, 'progress_reporting_interval': 1000, 'memory_optimization': True, 'input_file_pattern': 'features_*.csv', 'output_file_prefix': 'reasoning_', 'backup_original_files': False, 'continue_on_error': True, 'max_errors_per_file': 100, 'log_detailed_errors': True, 'parallel_processing': False, 'cache_context_analysis': True, 'optimize_memory_usage': True, 'save_quality_reports': True, 'generate_summary_statistics': True, 'include_debug_columns': False}, 'logging': {'level': 'INFO', 'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s', 'log_to_file': True, 'log_file': 'reasoning_system.log', 'max_log_size': 10485760, 'backup_count': 5, 'log_reasoning_generation': False, 'log_quality_validation': False}}
+2025-07-18 21:33:04,268 - src.reasoning_system.engines.historical_pattern_engine - INFO - HistoricalPatternEngine initialized with realistic time horizons
+2025-07-18 21:33:04,268 - src.reasoning_system.engines.feature_relationship_engine - INFO - FeatureRelationshipEngine initialized with indicator thresholds
+2025-07-18 21:33:04,268 - src.reasoning_system.engines.market_condition_detector - INFO - MarketConditionDetector initialized with regime detection thresholds
+2025-07-18 21:33:04,268 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:33:04,268 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:33:04,268 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:33:04,268 - src.reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 200
+2025-07-18 21:33:04,268 - src.reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-18 21:33:04,268 - src.reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-18 21:33:04,268 - src.reasoning_system.validators.reasoning_quality_validator - INFO - ReasoningQualityValidator initialized
+2025-07-18 21:33:04,268 - src.reasoning_system.managers.content_diversity_manager - INFO - ContentDiversityManager initialized with 80.0% diversity threshold
+2025-07-18 21:33:04,268 - src.reasoning_system.core.enhanced_orchestrator - INFO - EnhancedReasoningOrchestrator initialized with all engines
+2025-07-18 21:33:04,268 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-18 21:33:04,268 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loading data from data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:33:04,268 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from features_Bank_Nifty_5.csv
+2025-07-18 21:33:05,127 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 100/800 rows, avg time: 0.008s/row
+2025-07-18 21:33:06,033 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 200/800 rows, avg time: 0.009s/row
+2025-07-18 21:33:06,674 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 300/800 rows, avg time: 0.006s/row
+2025-07-18 21:33:07,315 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 400/800 rows, avg time: 0.006s/row
+2025-07-18 21:33:07,955 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 500/800 rows, avg time: 0.006s/row
+2025-07-18 21:33:08,596 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 600/800 rows, avg time: 0.006s/row
+2025-07-18 21:33:09,237 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 700/800 rows, avg time: 0.006s/row
+2025-07-18 21:33:09,893 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 800/800 rows, avg time: 0.007s/row
+2025-07-18 21:33:10,002 - src.reasoning_system.core.enhanced_orchestrator - INFO - Enhanced processing completed in 5.73s
+2025-07-18 21:33:10,002 - src.reasoning_system.core.enhanced_orchestrator - INFO - Average time per row: 0.007s
+2025-07-18 21:33:10,002 - src.reasoning_system.core.enhanced_orchestrator - INFO - Target compliance: 100.0%
+2025-07-18 21:33:10,049 - __main__ - ERROR - Reasoning generation step failed: 'reasoning'
+2025-07-18 21:34:30,355 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:34:30,357 - __main__ - INFO - ================================================================================
+2025-07-18 21:34:30,357 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:34:30,357 - __main__ - INFO - ================================================================================
+2025-07-18 21:34:30,357 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:34:30,357 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:34:30,357 - __main__ - INFO - Running feature generator...
+2025-07-18 21:34:30,597 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:34:30,713 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:34:30,713 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:34:31,717 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:34:31,717 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:34:31,787 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:34:31,787 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:34:31,797 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:34:31,797 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:34:35,051 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:34:35,051 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:34:35,292 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:34:35,292 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:34:35,292 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:34:35,357 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:34:35,357 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:34:35,357 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:34:35,357 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:34:35,443 - __main__ - INFO - Config type: <class 'dict'>
+2025-07-18 21:34:35,443 - __main__ - INFO - Config value: {'reasoning': {'context_window_size': 100, 'context_cache_size': 1000, 'pattern_recognition': {'support_resistance_threshold': 1.5, 'pattern_confidence_threshold': 0.7, 'use_historical_context': True, 'confluence_weight': 0.3}, 'context_analysis': {'trend_strength_thresholds': {'strong': 0.6, 'moderate': 0.3, 'weak': 0.0}, 'momentum_thresholds': {'overbought': 70, 'oversold': 30, 'neutral_high': 55, 'neutral_low': 45}, 'volatility_thresholds': {'high': 3.0, 'normal': 1.5, 'low': 0.8}}, 'psychology_assessment': {'fear_greed_thresholds': {'extreme_fear': 20, 'fear': 35, 'neutral': 65, 'greed': 80, 'extreme_greed': 95}, 'momentum_psychology_thresholds': {'panic': 15, 'fear': 30, 'neutral_low': 45, 'neutral_high': 55, 'euphoria': 85}, 'sentiment_indicators': {'rsi': {'extreme_oversold': 20, 'oversold': 30, 'overbought': 70, 'extreme_overbought': 80}, 'williams_r': {'extreme_oversold': -90, 'oversold': -80, 'overbought': -20, 'extreme_overbought': -10}, 'cci': {'extreme_oversold': -200, 'oversold': -100, 'overbought': 100, 'extreme_overbought': 200}}}, 'execution_decision': {'confluence_threshold': 0.7, 'risk_reward_minimum': 1.5, 'confidence_threshold': 60, 'position_sizing': {'aggressive': 1.0, 'normal': 0.7, 'cautious': 0.4, 'minimal': 0.2}}, 'risk_assessment': {'volatility_risk_thresholds': {'low': 1.0, 'normal': 2.5, 'high': 4.0, 'extreme': 6.0}, 'drawdown_thresholds': {'low': 2.0, 'moderate': 5.0, 'high': 10.0, 'severe': 20.0}, 'scenario_probabilities': {'high_confidence': 0.8, 'moderate_confidence': 0.6, 'low_confidence': 0.4}}, 'historical_pattern_engine': {}, 'feature_relationship_engine': {}, 'market_condition_detector': {}}, 'text_generation': {'min_reasoning_length': 50, 'max_reasoning_length': 300, 'target_reasoning_length': 150, 'use_professional_enhancement': True, 'avoid_absolute_prices': True, 'use_relative_language': True, 'professional_terminology': True, 'ensure_sentence_structure': True, 'capitalize_sentences': True, 'proper_punctuation': True, 'logical_flow': True, 'column_requirements': {'pattern_recognition_text': {'min_length': 50, 'max_length': 250, 'required_terms': ['pattern', 'formation', 'candle'], 'focus': 'pattern identification and context'}, 'context_analysis_text': {'min_length': 60, 'max_length': 300, 'required_terms': ['market', 'trend', 'technical'], 'focus': 'market structure and technical confluence'}, 'psychology_assessment_text': {'min_length': 60, 'max_length': 280, 'required_terms': ['participant', 'sentiment', 'behavior'], 'focus': 'market psychology and participant behavior'}, 'execution_decision_text': {'min_length': 70, 'max_length': 320, 'required_terms': ['position', 'risk', 'execution'], 'focus': 'trading decisions and risk management'}, 'risk_assessment_text': {'min_length': 80, 'max_length': 350, 'required_terms': ['risk', 'scenario', 'potential'], 'focus': 'risk analysis and scenario planning'}, 'alternative_scenarios_text': {'min_length': 60, 'max_length': 300, 'required_terms': ['scenario', 'alternative', 'consider'], 'focus': 'alternative interpretations and scenarios'}}}, 'quality_validation': {'min_quality_score': 70, 'target_quality_score': 85, 'excellent_quality_score': 95, 'check_price_references': True, 'check_logical_consistency': True, 'check_professional_language': True, 'check_text_structure': True, 'check_required_patterns': True, 'forbidden_price_patterns': ['\\b\\d{4,5}\\.\\d+\\b', '\\b\\d{4,5}\\b', '\\$\\d+', '₹\\d+', '\\b\\d+\\s*points?\\b'], 'unprofessional_terms': ['gonna', 'wanna', 'gotta', 'yeah', 'nah', 'ok', 'okay', 'stuff', 'things'], 'sentiment_consistency_weight': 0.3, 'risk_reward_alignment_weight': 0.4, 'pattern_context_alignment_weight': 0.3, 'quality_weights': {'professional_language': 0.25, 'text_structure': 0.2, 'required_patterns': 0.15, 'price_references': 0.2, 'logical_consistency': 0.2}}, 'processing': {'batch_size': 1000, 'progress_reporting_interval': 1000, 'memory_optimization': True, 'input_file_pattern': 'features_*.csv', 'output_file_prefix': 'reasoning_', 'backup_original_files': False, 'continue_on_error': True, 'max_errors_per_file': 100, 'log_detailed_errors': True, 'parallel_processing': False, 'cache_context_analysis': True, 'optimize_memory_usage': True, 'save_quality_reports': True, 'generate_summary_statistics': True, 'include_debug_columns': False}, 'logging': {'level': 'INFO', 'format': '%(asctime)s - %(name)s - %(levelname)s - %(message)s', 'log_to_file': True, 'log_file': 'reasoning_system.log', 'max_log_size': 10485760, 'backup_count': 5, 'log_reasoning_generation': False, 'log_quality_validation': False}}
+2025-07-18 21:34:35,443 - src.reasoning_system.engines.historical_pattern_engine - INFO - HistoricalPatternEngine initialized with realistic time horizons
+2025-07-18 21:34:35,443 - src.reasoning_system.engines.feature_relationship_engine - INFO - FeatureRelationshipEngine initialized with indicator thresholds
+2025-07-18 21:34:35,443 - src.reasoning_system.engines.market_condition_detector - INFO - MarketConditionDetector initialized with regime detection thresholds
+2025-07-18 21:34:35,443 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:34:35,443 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:34:35,443 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:34:35,443 - src.reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 200
+2025-07-18 21:34:35,443 - src.reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-18 21:34:35,443 - src.reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-18 21:34:35,443 - src.reasoning_system.validators.reasoning_quality_validator - INFO - ReasoningQualityValidator initialized
+2025-07-18 21:34:35,443 - src.reasoning_system.managers.content_diversity_manager - INFO - ContentDiversityManager initialized with 80.0% diversity threshold
+2025-07-18 21:34:35,443 - src.reasoning_system.core.enhanced_orchestrator - INFO - EnhancedReasoningOrchestrator initialized with all engines
+2025-07-18 21:34:35,443 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-18 21:34:35,443 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loading data from data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:34:35,464 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from features_Bank_Nifty_5.csv
+2025-07-18 21:34:36,717 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 100/800 rows, avg time: 0.012s/row
+2025-07-18 21:34:38,357 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 200/800 rows, avg time: 0.016s/row
+2025-07-18 21:34:39,971 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 300/800 rows, avg time: 0.016s/row
+2025-07-18 21:34:40,798 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 400/800 rows, avg time: 0.008s/row
+2025-07-18 21:34:41,557 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 500/800 rows, avg time: 0.008s/row
+2025-07-18 21:34:42,421 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 600/800 rows, avg time: 0.008s/row
+2025-07-18 21:34:43,155 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 700/800 rows, avg time: 0.007s/row
+2025-07-18 21:34:43,843 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 800/800 rows, avg time: 0.007s/row
+2025-07-18 21:34:43,952 - src.reasoning_system.core.enhanced_orchestrator - INFO - Enhanced processing completed in 8.51s
+2025-07-18 21:34:43,952 - src.reasoning_system.core.enhanced_orchestrator - INFO - Average time per row: 0.010s
+2025-07-18 21:34:43,952 - src.reasoning_system.core.enhanced_orchestrator - INFO - Target compliance: 100.0%
+2025-07-18 21:34:43,999 - __main__ - ERROR - Reasoning generation step failed: 'reasoning'
+2025-07-18 21:36:11,791 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:36:11,791 - __main__ - INFO - ================================================================================
+2025-07-18 21:36:11,791 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:36:11,791 - __main__ - INFO - ================================================================================
+2025-07-18 21:36:11,791 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:36:11,791 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:36:11,791 - __main__ - INFO - Running feature generator...
+2025-07-18 21:36:12,010 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:36:12,088 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:36:12,088 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:36:12,931 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:36:12,931 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:36:12,978 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:36:12,978 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:36:12,994 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:36:12,994 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:36:15,041 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:36:15,041 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:36:15,166 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:36:15,182 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:36:15,182 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:36:15,213 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:36:15,213 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:36:15,213 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:36:15,213 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:36:15,260 - src.reasoning_system.engines.historical_pattern_engine - INFO - HistoricalPatternEngine initialized with realistic time horizons
+2025-07-18 21:36:15,260 - src.reasoning_system.engines.feature_relationship_engine - INFO - FeatureRelationshipEngine initialized with indicator thresholds
+2025-07-18 21:36:15,260 - src.reasoning_system.engines.market_condition_detector - INFO - MarketConditionDetector initialized with regime detection thresholds
+2025-07-18 21:36:15,260 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:36:15,260 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:36:15,260 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:36:15,260 - src.reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 200
+2025-07-18 21:36:15,260 - src.reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-18 21:36:15,260 - src.reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-18 21:36:15,260 - src.reasoning_system.validators.reasoning_quality_validator - INFO - ReasoningQualityValidator initialized
+2025-07-18 21:36:15,260 - src.reasoning_system.managers.content_diversity_manager - INFO - ContentDiversityManager initialized with 80.0% diversity threshold
+2025-07-18 21:36:15,260 - src.reasoning_system.core.enhanced_orchestrator - INFO - EnhancedReasoningOrchestrator initialized with all engines
+2025-07-18 21:36:15,260 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-18 21:36:15,260 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loading data from data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:36:15,276 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from features_Bank_Nifty_5.csv
+2025-07-18 21:36:16,135 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 100/800 rows, avg time: 0.009s/row
+2025-07-18 21:36:17,073 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 200/800 rows, avg time: 0.009s/row
+2025-07-18 21:36:17,713 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 300/800 rows, avg time: 0.006s/row
+2025-07-18 21:36:18,354 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 400/800 rows, avg time: 0.006s/row
+2025-07-18 21:36:18,995 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 500/800 rows, avg time: 0.006s/row
+2025-07-18 21:36:19,636 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 600/800 rows, avg time: 0.006s/row
+2025-07-18 21:36:20,261 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 700/800 rows, avg time: 0.006s/row
+2025-07-18 21:36:20,933 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 800/800 rows, avg time: 0.007s/row
+2025-07-18 21:36:21,027 - src.reasoning_system.core.enhanced_orchestrator - INFO - Enhanced processing completed in 5.77s
+2025-07-18 21:36:21,027 - src.reasoning_system.core.enhanced_orchestrator - INFO - Average time per row: 0.007s
+2025-07-18 21:36:21,027 - src.reasoning_system.core.enhanced_orchestrator - INFO - Target compliance: 100.0%
+2025-07-18 21:36:21,089 - __main__ - ERROR - Reasoning generation step failed: 'reasoning'
+2025-07-18 21:40:53,347 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:40:53,347 - __main__ - INFO - ================================================================================
+2025-07-18 21:40:53,347 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:40:53,347 - __main__ - INFO - ================================================================================
+2025-07-18 21:40:53,347 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:40:53,347 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:40:53,347 - __main__ - INFO - Running feature generator...
+2025-07-18 21:40:53,566 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:40:53,660 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:40:53,660 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:40:54,472 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:40:54,472 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:40:54,519 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:40:54,519 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:40:54,519 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:40:54,535 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:40:56,426 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:40:56,426 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:40:56,566 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:40:56,566 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:40:56,566 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:40:56,598 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:40:56,598 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:40:56,598 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:40:56,598 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:40:56,644 - src.reasoning_system.engines.historical_pattern_engine - INFO - HistoricalPatternEngine initialized with realistic time horizons
+2025-07-18 21:40:56,644 - src.reasoning_system.engines.feature_relationship_engine - INFO - FeatureRelationshipEngine initialized with indicator thresholds
+2025-07-18 21:40:56,644 - src.reasoning_system.engines.market_condition_detector - INFO - MarketConditionDetector initialized with regime detection thresholds
+2025-07-18 21:40:56,644 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:40:56,644 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:40:56,644 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:40:56,644 - src.reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 200
+2025-07-18 21:40:56,644 - src.reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-18 21:40:56,644 - src.reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-18 21:40:56,644 - src.reasoning_system.validators.reasoning_quality_validator - INFO - ReasoningQualityValidator initialized
+2025-07-18 21:40:56,644 - src.reasoning_system.managers.content_diversity_manager - INFO - ContentDiversityManager initialized with 80.0% diversity threshold
+2025-07-18 21:40:56,644 - src.reasoning_system.core.enhanced_orchestrator - INFO - EnhancedReasoningOrchestrator initialized with all engines
+2025-07-18 21:40:56,644 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-18 21:40:56,644 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loading data from data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:40:56,660 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from features_Bank_Nifty_5.csv
+2025-07-18 21:40:57,582 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 100/800 rows, avg time: 0.009s/row
+2025-07-18 21:40:58,457 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 200/800 rows, avg time: 0.009s/row
+2025-07-18 21:40:59,066 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 300/800 rows, avg time: 0.006s/row
+2025-07-18 21:40:59,660 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 400/800 rows, avg time: 0.006s/row
+2025-07-18 21:41:00,317 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 500/800 rows, avg time: 0.007s/row
+2025-07-18 21:41:00,910 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 600/800 rows, avg time: 0.006s/row
+2025-07-18 21:41:01,535 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 700/800 rows, avg time: 0.006s/row
+2025-07-18 21:41:02,160 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 800/800 rows, avg time: 0.006s/row
+2025-07-18 21:41:02,270 - src.reasoning_system.core.enhanced_orchestrator - INFO - Enhanced processing completed in 5.63s
+2025-07-18 21:41:02,270 - src.reasoning_system.core.enhanced_orchestrator - INFO - Average time per row: 0.007s
+2025-07-18 21:41:02,270 - src.reasoning_system.core.enhanced_orchestrator - INFO - Target compliance: 100.0%
+2025-07-18 21:41:02,317 - __main__ - ERROR - Reasoning generation step failed: 'reasoning'
+2025-07-18 21:43:01,988 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:43:01,988 - __main__ - INFO - ================================================================================
+2025-07-18 21:43:01,988 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:43:01,988 - __main__ - INFO - ================================================================================
+2025-07-18 21:43:01,988 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:43:01,988 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:43:01,988 - __main__ - INFO - Running feature generator...
+2025-07-18 21:43:02,207 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:43:02,301 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:43:02,301 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:43:03,082 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:43:03,082 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:43:03,129 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:43:03,129 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:43:03,145 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:43:03,145 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:43:05,082 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:43:05,082 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:43:05,207 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:43:05,207 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:43:05,207 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:43:05,254 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:43:05,254 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:43:05,254 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:43:05,254 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:43:05,285 - src.reasoning_system.engines.historical_pattern_engine - INFO - HistoricalPatternEngine initialized with realistic time horizons
+2025-07-18 21:43:05,285 - src.reasoning_system.engines.feature_relationship_engine - INFO - FeatureRelationshipEngine initialized with indicator thresholds
+2025-07-18 21:43:05,285 - src.reasoning_system.engines.market_condition_detector - INFO - MarketConditionDetector initialized with regime detection thresholds
+2025-07-18 21:43:05,285 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:43:05,285 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:43:05,285 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:43:05,285 - src.reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 200
+2025-07-18 21:43:05,285 - src.reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-18 21:43:05,285 - src.reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-18 21:43:05,285 - src.reasoning_system.validators.reasoning_quality_validator - INFO - ReasoningQualityValidator initialized
+2025-07-18 21:43:05,285 - src.reasoning_system.managers.content_diversity_manager - INFO - ContentDiversityManager initialized with 80.0% diversity threshold
+2025-07-18 21:43:05,285 - src.reasoning_system.core.enhanced_orchestrator - INFO - EnhancedReasoningOrchestrator initialized with all engines
+2025-07-18 21:43:05,285 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-18 21:43:05,285 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loading data from data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:43:05,301 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from features_Bank_Nifty_5.csv
+2025-07-18 21:43:06,129 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 100/800 rows, avg time: 0.008s/row
+2025-07-18 21:43:07,004 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 200/800 rows, avg time: 0.009s/row
+2025-07-18 21:43:07,614 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 300/800 rows, avg time: 0.006s/row
+2025-07-18 21:43:08,223 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 400/800 rows, avg time: 0.006s/row
+2025-07-18 21:43:08,833 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 500/800 rows, avg time: 0.006s/row
+2025-07-18 21:43:09,442 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 600/800 rows, avg time: 0.006s/row
+2025-07-18 21:43:10,067 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 700/800 rows, avg time: 0.006s/row
+2025-07-18 21:43:10,676 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 800/800 rows, avg time: 0.006s/row
+2025-07-18 21:43:10,786 - src.reasoning_system.core.enhanced_orchestrator - INFO - Enhanced processing completed in 5.50s
+2025-07-18 21:43:10,786 - src.reasoning_system.core.enhanced_orchestrator - INFO - Average time per row: 0.007s
+2025-07-18 21:43:10,786 - src.reasoning_system.core.enhanced_orchestrator - INFO - Target compliance: 100.0%
+2025-07-18 21:44:46,197 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-18 21:44:46,199 - __main__ - INFO - ================================================================================
+2025-07-18 21:44:46,199 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-18 21:44:46,199 - __main__ - INFO - ================================================================================
+2025-07-18 21:44:46,199 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-18 21:44:46,199 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:44:46,199 - __main__ - INFO - Running feature generator...
+2025-07-18 21:44:46,480 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-18 21:44:46,599 - feature_generator - INFO - Loaded 999 rows from Bank_Nifty_5.csv
+2025-07-18 21:44:46,599 - feature_generator - INFO - Processing in-memory DataFrame with 999 rows...
+2025-07-18 21:44:47,448 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 800 rows
+2025-07-18 21:44:47,448 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:44:47,505 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 800 rows, 63 features
+2025-07-18 21:44:47,505 - feature_generator - INFO - Replaced existing file: data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:44:47,523 - feature_generator - INFO - Loaded 2499 rows from Nifty_2.csv
+2025-07-18 21:44:47,523 - feature_generator - INFO - Processing in-memory DataFrame with 2499 rows...
+2025-07-18 21:44:49,652 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 2300 rows
+2025-07-18 21:44:49,652 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-18 21:44:49,802 - feature_generator - INFO - Processed Nifty_2.csv: 2300 rows, 63 features
+2025-07-18 21:44:49,802 - feature_generator - INFO - Replaced existing file: data\processed\features_Nifty_2.csv
+2025-07-18 21:44:49,803 - __main__ - INFO - Feature generator completed successfully
+2025-07-18 21:44:49,850 - __main__ - INFO - Feature generation completed: 2 files
+2025-07-18 21:44:49,850 - __main__ - INFO - 
+STEP 2: REASONING GENERATION
+2025-07-18 21:44:49,850 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:44:49,850 - __main__ - INFO - Running reasoning generator...
+2025-07-18 21:44:49,890 - src.reasoning_system.engines.historical_pattern_engine - INFO - HistoricalPatternEngine initialized with realistic time horizons
+2025-07-18 21:44:49,890 - src.reasoning_system.engines.feature_relationship_engine - INFO - FeatureRelationshipEngine initialized with indicator thresholds
+2025-07-18 21:44:49,890 - src.reasoning_system.engines.market_condition_detector - INFO - MarketConditionDetector initialized with regime detection thresholds
+2025-07-18 21:44:49,890 - src.reasoning_system.templates.decision_templates - INFO - DecisionTemplates initialized with LONG/SHORT/HOLD templates
+2025-07-18 21:44:49,890 - src.reasoning_system.advanced_templates.natural_language_generator - INFO - NaturalLanguageGenerator initialized with natural language patterns
+2025-07-18 21:44:49,890 - src.reasoning_system.advanced_templates.template_variations - INFO - TemplateVariations initialized with 50+ template variations
+2025-07-18 21:44:49,890 - src.reasoning_system.context.historical_context_manager - INFO - HistoricalContextManager initialized with window size: 200
+2025-07-18 21:44:49,890 - src.reasoning_system.generators.text_generator - INFO - TextGenerator initialized with professional language components
+2025-07-18 21:44:49,890 - src.reasoning_system.generators.quality_validator - INFO - QualityValidator initialized with validation rules
+2025-07-18 21:44:49,890 - src.reasoning_system.validators.reasoning_quality_validator - INFO - ReasoningQualityValidator initialized
+2025-07-18 21:44:49,890 - src.reasoning_system.managers.content_diversity_manager - INFO - ContentDiversityManager initialized with 80.0% diversity threshold
+2025-07-18 21:44:49,890 - src.reasoning_system.core.enhanced_orchestrator - INFO - EnhancedReasoningOrchestrator initialized with all engines
+2025-07-18 21:44:49,890 - __main__ - INFO - Using Enhanced Reasoning System
+2025-07-18 21:44:49,890 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loading data from data\processed\features_Bank_Nifty_5.csv
+2025-07-18 21:44:49,916 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 800 rows from features_Bank_Nifty_5.csv
+2025-07-18 21:44:50,821 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 100/800 rows, avg time: 0.009s/row
+2025-07-18 21:44:51,768 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 200/800 rows, avg time: 0.009s/row
+2025-07-18 21:44:52,636 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 300/800 rows, avg time: 0.009s/row
+2025-07-18 21:44:53,357 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 400/800 rows, avg time: 0.007s/row
+2025-07-18 21:44:54,222 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 500/800 rows, avg time: 0.009s/row
+2025-07-18 21:44:55,008 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 600/800 rows, avg time: 0.008s/row
+2025-07-18 21:44:55,768 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 700/800 rows, avg time: 0.007s/row
+2025-07-18 21:44:56,488 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 800/800 rows, avg time: 0.007s/row
+2025-07-18 21:44:56,622 - src.reasoning_system.core.enhanced_orchestrator - INFO - Enhanced processing completed in 6.73s
+2025-07-18 21:44:56,622 - src.reasoning_system.core.enhanced_orchestrator - INFO - Average time per row: 0.008s
+2025-07-18 21:44:56,622 - src.reasoning_system.core.enhanced_orchestrator - INFO - Target compliance: 100.0%
+2025-07-18 21:44:56,675 - __main__ - INFO - Generating embeddings for column: pattern_recognition
+2025-07-18 21:45:21,554 - __main__ - INFO - Generating embeddings for column: context_analysis
+2025-07-18 21:45:30,906 - __main__ - INFO - Generating embeddings for column: psychology_assessment
+2025-07-18 21:45:46,947 - __main__ - INFO - Generating embeddings for column: execution_decision
+2025-07-18 21:45:48,686 - __main__ - INFO - Generating embeddings for column: feature_analysis
+2025-07-18 21:46:24,762 - __main__ - INFO - Generating embeddings for column: historical_analysis
+2025-07-18 21:46:35,315 - __main__ - INFO - Generating embeddings for column: decision
+2025-07-18 21:46:43,998 - __main__ - INFO - Embeddings for pattern_recognition saved to data\processed\embeddings\embeddings_pattern_recognition_Bank_Nifty_5.joblib
+2025-07-18 21:46:43,998 - __main__ - INFO - Embeddings for context_analysis saved to data\processed\embeddings\embeddings_context_analysis_Bank_Nifty_5.joblib
+2025-07-18 21:46:43,998 - __main__ - INFO - Embeddings for psychology_assessment saved to data\processed\embeddings\embeddings_psychology_assessment_Bank_Nifty_5.joblib
+2025-07-18 21:46:44,041 - __main__ - INFO - Embeddings for execution_decision saved to data\processed\embeddings\embeddings_execution_decision_Bank_Nifty_5.joblib
+2025-07-18 21:46:44,041 - __main__ - INFO - Embeddings for feature_analysis saved to data\processed\embeddings\embeddings_feature_analysis_Bank_Nifty_5.joblib
+2025-07-18 21:46:44,041 - __main__ - INFO - Embeddings for historical_analysis saved to data\processed\embeddings\embeddings_historical_analysis_Bank_Nifty_5.joblib
+2025-07-18 21:46:44,049 - __main__ - INFO - Embeddings for decision saved to data\processed\embeddings\embeddings_decision_Bank_Nifty_5.joblib
+2025-07-18 21:46:44,050 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loading data from data\processed\features_Nifty_2.csv
+2025-07-18 21:46:44,081 - src.reasoning_system.core.enhanced_orchestrator - INFO - Loaded 2300 rows from features_Nifty_2.csv
+2025-07-18 21:46:44,839 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 100/2300 rows, avg time: 0.008s/row
+2025-07-18 21:46:45,777 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 200/2300 rows, avg time: 0.009s/row
+2025-07-18 21:46:46,527 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 300/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:47,268 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 400/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:48,013 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 500/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:48,742 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 600/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:49,477 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 700/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:50,215 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 800/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:50,974 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 900/2300 rows, avg time: 0.008s/row
+2025-07-18 21:46:51,734 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1000/2300 rows, avg time: 0.008s/row
+2025-07-18 21:46:52,453 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1100/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:53,200 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1200/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:53,953 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1300/2300 rows, avg time: 0.008s/row
+2025-07-18 21:46:54,774 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1400/2300 rows, avg time: 0.008s/row
+2025-07-18 21:46:55,680 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1500/2300 rows, avg time: 0.009s/row
+2025-07-18 21:46:56,484 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1600/2300 rows, avg time: 0.008s/row
+2025-07-18 21:46:57,269 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1700/2300 rows, avg time: 0.008s/row
+2025-07-18 21:46:57,909 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1800/2300 rows, avg time: 0.006s/row
+2025-07-18 21:46:58,581 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 1900/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:59,237 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 2000/2300 rows, avg time: 0.007s/row
+2025-07-18 21:46:59,957 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 2100/2300 rows, avg time: 0.007s/row
+2025-07-18 21:47:00,597 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 2200/2300 rows, avg time: 0.006s/row
+2025-07-18 21:47:01,238 - src.reasoning_system.core.enhanced_orchestrator - INFO - Processed 2300/2300 rows, avg time: 0.006s/row
+2025-07-18 21:47:01,535 - src.reasoning_system.core.enhanced_orchestrator - INFO - Enhanced processing completed in 17.48s
+2025-07-18 21:47:01,535 - src.reasoning_system.core.enhanced_orchestrator - INFO - Average time per row: 0.007s
+2025-07-18 21:47:01,535 - src.reasoning_system.core.enhanced_orchestrator - INFO - Target compliance: 100.0%
+2025-07-18 21:47:01,644 - __main__ - INFO - Generating embeddings for column: pattern_recognition
+2025-07-18 21:48:15,147 - __main__ - INFO - Generating embeddings for column: context_analysis
+2025-07-18 21:48:44,065 - __main__ - INFO - Generating embeddings for column: psychology_assessment
+2025-07-18 21:49:26,832 - __main__ - INFO - Generating embeddings for column: execution_decision
+2025-07-18 21:49:32,110 - __main__ - INFO - Generating embeddings for column: feature_analysis
+2025-07-18 21:50:56,542 - __main__ - INFO - Generating embeddings for column: historical_analysis
+2025-07-18 21:51:26,532 - __main__ - INFO - Generating embeddings for column: decision
+2025-07-18 21:51:48,081 - __main__ - INFO - Embeddings for pattern_recognition saved to data\processed\embeddings\embeddings_pattern_recognition_Nifty_2.joblib
+2025-07-18 21:51:48,081 - __main__ - INFO - Embeddings for context_analysis saved to data\processed\embeddings\embeddings_context_analysis_Nifty_2.joblib
+2025-07-18 21:51:48,081 - __main__ - INFO - Embeddings for psychology_assessment saved to data\processed\embeddings\embeddings_psychology_assessment_Nifty_2.joblib
+2025-07-18 21:51:48,099 - __main__ - INFO - Embeddings for execution_decision saved to data\processed\embeddings\embeddings_execution_decision_Nifty_2.joblib
+2025-07-18 21:51:48,107 - __main__ - INFO - Embeddings for feature_analysis saved to data\processed\embeddings\embeddings_feature_analysis_Nifty_2.joblib
+2025-07-18 21:51:48,108 - __main__ - INFO - Embeddings for historical_analysis saved to data\processed\embeddings\embeddings_historical_analysis_Nifty_2.joblib
+2025-07-18 21:51:48,116 - __main__ - INFO - Embeddings for decision saved to data\processed\embeddings\embeddings_decision_Nifty_2.joblib
+2025-07-18 21:51:48,121 - __main__ - INFO - Reasoning generator completed successfully
+2025-07-18 21:51:48,122 - __main__ - INFO - Reasoning generation completed: 2 files
+2025-07-18 21:51:48,122 - __main__ - INFO - 
+STEP 3: FINAL DATA ORGANIZATION
+2025-07-18 21:51:48,122 - __main__ - INFO - ----------------------------------------
+2025-07-18 21:51:48,284 - __main__ - INFO - Organized: final_Bank_Nifty_5.csv
+2025-07-18 21:51:48,759 - __main__ - INFO - Organized: final_Nifty_2.csv
+2025-07-18 21:51:48,759 - __main__ - INFO - Pipeline report saved: reports\pipeline\pipeline_report_1752855708.txt
+2025-07-18 21:51:48,759 - __main__ - INFO - ================================================================================
+2025-07-18 21:51:48,759 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
+2025-07-18 21:51:48,759 - __main__ - INFO - ================================================================================

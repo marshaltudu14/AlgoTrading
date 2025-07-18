@@ -70,7 +70,12 @@ REASONING_CONFIG = {
         'scenario_probabilities': {
             'high_confidence': 0.8, 'moderate_confidence': 0.6, 'low_confidence': 0.4
         }
-    }
+    },
+
+    # Enhanced Engine Configurations (added for EnhancedReasoningOrchestrator)
+    'historical_pattern_engine': {},
+    'feature_relationship_engine': {},
+    'market_condition_detector': {}
 }
 
 # === TEXT GENERATION CONFIGURATION ===
