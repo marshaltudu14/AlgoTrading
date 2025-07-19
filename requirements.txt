@@ -7,3 +7,4 @@ sentence-transformers
 pyotp
 fyers_apiv3
 requests
+gymnasium

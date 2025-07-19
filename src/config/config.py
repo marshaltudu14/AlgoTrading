@@ -92,6 +92,9 @@ VALIDATION_CONFIG = {
     'max_correlation_threshold': 0.95, # Maximum allowed correlation between features
 }
 
+# === TRADING CONFIGURATION ===
+INITIAL_CAPITAL = 100000.0
+
 
 
 def get_config():
@@ -126,3 +129,4 @@ def print_config():
 
 if __name__ == "__main__":
     print_config()
+
