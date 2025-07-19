@@ -5,20 +5,36 @@ from typing import Tuple, List
 class BaseAgent(abc.ABC):
     @abc.abstractmethod
     def select_action(self, observation: np.ndarray) -> int:
-        """Selects an action based on the current observation."""
+        """
+        Takes a normalized observation from the environment and returns a discrete action.
+        """
         pass
 
     @abc.abstractmethod
     def learn(self, experience: Tuple[np.ndarray, int, float, np.ndarray, bool]) -> None:
-        """Updates the agent's internal policy based on a single experience or a batch of experiences."""
+        """
+        Processes a single or batch of experiences to update the agent's internal policy.
+        """
         pass
 
     @abc.abstractmethod
+    def adapt(self, observation: np.ndarray, action: int, reward: float, next_observation: np.ndarray, done: bool, num_gradient_steps: int) -> 'BaseAgent':
+        """
+        Performs rapid, task-specific adaptations without permanently altering global meta-parameters.
+        Returns a new BaseAgent instance (or a representation of the adapted parameters) that is differentiable
+        with respect to the original meta-parameters.
+        """
+        pass
+
     def save_model(self, path: str) -> None:
-        """Saves the agent's learned policy to a specified file path."""
+        """
+        Saves the agent's learned policy (e.g., neural network weights) to a specified file path.
+        """
         pass
 
     @abc.abstractmethod
     def load_model(self, path: str) -> None:
-        """Loads a previously saved policy from a specified file path."""
+        """
+        Loads a previously saved policy from a specified file path.
+        """
         pass
