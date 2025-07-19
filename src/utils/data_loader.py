@@ -38,6 +38,7 @@ class DataLoader:
                     (df['low'] <= df['open']).all() and
                     (df['low'] <= df['close']).all()):
                 logging.warning(f"OHLC validation failed for {symbol}.csv")
+            
             return df
         except FileNotFoundError:
             logging.error(f"File not found for symbol: {symbol} at {filepath}")

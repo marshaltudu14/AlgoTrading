@@ -6,6 +6,7 @@ from typing import Tuple, List, Dict
 from src.backtesting.environment import TradingEnv
 from src.agents.base_agent import BaseAgent
 from src.agents.moe_agent import MoEAgent
+from src.utils.data_loader import DataLoader
 
 from src.utils.metrics import (
     calculate_sharpe_ratio,
@@ -18,13 +19,16 @@ from src.utils.metrics import (
 )
 
 class Trainer:
-    def __init__(self, env: TradingEnv, agent: BaseAgent, num_episodes: int, log_interval: int = 10):
-        self.env = env
+    def __init__(self, agent: BaseAgent, num_episodes: int, log_interval: int = 10):
         self.agent = agent
         self.num_episodes = num_episodes
         self.log_interval = log_interval
+        self.env = None # Will be initialized in train method
 
-    def train(self) -> None:
+    def train(self, data_loader: DataLoader, symbol: str, initial_capital: float) -> None:
+        # Initialize the environment for the specific symbol
+        self.env = TradingEnv(data_loader, symbol, initial_capital)
+
         for episode in range(self.num_episodes):
             observation = self.env.reset()
             done = False
@@ -88,18 +92,17 @@ class Trainer:
                 print(f"{key}: {value}")
         print("==========================")
 
-    def meta_train(self, num_meta_iterations: int, num_inner_loop_steps: int, num_evaluation_steps: int, meta_batch_size: int) -> None:
+    def meta_train(self, data_loader: DataLoader, initial_capital: float, num_meta_iterations: int, num_inner_loop_steps: int, num_evaluation_steps: int, meta_batch_size: int) -> None:
         for iteration in range(num_meta_iterations):
-            tasks = self.env.data_loader.sample_tasks(meta_batch_size)
+            tasks = data_loader.sample_tasks(meta_batch_size)
             meta_loss = 0
             avg_task_reward = 0
 
             for task in tasks:
                 # Inner loop adaptation
-                task_data = self.env.data_loader.get_task_data(task[0], task[1])
+                task_data = data_loader.get_task_data(task[0], task[1])
                 # Temporarily set environment data to task_data for adaptation
-                original_env_data = self.env.data
-                self.env.data = task_data
+                self.env = TradingEnv(data_loader=data_loader, symbol=task[0], initial_capital=initial_capital)
 
                 adapted_agent = self.agent # Initial adapted agent is the current meta-agent
                 for _ in range(num_inner_loop_steps):
@@ -127,9 +130,6 @@ class Trainer:
 
                 # Calculate meta-loss (simplified: using negative evaluation reward)
                 meta_loss += -evaluation_reward
-
-                # Restore original environment data
-                self.env.data = original_env_data
 
             # Outer loop meta-update
             # This part would typically involve backpropagating through the adaptation process
