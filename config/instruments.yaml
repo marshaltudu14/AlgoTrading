@@ -1,10 +1,10 @@
 instruments:
   - symbol: "Bank_Nifty"
     type: "OPTION"
-    lot_size: 25 # Example lot size for Bank Nifty options
+    lot_size: 25 # Bank Nifty options lot size
     tick_size: 0.05
 
   - symbol: "Nifty"
     type: "OPTION"
-    lot_size: 50 # Example lot size for Nifty options
+    lot_size: 50 # Nifty options lot size
     tick_size: 0.05

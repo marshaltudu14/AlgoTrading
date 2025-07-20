@@ -7,6 +7,7 @@ from typing import Tuple, List
 
 from src.agents.base_agent import BaseAgent
 from src.models.lstm_model import LSTMModel, ActorLSTMModel
+from src.utils.hardware_optimizer import get_hardware_optimizer, optimize_for_device, to_device
 
 class PPOAgent(BaseAgent):
     def __init__(self, observation_dim: int, action_dim: int, hidden_dim: int,
@@ -29,10 +30,17 @@ class PPOAgent(BaseAgent):
         self.policy_old = ActorLSTMModel(observation_dim, hidden_dim, action_dim)
         self.policy_old.load_state_dict(self.actor.state_dict())
 
+        # Optimize for hardware
+        self.hardware_optimizer = get_hardware_optimizer()
+        self.actor = optimize_for_device(self.actor)
+        self.critic = optimize_for_device(self.critic)
+        self.policy_old = optimize_for_device(self.policy_old)
+
         self.MseLoss = nn.MSELoss()
 
     def select_action(self, observation: np.ndarray) -> int:
         state = torch.FloatTensor(observation).unsqueeze(0).unsqueeze(0)
+        state = to_device(state)
         action_probs = self.policy_old(state)
         dist = Categorical(action_probs)
         action = dist.sample()

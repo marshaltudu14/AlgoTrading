@@ -1,14 +1,17 @@
 import logging
 from typing import Dict, Tuple
 
+from src.config.instrument import Instrument
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class BacktestingEngine:
-    def __init__(self, initial_capital: float):
+    def __init__(self, initial_capital: float, instrument: Instrument, trailing_stop_percentage: float = 0.02):
         if initial_capital <= 0:
             raise ValueError("Initial capital must be positive.")
         self._initial_capital = initial_capital
         self._capital = initial_capital
+        self.instrument = instrument
         self._current_position_quantity = 0.0
         self._current_position_entry_price = 0.0
         self._realized_pnl = 0.0
@@ -16,10 +19,18 @@ class BacktestingEngine:
         self._trade_history = [] # To store details of each trade for reporting/metrics
         self._stop_loss_price = 0.0
         self._target_profit_price = 0.0
+        self._trailing_stop_price = 0.0
+        self._peak_price = 0.0
         self._is_position_open = False
+        self.trailing_stop_percentage = trailing_stop_percentage
+        self._premium_paid_per_lot = 0.0 # For options P&L calculation
 
         self.BROKERAGE_ENTRY = 25.0  # INR
         self.BROKERAGE_EXIT = 35.0   # INR
+
+        # Enhanced P&L tracking
+        self._total_realized_pnl = 0.0  # Total P&L from all closed trades
+        self._trade_count = 0  # Number of completed trades
 
     def reset(self):
         self._capital = self._initial_capital
@@ -30,17 +41,37 @@ class BacktestingEngine:
         self._trade_history = []
         self._stop_loss_price = 0.0
         self._target_profit_price = 0.0
+        self._trailing_stop_price = 0.0
+        self._peak_price = 0.0
         self._is_position_open = False
 
-    def execute_trade(self, action: str, price: float, quantity: float, atr_value: float = 0.0) -> Tuple[float, float]:
-        if price <= 0 or quantity <= 0:
-            logging.warning(f"Invalid price ({price}) or quantity ({quantity}) for trade action {action}. Trade not executed.")
+        # Enhanced P&L tracking
+        self._total_realized_pnl = 0.0  # Total P&L from all closed trades
+        self._trade_count = 0  # Number of completed trades
+
+    def _update_trailing_stop(self, current_price: float):
+        if self._current_position_quantity > 0:  # Long position
+            if current_price > self._peak_price:
+                self._peak_price = current_price
+                self._trailing_stop_price = self._peak_price * (1 - self.trailing_stop_percentage)
+        elif self._current_position_quantity < 0:  # Short position
+            if current_price < self._peak_price:
+                self._peak_price = current_price
+                self._trailing_stop_price = self._peak_price * (1 + self.trailing_stop_percentage)
+
+    def execute_trade(self, action: str, price: float, quantity: float, atr_value: float = 0.0, proxy_premium: float = 0.0) -> Tuple[float, float]:
+        # Always update trailing stop if a position is open, regardless of action or quantity
+        if self._is_position_open:
+            self._update_trailing_stop(price)
+
+        if price <= 0 or (quantity <= 0 and action != "HOLD"):
+            logging.warning(f"Invalid price ({price}) or quantity ({quantity} lots) for trade action {action}. Trade not executed.")
             return 0.0, self._unrealized_pnl
 
         realized_pnl_this_trade = 0.0
         cost = 0.0
 
-        # Check for SL/TP hit if a position is open
+        # Check for SL/TP/Trailing Stop hit if a position is open
         if self._is_position_open:
             if self._current_position_quantity > 0: # Long position
                 if price <= self._stop_loss_price:
@@ -49,6 +80,10 @@ class BacktestingEngine:
                     quantity = self._current_position_quantity
                 elif price >= self._target_profit_price:
                     logging.info(f"TP hit for long position at {price:.2f}. Closing position.")
+                    action = "CLOSE_LONG"
+                    quantity = self._current_position_quantity
+                elif price <= self._trailing_stop_price:
+                    logging.info(f"Trailing SL hit for long position at {price:.2f}. Closing position.")
                     action = "CLOSE_LONG"
                     quantity = self._current_position_quantity
             elif self._current_position_quantity < 0: # Short position
@@ -60,12 +95,20 @@ class BacktestingEngine:
                     logging.info(f"TP hit for short position at {price:.2f}. Closing position.")
                     action = "CLOSE_SHORT"
                     quantity = abs(self._current_position_quantity)
+                elif price >= self._trailing_stop_price:
+                    logging.info(f"Trailing SL hit for short position at {price:.2f}. Closing position.")
+                    action = "CLOSE_SHORT"
+                    quantity = abs(self._current_position_quantity)
 
         if action == "BUY_LONG":
             if self._current_position_quantity != 0:
                 logging.warning(f"Cannot BUY_LONG. Already have an open position ({self._current_position_quantity}). Trade not executed.")
                 return 0.0, self._unrealized_pnl
-            cost = (price * quantity) + self.BROKERAGE_ENTRY
+            if self.instrument.type == "OPTION":
+                cost = (proxy_premium * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
+                self._premium_paid_per_lot = proxy_premium # Store premium for options P&L
+            else:
+                cost = (price * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
             if self._capital < cost:
                 logging.warning(f"Insufficient capital to BUY_LONG {quantity} at {price}. Capital: {self._capital:.2f}, Cost: {cost:.2f}. Trade not executed.")
                 return 0.0, self._unrealized_pnl
@@ -76,14 +119,20 @@ class BacktestingEngine:
             self._is_position_open = True
             self._stop_loss_price = price - atr_value # SL is ATR below entry for long
             self._target_profit_price = price + (atr_value * 2) # TP is 2*ATR above entry for long
-            logging.info(f"Executed BUY_LONG. Quantity: {quantity}, Price: {price}. New position: {self._current_position_quantity:.2f} at {self._current_position_entry_price:.2f}. SL: {self._stop_loss_price:.2f}, TP: {self._target_profit_price:.2f}")
+            self._peak_price = price # Initialize peak price for trailing stop
+            self._trailing_stop_price = self._peak_price * (1 - self.trailing_stop_percentage)
+            logging.info(f"Executed BUY_LONG. Quantity: {quantity}, Price: {price}. New position: {self._current_position_quantity:.2f} at {self._current_position_entry_price:.2f}. SL: {self._stop_loss_price:.2f}, TP: {self._target_profit_price:.2f}, Trailing SL: {self._trailing_stop_price:.2f}")
 
         elif action == "SELL_SHORT":
             if self._current_position_quantity != 0:
                 logging.warning(f"Cannot SELL_SHORT. Already have an open position ({self._current_position_quantity}). Trade not executed.")
                 return 0.0, self._unrealized_pnl
-            cost = (price * quantity) + self.BROKERAGE_ENTRY
-            if self._capital < cost: # Shorting also requires margin/capital to cover potential losses
+            if self.instrument.type == "OPTION":
+                cost = (proxy_premium * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
+                self._premium_paid_per_lot = proxy_premium # Store premium for options P&L
+            else:
+                cost = (price * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY # Shorting also requires margin/capital to cover potential losses
+            if self._capital < cost:
                 logging.warning(f"Insufficient capital to SELL_SHORT {quantity} at {price}. Capital: {self._capital:.2f}, Cost: {cost:.2f}. Trade not executed.")
                 return 0.0, self._unrealized_pnl
 
@@ -93,7 +142,9 @@ class BacktestingEngine:
             self._is_position_open = True
             self._stop_loss_price = price + atr_value # SL is ATR above entry for short
             self._target_profit_price = price - (atr_value * 2) # TP is 2*ATR below entry for short
-            logging.info(f"Executed SELL_SHORT. Quantity: {quantity}, Price: {price}. New position: {self._current_position_quantity:.2f} at {self._current_position_entry_price:.2f}. SL: {self._stop_loss_price:.2f}, TP: {self._target_profit_price:.2f}")
+            self._peak_price = price # Initialize peak price for trailing stop
+            self._trailing_stop_price = self._peak_price * (1 + self.trailing_stop_percentage)
+            logging.info(f"Executed SELL_SHORT. Quantity: {quantity}, Price: {price}. New position: {self._current_position_quantity:.2f} at {self._current_position_entry_price:.2f}. SL: {self._stop_loss_price:.2f}, TP: {self._target_profit_price:.2f}, Trailing SL: {self._trailing_stop_price:.2f}")
 
         elif action == "CLOSE_LONG":
             if self._current_position_quantity <= 0: # No long position to close
@@ -103,13 +154,31 @@ class BacktestingEngine:
                 logging.warning(f"Attempted to close {quantity} long, but only {self._current_position_quantity} held. Closing full position.")
                 quantity = self._current_position_quantity
 
-            realized_pnl_this_trade = (price - self._current_position_entry_price) * quantity
+            if self.instrument.type == "OPTION":
+                # For option trading simulation: calculate P&L as underlying movement
+                # The premium is already paid as cost, so P&L is just the underlying movement
+                realized_pnl_this_trade = (price - self._current_position_entry_price) * quantity * self.instrument.lot_size
+                # Note: Premium cost is already deducted from capital when opening position
+            else:
+                realized_pnl_this_trade = (price - self._current_position_entry_price) * quantity * self.instrument.lot_size
+
             self._realized_pnl += realized_pnl_this_trade
             self._capital += realized_pnl_this_trade - self.BROKERAGE_EXIT
+            self._total_realized_pnl += realized_pnl_this_trade
+            self._trade_count += 1
+
             self._current_position_quantity -= quantity
             if self._current_position_quantity == 0:
                 self._current_position_entry_price = 0.0
-            logging.info(f"Executed CLOSE_LONG. Quantity: {quantity}, Price: {price}. PnL: {realized_pnl_this_trade:.2f}")
+                self._is_position_open = False # Close position
+
+            # Calculate total P&L from initial capital
+            total_pnl_from_initial = self._capital - self._initial_capital
+
+            logging.info(f"Executed CLOSE_LONG. Quantity: {quantity}, Price: {price}.")
+            logging.info(f"  📊 Current Trade P&L: ₹{realized_pnl_this_trade:.2f}")
+            logging.info(f"  💰 Total P&L from Initial: ₹{total_pnl_from_initial:.2f}")
+            logging.info(f"  🏦 Capital: ₹{self._capital:.2f} (Trade #{self._trade_count})")
 
         elif action == "CLOSE_SHORT":
             if self._current_position_quantity >= 0: # No short position to close
@@ -119,13 +188,36 @@ class BacktestingEngine:
                 logging.warning(f"Attempted to close {quantity} short, but only {abs(self._current_position_quantity)} held. Closing full position.")
                 quantity = abs(self._current_position_quantity)
 
-            realized_pnl_this_trade = (self._current_position_entry_price - price) * quantity
+            if self.instrument.type == "OPTION":
+                # For option trading simulation: calculate P&L as underlying movement
+                # The premium is already paid as cost, so P&L is just the underlying movement
+                realized_pnl_this_trade = (self._current_position_entry_price - price) * quantity * self.instrument.lot_size
+                # Note: Premium cost is already deducted from capital when opening position
+            else:
+                realized_pnl_this_trade = (self._current_position_entry_price - price) * quantity * self.instrument.lot_size
+
             self._realized_pnl += realized_pnl_this_trade
             self._capital += realized_pnl_this_trade - self.BROKERAGE_EXIT # Corrected capital update for CLOSE_SHORT
+            self._total_realized_pnl += realized_pnl_this_trade
+            self._trade_count += 1
+
             self._current_position_quantity += quantity
             if self._current_position_quantity == 0:
                 self._current_position_entry_price = 0.0
-            logging.info(f"Executed CLOSE_SHORT. Quantity: {quantity}, Price: {price}. PnL: {realized_pnl_this_trade:.2f}")
+                self._is_position_open = False # Close position
+
+            # Calculate total P&L from initial capital
+            total_pnl_from_initial = self._capital - self._initial_capital
+
+            logging.info(f"Executed CLOSE_SHORT. Quantity: {quantity}, Price: {price}.")
+            logging.info(f"  📊 Current Trade P&L: ₹{realized_pnl_this_trade:.2f}")
+            logging.info(f"  💰 Total P&L from Initial: ₹{total_pnl_from_initial:.2f}")
+            logging.info(f"  🏦 Capital: ₹{self._capital:.2f} (Trade #{self._trade_count})")
+
+        elif action == "HOLD":
+            # HOLD action just updates trailing stop and checks for stop hits (already done above)
+            # No new trade is executed, just price update
+            pass
 
         else:
             logging.warning(f"Unknown action: {action}. No trade executed.")
@@ -150,12 +242,22 @@ class BacktestingEngine:
         return realized_pnl_this_trade, self._unrealized_pnl
 
     def _update_unrealized_pnl(self, current_price: float):
-        if self._current_position_quantity > 0:  # Long position
-            self._unrealized_pnl = (current_price - self._current_position_entry_price) * self._current_position_quantity
-        elif self._current_position_quantity < 0:  # Short position
-            self._unrealized_pnl = (self._current_position_entry_price - current_price) * abs(self._current_position_quantity)
+        if self.instrument.type == "OPTION":
+            # For option trading simulation: calculate unrealized P&L as underlying movement
+            # The premium cost is already accounted for in capital, so this is just mark-to-market
+            if self._current_position_quantity > 0:  # Long position
+                self._unrealized_pnl = (current_price - self._current_position_entry_price) * self._current_position_quantity * self.instrument.lot_size
+            elif self._current_position_quantity < 0:  # Short position
+                self._unrealized_pnl = (self._current_position_entry_price - current_price) * abs(self._current_position_quantity) * self.instrument.lot_size
+            else:
+                self._unrealized_pnl = 0.0
         else:
-            self._unrealized_pnl = 0.0
+            if self._current_position_quantity > 0:  # Long position
+                self._unrealized_pnl = (current_price - self._current_position_entry_price) * self._current_position_quantity * self.instrument.lot_size
+            elif self._current_position_quantity < 0:  # Short position
+                self._unrealized_pnl = (self._current_position_entry_price - current_price) * abs(self._current_position_quantity) * self.instrument.lot_size
+            else:
+                self._unrealized_pnl = 0.0
 
     def get_account_state(self, current_price: float = None) -> Dict[str, float]:
         if current_price is not None:
@@ -168,8 +270,14 @@ class BacktestingEngine:
             "realized_pnl": self._realized_pnl,
             "unrealized_pnl": self._unrealized_pnl,
             "total_pnl": self._realized_pnl + self._unrealized_pnl,
-            "is_position_open": self._is_position_open
+            "is_position_open": self._is_position_open,
+            # Enhanced P&L tracking
+            "total_realized_pnl": self._total_realized_pnl,
+            "total_pnl_from_initial": self._capital - self._initial_capital,
+            "trade_count": self._trade_count,
+            "initial_capital": self._initial_capital
         }
 
     def get_trade_history(self) -> list:
         return self._trade_history
+
