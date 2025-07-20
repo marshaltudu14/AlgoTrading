@@ -3,18 +3,20 @@ import numpy as np
 import pandas as pd
 from typing import Tuple, Dict
 import logging
+import random
 
 from src.utils.data_loader import DataLoader
 from src.backtesting.engine import BacktestingEngine
 from src.config.instrument import Instrument
 from src.utils.instrument_loader import load_instruments
+from src.config.config import RISK_REWARD_CONFIG
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 class TradingEnv(gym.Env):
     def __init__(self, data_loader: DataLoader, symbol: str, initial_capital: float,
-                 lookback_window: int = 50, trailing_stop_percentage: float = 0.02,
+                 lookback_window: int = 50, trailing_stop_percentage: float = None,
                  reward_function: str = "pnl", episode_length: int = 1000,
                  use_streaming: bool = True):
         super(TradingEnv, self).__init__()
@@ -59,6 +61,10 @@ class TradingEnv(gym.Env):
             raise ValueError(f"Instrument {self.base_symbol} not found in instruments.yaml (original symbol: {self.symbol})")
         self.instrument = self.instruments[self.base_symbol]
 
+        # Use centralized trailing stop configuration if not provided
+        if trailing_stop_percentage is None:
+            trailing_stop_percentage = RISK_REWARD_CONFIG['trailing_stop_percentage']
+
         self.engine = BacktestingEngine(initial_capital, self.instrument, trailing_stop_percentage)
         self.data = None  # This will store the loaded data for the current episode
         self.current_step = 0
@@ -88,6 +94,7 @@ class TradingEnv(gym.Env):
         self.trailing_features = 1 # distance_to_trail
         self.observation_dim = None  # Will be calculated after data loading
         self.observation_space = None  # Will be set after data loading
+        self.fixed_feature_columns = None  # Fixed feature columns to ensure consistency
 
     def reset(self) -> np.ndarray:
         """Reset environment and load data segment for new episode."""
@@ -105,7 +112,17 @@ class TradingEnv(gym.Env):
             logger.info(f"Observation space set: {self.features_per_step} features per step, total dim: {self.observation_dim}")
 
         self.engine.reset()
-        self.current_step = self.lookback_window - 1 # Start from where lookback window is full
+
+        # Randomize starting point to ensure different ATR and price combinations
+        # Leave enough room for episode_length and ensure we don't go beyond data
+        max_start = len(self.data) - self.episode_length - self.lookback_window
+        if max_start > self.lookback_window:
+            random_start = random.randint(self.lookback_window - 1, max_start)
+            self.current_step = random_start
+            logger.debug(f"Episode starting at step {self.current_step} (randomized)")
+        else:
+            self.current_step = self.lookback_window - 1  # Fallback to original behavior
+            logger.debug(f"Episode starting at step {self.current_step} (fixed - insufficient data for randomization)")
 
         # Reset reward tracking
         self.returns_history = []
@@ -176,21 +193,25 @@ class TradingEnv(gym.Env):
         self.current_step += 1
 
         if self.current_step >= len(self.data):
+            # Force close any open positions before episode ends
+            self._force_close_open_positions()
             done = True
             reward = 0.0 # No more data to process
             info = {"message": "End of data"}
             return self._get_observation(), reward, done, info
 
-        current_price = self.data['close'].iloc[self.current_step]
+        # Use bounds checking to prevent indexing errors
+        safe_step = min(self.current_step, len(self.data) - 1)
+        current_price = self.data['close'].iloc[safe_step]
 
         # Get ATR if available, otherwise use a default volatility estimate
         if 'atr' in self.data.columns:
-            current_atr = self.data['atr'].iloc[self.current_step]
+            current_atr = self.data['atr'].iloc[safe_step]
         else:
             # Fallback: estimate volatility from recent price range
-            lookback = min(14, self.current_step + 1)
-            recent_highs = self.data['high'].iloc[max(0, self.current_step - lookback + 1):self.current_step + 1]
-            recent_lows = self.data['low'].iloc[max(0, self.current_step - lookback + 1):self.current_step + 1]
+            lookback = min(14, safe_step + 1)
+            recent_highs = self.data['high'].iloc[max(0, safe_step - lookback + 1):safe_step + 1]
+            recent_lows = self.data['low'].iloc[max(0, safe_step - lookback + 1):safe_step + 1]
             current_atr = (recent_highs.max() - recent_lows.min()) / lookback
 
         prev_capital = self.engine.get_account_state()['capital']
@@ -243,9 +264,31 @@ class TradingEnv(gym.Env):
 
         # Check termination conditions
         done, termination_reason = self._check_termination_conditions(current_capital)
+
+        # Force close any open positions if episode is ending
+        if done:
+            self._force_close_open_positions()
+
         info = {"termination_reason": termination_reason} if termination_reason else {}
 
         return self._get_observation(), reward, done, info
+
+    def _force_close_open_positions(self):
+        """Force close any open positions at the end of an episode to ensure accurate final capital."""
+        account_state = self.engine.get_account_state()
+
+        if account_state['is_position_open']:
+            current_price = self.data['close'].iloc[min(self.current_step, len(self.data) - 1)]
+            position_quantity = account_state['current_position_quantity']
+
+            if position_quantity > 0:
+                # Close long position
+                logging.info(f"Force closing long position at episode end. Price: {current_price}")
+                self.engine.execute_trade("CLOSE_LONG", current_price, abs(position_quantity))
+            elif position_quantity < 0:
+                # Close short position
+                logging.info(f"Force closing short position at episode end. Price: {current_price}")
+                self.engine.execute_trade("CLOSE_SHORT", current_price, abs(position_quantity))
 
     def _calculate_reward(self, current_capital: float, prev_capital: float) -> float:
         """Calculate reward based on selected reward function."""
@@ -358,7 +401,8 @@ class TradingEnv(gym.Env):
         # Penalty for closing profitable position prematurely when trend is strong
         elif action_type in [2, 3]:  # CLOSE_LONG or CLOSE_SHORT
             if hasattr(self, 'data') and self.current_step < len(self.data):
-                current_price = self.data['close'].iloc[self.current_step]
+                safe_step = min(self.current_step, len(self.data) - 1)
+                current_price = self.data['close'].iloc[safe_step]
                 distance_to_trail = self._calculate_distance_to_trail(current_price)
 
                 # If distance to trail is large (trend is strong) and position is profitable
@@ -386,11 +430,12 @@ class TradingEnv(gym.Env):
         # Check insufficient capital (AC 1.3.7)
         # Estimate minimum capital needed for one trade
         if hasattr(self, 'data') and self.current_step < len(self.data):
-            current_price = self.data['close'].iloc[self.current_step]
+            safe_step = min(self.current_step, len(self.data) - 1)
+            current_price = self.data['close'].iloc[safe_step]
 
             # Get ATR if available, otherwise use a default volatility estimate
             if 'atr' in self.data.columns:
-                current_atr = self.data['atr'].iloc[self.current_step]
+                current_atr = self.data['atr'].iloc[safe_step]
             else:
                 # Fallback: use 2% of current price as volatility estimate
                 current_atr = current_price * 0.02
@@ -459,11 +504,13 @@ class TradingEnv(gym.Env):
         else:
             market_data = self.data[feature_columns].iloc[start_index:end_index].values
 
-        # Get account state
-        account_state = self.engine.get_account_state(current_price=self.data['close'].iloc[self.current_step])
+        # Get account state with bounds checking
+        safe_step = min(self.current_step, len(self.data) - 1)
+        current_price = self.data['close'].iloc[safe_step]
+        account_state = self.engine.get_account_state(current_price=current_price)
 
         # Calculate distance to trailing stop
-        distance_to_trail = self._calculate_distance_to_trail(self.data['close'].iloc[self.current_step])
+        distance_to_trail = self._calculate_distance_to_trail(current_price)
 
         # Create raw observation
         raw_observation = np.concatenate([

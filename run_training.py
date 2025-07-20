@@ -15,6 +15,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from src.training.parallel_trainer import ParallelTrainer
 from src.training.parallel_config import ParallelTrainingConfig, get_recommended_config
 from src.training.trainer import Trainer
+from src.training.sequence_manager import TrainingSequenceManager
 from src.agents.ppo_agent import PPOAgent
 from src.agents.moe_agent import MoEAgent
 from src.backtesting.environment import TradingEnv
@@ -281,6 +282,8 @@ def main():
     parser.add_argument("--local", action="store_true", help="Run in local mode for debugging")
     parser.add_argument("--simple", action="store_true", help="Use simple single-threaded training instead of parallel")
     parser.add_argument("--episodes", type=int, default=100, help="Number of episodes for simple training")
+    parser.add_argument("--sequence", action="store_true", default=True, help="Run complete training sequence: PPO -> MoE -> MAML (default)")
+    parser.add_argument("--no-sequence", action="store_true", help="Disable sequence training and use single algorithm")
     
     args = parser.parse_args()
     
@@ -316,7 +319,40 @@ def main():
     logger.info(f"Using {args.workers} workers for {args.iterations} iterations")
     
     try:
-        if args.simple:
+        # Override sequence if --no-sequence is specified
+        if args.no_sequence:
+            args.sequence = False
+
+        if args.sequence:
+            # Complete training sequence: PPO -> MoE -> MAML
+            logger.info("Using complete training sequence: PPO -> MoE -> MAML")
+
+            if len(symbols) == 1:
+                # Single symbol sequence training
+                data_loader = DataLoader(args.data_dir)
+                manager = TrainingSequenceManager()
+                results = manager.run_complete_sequence(data_loader, symbols[0], episodes_override=args.episodes)
+
+                # Display final results
+                all_success = all(r.success for r in results)
+                logger.info(f"Training sequence completed: {'SUCCESS' if all_success else 'PARTIAL SUCCESS'}")
+            else:
+                # Multi-symbol sequence training
+                all_results = []
+                for symbol in symbols:
+                    try:
+                        data_loader = DataLoader(args.data_dir)
+                        manager = TrainingSequenceManager()
+                        results = manager.run_complete_sequence(data_loader, symbol, episodes_override=args.episodes)
+                        all_results.append(results)
+                        logger.info(f"Completed sequence training for {symbol}")
+                    except Exception as e:
+                        logger.error(f"Failed sequence training for {symbol}: {e}")
+                        continue
+
+                logger.info(f"Sequence training completed: {len(all_results)}/{len(symbols)} successful")
+
+        elif args.simple:
             # Simple single-threaded training
             logger.info("Using simple single-threaded training mode")
 

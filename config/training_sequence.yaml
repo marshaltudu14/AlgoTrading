@@ -1,0 +1,111 @@
+# Training Sequence Configuration
+# Defines the optimal training sequence: PPO -> MoE -> MAML
+
+training_sequence:
+  # Stage 1: PPO Baseline Training
+  stage_1_ppo:
+    algorithm: "PPO"
+    episodes: 500  # Increased for millions of data rows - allows deep pattern learning
+    description: "Establish baseline performance and validate environment"
+    objectives:
+      - "Learn basic trading patterns"
+      - "Validate environment and reward functions"
+      - "Establish performance baseline"
+    success_criteria:
+      min_win_rate: 0.35  # Realistic for options trading
+      min_profit_factor: 0.8
+      max_drawdown: 0.4
+
+  # Stage 2: MoE Specialization Training
+  stage_2_moe:
+    algorithm: "MoE"
+    episodes: 800  # Increased for expert specialization with large datasets
+    description: "Train specialized experts for different market conditions"
+    prerequisites:
+      - "Successful PPO training completion"
+    objectives:
+      - "Create specialized trading experts"
+      - "Learn market condition-specific strategies"
+      - "Improve overall performance through specialization"
+    success_criteria:
+      min_win_rate: 0.40  # Higher expectation after specialization
+      min_profit_factor: 1.0
+      max_drawdown: 0.35
+
+  # Stage 3: MAML Meta-Learning
+  stage_3_maml:
+    algorithm: "MAML"
+    meta_iterations: 150  # Increased for better meta-learning with diverse data
+    description: "Meta-learning for quick adaptation to new conditions"
+    prerequisites:
+      - "Successful MoE training completion"
+    objectives:
+      - "Learn to quickly adapt to new symbols/timeframes"
+      - "Improve generalization across different market conditions"
+      - "Fine-tune adaptation process"
+    success_criteria:
+      min_adaptation_speed: 3  # episodes to adapt (faster with meta-learning)
+      min_cross_symbol_performance: 0.85  # relative to single-symbol performance
+
+# Training Parameters - Optimized for Large Datasets
+training_params:
+  # PPO specific parameters
+  ppo:
+    learning_rate: 0.0001  # Lower LR for stable learning with large datasets
+    batch_size: 128       # Larger batch for better gradient estimates
+    gamma: 0.995          # Higher gamma for longer-term planning
+    gae_lambda: 0.95
+    clip_epsilon: 0.15    # Slightly lower for more conservative updates
+    k_epochs: 6           # More epochs for better policy updates
+
+  # MoE specific parameters
+  moe:
+    num_experts: 4        # More experts for better specialization
+    expert_hidden_dim: 128 # Larger networks for complex patterns
+    gating_hidden_dim: 64
+    gating_temperature: 0.8 # Lower temperature for sharper expert selection
+    diversity_loss_weight: 0.02 # Higher diversity for better specialization
+
+  # MAML specific parameters
+  maml:
+    meta_learning_rate: 0.0005  # Lower meta-LR for stable meta-learning
+    inner_loop_steps: 7         # More adaptation steps
+    evaluation_steps: 5         # More evaluation steps
+    meta_batch_size: 2          # Larger meta-batch for better gradients
+
+# Validation and Progression Rules
+progression_rules:
+  # Automatic progression criteria
+  auto_progression: true
+  
+  # Minimum performance thresholds to advance to next stage
+  advancement_criteria:
+    stage_1_to_2:
+      min_episodes: 50
+      min_win_rate: 0.35
+      min_profit_factor: 0.8
+      
+    stage_2_to_3:
+      min_episodes: 100
+      min_win_rate: 0.40
+      min_profit_factor: 1.0
+      
+  # Fallback strategies if criteria not met
+  fallback_strategies:
+    extend_training: true
+    max_extension_episodes: 200
+    hyperparameter_tuning: true
+
+# Output and Monitoring
+monitoring:
+  save_checkpoints: true
+  checkpoint_frequency: 50  # episodes
+  generate_reports: true
+  compare_stages: true
+  
+# Model Management
+model_management:
+  save_stage_models: true
+  model_naming_convention: "{symbol}_{stage}_{algorithm}_{timestamp}"
+  keep_best_models: true
+  transfer_learning: true  # Use previous stage as initialization

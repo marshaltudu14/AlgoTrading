@@ -2,6 +2,7 @@ import logging
 from typing import Dict, Tuple
 
 from src.config.instrument import Instrument
+from src.config.config import RISK_REWARD_CONFIG
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -108,6 +109,7 @@ class BacktestingEngine:
                 cost = (proxy_premium * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
                 self._premium_paid_per_lot = proxy_premium # Store premium for options P&L
             else:
+                # For STOCK, cost = stock price * quantity * lot_size (lot_size = 1 for stocks)
                 cost = (price * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
             if self._capital < cost:
                 logging.warning(f"Insufficient capital to BUY_LONG {quantity} at {price}. Capital: {self._capital:.2f}, Cost: {cost:.2f}. Trade not executed.")
@@ -117,11 +119,19 @@ class BacktestingEngine:
             self._current_position_quantity = quantity
             self._current_position_entry_price = price
             self._is_position_open = True
-            self._stop_loss_price = price - atr_value # SL is ATR below entry for long
-            self._target_profit_price = price + (atr_value * 2) # TP is 2*ATR above entry for long
+
+
+
+            # Use centralized risk-reward configuration
+            risk_multiplier = RISK_REWARD_CONFIG['risk_multiplier']
+            reward_multiplier = RISK_REWARD_CONFIG['reward_multiplier']
+
+            self._stop_loss_price = price - (atr_value * risk_multiplier)  # SL = risk_multiplier * ATR below entry for long
+            self._target_profit_price = price + (atr_value * reward_multiplier)  # TP = reward_multiplier * ATR above entry for long
             self._peak_price = price # Initialize peak price for trailing stop
             self._trailing_stop_price = self._peak_price * (1 - self.trailing_stop_percentage)
             logging.info(f"Executed BUY_LONG. Quantity: {quantity}, Price: {price}. New position: {self._current_position_quantity:.2f} at {self._current_position_entry_price:.2f}. SL: {self._stop_loss_price:.2f}, TP: {self._target_profit_price:.2f}, Trailing SL: {self._trailing_stop_price:.2f}")
+            logging.info(f"RR Config - Risk: {risk_multiplier}x ATR ({atr_value:.2f}), Reward: {reward_multiplier}x ATR, RR Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
 
         elif action == "SELL_SHORT":
             if self._current_position_quantity != 0:
@@ -131,20 +141,29 @@ class BacktestingEngine:
                 cost = (proxy_premium * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
                 self._premium_paid_per_lot = proxy_premium # Store premium for options P&L
             else:
-                cost = (price * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY # Shorting also requires margin/capital to cover potential losses
+                # For STOCK short selling, cost = stock price * quantity * lot_size (lot_size = 1 for stocks)
+                cost = (price * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
             if self._capital < cost:
                 logging.warning(f"Insufficient capital to SELL_SHORT {quantity} at {price}. Capital: {self._capital:.2f}, Cost: {cost:.2f}. Trade not executed.")
                 return 0.0, self._unrealized_pnl
 
-            self._capital -= cost # Assuming capital is reduced for shorting as well (margin requirement)
+            self._capital -= cost
             self._current_position_quantity = -quantity # Negative for short position
             self._current_position_entry_price = price
             self._is_position_open = True
-            self._stop_loss_price = price + atr_value # SL is ATR above entry for short
-            self._target_profit_price = price - (atr_value * 2) # TP is 2*ATR below entry for short
+
+
+
+            # Use centralized risk-reward configuration
+            risk_multiplier = RISK_REWARD_CONFIG['risk_multiplier']
+            reward_multiplier = RISK_REWARD_CONFIG['reward_multiplier']
+
+            self._stop_loss_price = price + (atr_value * risk_multiplier)  # SL = risk_multiplier * ATR above entry for short
+            self._target_profit_price = price - (atr_value * reward_multiplier)  # TP = reward_multiplier * ATR below entry for short
             self._peak_price = price # Initialize peak price for trailing stop
             self._trailing_stop_price = self._peak_price * (1 + self.trailing_stop_percentage)
             logging.info(f"Executed SELL_SHORT. Quantity: {quantity}, Price: {price}. New position: {self._current_position_quantity:.2f} at {self._current_position_entry_price:.2f}. SL: {self._stop_loss_price:.2f}, TP: {self._target_profit_price:.2f}, Trailing SL: {self._trailing_stop_price:.2f}")
+            logging.info(f"RR Config - Risk: {risk_multiplier}x ATR ({atr_value:.2f}), Reward: {reward_multiplier}x ATR, RR Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
 
         elif action == "CLOSE_LONG":
             if self._current_position_quantity <= 0: # No long position to close
@@ -162,9 +181,20 @@ class BacktestingEngine:
             else:
                 realized_pnl_this_trade = (price - self._current_position_entry_price) * quantity * self.instrument.lot_size
 
-            self._realized_pnl += realized_pnl_this_trade
-            self._capital += realized_pnl_this_trade - self.BROKERAGE_EXIT
-            self._total_realized_pnl += realized_pnl_this_trade
+            # Calculate net P&L after brokerage
+            net_pnl_this_trade = realized_pnl_this_trade - self.BROKERAGE_EXIT
+
+            # For OPTIONS, release the premium cost when closing position
+            # For STOCKS, no premium to release
+            if self.instrument.type == "OPTION":
+                # Release the premium that was paid when opening the position
+                premium_to_release = self._premium_paid_per_lot * quantity * self.instrument.lot_size
+                self._capital += premium_to_release
+
+            # Then apply the P&L
+            self._realized_pnl += net_pnl_this_trade
+            self._capital += net_pnl_this_trade  # Add profit or subtract loss
+            self._total_realized_pnl += net_pnl_this_trade
             self._trade_count += 1
 
             self._current_position_quantity -= quantity
@@ -173,10 +203,15 @@ class BacktestingEngine:
                 self._is_position_open = False # Close position
 
             # Calculate total P&L from initial capital
-            total_pnl_from_initial = self._capital - self._initial_capital
+            # For OPTIONS, use total realized P&L (excludes premium costs)
+            # For STOCKS, use capital difference
+            if self.instrument.type == "OPTION":
+                total_pnl_from_initial = self._total_realized_pnl
+            else:
+                total_pnl_from_initial = self._capital - self._initial_capital
 
             logging.info(f"Executed CLOSE_LONG. Quantity: {quantity}, Price: {price}.")
-            logging.info(f"  📊 Current Trade P&L: ₹{realized_pnl_this_trade:.2f}")
+            logging.info(f"  📊 Current Trade P&L: ₹{net_pnl_this_trade:.2f}")
             logging.info(f"  💰 Total P&L from Initial: ₹{total_pnl_from_initial:.2f}")
             logging.info(f"  🏦 Capital: ₹{self._capital:.2f} (Trade #{self._trade_count})")
 
@@ -196,9 +231,20 @@ class BacktestingEngine:
             else:
                 realized_pnl_this_trade = (self._current_position_entry_price - price) * quantity * self.instrument.lot_size
 
-            self._realized_pnl += realized_pnl_this_trade
-            self._capital += realized_pnl_this_trade - self.BROKERAGE_EXIT # Corrected capital update for CLOSE_SHORT
-            self._total_realized_pnl += realized_pnl_this_trade
+            # Calculate net P&L after brokerage
+            net_pnl_this_trade = realized_pnl_this_trade - self.BROKERAGE_EXIT
+
+            # For OPTIONS, release the premium cost when closing position
+            # For STOCKS, no premium to release
+            if self.instrument.type == "OPTION":
+                # Release the premium that was paid when opening the position
+                premium_to_release = self._premium_paid_per_lot * quantity * self.instrument.lot_size
+                self._capital += premium_to_release
+
+            # Then apply the P&L
+            self._realized_pnl += net_pnl_this_trade
+            self._capital += net_pnl_this_trade  # Add profit or subtract loss
+            self._total_realized_pnl += net_pnl_this_trade
             self._trade_count += 1
 
             self._current_position_quantity += quantity
@@ -207,10 +253,15 @@ class BacktestingEngine:
                 self._is_position_open = False # Close position
 
             # Calculate total P&L from initial capital
-            total_pnl_from_initial = self._capital - self._initial_capital
+            # For OPTIONS, use total realized P&L (excludes premium costs)
+            # For STOCKS, use capital difference
+            if self.instrument.type == "OPTION":
+                total_pnl_from_initial = self._total_realized_pnl
+            else:
+                total_pnl_from_initial = self._capital - self._initial_capital
 
             logging.info(f"Executed CLOSE_SHORT. Quantity: {quantity}, Price: {price}.")
-            logging.info(f"  📊 Current Trade P&L: ₹{realized_pnl_this_trade:.2f}")
+            logging.info(f"  📊 Current Trade P&L: ₹{net_pnl_this_trade:.2f}")
             logging.info(f"  💰 Total P&L from Initial: ₹{total_pnl_from_initial:.2f}")
             logging.info(f"  🏦 Capital: ₹{self._capital:.2f} (Trade #{self._trade_count})")
 
@@ -226,18 +277,21 @@ class BacktestingEngine:
         # Update unrealized P&L based on current market price
         self._update_unrealized_pnl(price)
 
-        # Record trade for history
-        self._trade_history.append({
-            "action": action,
-            "price": price,
-            "quantity": quantity,
-            "realized_pnl_this_trade": realized_pnl_this_trade,
-            "cost": cost,
-            "capital_after_trade": self._capital,
-            "position_after_trade": self._current_position_quantity,
-            "entry_price_after_trade": self._current_position_entry_price,
-            "unrealized_pnl_after_trade": self._unrealized_pnl
-        })
+        # Record trade for history (only for completed trades)
+        if action in ["CLOSE_LONG", "CLOSE_SHORT"]:
+            net_pnl_for_history = realized_pnl_this_trade - self.BROKERAGE_EXIT
+            self._trade_history.append({
+                "action": action,
+                "price": price,
+                "quantity": quantity,
+                "pnl": net_pnl_for_history,  # Net P&L after brokerage for metrics compatibility
+                "realized_pnl_this_trade": realized_pnl_this_trade,  # Gross P&L for backward compatibility
+                "cost": cost,
+                "capital_after_trade": self._capital,
+                "position_after_trade": self._current_position_quantity,
+                "entry_price_after_trade": self._current_position_entry_price,
+                "unrealized_pnl_after_trade": self._unrealized_pnl
+            })
 
         return realized_pnl_this_trade, self._unrealized_pnl
 
@@ -273,7 +327,7 @@ class BacktestingEngine:
             "is_position_open": self._is_position_open,
             # Enhanced P&L tracking
             "total_realized_pnl": self._total_realized_pnl,
-            "total_pnl_from_initial": self._capital - self._initial_capital,
+            "total_pnl_from_initial": self._total_realized_pnl if self.instrument.type == "OPTION" else self._capital - self._initial_capital,
             "trade_count": self._trade_count,
             "initial_capital": self._initial_capital
         }

@@ -80,11 +80,11 @@ class Trainer:
 
             if (episode + 1) % self.log_interval == 0:
                 # Calculate proper metrics
-                avg_reward = total_reward / (episode + 1) if episode > 0 else total_reward
+                avg_reward = self.total_reward / (episode + 1) if episode > 0 else self.total_reward
 
                 # Get trading metrics from environment
                 account_state = self.env.engine.get_account_state()
-                trade_history = self.env.engine.trade_history
+                trade_history = self.env.engine.get_trade_history()
 
                 # Calculate win rate and other metrics
                 if trade_history:
@@ -92,7 +92,7 @@ class Trainer:
                     total_pnl = calculate_total_pnl(trade_history)
                     num_trades = calculate_num_trades(trade_history)
 
-                    self._log_progress_detailed(episode + 1, total_reward, avg_reward,
+                    self._log_progress_detailed(episode + 1, self.total_reward, avg_reward,
                                               win_rate, total_pnl, num_trades, account_state['capital'])
                 else:
                     self._log_progress(episode + 1, episode_reward, avg_reward, None)
@@ -165,6 +165,11 @@ class Trainer:
         if not isinstance(self.agent, MoEAgent):
             raise ValueError("Meta-training is only supported for MoEAgent instances")
 
+        # Initialize tracking for MAML training
+        self.capital_history = [initial_capital]
+        self.total_reward = 0.0
+        self.episode_rewards = []
+
         for iteration in range(num_meta_iterations):
             tasks = data_loader.sample_tasks(meta_batch_size)
             meta_gradients = []
@@ -173,13 +178,18 @@ class Trainer:
 
             for task in tasks:
                 # Inner loop adaptation with gradient tracking
-                task_meta_loss, task_reward = self._execute_task_adaptation_and_evaluation(
+                task_meta_loss, task_reward, final_capital = self._execute_task_adaptation_and_evaluation(
                     data_loader, task, initial_capital, num_inner_loop_steps, num_evaluation_steps
                 )
 
                 meta_gradients.append(task_meta_loss)
                 avg_task_reward += task_reward
                 total_meta_loss += task_meta_loss.item()
+
+                # Track capital and reward for comprehensive metrics
+                self.capital_history.append(final_capital)
+                self.total_reward += task_reward
+                self.episode_rewards.append(task_reward)
 
             # Outer loop meta-update: Update meta-parameters based on accumulated gradients
             self._perform_meta_update(meta_gradients)
@@ -190,18 +200,16 @@ class Trainer:
             self._log_meta_progress(iteration + 1, avg_meta_loss, avg_task_reward)
 
         # Display comprehensive MAML training summary
-        if hasattr(self, 'env') and self.env is not None:
-            initial_capital = 100000.0  # Default initial capital for MAML
-            self._display_maml_training_summary(initial_capital, num_meta_iterations, avg_task_reward)
+        self._display_maml_training_summary(initial_capital, num_meta_iterations, avg_task_reward)
 
         self.agent.save_model("meta_trained_agent.pth")
 
     def _execute_task_adaptation_and_evaluation(self, data_loader: DataLoader, task: Tuple,
                                               initial_capital: float, num_inner_loop_steps: int,
-                                              num_evaluation_steps: int) -> Tuple[torch.Tensor, float]:
+                                              num_evaluation_steps: int) -> Tuple[torch.Tensor, float, float]:
         """
         Execute inner loop adaptation and evaluation for a single task.
-        Returns meta-loss tensor and evaluation reward.
+        Returns meta-loss tensor, evaluation reward, and final capital.
         """
         # Create task environment
         # Handle task format: task can be tuple (instrument, timeframe) or string (symbol)
@@ -268,7 +276,10 @@ class Trainer:
         avg_evaluation_reward = evaluation_reward / num_evaluation_steps
         meta_loss = -torch.tensor(avg_evaluation_reward, requires_grad=True)
 
-        return meta_loss, avg_evaluation_reward
+        # Get final capital from the environment
+        final_capital = self.env.engine.get_account_state()['capital']
+
+        return meta_loss, avg_evaluation_reward, final_capital
 
     def _perform_meta_update(self, meta_gradients: List[torch.Tensor]) -> None:
         """
@@ -403,42 +414,38 @@ class Trainer:
         if hasattr(self, 'env') and self.env is not None:
             trade_history = self.env.engine.get_trade_history()
             final_account = self.env.engine.get_account_state()
-
-            # Calculate comprehensive metrics
-            metrics = calculate_comprehensive_metrics(
-                trade_history=trade_history,
-                capital_history=self.capital_history if hasattr(self, 'capital_history') else [initial_capital],
-                initial_capital=initial_capital,
-                total_episodes=num_meta_iterations,
-                total_reward=self.total_reward if hasattr(self, 'total_reward') else final_avg_task_reward
-            )
-
-            # Display trading metrics
-            print(f"\n📊 META-LEARNING PERFORMANCE:")
-            print(f"   Meta-Iterations: {num_meta_iterations}")
-            print(f"   Final Avg Task Reward: {final_avg_task_reward:.2f}")
-            print(f"   Win Rate: {metrics['win_rate']:.1%}")
-            print(f"   Total Trades: {metrics['total_trades']}")
-            print(f"   Profit Factor: {metrics['profit_factor']:.2f}")
-
-            print(f"\n💰 FINANCIAL PERFORMANCE:")
-            print(f"   Initial Capital: ₹{initial_capital:,.2f}")
-            print(f"   Final Capital: ₹{final_account['capital']:,.2f}")
-            print(f"   Total P&L: ₹{metrics['total_pnl']:,.2f}")
-            print(f"   Total Return: {metrics['total_return_percentage']:.2f}%")
-            print(f"   Max Drawdown: {metrics['max_drawdown_percentage']:.2f}%")
-
-            print(f"\n📈 RISK & ADAPTATION:")
-            print(f"   Sharpe Ratio: {metrics['sharpe_ratio']:.3f}")
-            print(f"   Avg P&L per Trade: ₹{metrics['avg_pnl_per_trade']:.2f}")
-            print(f"   Avg Reward per Meta-Iteration: {metrics['avg_reward_per_episode']:.2f}")
         else:
-            # Basic MAML summary without trading metrics
-            print(f"\n🧠 META-LEARNING METRICS:")
-            print(f"   Meta-Iterations: {num_meta_iterations}")
-            print(f"   Final Avg Task Reward: {final_avg_task_reward:.2f}")
-            print(f"   Algorithm: MAML with MoE experts")
-            print(f"   Meta-Learning: ✅ Task adaptation enabled")
+            trade_history = []
+            final_account = {'capital': self.capital_history[-1] if hasattr(self, 'capital_history') and self.capital_history else initial_capital}
+
+        # Calculate comprehensive metrics
+        metrics = calculate_comprehensive_metrics(
+            trade_history=trade_history,
+            capital_history=self.capital_history if hasattr(self, 'capital_history') else [initial_capital],
+            initial_capital=initial_capital,
+            total_episodes=num_meta_iterations,
+            total_reward=self.total_reward if hasattr(self, 'total_reward') else final_avg_task_reward
+        )
+
+        # Display trading metrics
+        print(f"\n📊 META-LEARNING PERFORMANCE:")
+        print(f"   Meta-Iterations: {num_meta_iterations}")
+        print(f"   Final Avg Task Reward: {final_avg_task_reward:.2f}")
+        print(f"   Win Rate: {metrics['win_rate']:.1%}")
+        print(f"   Total Trades: {metrics['total_trades']}")
+        print(f"   Profit Factor: {metrics['profit_factor']:.2f}")
+
+        print(f"\n💰 FINANCIAL PERFORMANCE:")
+        print(f"   Initial Capital: ₹{initial_capital:,.2f}")
+        print(f"   Final Capital: ₹{final_account['capital']:,.2f}")
+        print(f"   Total P&L: ₹{metrics['total_pnl']:,.2f}")
+        print(f"   Total Return: {metrics['total_return_percentage']:.2f}%")
+        print(f"   Max Drawdown: {metrics['max_drawdown_percentage']:.2f}%")
+
+        print(f"\n📈 RISK & ADAPTATION:")
+        print(f"   Sharpe Ratio: {metrics['sharpe_ratio']:.3f}")
+        print(f"   Avg P&L per Trade: ₹{metrics['avg_pnl_per_trade']:.2f}")
+        print(f"   Avg Reward per Meta-Iteration: {metrics['avg_reward_per_episode']:.2f}")
 
         print(f"\n🎯 MAML ASSESSMENT:")
         if final_avg_task_reward > -1000:

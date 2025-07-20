@@ -95,6 +95,15 @@ VALIDATION_CONFIG = {
 # === TRADING CONFIGURATION ===
 INITIAL_CAPITAL = 100000.0
 
+# Risk-Reward Configuration
+RISK_REWARD_CONFIG = {
+    'risk_multiplier': 1.0,    # SL = 1 * ATR
+    'reward_multiplier': 2.0,  # TP = 2 * ATR (1:2 Risk-Reward Ratio)
+    'use_atr_based_stops': True,
+    'trailing_stop_percentage': 0.02,  # 2% trailing stop
+    'max_risk_per_trade': 0.02,  # Maximum 2% risk per trade
+}
+
 
 
 def get_config():
@@ -110,6 +119,7 @@ def get_config():
         'logging': LOGGING_CONFIG,
         'performance': PERFORMANCE_CONFIG,
         'validation': VALIDATION_CONFIG,
+        'trading': RISK_REWARD_CONFIG,
     }
 
 def print_config():

@@ -47,9 +47,185 @@ class PPOAgent(BaseAgent):
         return action.item()
 
     def learn(self, experiences: List[Tuple[np.ndarray, int, float, np.ndarray, bool]]) -> None:
-        # This learn method will be used for the outer loop meta-update in MAML
-        # For inner loop adaptation, the 'adapt' method will be used.
-        pass
+        """
+        Implement PPO learning algorithm.
+        This method processes a batch of experiences to update the agent's policy.
+        """
+        if not experiences:
+            return
+
+        # Limit buffer size to prevent memory issues
+        max_buffer_size = 500
+        if len(experiences) > max_buffer_size:
+            experiences = experiences[-max_buffer_size:]  # Keep only recent experiences
+            print(f"Limited experience buffer to {max_buffer_size} most recent experiences")
+
+
+
+        # Convert experiences to tensors
+        states = []
+        actions = []
+        rewards = []
+        next_states = []
+        dones = []
+
+        for state, action, reward, next_state, done in experiences:
+            states.append(state)
+            actions.append(action)
+            rewards.append(reward)
+            next_states.append(next_state)
+            dones.append(done)
+
+        # Convert to tensors with proper shapes
+        try:
+            # Ensure all states are numpy arrays and have consistent shapes
+            state_arrays = []
+            expected_length = None
+
+            for i, state in enumerate(states):
+                state_array = np.array(state, dtype=np.float32)
+                if len(state_array.shape) != 1:
+                    print(f"Warning: State {i} has unexpected shape {state_array.shape}, skipping learning")
+                    return
+
+                # Set expected length from first state
+                if expected_length is None:
+                    expected_length = len(state_array)
+
+                # Ensure all states have the same length as the first one
+                if len(state_array) != expected_length:
+                    if len(state_array) < expected_length:
+                        # Pad with zeros
+                        state_array = np.pad(state_array, (0, expected_length - len(state_array)), 'constant')
+                    else:
+                        # Truncate
+                        state_array = state_array[:expected_length]
+
+                state_arrays.append(state_array)
+
+            # Verify all states have the same shape
+            if not all(len(state) == expected_length for state in state_arrays):
+                print(f"Error: Failed to normalize state lengths, skipping learning")
+                return
+
+            # Convert to numpy array and then to tensor
+            states_array = np.array(state_arrays, dtype=np.float32)
+            states = torch.FloatTensor(states_array).unsqueeze(1)  # Add sequence dimension
+
+            # Same for next_states
+            next_state_arrays = []
+            for i, next_state in enumerate(next_states):
+                next_state_array = np.array(next_state, dtype=np.float32)
+                if len(next_state_array.shape) != 1:
+                    print(f"Warning: Next state {i} has unexpected shape {next_state_array.shape}, skipping learning")
+                    return
+                next_state_arrays.append(next_state_array)
+
+            # Check if all next_states have the same length
+            next_state_lengths = [len(next_state) for next_state in next_state_arrays]
+            if len(set(next_state_lengths)) > 1:
+                print(f"Warning: Inconsistent next_state lengths: {set(next_state_lengths)}, using most common length")
+                # Use the most common length
+                from collections import Counter
+                most_common_length = Counter(next_state_lengths).most_common(1)[0][0]
+
+                # Pad or truncate to make them consistent
+                fixed_next_states = []
+                for next_state_array in next_state_arrays:
+                    if len(next_state_array) < most_common_length:
+                        fixed_next_state = np.pad(next_state_array, (0, most_common_length - len(next_state_array)), 'constant')
+                    else:
+                        fixed_next_state = next_state_array[:most_common_length]
+                    fixed_next_states.append(fixed_next_state)
+                next_state_arrays = fixed_next_states
+
+            # Convert to numpy array and then to tensor
+            next_states_array = np.array(next_state_arrays, dtype=np.float32)
+            next_states = torch.FloatTensor(next_states_array).unsqueeze(1)
+
+            # Convert other arrays to tensors
+            actions = torch.LongTensor(actions)
+            rewards = torch.FloatTensor(rewards)
+            dones = torch.FloatTensor(dones)
+
+        except Exception as e:
+            print(f"Error converting experiences to tensors: {e}")
+            print(f"Number of experiences: {len(experiences)}")
+            print(f"Skipping this learning step to avoid crash")
+            return  # Skip this learning step
+
+
+
+        # Move to device
+        states = to_device(states)
+        actions = to_device(actions)
+        rewards = to_device(rewards)
+        next_states = to_device(next_states)
+        dones = to_device(dones)
+
+        # Calculate returns and advantages
+        values = self.critic(states).squeeze()
+        next_values = self.critic(next_states).squeeze()
+
+        returns = []
+        advantages = []
+        gae = 0
+
+        for i in reversed(range(len(rewards))):
+            if i == len(rewards) - 1:
+                next_value = next_values[i] * (1 - dones[i])
+            else:
+                next_value = values[i + 1]
+
+            delta = rewards[i] + self.gamma * next_value - values[i]
+            gae = delta + self.gamma * 0.95 * gae * (1 - dones[i])  # GAE-lambda
+            advantages.insert(0, gae)
+            returns.insert(0, gae + values[i])
+
+        advantages = torch.FloatTensor(advantages)
+        returns = torch.FloatTensor(returns)
+
+        advantages = to_device(advantages)
+        returns = to_device(returns)
+
+        # Normalize advantages
+        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+        # Get old action probabilities
+        old_action_probs = self.policy_old(states)
+        old_dist = Categorical(old_action_probs)
+        old_log_probs = old_dist.log_prob(actions).detach()
+
+        # PPO update for k_epochs
+        for _ in range(self.k_epochs):
+            # Current action probabilities
+            action_probs = self.actor(states)
+            dist = Categorical(action_probs)
+            log_probs = dist.log_prob(actions)
+            entropy = dist.entropy().mean()
+
+            # Calculate ratio and surrogate losses
+            ratio = torch.exp(log_probs - old_log_probs)
+            surr1 = ratio * advantages
+            surr2 = torch.clamp(ratio, 1 - self.epsilon_clip, 1 + self.epsilon_clip) * advantages
+            actor_loss = -torch.min(surr1, surr2).mean() - 0.01 * entropy  # entropy bonus
+
+            # Critic loss
+            current_values = self.critic(states).squeeze()
+            critic_loss = self.MseLoss(current_values, returns)
+
+            # Update actor
+            self.optimizer_actor.zero_grad()
+            actor_loss.backward()
+            self.optimizer_actor.step()
+
+            # Update critic
+            self.optimizer_critic.zero_grad()
+            critic_loss.backward()
+            self.optimizer_critic.step()
+
+        # Update old policy
+        self.policy_old.load_state_dict(self.actor.state_dict())
 
     def adapt(self, observation: np.ndarray, action: int, reward: float, next_observation: np.ndarray, done: bool, num_gradient_steps: int) -> 'BaseAgent':
         # Create a temporary copy of the agent's policy and value network parameters
