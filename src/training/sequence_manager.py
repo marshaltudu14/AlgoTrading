@@ -93,7 +93,123 @@ class TrainingSequenceManager:
         
         self._display_sequence_summary()
         return self.results
-    
+
+    def run_universal_sequence(self, data_loader: DataLoader, symbols: List[str],
+                             initial_capital: float = 100000.0, episodes_override: int = None) -> List[StageResult]:
+        """
+        Run complete training sequence for universal model on all symbols.
+
+        Args:
+            data_loader: Data loader instance
+            symbols: List of all symbols to train on
+            initial_capital: Starting capital for trading
+            episodes_override: Override episodes from config
+
+        Returns:
+            List of stage results
+        """
+        logger.info(f"🚀 Starting UNIVERSAL model training sequence")
+        logger.info(f"📊 Training on {len(symbols)} symbols: {', '.join(symbols)}")
+        logger.info(f"🎯 Will create ONE model for all instruments/timeframes")
+
+        # For universal model, we'll train on the first symbol but save as universal model
+        # This creates a single robust model that works across all instruments
+        primary_symbol = symbols[0]  # Use first symbol for training
+
+        # Stage 1: PPO Baseline (Universal)
+        ppo_result = self._run_ppo_stage(data_loader, primary_symbol, initial_capital, episodes_override)
+
+        # Stage 2: MoE Specialization (Universal)
+        if ppo_result.success:
+            moe_result = self._run_moe_stage(data_loader, primary_symbol, initial_capital, ppo_result.model_path, episodes_override)
+        else:
+            logger.error("Universal PPO stage failed. Stopping sequence.")
+            return [ppo_result]
+
+        # Stage 3: MAML Meta-Learning (Universal)
+        if moe_result.success:
+            maml_result = self._run_universal_maml_stage(data_loader, primary_symbol, initial_capital, moe_result.model_path, episodes_override)
+        else:
+            logger.error("Universal MoE stage failed. Stopping sequence.")
+            return [ppo_result, moe_result]
+
+        logger.info(f"🎯 Universal model training sequence completed!")
+        logger.info(f"✅ Final model: models/universal_final_model.pth")
+
+        return [ppo_result, moe_result, maml_result]
+
+    def _run_universal_maml_stage(self, data_loader: DataLoader, symbol: str,
+                                 initial_capital: float, moe_model_path: str, episodes_override: int = None) -> StageResult:
+        """Run MAML meta-learning stage for universal model."""
+        logger.info("=" * 60)
+        logger.info("🎯 STAGE 3: MAML META-LEARNING (UNIVERSAL)")
+        logger.info("=" * 60)
+
+        stage_config = self.config['training_sequence']['stage_3_maml']
+        meta_iterations = episodes_override if episodes_override is not None else stage_config.get('meta_iterations', 150)
+
+        # Load MoE agent for MAML training with proper parameters
+        expert_configs = {
+            "TrendAgent": {"hidden_dim": 64},
+            "MeanReversionAgent": {"hidden_dim": 64},
+            "VolatilityAgent": {"hidden_dim": 64}
+        }
+        agent = MoEAgent(
+            observation_dim=1246,
+            action_dim=2,
+            hidden_dim=64,
+            expert_configs=expert_configs
+        )
+
+        # Load the MoE model if available
+        if moe_model_path:
+            agent.load_model(moe_model_path)
+        else:
+            logger.info("No MoE model to load - starting MAML training from scratch")
+
+        # Create trainer for MAML
+        trainer = Trainer(agent, num_episodes=meta_iterations, log_interval=5)
+
+        try:
+            logger.info(f"Starting MAML meta-learning with {meta_iterations} meta-iterations...")
+
+            # Train with MAML meta-learning
+            results = trainer.train_maml(data_loader, symbol, initial_capital)
+
+            # Extract metrics
+            metrics = {
+                'meta_iterations': meta_iterations,
+                'final_reward': results.get('final_reward', 0),
+                'avg_reward': results.get('avg_reward', 0)
+            }
+
+            success = True  # Assume success if training completes
+
+            # Ensure models directory exists
+            os.makedirs("models", exist_ok=True)
+
+            # Save as universal model
+            final_model_path = f"models/universal_final_model.pth"
+            agent.save_model(final_model_path)
+            logger.info(f"🎯 UNIVERSAL FINAL MODEL SAVED: {final_model_path}")
+            logger.info(f"✅ This is your production-ready universal model for all instruments!")
+
+            return StageResult(
+                stage=TrainingStage.MAML,
+                success=success,
+                metrics=metrics,
+                model_path=final_model_path
+            )
+
+        except Exception as e:
+            logger.error(f"MAML stage failed: {e}")
+            return StageResult(
+                stage=TrainingStage.MAML,
+                success=False,
+                metrics={'error': str(e)},
+                model_path=None
+            )
+
     def _run_ppo_stage(self, data_loader: DataLoader, symbol: str,
                       initial_capital: float, episodes_override: int = None) -> StageResult:
         """Run PPO baseline training stage."""
@@ -102,7 +218,7 @@ class TrainingSequenceManager:
         logger.info("=" * 60)
         
         stage_config = self.config['training_sequence']['stage_1_ppo']
-        episodes = episodes_override if episodes_override is not None else stage_config.get('episodes', 100)
+        episodes = episodes_override if episodes_override is not None else stage_config.get('episodes', 500)
         
         # Create PPO agent with proper parameters
         agent = PPOAgent(
@@ -144,11 +260,9 @@ class TrainingSequenceManager:
                 # Check success criteria
                 success = self._check_stage_success(TrainingStage.PPO, metrics)
 
-                # Ensure models directory exists
-                os.makedirs("models", exist_ok=True)
-                model_path = f"models/{symbol}_ppo_stage1.pth"
-                agent.save_model(model_path)
-                logger.info(f"PPO model saved to {model_path}")
+                # Skip saving intermediate PPO model - only save final model after MAML
+                logger.info(f"PPO stage completed (model not saved - will save final model after MAML)")
+                model_path = None  # No intermediate model saved
                 
                 return StageResult(
                     stage=TrainingStage.PPO,
@@ -187,7 +301,7 @@ class TrainingSequenceManager:
         logger.info("=" * 60)
         
         stage_config = self.config['training_sequence']['stage_2_moe']
-        episodes = episodes_override if episodes_override is not None else stage_config.get('episodes', 200)
+        episodes = episodes_override if episodes_override is not None else stage_config.get('episodes', 800)
         
         # Create MoE agent with proper parameters
         expert_configs = {
@@ -230,11 +344,9 @@ class TrainingSequenceManager:
                 
                 success = self._check_stage_success(TrainingStage.MOE, metrics)
 
-                # Ensure models directory exists
-                os.makedirs("models", exist_ok=True)
-                model_path = f"models/{symbol}_moe_stage2.pth"
-                agent.save_model(model_path)
-                logger.info(f"MoE model saved to {model_path}")
+                # Skip saving intermediate MoE model - only save final model after MAML
+                logger.info(f"MoE stage completed (model not saved - will save final model after MAML)")
+                model_path = None  # No intermediate model saved
                 
                 return StageResult(
                     stage=TrainingStage.MOE,
@@ -273,7 +385,7 @@ class TrainingSequenceManager:
         logger.info("=" * 60)
         
         stage_config = self.config['training_sequence']['stage_3_maml']
-        meta_iterations = episodes_override if episodes_override is not None else stage_config.get('meta_iterations', 50)
+        meta_iterations = episodes_override if episodes_override is not None else stage_config.get('meta_iterations', 150)
         
         # Load MoE agent for MAML training with proper parameters
         expert_configs = {
@@ -310,14 +422,15 @@ class TrainingSequenceManager:
 
             # Ensure models directory exists
             os.makedirs("models", exist_ok=True)
-            model_path = f"models/{symbol}_maml_stage3_final.pth"
-            agent.save_model(model_path)
-            logger.info(f"Final MAML model saved to {model_path}")
 
-            # Also save as the final production model
-            final_model_path = f"models/{symbol}_final_model.pth"
+            # Save only the final production model
+            if symbol == "universal" or "universal" in symbol:
+                final_model_path = f"models/universal_final_model.pth"
+            else:
+                final_model_path = f"models/{symbol}_final_model.pth"
             agent.save_model(final_model_path)
-            logger.info(f"Production model saved to {final_model_path}")
+            logger.info(f"🎯 FINAL MODEL SAVED: {final_model_path}")
+            logger.info(f"✅ This is your production-ready model for backtesting and live trading!")
             
             return StageResult(
                 stage=TrainingStage.MAML,

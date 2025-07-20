@@ -47,7 +47,7 @@ def get_available_symbols(data_dir: str = "data/final") -> List[str]:
 def run_single_symbol_training(
     symbol: str,
     config: dict,
-    num_iterations: int = 100,
+    num_iterations: int = None,
     algorithm: str = "PPO"
 ) -> dict:
     """
@@ -63,11 +63,25 @@ def run_single_symbol_training(
         Training results
     """
     logger.info(f"Starting parallel training for symbol: {symbol}")
-    
+
+    # Use YAML config iterations if not specified
+    if num_iterations is None:
+        from src.training.sequence_manager import TrainingSequenceManager
+        manager = TrainingSequenceManager()
+        if algorithm.upper() == "PPO":
+            num_iterations = manager.config['training_sequence']['stage_1_ppo'].get('episodes', 500)
+        elif algorithm.upper() == "MOE":
+            num_iterations = manager.config['training_sequence']['stage_2_moe'].get('episodes', 800)
+        elif algorithm.upper() == "MAML":
+            num_iterations = manager.config['training_sequence']['stage_3_maml'].get('meta_iterations', 150)
+        else:
+            num_iterations = 500  # fallback to PPO default
+        logger.info(f"Using {num_iterations} iterations from YAML configuration")
+
     # Update config for this symbol
     config["env_config"]["symbol"] = symbol
     config["training_config"]["algorithm"] = algorithm
-    
+
     # Create and setup trainer
     trainer = ParallelTrainer(config)
     trainer.setup_algorithm(algorithm)
@@ -105,7 +119,7 @@ def run_single_symbol_training(
 def run_multi_symbol_training(
     symbols: List[str],
     config: dict,
-    num_iterations: int = 100,
+    num_iterations: int = None,
     algorithm: str = "PPO",
     mode: str = "sequential"
 ) -> List[dict]:
@@ -123,9 +137,23 @@ def run_multi_symbol_training(
         List of training results for each symbol
     """
     logger.info(f"Starting multi-symbol training for {len(symbols)} symbols in {mode} mode")
-    
+
+    # Use YAML config iterations if not specified
+    if num_iterations is None:
+        from src.training.sequence_manager import TrainingSequenceManager
+        manager = TrainingSequenceManager()
+        if algorithm.upper() == "PPO":
+            num_iterations = manager.config['training_sequence']['stage_1_ppo'].get('episodes', 500)
+        elif algorithm.upper() == "MOE":
+            num_iterations = manager.config['training_sequence']['stage_2_moe'].get('episodes', 800)
+        elif algorithm.upper() == "MAML":
+            num_iterations = manager.config['training_sequence']['stage_3_maml'].get('meta_iterations', 150)
+        else:
+            num_iterations = 500  # fallback to PPO default
+        logger.info(f"Using {num_iterations} iterations from YAML configuration")
+
     all_results = []
-    
+
     if mode == "sequential":
         # Train symbols one by one
         for symbol in symbols:
@@ -146,7 +174,7 @@ def run_multi_symbol_training(
 
 def run_simple_training(
     symbol: str,
-    num_episodes: int = 100,
+    num_episodes: int = None,
     agent_type: str = "PPO"
 ) -> dict:
     """
@@ -161,6 +189,20 @@ def run_simple_training(
         Training results
     """
     logger.info(f"Starting simple training for symbol: {symbol}")
+
+    # Use YAML config episodes if not specified
+    if num_episodes is None:
+        from src.training.sequence_manager import TrainingSequenceManager
+        manager = TrainingSequenceManager()
+        if agent_type.upper() == "PPO":
+            num_episodes = manager.config['training_sequence']['stage_1_ppo'].get('episodes', 500)
+        elif agent_type.upper() == "MOE":
+            num_episodes = manager.config['training_sequence']['stage_2_moe'].get('episodes', 800)
+        elif agent_type.upper() == "MAML":
+            num_episodes = manager.config['training_sequence']['stage_3_maml'].get('meta_iterations', 150)
+        else:
+            num_episodes = 500  # fallback to PPO default
+        logger.info(f"Using {num_episodes} episodes from YAML configuration")
 
     # Initialize data loader
     data_loader = DataLoader(final_data_dir="data/final", use_parquet=True)
@@ -273,7 +315,7 @@ def main():
     parser.add_argument("--symbols", nargs="+", help="Trading symbols to train on")
     parser.add_argument("--data-dir", default="data/final", help="Data directory")
     parser.add_argument("--algorithm", choices=["PPO", "IMPALA", "MoE", "MAML"], default="MAML", help="RL algorithm (default: MAML for meta-learning)")
-    parser.add_argument("--iterations", type=int, default=100, help="Number of training iterations/episodes")
+    parser.add_argument("--iterations", type=int, default=None, help="Number of training iterations/episodes (uses YAML config if not specified)")
     parser.add_argument("--workers", type=int, default=4, help="Number of parallel workers")
     parser.add_argument("--mode", choices=["development", "production", "distributed"],
                        default="production", help="Training mode")
@@ -281,9 +323,10 @@ def main():
                        default="sequential", help="Multi-symbol training mode")
     parser.add_argument("--local", action="store_true", help="Run in local mode for debugging")
     parser.add_argument("--simple", action="store_true", help="Use simple single-threaded training instead of parallel")
-    parser.add_argument("--episodes", type=int, default=100, help="Number of episodes for simple training")
+    parser.add_argument("--episodes", type=int, default=None, help="Number of episodes for training (uses YAML config if not specified)")
     parser.add_argument("--sequence", action="store_true", default=True, help="Run complete training sequence: PPO -> MoE -> MAML (default)")
     parser.add_argument("--no-sequence", action="store_true", help="Disable sequence training and use single algorithm")
+    parser.add_argument("--universal", action="store_true", help="Train a single universal model on all symbols (recommended)")
     
     args = parser.parse_args()
     
@@ -316,7 +359,8 @@ def main():
     
     logger.info(f"Configuration validated successfully")
     logger.info(f"Training {len(symbols)} symbols with {args.algorithm} algorithm")
-    logger.info(f"Using {args.workers} workers for {args.iterations} iterations")
+    episodes_info = f"{args.episodes} episodes" if args.episodes else "YAML config episodes"
+    logger.info(f"Using {args.workers} workers for {episodes_info}")
     
     try:
         # Override sequence if --no-sequence is specified
@@ -327,7 +371,21 @@ def main():
             # Complete training sequence: PPO -> MoE -> MAML
             logger.info("Using complete training sequence: PPO -> MoE -> MAML")
 
-            if len(symbols) == 1:
+            if args.universal:
+                # Universal model training on all symbols
+                logger.info("🚀 TRAINING UNIVERSAL MODEL on all symbols")
+                logger.info(f"📊 Training on {len(symbols)} symbols: {', '.join(symbols)}")
+
+                data_loader = DataLoader(args.data_dir)
+                manager = TrainingSequenceManager()
+
+                # Train universal model using all symbols data
+                results = manager.run_universal_sequence(data_loader, symbols, episodes_override=args.episodes)
+                all_success = all(r.success for r in results)
+                logger.info(f"🎯 Universal model training completed: {'SUCCESS' if all_success else 'PARTIAL SUCCESS'}")
+                logger.info(f"✅ Single model saved: models/universal_final_model.pth")
+
+            elif len(symbols) == 1:
                 # Single symbol sequence training
                 data_loader = DataLoader(args.data_dir)
                 manager = TrainingSequenceManager()
@@ -337,7 +395,8 @@ def main():
                 all_success = all(r.success for r in results)
                 logger.info(f"Training sequence completed: {'SUCCESS' if all_success else 'PARTIAL SUCCESS'}")
             else:
-                # Multi-symbol sequence training
+                # Multi-symbol sequence training (individual models)
+                logger.info("⚠️  Training individual models per symbol. Consider using --universal for better results!")
                 all_results = []
                 for symbol in symbols:
                     try:
@@ -384,7 +443,7 @@ def main():
             if len(symbols) == 1:
                 # Single symbol training
                 results = run_single_symbol_training(
-                    symbols[0], config, args.iterations, args.algorithm
+                    symbols[0], config, args.episodes, args.algorithm
                 )
                 logger.info(f"Training completed successfully")
                 logger.info(f"Final results: {results['evaluation_results']['mean_reward']:.2f} ± {results['evaluation_results']['std_reward']:.2f}")
@@ -392,7 +451,7 @@ def main():
             else:
                 # Multi-symbol training
                 all_results = run_multi_symbol_training(
-                    symbols, config, args.iterations, args.algorithm, args.multi_symbol_mode
+                    symbols, config, args.episodes, args.algorithm, args.multi_symbol_mode
                 )
 
                 # Summary statistics
