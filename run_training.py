@@ -20,6 +20,7 @@ from src.agents.ppo_agent import PPOAgent
 from src.agents.moe_agent import MoEAgent
 from src.backtesting.environment import TradingEnv
 from src.utils.data_loader import DataLoader
+from src.config import INITIAL_CAPITAL
 
 # Configure logging
 logging.basicConfig(
@@ -211,7 +212,7 @@ def run_simple_training(
     env = TradingEnv(
         data_loader=data_loader,
         symbol=symbol,
-        initial_capital=100000.0,
+        initial_capital=INITIAL_CAPITAL,
         lookback_window=20,
         episode_length=500,
         use_streaming=False
@@ -281,7 +282,7 @@ def run_simple_training(
 
             try:
                 # Run MAML training
-                trainer.meta_train(data_loader, 100000.0,
+                trainer.meta_train(data_loader, INITIAL_CAPITAL,
                                   num_meta_iterations=max(1, num_episodes//10),  # 10% of episodes as meta-iterations
                                   num_inner_loop_steps=5,
                                   num_evaluation_steps=3,
@@ -293,7 +294,7 @@ def run_simple_training(
             # Use standard trainer
             trainer = Trainer(agent, num_episodes=num_episodes, log_interval=10)
             logger.info(f"Training {agent_type} agent for {num_episodes} episodes...")
-            trainer.train(data_loader, symbol, 100000.0)
+            trainer.train(data_loader, symbol, INITIAL_CAPITAL)
 
         results = {
             "symbol": symbol,
