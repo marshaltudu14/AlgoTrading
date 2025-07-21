@@ -1,5 +1,5 @@
 from src.agents.base_agent import BaseAgent
-from src.models.lstm_model import LSTMModel, ActorLSTMModel
+from src.models.transformer_models import ActorTransformerModel, CriticTransformerModel
 import numpy as np
 import torch
 import torch.nn as nn
@@ -18,13 +18,13 @@ class VolatilityAgent(BaseAgent):
         self.epsilon_clip = epsilon_clip
         self.k_epochs = k_epochs
 
-        self.actor = ActorLSTMModel(observation_dim, hidden_dim, action_dim)
-        self.critic = LSTMModel(observation_dim, hidden_dim, 1)
+        self.actor = ActorTransformerModel(observation_dim, hidden_dim, action_dim)
+        self.critic = CriticTransformerModel(observation_dim, hidden_dim)
 
         self.optimizer_actor = optim.Adam(self.actor.parameters(), lr=lr_actor)
         self.optimizer_critic = optim.Adam(self.critic.parameters(), lr=lr_critic)
 
-        self.policy_old = ActorLSTMModel(observation_dim, hidden_dim, action_dim)
+        self.policy_old = ActorTransformerModel(observation_dim, hidden_dim, action_dim)
         self.policy_old.load_state_dict(self.actor.state_dict())
 
         self.MseLoss = nn.MSELoss()
@@ -121,9 +121,9 @@ class VolatilityAgent(BaseAgent):
         Creates a temporary copy and performs gradient steps for fast adaptation.
         """
         # Create adapted copies of networks
-        adapted_actor = ActorLSTMModel(self.observation_dim, self.hidden_dim, self.action_dim)
+        adapted_actor = ActorTransformerModel(self.observation_dim, self.hidden_dim, self.action_dim)
         adapted_actor.load_state_dict(self.actor.state_dict())
-        adapted_critic = LSTMModel(self.observation_dim, self.hidden_dim, 1)
+        adapted_critic = CriticTransformerModel(self.observation_dim, self.hidden_dim)
         adapted_critic.load_state_dict(self.critic.state_dict())
 
         adapted_optimizer_actor = optim.Adam(adapted_actor.parameters(), lr=self.optimizer_actor.param_groups[0]['lr'])

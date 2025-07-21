@@ -20,7 +20,7 @@ from src.agents.ppo_agent import PPOAgent
 from src.agents.moe_agent import MoEAgent
 from src.backtesting.environment import TradingEnv
 from src.utils.data_loader import DataLoader
-from src.config import INITIAL_CAPITAL
+from src.config.config import INITIAL_CAPITAL
 
 # Configure logging
 logging.basicConfig(
@@ -75,6 +75,8 @@ def run_single_symbol_training(
             num_iterations = manager.config['training_sequence']['stage_2_moe'].get('episodes', 800)
         elif algorithm.upper() == "MAML":
             num_iterations = manager.config['training_sequence']['stage_3_maml'].get('meta_iterations', 150)
+        elif algorithm.upper() == "AUTONOMOUS":
+            num_iterations = manager.config['training_sequence']['stage_4_autonomous'].get('generations', 50)
         else:
             num_iterations = 500  # fallback to PPO default
         logger.info(f"Using {num_iterations} iterations from YAML configuration")
@@ -149,6 +151,8 @@ def run_multi_symbol_training(
             num_iterations = manager.config['training_sequence']['stage_2_moe'].get('episodes', 800)
         elif algorithm.upper() == "MAML":
             num_iterations = manager.config['training_sequence']['stage_3_maml'].get('meta_iterations', 150)
+        elif algorithm.upper() == "AUTONOMOUS":
+            num_iterations = manager.config['training_sequence']['stage_4_autonomous'].get('generations', 50)
         else:
             num_iterations = 500  # fallback to PPO default
         logger.info(f"Using {num_iterations} iterations from YAML configuration")
@@ -201,6 +205,8 @@ def run_simple_training(
             num_episodes = manager.config['training_sequence']['stage_2_moe'].get('episodes', 800)
         elif agent_type.upper() == "MAML":
             num_episodes = manager.config['training_sequence']['stage_3_maml'].get('meta_iterations', 150)
+        elif agent_type.upper() == "AUTONOMOUS":
+            num_episodes = manager.config['training_sequence']['stage_4_autonomous'].get('generations', 50)
         else:
             num_episodes = 500  # fallback to PPO default
         logger.info(f"Using {num_episodes} episodes from YAML configuration")
@@ -265,6 +271,10 @@ def run_simple_training(
             expert_configs=expert_configs
         )
         logger.info(f"Created MAML agent with {len(expert_configs)} experts for meta-learning")
+    elif agent_type.upper() == "AUTONOMOUS":
+        # Autonomous agents are handled by the autonomous trainer
+        agent = None  # Will be created by autonomous trainer
+        logger.info("Autonomous agent will be created by autonomous trainer")
     else:
         raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -290,6 +300,29 @@ def run_simple_training(
             finally:
                 # Restore original method
                 data_loader.sample_tasks = original_sample_tasks
+        elif agent_type.upper() == "AUTONOMOUS":
+            # Use autonomous trainer
+            from src.training.autonomous_trainer import run_autonomous_stage
+            from src.training.sequence_manager import TrainingSequenceManager
+
+            manager = TrainingSequenceManager()
+            stage_config = manager.config['training_sequence']['stage_4_autonomous']
+
+            logger.info(f"Training autonomous agents for {num_episodes} generations...")
+            autonomous_results = run_autonomous_stage(stage_config)
+
+            # Update results with autonomous training info
+            results = {
+                "symbol": symbol,
+                "agent_type": agent_type,
+                "generations_completed": autonomous_results.get('generation', 0),
+                "best_fitness": autonomous_results.get('best_fitness', 0.0),
+                "champion_path": autonomous_results.get('champion_path'),
+                "status": "completed"
+            }
+
+            logger.info(f"Autonomous training completed. Best fitness: {results['best_fitness']:.4f}")
+            return results
         else:
             # Use standard trainer
             trainer = Trainer(agent, num_episodes=num_episodes, log_interval=10)
@@ -315,7 +348,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run RL training for trading")
     parser.add_argument("--symbols", nargs="+", help="Trading symbols to train on")
     parser.add_argument("--data-dir", default="data/final", help="Data directory")
-    parser.add_argument("--algorithm", choices=["PPO", "IMPALA", "MoE", "MAML"], default="MAML", help="RL algorithm (default: MAML for meta-learning)")
+    parser.add_argument("--algorithm", choices=["PPO", "IMPALA", "MoE", "MAML", "Autonomous"], default="Autonomous", help="RL algorithm (default: Autonomous for self-evolving agents)")
     parser.add_argument("--iterations", type=int, default=None, help="Number of training iterations/episodes (uses YAML config if not specified)")
     parser.add_argument("--workers", type=int, default=4, help="Number of parallel workers")
     parser.add_argument("--mode", choices=["development", "production", "distributed"],

@@ -47,6 +47,56 @@ training_sequence:
       min_adaptation_speed: 3  # episodes to adapt (faster with meta-learning)
       min_cross_symbol_performance: 0.85  # relative to single-symbol performance
 
+  # Stage 4: Autonomous Evolution
+  stage_4_autonomous:
+    algorithm: "Autonomous"
+    generations: 50  # Number of evolutionary generations
+    description: "Autonomous agent evolution with self-modification capabilities"
+    prerequisites:
+      - "Successful MAML training completion"
+    objectives:
+      - "Evolve optimal neural architectures through NAS"
+      - "Develop self-modification and adaptation capabilities"
+      - "Achieve autonomous trading performance optimization"
+      - "Create truly autonomous trading agents"
+    success_criteria:
+      min_fitness_improvement: 0.2  # 20% improvement over baseline
+      min_sharpe_ratio: 1.0
+      min_profit_factor: 1.5
+      max_drawdown: 0.25
+
+    # Autonomous-specific settings
+    autonomous:
+      # Population parameters
+      population_size: 20
+      elite_size: 5
+
+      # Agent parameters
+      observation_dim: 65
+      action_dim: 5
+      hidden_dim: 128
+      memory_size: 1000
+      memory_embedding_dim: 64
+
+      # Training parameters
+      episodes_per_evaluation: 10
+      episode_length: 1000
+      # initial_capital will be loaded from src.config.config.INITIAL_CAPITAL
+
+      # Evolution parameters
+      mutation_rate: 0.3
+      crossover_rate: 0.7
+
+      # Self-modification parameters
+      enable_self_modification: true
+      modification_frequency: 5  # Every N generations
+
+      # Saving parameters - only save final champion
+      save_directory: "models/autonomous_agents"
+
+      # Evaluation parameters
+      fitness_metrics: ["sharpe_ratio", "profit_factor", "max_drawdown"]
+
 # Training Parameters - Optimized for Large Datasets
 training_params:
   # PPO specific parameters
@@ -89,6 +139,11 @@ progression_rules:
       min_episodes: 100
       min_win_rate: 0.40
       min_profit_factor: 1.0
+
+    stage_3_to_4:
+      min_meta_iterations: 50
+      min_adaptation_speed: 5
+      min_cross_symbol_performance: 0.80
       
   # Fallback strategies if criteria not met
   fallback_strategies:

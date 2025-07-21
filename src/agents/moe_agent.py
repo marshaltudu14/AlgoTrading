@@ -6,7 +6,7 @@ import numpy as np
 from typing import Tuple, List, Dict
 
 from src.agents.base_agent import BaseAgent
-from src.models.lstm_model import LSTMModel, ActorLSTMModel
+from src.models.transformer_models import TransformerModel, ActorTransformerModel
 
 class GatingNetwork(nn.Module):
     def __init__(self, input_dim: int, num_experts: int, hidden_dim: int):

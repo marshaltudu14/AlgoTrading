@@ -6,7 +6,7 @@ import numpy as np
 from typing import Tuple, List
 
 from src.agents.base_agent import BaseAgent
-from src.models.lstm_model import LSTMModel, ActorLSTMModel
+from src.models.transformer_models import ActorTransformerModel, CriticTransformerModel
 from src.utils.hardware_optimizer import get_hardware_optimizer, optimize_for_device, to_device
 
 class PPOAgent(BaseAgent):
@@ -21,13 +21,13 @@ class PPOAgent(BaseAgent):
         self.action_dim = action_dim
         self.hidden_dim = hidden_dim
 
-        self.actor = ActorLSTMModel(observation_dim, hidden_dim, action_dim)
-        self.critic = LSTMModel(observation_dim, hidden_dim, 1)
+        self.actor = ActorTransformerModel(observation_dim, hidden_dim, action_dim)
+        self.critic = CriticTransformerModel(observation_dim, hidden_dim)
 
         self.optimizer_actor = optim.Adam(self.actor.parameters(), lr=lr_actor)
         self.optimizer_critic = optim.Adam(self.critic.parameters(), lr=lr_critic)
 
-        self.policy_old = ActorLSTMModel(observation_dim, hidden_dim, action_dim)
+        self.policy_old = ActorTransformerModel(observation_dim, hidden_dim, action_dim)
         self.policy_old.load_state_dict(self.actor.state_dict())
 
         # Optimize for hardware
@@ -229,9 +229,9 @@ class PPOAgent(BaseAgent):
 
     def adapt(self, observation: np.ndarray, action: int, reward: float, next_observation: np.ndarray, done: bool, num_gradient_steps: int) -> 'BaseAgent':
         # Create a temporary copy of the agent's policy and value network parameters
-        adapted_actor = ActorLSTMModel(self.observation_dim, self.hidden_dim, self.action_dim)
+        adapted_actor = ActorTransformerModel(self.observation_dim, self.hidden_dim, self.action_dim)
         adapted_actor.load_state_dict(self.actor.state_dict())
-        adapted_critic = LSTMModel(self.observation_dim, self.hidden_dim, 1)
+        adapted_critic = CriticTransformerModel(self.observation_dim, self.hidden_dim)
         adapted_critic.load_state_dict(self.critic.state_dict())
 
         adapted_optimizer_actor = optim.Adam(adapted_actor.parameters(), lr=self.optimizer_actor.param_groups[0]['lr'])

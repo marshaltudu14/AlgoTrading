@@ -9,7 +9,7 @@ from src.utils.data_loader import DataLoader
 from src.backtesting.engine import BacktestingEngine
 from src.config.instrument import Instrument
 from src.utils.instrument_loader import load_instruments
-from src.config.config import RISK_REWARD_CONFIG
+from src.config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL
 
 # Configure logger
 logger = logging.getLogger(__name__)

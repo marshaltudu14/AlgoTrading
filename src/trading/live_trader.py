@@ -8,6 +8,7 @@ from src.trading.live_data_processor import LiveDataProcessor
 import time
 import logging
 import math
+import os
 
 # Configure logging
 logging.basicConfig(
@@ -24,11 +25,27 @@ class LiveTrader:
     def __init__(self, config):
         self.config = config
         self.fyers_client = FyersClient(config)
-        self.inference_engine = InferenceEngine(
-            model_path="models/supervised_model.joblib",
-            scaler_path="models/scaler.joblib",
-            encoder_path="models/label_encoder.joblib"
-        )
+
+        # Check for autonomous champion agent first
+        symbol = config.get('trading', {}).get('symbol', 'NIFTY')
+        autonomous_path = f"models/autonomous_agents/{symbol}_autonomous_final.pth"
+
+        if os.path.exists(autonomous_path):
+            logger.info(f"Loading autonomous champion agent from {autonomous_path}")
+            from src.training.autonomous_trainer import load_champion_agent
+            self.autonomous_agent = load_champion_agent(autonomous_path)
+            self.use_autonomous_agent = True
+            self.inference_engine = None
+        else:
+            logger.info("No autonomous agent found, using traditional inference engine")
+            self.autonomous_agent = None
+            self.use_autonomous_agent = False
+            self.inference_engine = InferenceEngine(
+                model_path="models/supervised_model.joblib",
+                scaler_path="models/scaler.joblib",
+                encoder_path="models/label_encoder.joblib"
+            )
+
         self.live_data_processor = LiveDataProcessor(config)
         self.active_position = False
         self.position_symbol = None
@@ -81,8 +98,30 @@ class LiveTrader:
 
         # Get prediction for the latest candle
         latest_processed_candle = processed_data.iloc[-1]
-        prediction = self.inference_engine.predict(latest_processed_candle)
-        return prediction
+
+        if self.use_autonomous_agent:
+            # Use autonomous agent for prediction
+            logger.info("Using autonomous agent for prediction")
+
+            # Convert processed data to observation format expected by agent
+            # This is a simplified conversion - in practice you'd need proper feature mapping
+            observation = latest_processed_candle.values.astype(float)
+
+            # Get action from autonomous agent
+            action = self.autonomous_agent.act(observation)
+
+            # Convert action to trading decision
+            # Assuming action is [0, 1, 2, 3, 4] for [Strong Sell, Sell, Hold, Buy, Strong Buy]
+            if action >= 3:
+                return "Long"
+            elif action <= 1:
+                return "Short"
+            else:
+                return "Hold"
+        else:
+            # Use traditional inference engine
+            prediction = self.inference_engine.predict(latest_processed_candle)
+            return prediction
 
     def manage_active_trade(self, side):
         symbol = self.config['trading']['instrument']

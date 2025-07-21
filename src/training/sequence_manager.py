@@ -14,6 +14,7 @@ from src.agents.ppo_agent import PPOAgent
 from src.agents.moe_agent import MoEAgent
 from src.training.trainer import Trainer
 from src.utils.data_loader import DataLoader
+from src.config.config import INITIAL_CAPITAL
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,7 @@ class TrainingStage(Enum):
     PPO = "stage_1_ppo"
     MOE = "stage_2_moe"
     MAML = "stage_3_maml"
+    AUTONOMOUS = "stage_4_autonomous"
 
 @dataclass
 class StageResult:
@@ -66,11 +68,16 @@ class TrainingSequenceManager:
         }
     
     def run_complete_sequence(self, data_loader: DataLoader, symbol: str,
-                            initial_capital: float = 100000.0, episodes_override: int = None) -> List[StageResult]:
+                            initial_capital: float = None, episodes_override: int = None) -> List[StageResult]:
         """Run the complete training sequence for a symbol."""
+        # Use global initial capital if not provided
+        if initial_capital is None:
+            initial_capital = INITIAL_CAPITAL
+
         logger.info(f"Starting complete training sequence for {symbol}")
-        logger.info("Sequence: PPO (baseline) -> MoE (specialization) -> MAML (meta-learning)")
-        
+        logger.info(f"Using initial capital: {initial_capital:,.2f}")
+        logger.info("Sequence: PPO (baseline) -> MoE (specialization) -> MAML (meta-learning) -> Autonomous (evolution)")
+
         # Stage 1: PPO Baseline
         ppo_result = self._run_ppo_stage(data_loader, symbol, initial_capital, episodes_override)
         self.results.append(ppo_result)
@@ -82,15 +89,23 @@ class TrainingSequenceManager:
         # Stage 2: MoE Specialization
         moe_result = self._run_moe_stage(data_loader, symbol, initial_capital, ppo_result.model_path, episodes_override)
         self.results.append(moe_result)
-        
+
         if not moe_result.success:
             logger.error("MoE stage failed. Stopping sequence.")
             return self.results
-            
+
         # Stage 3: MAML Meta-Learning
         maml_result = self._run_maml_stage(data_loader, symbol, initial_capital, moe_result.model_path, episodes_override)
         self.results.append(maml_result)
-        
+
+        if not maml_result.success:
+            logger.error("MAML stage failed. Stopping sequence.")
+            return self.results
+
+        # Stage 4: Autonomous Evolution
+        autonomous_result = self._run_autonomous_stage(data_loader, symbol, initial_capital, maml_result.model_path)
+        self.results.append(autonomous_result)
+
         self._display_sequence_summary()
         return self.results
 
@@ -451,15 +466,87 @@ class TrainingSequenceManager:
                 episodes_completed=0,
                 message=f"MAML training failed: {e}"
             )
-    
+
+    def _run_autonomous_stage(self, data_loader: DataLoader, symbol: str,
+                             initial_capital: float, maml_model_path: str) -> StageResult:
+        """Run Autonomous evolution training stage."""
+        logger.info("=" * 60)
+        logger.info("🤖 STAGE 4: AUTONOMOUS EVOLUTION TRAINING")
+        logger.info("=" * 60)
+
+        try:
+            from src.training.autonomous_trainer import run_autonomous_stage
+
+            # Get autonomous stage configuration
+            stage_config = self.config['training_sequence']['stage_4_autonomous'].copy()
+            # Add symbol and initial capital to config
+            stage_config['symbol'] = symbol
+            stage_config['initial_capital'] = initial_capital
+
+            logger.info(f"🎯 Starting autonomous evolution with {stage_config.get('generations', 50)} generations")
+            logger.info(f"📊 Population size: {stage_config.get('autonomous', {}).get('population_size', 20)}")
+
+            # Run autonomous training
+            results = run_autonomous_stage(stage_config)
+
+            # Extract metrics from results
+            metrics = {
+                'best_fitness': results.get('best_fitness', 0.0),
+                'avg_fitness': results.get('current_avg_fitness', 0.0),
+                'fitness_improvement': results.get('fitness_improvement', 0.0),
+                'total_modifications': results.get('total_modifications', 0),
+                'generations_completed': results.get('generation', 0)
+            }
+
+            # Check success criteria
+            success_criteria = stage_config.get('success_criteria', {})
+            min_fitness_improvement = success_criteria.get('min_fitness_improvement', 0.2)
+
+            success = metrics['fitness_improvement'] >= min_fitness_improvement
+
+            if success:
+                logger.info("✅ Autonomous evolution training completed successfully!")
+                logger.info(f"📈 Best fitness: {metrics['best_fitness']:.4f}")
+                logger.info(f"📊 Fitness improvement: {metrics['fitness_improvement']:.4f}")
+            else:
+                logger.warning("⚠️ Autonomous evolution training completed but didn't meet success criteria")
+
+            model_path = results.get('champion_path', 'models/autonomous_agents/champion_agent.pkl')
+
+            return StageResult(
+                stage=TrainingStage.AUTONOMOUS,
+                success=success,
+                metrics=metrics,
+                model_path=model_path,
+                episodes_completed=metrics['generations_completed'],
+                message="Autonomous evolution training completed"
+            )
+
+        except Exception as e:
+            logger.error(f"Autonomous stage failed: {e}")
+            return StageResult(
+                stage=TrainingStage.AUTONOMOUS,
+                success=False,
+                metrics={},
+                model_path="",
+                episodes_completed=0,
+                message=f"Autonomous training failed: {e}"
+            )
+
     def _check_stage_success(self, stage: TrainingStage, metrics: Dict) -> bool:
         """Check if a training stage meets success criteria."""
         if stage == TrainingStage.PPO:
             criteria = self.config['progression_rules']['advancement_criteria']['stage_1_to_2']
         elif stage == TrainingStage.MOE:
             criteria = self.config['progression_rules']['advancement_criteria']['stage_2_to_3']
+        elif stage == TrainingStage.MAML:
+            criteria = self.config['progression_rules']['advancement_criteria'].get('stage_3_to_4', {})
+            if not criteria:
+                return True  # MAML success is based on completion if no criteria
+        elif stage == TrainingStage.AUTONOMOUS:
+            return True  # Autonomous success is handled internally
         else:
-            return True  # MAML success is based on completion
+            return True
         
         win_rate = metrics.get('win_rate', 0)
         profit_factor = metrics.get('profit_factor', 0)

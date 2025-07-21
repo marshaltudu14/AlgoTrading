@@ -106,13 +106,20 @@ class BacktestRunner:
             logger.error(f"Error processing {file_path}: {e}")
             return None
     
-    def load_trained_model(self, symbol: str) -> Optional[MoEAgent]:
+    def load_trained_model(self, symbol: str):
         """Load the trained model for backtesting."""
         try:
-            # Try to load the final model first, then fallback to stage-specific models
+            # First priority: Check for autonomous champion agent
+            autonomous_path = f"models/autonomous_agents/{symbol}_autonomous_final.pth"
+            if os.path.exists(autonomous_path):
+                logger.info(f"Loading autonomous champion agent from {autonomous_path}")
+                from src.training.autonomous_trainer import load_champion_agent
+                return load_champion_agent(autonomous_path)
+
+            # Fallback: Try to load other models
             model_paths = [
                 f"models/{symbol}_final_model.pth",
-                f"models/{symbol}_maml_stage3_final.pth", 
+                f"models/{symbol}_maml_stage3_final.pth",
                 f"models/{symbol}_moe_stage2.pth",
                 f"models/{symbol}_ppo_stage1.pth"
             ]
