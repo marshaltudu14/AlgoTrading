@@ -56,13 +56,35 @@ class TrainingSequenceManager:
             'training_sequence': {
                 'stage_1_ppo': {'algorithm': 'PPO', 'episodes': 500},
                 'stage_2_moe': {'algorithm': 'MoE', 'episodes': 800},
-                'stage_3_maml': {'algorithm': 'MAML', 'meta_iterations': 150}
+                'stage_3_maml': {'algorithm': 'MAML', 'meta_iterations': 150},
+                'stage_4_autonomous': {
+                    'algorithm': 'Autonomous',
+                    'generations': 50,
+                    'autonomous': {
+                        'population_size': 20,
+                        'elite_size': 5,
+                        'observation_dim': 65,
+                        'action_dim': 5,
+                        'hidden_dim': 128,
+                        'memory_size': 1000,
+                        'memory_embedding_dim': 64,
+                        'episodes_per_evaluation': 10,
+                        'episode_length': 1000,
+                        'mutation_rate': 0.3,
+                        'crossover_rate': 0.7,
+                        'enable_self_modification': True,
+                        'modification_frequency': 5,
+                        'save_directory': 'models/autonomous_agents',
+                        'fitness_metrics': ['sharpe_ratio', 'profit_factor', 'max_drawdown']
+                    }
+                }
             },
             'progression_rules': {
                 'auto_progression': True,
                 'advancement_criteria': {
                     'stage_1_to_2': {'min_win_rate': 0.35, 'min_profit_factor': 0.8},
-                    'stage_2_to_3': {'min_win_rate': 0.40, 'min_profit_factor': 1.0}
+                    'stage_2_to_3': {'min_win_rate': 0.40, 'min_profit_factor': 1.0},
+                    'stage_3_to_4': {'min_meta_iterations': 50, 'min_adaptation_speed': 5, 'min_cross_symbol_performance': 0.80}
                 }
             }
         }
@@ -171,7 +193,8 @@ class TrainingSequenceManager:
         }
         agent = MoEAgent(
             observation_dim=1246,
-            action_dim=2,
+            action_dim_discrete=2,
+            action_dim_continuous=1,
             hidden_dim=64,
             expert_configs=expert_configs
         )
@@ -238,7 +261,8 @@ class TrainingSequenceManager:
         # Create PPO agent with proper parameters
         agent = PPOAgent(
             observation_dim=1246,  # This should match your feature count
-            action_dim=2,          # BUY_LONG, SELL_SHORT actions
+            action_dim_discrete=2,          # BUY_LONG, SELL_SHORT actions
+            action_dim_continuous=1,        # Quantity/position size
             hidden_dim=64,
             lr_actor=0.0003,
             lr_critic=0.001,
@@ -326,7 +350,8 @@ class TrainingSequenceManager:
         }
         agent = MoEAgent(
             observation_dim=1246,
-            action_dim=2,
+            action_dim_discrete=2,
+            action_dim_continuous=1,
             hidden_dim=64,
             expert_configs=expert_configs
         )
@@ -410,7 +435,8 @@ class TrainingSequenceManager:
         }
         agent = MoEAgent(
             observation_dim=1246,
-            action_dim=2,
+            action_dim_discrete=2,
+            action_dim_continuous=1,
             hidden_dim=64,
             expert_configs=expert_configs
         )

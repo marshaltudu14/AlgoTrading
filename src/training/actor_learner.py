@@ -92,7 +92,8 @@ class TradingActor:
         # Initialize agent (local copy for action selection)
         self.agent = PPOAgent(
             observation_dim=agent_config.get("observation_dim", 10),
-            action_dim=agent_config.get("action_dim", 5),
+            action_dim_discrete=agent_config.get("action_dim_discrete", 2),
+            action_dim_continuous=agent_config.get("action_dim_continuous", 1),
             hidden_dim=agent_config.get("hidden_dim", 64),
             lr_actor=agent_config.get("lr_actor", 0.001),
             lr_critic=agent_config.get("lr_critic", 0.001),
@@ -188,7 +189,8 @@ class TradingLearner:
         # Initialize master agent
         self.agent = PPOAgent(
             observation_dim=agent_config.get("observation_dim", 10),
-            action_dim=agent_config.get("action_dim", 5),
+            action_dim_discrete=agent_config.get("action_dim_discrete", 2),
+            action_dim_continuous=agent_config.get("action_dim_continuous", 1),
             hidden_dim=agent_config.get("hidden_dim", 64),
             lr_actor=agent_config.get("lr_actor", 0.001),
             lr_critic=agent_config.get("lr_critic", 0.001),
