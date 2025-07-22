@@ -42,7 +42,8 @@ def test_base_agent_abstract_methods():
 
 def test_ppo_agent_initialization():
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
     lr_actor = 0.001
     lr_critic = 0.001
@@ -50,7 +51,7 @@ def test_ppo_agent_initialization():
     epsilon_clip = 0.2
     k_epochs = 3
 
-    agent = PPOAgent(observation_dim, action_dim, hidden_dim, lr_actor, lr_critic, gamma, epsilon_clip, k_epochs)
+    agent = PPOAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, lr_actor, lr_critic, gamma, epsilon_clip, k_epochs)
 
     assert isinstance(agent, PPOAgent)
     assert isinstance(agent, BaseAgent)
@@ -60,7 +61,8 @@ def test_ppo_agent_initialization():
 
 def test_ppo_agent_select_action():
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
     lr_actor = 0.001
     lr_critic = 0.001
@@ -68,19 +70,22 @@ def test_ppo_agent_select_action():
     epsilon_clip = 0.2
     k_epochs = 3
 
-    agent = PPOAgent(observation_dim, action_dim, hidden_dim, lr_actor, lr_critic, gamma, epsilon_clip, k_epochs)
+    agent = PPOAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, lr_actor, lr_critic, gamma, epsilon_clip, k_epochs)
     
     # Create a dummy observation
     observation = np.random.rand(observation_dim).astype(np.float32)
     
-    action = agent.select_action(observation)
+    action_type, quantity = agent.select_action(observation)
     
-    assert isinstance(action, int)
-    assert 0 <= action < action_dim
+    assert isinstance(action_type, int)
+    assert 0 <= action_type < action_dim_discrete
+    assert isinstance(quantity, float)
+    assert quantity >= 0.01 # Assuming quantity is always positive
 
 def test_ppo_agent_learn_placeholder():
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
     lr_actor = 0.001
     lr_critic = 0.001
@@ -88,12 +93,12 @@ def test_ppo_agent_learn_placeholder():
     epsilon_clip = 0.2
     k_epochs = 3
 
-    agent = PPOAgent(observation_dim, action_dim, hidden_dim, lr_actor, lr_critic, gamma, epsilon_clip, k_epochs)
+    agent = PPOAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, lr_actor, lr_critic, gamma, epsilon_clip, k_epochs)
     
     # Create dummy experiences
     experiences = [
-        (np.random.rand(observation_dim).astype(np.float32), 0, 0.1, np.random.rand(observation_dim).astype(np.float32), False),
-        (np.random.rand(observation_dim).astype(np.float32), 1, -0.5, np.random.rand(observation_dim).astype(np.float32), True)
+        (np.random.rand(observation_dim).astype(np.float32), (0, 0.5), 0.1, np.random.rand(observation_dim).astype(np.float32), False),
+        (np.random.rand(observation_dim).astype(np.float32), (1, 1.0), -0.5, np.random.rand(observation_dim).astype(np.float32), True)
     ]
     
     # The learn method is a placeholder, so we just check if it runs without error
@@ -107,10 +112,11 @@ def test_ppo_agent_learn_placeholder():
 )
 def test_specialized_agent_initialization(AgentClass):
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
 
-    agent = AgentClass(observation_dim, action_dim, hidden_dim)
+    agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim)
 
     assert isinstance(agent, AgentClass)
     assert isinstance(agent, BaseAgent)
@@ -122,29 +128,33 @@ def test_specialized_agent_initialization(AgentClass):
 )
 def test_specialized_agent_select_action(AgentClass):
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
 
-    agent = AgentClass(observation_dim, action_dim, hidden_dim)
+    agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim)
     observation = np.random.rand(observation_dim).astype(np.float32)
 
-    action = agent.select_action(observation)
+    action_type, quantity = agent.select_action(observation)
 
-    assert isinstance(action, int)
-    assert 0 <= action < action_dim
+    assert isinstance(action_type, int)
+    assert 0 <= action_type < action_dim_discrete
+    assert isinstance(quantity, float)
+    assert quantity >= 0.01 # Assuming quantity is always positive
 
 @pytest.mark.parametrize(
     "AgentClass", [TrendAgent, MeanReversionAgent, VolatilityAgent, ConsolidationAgent]
 )
 def test_specialized_agent_learn_placeholder(AgentClass):
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
 
-    agent = AgentClass(observation_dim, action_dim, hidden_dim)
+    agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim)
     experiences = [
-        (np.random.rand(observation_dim).astype(np.float32), 0, 0.1, np.random.rand(observation_dim).astype(np.float32), False),
-        (np.random.rand(observation_dim).astype(np.float32), 1, -0.5, np.random.rand(observation_dim).astype(np.float32), True)
+        (np.random.rand(observation_dim).astype(np.float32), (0, 0.5), 0.1, np.random.rand(observation_dim).astype(np.float32), False),
+        (np.random.rand(observation_dim).astype(np.float32), (1, 1.0), -0.5, np.random.rand(observation_dim).astype(np.float32), True)
     ]
 
     try:
@@ -171,7 +181,8 @@ def test_gating_network_output_shape():
 
 def test_moe_agent_initialization():
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
     expert_configs = {
         "TrendAgent": {},
@@ -180,7 +191,7 @@ def test_moe_agent_initialization():
         "ConsolidationAgent": {}
     }
 
-    moe_agent = MoEAgent(observation_dim, action_dim, hidden_dim, expert_configs)
+    moe_agent = MoEAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, expert_configs)
 
     assert isinstance(moe_agent, MoEAgent)
     assert isinstance(moe_agent, BaseAgent)
@@ -191,7 +202,8 @@ def test_moe_agent_initialization():
 
 def test_moe_agent_select_action():
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
     expert_configs = {
         "TrendAgent": {},
@@ -200,17 +212,20 @@ def test_moe_agent_select_action():
         "ConsolidationAgent": {}
     }
 
-    moe_agent = MoEAgent(observation_dim, action_dim, hidden_dim, expert_configs)
+    moe_agent = MoEAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, expert_configs)
     observation = np.random.rand(observation_dim).astype(np.float32)
 
-    action = moe_agent.select_action(observation)
+    action_type, quantity = moe_agent.select_action(observation)
 
-    assert isinstance(action, int)
-    assert 0 <= action < action_dim
+    assert isinstance(action_type, int)
+    assert 0 <= action_type < action_dim_discrete
+    assert isinstance(quantity, float)
+    assert quantity >= 0.01 # Assuming quantity is always positive
 
 def test_moe_agent_learn_placeholder():
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
     expert_configs = {
         "TrendAgent": {},
@@ -219,10 +234,10 @@ def test_moe_agent_learn_placeholder():
         "ConsolidationAgent": {}
     }
 
-    moe_agent = MoEAgent(observation_dim, action_dim, hidden_dim, expert_configs)
+    moe_agent = MoEAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, expert_configs)
     experiences = [
-        (np.random.rand(observation_dim).astype(np.float32), 0, 0.1, np.random.rand(observation_dim).astype(np.float32), False),
-        (np.random.rand(observation_dim).astype(np.float32), 1, -0.5, np.random.rand(observation_dim).astype(np.float32), True)
+        (np.random.rand(observation_dim).astype(np.float32), (0, 0.5), 0.1, np.random.rand(observation_dim).astype(np.float32), False),
+        (np.random.rand(observation_dim).astype(np.float32), (1, 1.0), -0.5, np.random.rand(observation_dim).astype(np.float32), True)
     ]
 
     try:
@@ -235,12 +250,13 @@ def test_moe_agent_learn_placeholder():
 )
 def test_agent_adapt_method(AgentClass):
     observation_dim = 10
-    action_dim = 5
+    action_dim_discrete = 5
+    action_dim_continuous = 1
     hidden_dim = 64
     num_gradient_steps = 1
 
     if AgentClass == PPOAgent:
-        agent = AgentClass(observation_dim, action_dim, hidden_dim, 0.001, 0.001, 0.99, 0.2, 3)
+        agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, 0.001, 0.001, 0.99, 0.2, 3)
     elif AgentClass == MoEAgent:
         expert_configs = {
             "TrendAgent": {},
@@ -248,17 +264,17 @@ def test_agent_adapt_method(AgentClass):
             "VolatilityAgent": {},
             "ConsolidationAgent": {}
         }
-        agent = AgentClass(observation_dim, action_dim, hidden_dim, expert_configs)
+        agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, expert_configs)
     else:
-        agent = AgentClass(observation_dim, action_dim, hidden_dim)
+        agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim)
 
     observation = np.random.rand(observation_dim).astype(np.float32)
-    action = 0
+    action_tuple = (0, 0.5) # Discrete action and continuous quantity
     reward = 1.0
     next_observation = np.random.rand(observation_dim).astype(np.float32)
     done = False
 
-    adapted_agent = agent.adapt(observation, action, reward, next_observation, done, num_gradient_steps)
+    adapted_agent = agent.adapt(observation, action_tuple, reward, next_observation, done, num_gradient_steps)
 
     assert isinstance(adapted_agent, BaseAgent)
     # Further assertions could be added here to check if parameters are indeed adapted

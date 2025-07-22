@@ -11,3 +11,8 @@ requests
 gymnasium
 ray[rllib]
 pytz
+matplotlib
+seaborn
+plotly
+ipywidgets
+tqdm

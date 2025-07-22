@@ -19,12 +19,13 @@ class GatingNetwork(nn.Module):
         return F.softmax(self.fc2(x), dim=-1)
 
 class MoEAgent(BaseAgent):
-    def __init__(self, observation_dim: int, action_dim: int, hidden_dim: int, expert_configs: Dict, lr_gating: float = 0.001):
+    def __init__(self, observation_dim: int, action_dim_discrete: int, action_dim_continuous: int, hidden_dim: int, expert_configs: Dict, lr_gating: float = 0.001):
         self.observation_dim = observation_dim
-        self.action_dim = action_dim
+        self.action_dim_discrete = action_dim_discrete
+        self.action_dim_continuous = action_dim_continuous
         self.hidden_dim = hidden_dim
         self.expert_configs = expert_configs
-        print(f"MoEAgent __init__: observation_dim={observation_dim}, action_dim={action_dim}, hidden_dim={hidden_dim}, num_experts={len(expert_configs)}")
+        print(f"MoEAgent __init__: observation_dim={observation_dim}, action_dim_discrete={action_dim_discrete}, action_dim_continuous={action_dim_continuous}, hidden_dim={hidden_dim}, num_experts={len(expert_configs)}")
 
         self.gating_network = GatingNetwork(observation_dim, len(expert_configs), hidden_dim)
         self.gating_optimizer = optim.Adam(self.gating_network.parameters(), lr=lr_gating)
@@ -33,51 +34,62 @@ class MoEAgent(BaseAgent):
         for expert_type, config in expert_configs.items():
             if expert_type == "TrendAgent":
                 from src.agents.trend_agent import TrendAgent
-                self.experts.append(TrendAgent(observation_dim, action_dim, hidden_dim))
+                self.experts.append(TrendAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim))
             elif expert_type == "MeanReversionAgent":
                 from src.agents.mean_reversion_agent import MeanReversionAgent
-                self.experts.append(MeanReversionAgent(observation_dim, action_dim, hidden_dim))
+                self.experts.append(MeanReversionAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim))
             elif expert_type == "VolatilityAgent":
                 from src.agents.volatility_agent import VolatilityAgent
-                self.experts.append(VolatilityAgent(observation_dim, action_dim, hidden_dim))
+                self.experts.append(VolatilityAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim))
             elif expert_type == "ConsolidationAgent":
                 from src.agents.consolidation_agent import ConsolidationAgent
-                self.experts.append(ConsolidationAgent(observation_dim, action_dim, hidden_dim))
+                self.experts.append(ConsolidationAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim))
             else:
                 raise ValueError(f"Unknown expert type: {expert_type}")
 
-    def select_action(self, observation: np.ndarray) -> int:
+    def select_action(self, observation: np.ndarray) -> Tuple[int, float]:
         """
-        Select action using weighted average of expert action probabilities.
-        This implements soft routing instead of hard routing for better ensemble behavior.
+        Select action using weighted average of expert action probabilities and quantities.
+        This implements soft routing for better ensemble behavior.
         """
         # Get gating network weights
         market_features = torch.FloatTensor(observation).unsqueeze(0)
         expert_weights = self.gating_network(market_features).squeeze(0)
 
-        # Get action probabilities from all experts
+        # Get action probabilities and quantities from all experts
         expert_action_probs = []
+        expert_quantities = []
         state_tensor = torch.FloatTensor(observation).unsqueeze(0).unsqueeze(0)
 
         for expert in self.experts:
-            # Get action probabilities from each expert's policy
+            # Get action probabilities and quantities from each expert's policy
             with torch.no_grad():
-                action_probs = expert.policy_old(state_tensor).squeeze(0)
+                action_outputs = expert.policy_old(state_tensor)
+                action_probs = action_outputs['action_type'].squeeze(0)
+                quantity_pred = action_outputs['quantity'].squeeze(0)
                 expert_action_probs.append(action_probs)
+                expert_quantities.append(quantity_pred)
 
-        # Stack expert probabilities and compute weighted average
-        expert_probs_tensor = torch.stack(expert_action_probs)  # Shape: [num_experts, action_dim]
-        expert_weights_expanded = expert_weights.unsqueeze(1)  # Shape: [num_experts, 1]
+        # Stack expert probabilities and quantities
+        expert_probs_tensor = torch.stack(expert_action_probs)  # Shape: [num_experts, action_dim_discrete]
+        expert_quantities_tensor = torch.stack(expert_quantities) # Shape: [num_experts, action_dim_continuous]
 
-        # Weighted average of action probabilities
-        weighted_action_probs = torch.sum(expert_probs_tensor * expert_weights_expanded, dim=0)
+        expert_weights_expanded_discrete = expert_weights.unsqueeze(1)  # Shape: [num_experts, 1]
+        expert_weights_expanded_continuous = expert_weights.unsqueeze(1) # Shape: [num_experts, 1]
 
-        # Sample action from the weighted probability distribution
+        # Weighted average of action probabilities and quantities
+        weighted_action_probs = torch.sum(expert_probs_tensor * expert_weights_expanded_discrete, dim=0)
+        weighted_quantity = torch.sum(expert_quantities_tensor * expert_weights_expanded_continuous, dim=0)
+
+        # Sample discrete action from the weighted probability distribution
         from torch.distributions import Categorical
         dist = Categorical(weighted_action_probs)
-        final_action = dist.sample().item()
+        final_action_type = dist.sample().item()
 
-        return final_action
+        # For continuous quantity, use the weighted average, ensuring it's positive
+        final_quantity = torch.clamp(weighted_quantity, min=0.01).item()
+
+        return final_action_type, final_quantity
 
     def learn(self, experiences: List[Tuple[np.ndarray, int, float, np.ndarray, bool]]) -> None:
         """
@@ -94,14 +106,14 @@ class MoEAgent(BaseAgent):
         # Now train the gating network based on expert performance
         self._train_gating_network(experiences)
 
-    def _train_gating_network(self, experiences: List[Tuple[np.ndarray, int, float, np.ndarray, bool]]) -> None:
+    def _train_gating_network(self, experiences: List[Tuple[np.ndarray, Tuple[int, float], float, np.ndarray, bool]]) -> None:
         """
         Train the gating network to better select experts based on their performance.
         Uses a reward-weighted loss to encourage the gating network to assign higher
         weights to experts that would have performed better on the given experiences.
         """
         states = torch.FloatTensor([exp[0] for exp in experiences])
-        actions = torch.LongTensor([exp[1] for exp in experiences])
+        # actions = torch.LongTensor([exp[1] for exp in experiences]) # No longer a single action
         rewards = torch.FloatTensor([exp[2] for exp in experiences])
 
         # Get gating network weights for all states
@@ -150,12 +162,12 @@ class MoEAgent(BaseAgent):
 
         return torch.FloatTensor(performances)
 
-    def adapt(self, observation: np.ndarray, action: int, reward: float, next_observation: np.ndarray, done: bool, num_gradient_steps: int) -> 'BaseAgent':
+    def adapt(self, observation: np.ndarray, action_tuple: Tuple[int, float], reward: float, next_observation: np.ndarray, done: bool, num_gradient_steps: int) -> 'BaseAgent':
         """
         Orchestrate MAML adaptation for both the GatingNetwork and individual experts.
         This creates adapted copies and performs gradient steps for fast adaptation.
         """
-        print(f"MoEAgent adapt: observation_dim={self.observation_dim}, action_dim={self.action_dim}, hidden_dim={self.hidden_dim}, expert_configs={self.expert_configs}")
+        print(f"MoEAgent adapt: observation_dim={self.observation_dim}, action_dim_discrete={self.action_dim_discrete}, action_dim_continuous={self.action_dim_continuous}, hidden_dim={self.hidden_dim}, expert_configs={self.expert_configs}")
 
         # Create adapted copy of gating network
         adapted_gating_network = GatingNetwork(
@@ -169,22 +181,22 @@ class MoEAgent(BaseAgent):
         # Adapt experts using their individual adapt methods
         adapted_experts = []
         for expert in self.experts:
-            adapted_expert = expert.adapt(observation, action, reward, next_observation, done, num_gradient_steps)
+            adapted_expert = expert.adapt(observation, action_tuple, reward, next_observation, done, num_gradient_steps)
             adapted_experts.append(adapted_expert)
 
         # Adapt gating network based on the experience
         self._adapt_gating_network(adapted_gating_network, adapted_gating_optimizer,
-                                 observation, action, reward, next_observation, done,
+                                 observation, action_tuple, reward, next_observation, done,
                                  adapted_experts, num_gradient_steps)
 
         # Create adapted MoE agent
-        adapted_moe_agent = MoEAgent(self.observation_dim, self.action_dim, self.hidden_dim, self.expert_configs)
+        adapted_moe_agent = MoEAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim, self.expert_configs)
         adapted_moe_agent.gating_network.load_state_dict(adapted_gating_network.state_dict())
         adapted_moe_agent.experts = adapted_experts
         return adapted_moe_agent
 
     def _adapt_gating_network(self, adapted_gating_network, adapted_optimizer,
-                            observation, action, reward, next_observation, done,
+                            observation, action_tuple, reward, next_observation, done,
                             adapted_experts, num_gradient_steps):
         """
         Adapt the gating network based on expert performance on the given experience.
@@ -237,7 +249,8 @@ class MoEAgent(BaseAgent):
             'experts_state_dicts': expert_states,
             'expert_configs': self.expert_configs,
             'observation_dim': self.observation_dim,
-            'action_dim': self.action_dim,
+            'action_dim_discrete': self.action_dim_discrete,
+            'action_dim_continuous': self.action_dim_continuous,
             'hidden_dim': self.hidden_dim
         }, path)
 
@@ -246,6 +259,31 @@ class MoEAgent(BaseAgent):
         checkpoint = torch.load(path)
         self.gating_network.load_state_dict(checkpoint['gating_network_state_dict'])
         self.gating_optimizer.load_state_dict(checkpoint['gating_optimizer_state_dict'])
+
+        # Re-initialize experts with loaded dimensions
+        self.observation_dim = checkpoint['observation_dim']
+        self.action_dim_discrete = checkpoint['action_dim_discrete']
+        self.action_dim_continuous = checkpoint['action_dim_continuous']
+        self.hidden_dim = checkpoint['hidden_dim']
+        self.expert_configs = checkpoint['expert_configs']
+
+        # Clear existing experts and re-create them with correct dimensions
+        self.experts = []
+        for expert_type, config in self.expert_configs.items():
+            if expert_type == "TrendAgent":
+                from src.agents.trend_agent import TrendAgent
+                self.experts.append(TrendAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
+            elif expert_type == "MeanReversionAgent":
+                from src.agents.mean_reversion_agent import MeanReversionAgent
+                self.experts.append(MeanReversionAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
+            elif expert_type == "VolatilityAgent":
+                from src.agents.volatility_agent import VolatilityAgent
+                self.experts.append(VolatilityAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
+            elif expert_type == "ConsolidationAgent":
+                from src.agents.consolidation_agent import ConsolidationAgent
+                self.experts.append(ConsolidationAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
+            else:
+                raise ValueError(f"Unknown expert type: {expert_type}")
 
         for i, expert_state in enumerate(checkpoint['experts_state_dicts']):
             self.experts[i].actor.load_state_dict(expert_state['actor_state_dict'])

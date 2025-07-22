@@ -36,18 +36,18 @@ def test_transformer_model_multiple_layers():
 def test_actor_transformer_model():
     input_dim = 15
     hidden_dim = 32
-    action_dim = 3
+    action_dim_discrete = 3
+    action_dim_continuous = 1
     batch_size = 2
     sequence_length = 5
 
-    model = ActorTransformerModel(input_dim, hidden_dim, action_dim, num_heads=2, num_layers=2)
+    model = ActorTransformerModel(input_dim, hidden_dim, action_dim_discrete, action_dim_continuous, num_heads=2, num_layers=2)
     dummy_input = torch.randn(batch_size, sequence_length, input_dim)
     output = model(dummy_input)
 
-    # Should output action probabilities
-    assert output.shape == (batch_size, action_dim)
-    # Should sum to 1 (probabilities)
-    assert torch.allclose(output.sum(dim=1), torch.ones(batch_size), atol=1e-6)
+    assert output['action_type'].shape == (batch_size, action_dim_discrete)
+    assert torch.allclose(output['action_type'].sum(dim=-1), torch.ones(batch_size))
+    assert output['quantity'].shape == (batch_size, action_dim_continuous)
 
 def test_critic_transformer_model():
     input_dim = 15

@@ -8,9 +8,11 @@ backbone for improved sequence processing and memory capabilities.
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from typing import Optional
 
 from src.models.core_transformer import CoreTransformer
+
 
 
 class TransformerModel(nn.Module):
@@ -83,100 +85,6 @@ class TransformerModel(nn.Module):
         if len(x.shape) == 2:
             x = x.unsqueeze(1)
         return self.transformer.get_attention_weights(x, mask=mask)
-
-
-class ActorTransformerModel(TransformerModel):
-    """
-    Actor model using Transformer architecture.
-    
-    This replaces the previous ActorLSTMModel and outputs action probabilities
-    using a softmax activation.
-    """
-    
-    def __init__(
-        self, 
-        input_dim: int, 
-        hidden_dim: int, 
-        output_dim: int, 
-        num_heads: int = 8,
-        num_layers: int = 4,
-        dropout: float = 0.1,
-        max_seq_len: int = 1000
-    ):
-        super().__init__(
-            input_dim=input_dim,
-            hidden_dim=hidden_dim,
-            output_dim=output_dim,
-            num_heads=num_heads,
-            num_layers=num_layers,
-            dropout=dropout,
-            max_seq_len=max_seq_len
-        )
-        
-        # Softmax for action probabilities
-        self.softmax = nn.Softmax(dim=-1)
-    
-    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
-        Forward pass returning action probabilities.
-        
-        Args:
-            x: Input tensor of shape (batch_size, seq_len, input_dim)
-            mask: Optional attention mask
-            
-        Returns:
-            Action probabilities of shape (batch_size, output_dim)
-        """
-        logits = super().forward(x, mask)
-        return self.softmax(logits)
-
-
-class CriticTransformerModel(TransformerModel):
-    """
-    Critic model using Transformer architecture.
-    
-    This replaces the previous LSTMModel when used as a critic and outputs
-    state values for reinforcement learning.
-    """
-    
-    def __init__(
-        self, 
-        input_dim: int, 
-        hidden_dim: int, 
-        num_heads: int = 8,
-        num_layers: int = 4,
-        dropout: float = 0.1,
-        max_seq_len: int = 1000
-    ):
-        # Critic always outputs a single value
-        super().__init__(
-            input_dim=input_dim,
-            hidden_dim=hidden_dim,
-            output_dim=1,
-            num_heads=num_heads,
-            num_layers=num_layers,
-            dropout=dropout,
-            max_seq_len=max_seq_len
-        )
-    
-    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """
-        Forward pass returning state values.
-        
-        Args:
-            x: Input tensor of shape (batch_size, seq_len, input_dim)
-            mask: Optional attention mask
-            
-        Returns:
-            State values of shape (batch_size, 1)
-        """
-        return super().forward(x, mask)
-
-
-# Backward compatibility aliases
-# These maintain the same interface as the old LSTM models
-LSTMModel = TransformerModel
-ActorLSTMModel = ActorTransformerModel
 
 
 class MultiHeadTransformerModel(nn.Module):
@@ -262,3 +170,98 @@ class MultiHeadTransformerModel(nn.Module):
         if len(x.shape) == 2:
             x = x.unsqueeze(1)
         return self.transformer.get_attention_weights(x, mask=mask)
+
+
+class ActorTransformerModel(MultiHeadTransformerModel):
+    """
+    Actor model using Transformer architecture with multi-head output.
+    
+    This model outputs both discrete action probabilities and a continuous quantity.
+    """
+    
+    def __init__(
+        self, 
+        input_dim: int, 
+        hidden_dim: int, 
+        action_dim_discrete: int, 
+        action_dim_continuous: int,
+        num_heads: int = 8,
+        num_layers: int = 4,
+        dropout: float = 0.1,
+        max_seq_len: int = 1000
+    ):
+        super().__init__(
+            input_dim=input_dim,
+            hidden_dim=hidden_dim,
+            output_heads={'action_type': action_dim_discrete, 'quantity': action_dim_continuous},
+            num_heads=num_heads,
+            num_layers=num_layers,
+            dropout=dropout,
+            max_seq_len=max_seq_len
+        )
+        
+        # Softmax for action probabilities
+        # self.softmax = nn.Softmax(dim=-1) # Removed as MultiHeadTransformerModel handles outputs
+
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> dict:
+        """
+        Forward pass returning action probabilities and quantity.
+        
+        Args:
+            x: Input tensor of shape (batch_size, seq_len, input_dim)
+            mask: Optional attention mask
+            
+        Returns:
+            Dictionary with 'action_type' (probabilities) and 'quantity' (raw prediction)
+        """
+        outputs = super().forward(x, mask)
+        outputs['action_type'] = F.softmax(outputs['action_type'], dim=-1)
+        return outputs
+
+
+class CriticTransformerModel(TransformerModel):
+    """
+    Critic model using Transformer architecture.
+    
+    This replaces the previous LSTMModel when used as a critic and outputs
+    state values for reinforcement learning.
+    """
+    
+    def __init__(
+        self, 
+        input_dim: int, 
+        hidden_dim: int, 
+        num_heads: int = 8,
+        num_layers: int = 4,
+        dropout: float = 0.1,
+        max_seq_len: int = 1000
+    ):
+        # Critic always outputs a single value
+        super().__init__(
+            input_dim=input_dim,
+            hidden_dim=hidden_dim,
+            output_dim=1,
+            num_heads=num_heads,
+            num_layers=num_layers,
+            dropout=dropout,
+            max_seq_len=max_seq_len
+        )
+    
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+        """
+        Forward pass returning state values.
+        
+        Args:
+            x: Input tensor of shape (batch_size, seq_len, input_dim)
+            mask: Optional attention mask
+            
+        Returns:
+            State values of shape (batch_size, 1)
+        """
+        return super().forward(x, mask)
+
+
+# Backward compatibility aliases
+# These maintain the same interface as the old LSTM models
+LSTMModel = TransformerModel
+ActorLSTMModel = ActorTransformerModel

@@ -229,13 +229,17 @@ def run_simple_training(
     observation_dim = obs.shape[0]
     action_dim = env.action_space.shape[0]
 
-    logger.info(f"Environment dimensions: obs={observation_dim}, action={action_dim}")
+    action_dim_discrete = int(env.action_space.high[0]) + 1 # Number of discrete actions (0-4)
+    action_dim_continuous = 1 # Quantity is a single continuous value
+
+    logger.info(f"Environment dimensions: obs={observation_dim}, action_discrete={action_dim_discrete}, action_continuous={action_dim_continuous}")
 
     # Create agent
     if agent_type.upper() == "PPO":
         agent = PPOAgent(
             observation_dim=observation_dim,
-            action_dim=action_dim,
+            action_dim_discrete=action_dim_discrete,
+            action_dim_continuous=action_dim_continuous,
             hidden_dim=64,
             lr_actor=0.001,
             lr_critic=0.001,
@@ -252,7 +256,8 @@ def run_simple_training(
         }
         agent = MoEAgent(
             observation_dim=observation_dim,
-            action_dim=action_dim,
+            action_dim_discrete=action_dim_discrete,
+            action_dim_continuous=action_dim_continuous,
             hidden_dim=64,
             expert_configs=expert_configs
         )
