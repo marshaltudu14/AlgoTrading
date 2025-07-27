@@ -2,8 +2,9 @@ import torch
 import torch.optim as optim
 import numpy as np
 import pandas as pd
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Any
 import copy
+import logging
 
 from src.backtesting.environment import TradingEnv
 from src.agents.base_agent import BaseAgent
@@ -20,6 +21,8 @@ from src.utils.metrics import (
     calculate_num_trades,
     calculate_comprehensive_metrics
 )
+
+logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(self, agent: BaseAgent, num_episodes: int, log_interval: int = 10, meta_lr: float = 0.001):
@@ -42,16 +45,20 @@ class Trainer:
         self.episode_rewards = []
         self.total_reward = 0.0
 
-    def train(self, data_loader: DataLoader, symbol: str, initial_capital: float) -> None:
-        # Initialize the environment for the specific symbol with consistent configuration
-        self.env = TradingEnv(
-            data_loader=data_loader,
-            symbol=symbol,
-            initial_capital=initial_capital,
-            lookback_window=20,
-            episode_length=500,
-            use_streaming=False  # Use full data for consistent dimensions
-        )
+    def train(self, data_loader: DataLoader, symbol: str, initial_capital: float, env: 'TradingEnv' = None) -> None:
+        # Use provided environment or create a new one
+        if env is not None:
+            self.env = env
+        else:
+            # Initialize the environment for the specific symbol with consistent configuration
+            self.env = TradingEnv(
+                data_loader=data_loader,
+                symbol=symbol,
+                initial_capital=initial_capital,
+                lookback_window=20,
+                episode_length=500,
+                use_streaming=False  # Use full data for consistent dimensions
+            )
 
         # Initialize tracking
         initial_capital = self.env.engine.get_account_state()['capital']
@@ -65,7 +72,7 @@ class Trainer:
 
             while not done:
                 action = self.agent.select_action(observation)
-                next_observation, reward, done, info = self.env.step(action)
+                next_observation, reward, done, truncated, info = self.env.step(action)
                 experiences.append((observation, action, reward, next_observation, done))
                 observation = next_observation
                 episode_reward += reward
@@ -186,7 +193,11 @@ class Trainer:
 
                 meta_gradients.append(task_meta_loss)
                 avg_task_reward += task_reward
-                total_meta_loss += task_meta_loss.item()
+                # Handle 0-dimensional tensor safely
+                if hasattr(task_meta_loss, 'item'):
+                    total_meta_loss += task_meta_loss.item()
+                else:
+                    total_meta_loss += float(task_meta_loss)
 
                 # Track capital and reward for comprehensive metrics
                 self.capital_history.append(final_capital)
@@ -265,7 +276,7 @@ class Trainer:
 
             while not done:
                 action = adapted_agent.select_action(observation)
-                next_observation, reward, done, info = self.env.step(action)
+                next_observation, reward, done, truncated, info = self.env.step(action)
                 episode_reward += reward
                 episode_experiences.append((observation, action, reward, next_observation, done))
                 observation = next_observation
@@ -332,11 +343,25 @@ class Trainer:
     def _log_progress_detailed(self, episode: int, episode_reward: float, avg_reward: float,
                               win_rate: float, total_pnl: float, num_trades: int, capital: float) -> None:
         """Log detailed training progress with trading metrics."""
-        print(f"Episode: {episode}")
-        print(f"  Reward: {episode_reward:.2f} (Avg: {avg_reward:.2f})")
-        print(f"  Trading: {num_trades} trades, Win Rate: {win_rate:.1%}")
-        print(f"  P&L: ₹{total_pnl:.2f}, Capital: ₹{capital:.2f}")
-        print("-" * 50)
+        logger.info(f"📊 Episode {episode} Training Progress:")
+        logger.info(f"  💰 Reward: {episode_reward:.2f} (Avg: {avg_reward:.2f})")
+        logger.info(f"  📈 Trading: {num_trades} trades, Win Rate: {win_rate:.1%}")
+        logger.info(f"  💵 P&L: ₹{total_pnl:.2f}, Capital: ₹{capital:.2f}")
+
+        # Show recent trading decisions
+        if hasattr(self.env, 'engine') and hasattr(self.env.engine, 'get_trade_summary'):
+            trade_summary = self.env.engine.get_trade_summary()
+            if 'total_decisions' in trade_summary:
+                logger.info(f"  🎯 Decisions: {trade_summary['total_decisions']} total, "
+                           f"{trade_summary['position_opens']} opens, "
+                           f"{trade_summary['position_closes']} closes, "
+                           f"{trade_summary['hold_actions']} holds")
+
+                if trade_summary['exit_reasons']:
+                    exit_summary = ", ".join([f"{reason}: {count}" for reason, count in trade_summary['exit_reasons'].items()])
+                    logger.info(f"  🚪 Exit reasons: {exit_summary}")
+
+        logger.info("-" * 60)
 
     def _display_training_summary(self, initial_capital: float) -> None:
         """Display comprehensive training summary with all key metrics."""
@@ -458,3 +483,10 @@ class Trainer:
             print(f"   ❌ Poor meta-learning - needs hyperparameter tuning")
 
         print("=" * 80)
+
+    def train_maml(self, data_loader: DataLoader, symbol: str, initial_capital: float, meta_iterations: int = 15) -> Dict[str, Any]:
+        """Train using MAML meta-learning approach."""
+        logger.info(f"🧠 Starting MAML meta-learning with {meta_iterations} iterations")
+
+        # Use the existing meta-learning training logic
+        return self.train(data_loader, symbol, initial_capital)

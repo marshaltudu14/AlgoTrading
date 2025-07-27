@@ -123,12 +123,16 @@ class CoreTransformer(nn.Module):
         self._init_weights()
     
     def _init_weights(self):
-        """Initialize weights using Xavier uniform initialization."""
+        """Initialize weights using Xavier uniform initialization with smaller scale."""
         for module in self.modules():
             if isinstance(module, nn.Linear):
-                nn.init.xavier_uniform_(module.weight)
+                # Use smaller initialization scale for numerical stability
+                nn.init.xavier_uniform_(module.weight, gain=0.1)
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
+            elif isinstance(module, nn.LayerNorm):
+                nn.init.constant_(module.bias, 0)
+                nn.init.constant_(module.weight, 1.0)
     
     def forward(
         self, 

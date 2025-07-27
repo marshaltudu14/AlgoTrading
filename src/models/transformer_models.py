@@ -143,26 +143,26 @@ class MultiHeadTransformerModel(nn.Module):
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> dict:
         """
         Forward pass through multi-head model.
-        
+
         Args:
             x: Input tensor of shape (batch_size, seq_len, input_dim)
             mask: Optional attention mask
-            
+
         Returns:
             Dictionary mapping head names to their outputs
         """
         # Handle single timestep input
         if len(x.shape) == 2:
             x = x.unsqueeze(1)
-        
+
         # Get shared representation from transformer
         shared_repr = self.transformer(x, mask=mask)
-        
+
         # Apply each head to the shared representation
         outputs = {}
         for head_name, head_layer in self.heads.items():
             outputs[head_name] = head_layer(shared_repr)
-        
+
         return outputs
     
     def get_attention_weights(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None):
@@ -175,15 +175,15 @@ class MultiHeadTransformerModel(nn.Module):
 class ActorTransformerModel(MultiHeadTransformerModel):
     """
     Actor model using Transformer architecture with multi-head output.
-    
+
     This model outputs both discrete action probabilities and a continuous quantity.
     """
-    
+
     def __init__(
-        self, 
-        input_dim: int, 
-        hidden_dim: int, 
-        action_dim_discrete: int, 
+        self,
+        input_dim: int,
+        hidden_dim: int,
+        action_dim_discrete: int,
         action_dim_continuous: int,
         num_heads: int = 8,
         num_layers: int = 4,
@@ -199,24 +199,60 @@ class ActorTransformerModel(MultiHeadTransformerModel):
             dropout=dropout,
             max_seq_len=max_seq_len
         )
-        
-        # Softmax for action probabilities
-        # self.softmax = nn.Softmax(dim=-1) # Removed as MultiHeadTransformerModel handles outputs
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> dict:
         """
-        Forward pass returning action probabilities and quantity.
-        
+        Forward pass with proper activations for actor outputs.
+
         Args:
             x: Input tensor of shape (batch_size, seq_len, input_dim)
             mask: Optional attention mask
-            
+
         Returns:
-            Dictionary with 'action_type' (probabilities) and 'quantity' (raw prediction)
+            Dictionary with 'action_type' (probabilities) and 'quantity' (positive values)
         """
+        # Get raw outputs from parent
         outputs = super().forward(x, mask)
-        outputs['action_type'] = F.softmax(outputs['action_type'], dim=-1)
+
+        # Apply softmax to action_type logits for valid probabilities
+        # Add small epsilon for numerical stability
+        action_logits = outputs['action_type']
+        action_logits = torch.clamp(action_logits, min=-10, max=10)  # Prevent extreme values
+        outputs['action_type'] = F.softmax(action_logits, dim=-1)
+
+        # FORCE INTEGER QUANTITIES FOR PRODUCTION USE
+        # Apply sigmoid to quantity and scale to whole lots (1 to 5 lots)
+        quantity_raw = outputs['quantity']
+        quantity_raw = torch.clamp(quantity_raw, min=-5, max=5)  # Prevent extreme values
+
+        # Use a more aggressive approach to ensure integer outputs
+        # Map sigmoid output to discrete values: 1, 2, 3, 4, or 5
+        sigmoid_val = torch.sigmoid(quantity_raw)
+
+        # Discretize into 5 bins
+        if sigmoid_val < 0.2:
+            final_quantity = 1.0
+        elif sigmoid_val < 0.4:
+            final_quantity = 2.0
+        elif sigmoid_val < 0.6:
+            final_quantity = 3.0
+        elif sigmoid_val < 0.8:
+            final_quantity = 4.0
+        else:
+            final_quantity = 5.0
+
+        # Ensure it's exactly an integer
+        final_quantity = float(int(final_quantity))
+
+        # Debug logging - ALWAYS print to see if this code is being executed
+        print(f"QUANTITY DEBUG: raw={quantity_raw.item():.6f}, sigmoid={sigmoid_val.item():.6f}, final={final_quantity}")
+
+        # Return as tensor with same shape as original quantity_raw
+        outputs['quantity'] = torch.full_like(quantity_raw, final_quantity, dtype=torch.float32)
+
         return outputs
+
+
 
 
 class CriticTransformerModel(TransformerModel):

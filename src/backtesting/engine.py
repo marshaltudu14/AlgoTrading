@@ -1,10 +1,13 @@
 import logging
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
+from datetime import datetime
+import time
 
 from src.config.instrument import Instrument
 from src.config.config import RISK_REWARD_CONFIG
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class BacktestingEngine:
     def __init__(self, initial_capital: float, instrument: Instrument, trailing_stop_percentage: float = 0.02):
@@ -32,6 +35,13 @@ class BacktestingEngine:
         # Enhanced P&L tracking
         self._total_realized_pnl = 0.0  # Total P&L from all closed trades
         self._trade_count = 0  # Number of completed trades
+
+        # Real-time trade decision logging
+        self._current_step = 0
+        self._decision_log = []  # Detailed log of all decisions
+        self._position_entry_time = None
+        self._position_entry_reason = ""
+        self._last_decision_timestamp = None
 
     def reset(self):
         self._capital = self._initial_capital
@@ -61,50 +71,87 @@ class BacktestingEngine:
                 self._trailing_stop_price = self._peak_price * (1 + self.trailing_stop_percentage)
 
     def execute_trade(self, action: str, price: float, quantity: float, atr_value: float = 0.0, proxy_premium: float = 0.0) -> Tuple[float, float]:
+        """Execute trade with detailed real-time logging."""
+        self._current_step += 1
+        self._last_decision_timestamp = datetime.now()
+
+        # Log the decision being made
+        decision_log = {
+            'step': self._current_step,
+            'timestamp': self._last_decision_timestamp,
+            'action': action,
+            'price': price,
+            'quantity': quantity,
+            'atr': atr_value,
+            'proxy_premium': proxy_premium,
+            'capital_before': self._capital,
+            'position_before': self._current_position_quantity,
+            'is_position_open_before': self._is_position_open
+        }
+
         # Always update trailing stop if a position is open, regardless of action or quantity
         if self._is_position_open:
             self._update_trailing_stop(price)
 
         if price <= 0 or (quantity <= 0 and action != "HOLD"):
-            logging.warning(f"Invalid price ({price}) or quantity ({quantity} lots) for trade action {action}. Trade not executed.")
+            logger.warning(f"WARNING Step {self._current_step}: Invalid price ({price}) or quantity ({quantity} lots) for {action}")
+            decision_log['result'] = 'INVALID_PARAMETERS'
+            decision_log['reason'] = f"Invalid price ({price}) or quantity ({quantity})"
+            self._decision_log.append(decision_log)
             return 0.0, self._unrealized_pnl
 
         realized_pnl_this_trade = 0.0
         cost = 0.0
 
+        # Store original action for logging
+        original_action = action
+
         # Check for SL/TP/Trailing Stop hit if a position is open
+        exit_reason = None
         if self._is_position_open:
             if self._current_position_quantity > 0: # Long position
                 if price <= self._stop_loss_price:
-                    logging.info(f"SL hit for long position at {price:.2f}. Closing position.")
+                    exit_reason = f"STOP_LOSS_HIT"
+                    logger.info(f"🛑 Step {self._current_step}: SL hit for LONG position at ₹{price:.2f} (SL: ₹{self._stop_loss_price:.2f})")
                     action = "CLOSE_LONG"
                     quantity = self._current_position_quantity
                 elif price >= self._target_profit_price:
-                    logging.info(f"TP hit for long position at {price:.2f}. Closing position.")
+                    exit_reason = f"TARGET_PROFIT_HIT"
+                    logger.info(f"🎯 Step {self._current_step}: TP hit for LONG position at ₹{price:.2f} (TP: ₹{self._target_profit_price:.2f})")
                     action = "CLOSE_LONG"
                     quantity = self._current_position_quantity
                 elif price <= self._trailing_stop_price:
-                    logging.info(f"Trailing SL hit for long position at {price:.2f}. Closing position.")
+                    exit_reason = f"TRAILING_STOP_HIT"
+                    logger.info(f"📉 Step {self._current_step}: Trailing SL hit for LONG position at ₹{price:.2f} (Trail: ₹{self._trailing_stop_price:.2f})")
                     action = "CLOSE_LONG"
                     quantity = self._current_position_quantity
             elif self._current_position_quantity < 0: # Short position
                 if price >= self._stop_loss_price:
-                    logging.info(f"SL hit for short position at {price:.2f}. Closing position.")
+                    exit_reason = f"STOP_LOSS_HIT"
+                    logger.info(f"🛑 Step {self._current_step}: SL hit for SHORT position at ₹{price:.2f} (SL: ₹{self._stop_loss_price:.2f})")
                     action = "CLOSE_SHORT"
                     quantity = abs(self._current_position_quantity)
                 elif price <= self._target_profit_price:
-                    logging.info(f"TP hit for short position at {price:.2f}. Closing position.")
+                    exit_reason = f"TARGET_PROFIT_HIT"
+                    logger.info(f"🎯 Step {self._current_step}: TP hit for SHORT position at ₹{price:.2f} (TP: ₹{self._target_profit_price:.2f})")
                     action = "CLOSE_SHORT"
                     quantity = abs(self._current_position_quantity)
                 elif price >= self._trailing_stop_price:
-                    logging.info(f"Trailing SL hit for short position at {price:.2f}. Closing position.")
+                    exit_reason = f"TRAILING_STOP_HIT"
+                    logger.info(f"📈 Step {self._current_step}: Trailing SL hit for SHORT position at ₹{price:.2f} (Trail: ₹{self._trailing_stop_price:.2f})")
                     action = "CLOSE_SHORT"
                     quantity = abs(self._current_position_quantity)
 
         if action == "BUY_LONG":
             if self._current_position_quantity != 0:
-                logging.warning(f"Cannot BUY_LONG. Already have an open position ({self._current_position_quantity}). Trade not executed.")
+                logger.info(f"INFO Step {self._current_step}: Cannot BUY_LONG - already have position ({self._current_position_quantity})")
+                decision_log['result'] = 'REJECTED_EXISTING_POSITION'
+                decision_log['reason'] = f"Already have position: {self._current_position_quantity}"
+                self._decision_log.append(decision_log)
                 return 0.0, self._unrealized_pnl
+            # Calculate cost: quantity (lots) × lot_size × price + brokerage
+            # For indices: quantity=2 lots, lot_size=25 → actual_quantity=50
+            # For stocks: quantity=2 lots, lot_size=1 → actual_quantity=2
             if self.instrument.type == "OPTION":
                 cost = (proxy_premium * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
                 self._premium_paid_per_lot = proxy_premium # Store premium for options P&L
@@ -112,15 +159,19 @@ class BacktestingEngine:
                 # For STOCK, cost = stock price * quantity * lot_size (lot_size = 1 for stocks)
                 cost = (price * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
             if self._capital < cost:
-                logging.warning(f"Insufficient capital to BUY_LONG {quantity} at {price}. Capital: {self._capital:.2f}, Cost: {cost:.2f}. Trade not executed.")
+                logger.warning(f"💸 Step {self._current_step}: Insufficient capital for BUY_LONG - Need: ₹{cost:.2f}, Have: ₹{self._capital:.2f}")
+                decision_log['result'] = 'REJECTED_INSUFFICIENT_CAPITAL'
+                decision_log['reason'] = f"Need: ₹{cost:.2f}, Have: ₹{self._capital:.2f}"
+                self._decision_log.append(decision_log)
                 return 0.0, self._unrealized_pnl
 
+            # Execute the trade
             self._capital -= cost
             self._current_position_quantity = quantity
             self._current_position_entry_price = price
             self._is_position_open = True
-
-
+            self._position_entry_time = self._last_decision_timestamp
+            self._position_entry_reason = f"BUY_LONG signal at step {self._current_step}"
 
             # Use centralized risk-reward configuration
             risk_multiplier = RISK_REWARD_CONFIG['risk_multiplier']
@@ -130,12 +181,29 @@ class BacktestingEngine:
             self._target_profit_price = price + (atr_value * reward_multiplier)  # TP = reward_multiplier * ATR above entry for long
             self._peak_price = price # Initialize peak price for trailing stop
             self._trailing_stop_price = self._peak_price * (1 - self.trailing_stop_percentage)
-            logging.info(f"Executed BUY_LONG. Quantity: {quantity}, Price: {price}. New position: {self._current_position_quantity:.2f} at {self._current_position_entry_price:.2f}. SL: {self._stop_loss_price:.2f}, TP: {self._target_profit_price:.2f}, Trailing SL: {self._trailing_stop_price:.2f}")
-            logging.info(f"RR Config - Risk: {risk_multiplier}x ATR ({atr_value:.2f}), Reward: {reward_multiplier}x ATR, RR Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
+
+            # Detailed position entry logging
+            logger.info(f"🟢 Step {self._current_step}: BUY_LONG EXECUTED")
+            logger.info(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Cost: ₹{cost:.2f})")
+            logger.info(f"   🛑 Stop Loss: ₹{self._stop_loss_price:.2f} ({risk_multiplier}x ATR)")
+            logger.info(f"   🎯 Target: ₹{self._target_profit_price:.2f} ({reward_multiplier}x ATR)")
+            logger.info(f"   📉 Trailing SL: ₹{self._trailing_stop_price:.2f} ({self.trailing_stop_percentage:.1%})")
+            logger.info(f"   💰 Capital remaining: ₹{self._capital:.2f}")
+            logger.info(f"   📈 Risk-Reward Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
+
+            # Update decision log
+            decision_log['result'] = 'POSITION_OPENED'
+            decision_log['position_type'] = 'LONG'
+            decision_log['entry_price'] = price
+            decision_log['stop_loss'] = self._stop_loss_price
+            decision_log['target_profit'] = self._target_profit_price
+            decision_log['trailing_stop'] = self._trailing_stop_price
+            decision_log['cost'] = cost
+            decision_log['capital_after'] = self._capital
 
         elif action == "SELL_SHORT":
             if self._current_position_quantity != 0:
-                logging.warning(f"Cannot SELL_SHORT. Already have an open position ({self._current_position_quantity}). Trade not executed.")
+                logging.info(f"Cannot SELL_SHORT. Already have an open position ({self._current_position_quantity}). Trade not executed.")
                 return 0.0, self._unrealized_pnl
             if self.instrument.type == "OPTION":
                 cost = (proxy_premium * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
@@ -293,6 +361,30 @@ class BacktestingEngine:
                 "unrealized_pnl_after_trade": self._unrealized_pnl
             })
 
+        # Complete decision log entry
+        decision_log.update({
+            'capital_after': self._capital,
+            'position_after': self._current_position_quantity,
+            'realized_pnl': realized_pnl_this_trade,
+            'unrealized_pnl': self._unrealized_pnl,
+            'exit_reason': exit_reason,
+            'action_executed': action,
+            'original_action': original_action
+        })
+
+        # Set result if not already set
+        if 'result' not in decision_log:
+            if action == "HOLD":
+                decision_log['result'] = 'HOLD_ACTION'
+            elif action in ["CLOSE_LONG", "CLOSE_SHORT"]:
+                decision_log['result'] = 'POSITION_CLOSED'
+            elif action in ["BUY_LONG", "SELL_SHORT"]:
+                decision_log['result'] = 'POSITION_OPENED'
+            else:
+                decision_log['result'] = 'ACTION_EXECUTED'
+
+        self._decision_log.append(decision_log)
+
         return realized_pnl_this_trade, self._unrealized_pnl
 
     def _update_unrealized_pnl(self, current_price: float):
@@ -334,4 +426,43 @@ class BacktestingEngine:
 
     def get_trade_history(self) -> list:
         return self._trade_history
+
+    def get_decision_log(self):
+        """Get detailed log of all trading decisions."""
+        return self._decision_log
+
+    def get_recent_decisions(self, count: int = 10):
+        """Get the most recent trading decisions."""
+        return self._decision_log[-count:] if self._decision_log else []
+
+    def get_trade_summary(self):
+        """Get summary of trading activity with detailed decision analysis."""
+        if not self._decision_log:
+            return {"message": "No trading decisions recorded"}
+
+        total_decisions = len(self._decision_log)
+        position_opens = len([d for d in self._decision_log if d.get('result') == 'POSITION_OPENED'])
+        position_closes = len([d for d in self._decision_log if d.get('result') == 'POSITION_CLOSED'])
+        holds = len([d for d in self._decision_log if d.get('result') == 'HOLD_ACTION'])
+        rejections = len([d for d in self._decision_log if 'REJECTED' in d.get('result', '')])
+
+        # Analyze exit reasons
+        exit_reasons = {}
+        for decision in self._decision_log:
+            if decision.get('exit_reason'):
+                reason = decision['exit_reason']
+                exit_reasons[reason] = exit_reasons.get(reason, 0) + 1
+
+        return {
+            'total_decisions': total_decisions,
+            'position_opens': position_opens,
+            'position_closes': position_closes,
+            'hold_actions': holds,
+            'rejected_actions': rejections,
+            'exit_reasons': exit_reasons,
+            'current_step': self._current_step,
+            'total_trades_completed': len(self._trade_history),
+            'current_position': self._current_position_quantity,
+            'is_position_open': self._is_position_open
+        }
 

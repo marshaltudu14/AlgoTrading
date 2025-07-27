@@ -17,6 +17,7 @@ from src.memory.episodic_memory import ExternalMemory
 from src.reasoning.market_classifier import MarketClassifier
 from src.reasoning.pattern_recognizer import PatternRecognizer
 from src.agents.base_agent import BaseAgent
+from src.utils.dynamic_params import DynamicParameterManager, DynamicParams
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +131,19 @@ class AutonomousAgent(BaseAgent):
 
         # Store hyperparameter history for tracking evolution
         self.hyperparameter_history = [self.hyperparameters.copy()]
+
+        # Enhanced self-adaptation capabilities
+        self.param_manager = DynamicParameterManager()
+        self.adaptation_history = []
+        self.performance_history = []
+        self.current_adaptation_cycle = 0
+        self.adaptation_frequency = 50  # Adapt every N episodes
+        self.best_performance = -float('inf')
+        self.best_parameters = self.hyperparameters.copy()
+        self.adaptation_enabled = True
+        self.performance_window = 20  # Look at last N episodes for performance evaluation
+
+        logger.info("🤖 Enhanced Autonomous Agent initialized with complete self-adaptation")
         
         # State embedding layer (to convert market state to memory embedding space)
         self.state_embedder = nn.Sequential(
@@ -669,3 +683,108 @@ class AutonomousAgent(BaseAgent):
             }
 
         return stats
+
+    def adapt_autonomously(self, performance_metrics: Dict[str, Any]) -> bool:
+        """
+        Perform autonomous adaptation of all parameters based on performance.
+        Returns True if significant adaptations were made.
+        """
+        if not self.adaptation_enabled:
+            return False
+
+        current_performance = performance_metrics.get('total_reward', 0.0)
+        self.performance_history.append(current_performance)
+
+        # Check if adaptation is needed
+        if len(self.performance_history) < self.adaptation_frequency:
+            return False
+
+        # Compute recent performance trend
+        recent_performance = np.mean(self.performance_history[-self.performance_window:])
+
+        # Determine if adaptation is needed
+        performance_threshold = self.best_performance * 0.8  # Adapt if performance drops below 80% of best
+        needs_adaptation = (recent_performance < performance_threshold or
+                          len(self.performance_history) % (self.adaptation_frequency * 2) == 0)
+
+        if not needs_adaptation:
+            return False
+
+        logger.info(f"🔧 Autonomous adaptation cycle #{self.current_adaptation_cycle + 1}")
+        logger.info(f"   Recent performance: {recent_performance:.4f}")
+        logger.info(f"   Best performance: {self.best_performance:.4f}")
+
+        changes_made = False
+
+        # Adapt learning rate based on performance trend
+        if recent_performance < self.best_performance * 0.5:  # Poor performance
+            self.hyperparameters['learning_rate'] *= 0.8  # Reduce learning rate
+            self.hyperparameters['exploration_noise'] *= 1.2  # Increase exploration
+            changes_made = True
+            logger.info(f"   📉 Poor performance: reduced LR to {self.hyperparameters['learning_rate']:.6f}")
+
+        elif recent_performance > self.best_performance * 0.9:  # Good performance
+            self.hyperparameters['learning_rate'] *= 1.1  # Increase learning rate slightly
+            self.hyperparameters['exploration_noise'] *= 0.95  # Reduce exploration
+            changes_made = True
+            logger.info(f"   📈 Good performance: increased LR to {self.hyperparameters['learning_rate']:.6f}")
+
+        # Adapt batch size based on data complexity
+        data_complexity = performance_metrics.get('data_complexity', 0.5)
+        if data_complexity > 0.7 and self.hyperparameters['batch_size'] < 64:
+            self.hyperparameters['batch_size'] = min(64, int(self.hyperparameters['batch_size'] * 1.5))
+            changes_made = True
+            logger.info(f"   🏗️ High complexity: increased batch size to {self.hyperparameters['batch_size']}")
+
+        # Adapt risk tolerance based on volatility
+        volatility = performance_metrics.get('volatility', 0.5)
+        if volatility > 0.8:  # High volatility
+            self.hyperparameters['risk_tolerance'] = max(0.2, self.hyperparameters['risk_tolerance'] * 0.9)
+            changes_made = True
+            logger.info(f"   🛡️ High volatility: reduced risk tolerance to {self.hyperparameters['risk_tolerance']:.3f}")
+
+        # Update best performance and parameters
+        if recent_performance > self.best_performance:
+            self.best_performance = recent_performance
+            self.best_parameters = self.hyperparameters.copy()
+            logger.info(f"   🏆 New best performance: {self.best_performance:.4f}")
+
+        # Store adaptation history
+        self.adaptation_history.append({
+            'cycle': self.current_adaptation_cycle,
+            'performance': recent_performance,
+            'parameters': self.hyperparameters.copy(),
+            'changes_made': changes_made
+        })
+
+        # Update hyperparameter history
+        if changes_made:
+            self.hyperparameter_history.append(self.hyperparameters.copy())
+
+        self.current_adaptation_cycle += 1
+        return changes_made
+
+    def get_adaptation_summary(self) -> Dict[str, Any]:
+        """Get summary of autonomous adaptations."""
+        if not self.performance_history:
+            return {'status': 'No performance data available'}
+
+        return {
+            'total_adaptations': self.current_adaptation_cycle,
+            'best_performance': self.best_performance,
+            'current_performance': np.mean(self.performance_history[-10:]) if len(self.performance_history) >= 10 else 0.0,
+            'performance_trend': self._compute_performance_trend(),
+            'current_parameters': self.hyperparameters.copy(),
+            'adaptation_enabled': self.adaptation_enabled,
+            'total_episodes': len(self.performance_history)
+        }
+
+    def _compute_performance_trend(self) -> float:
+        """Compute performance trend (positive = improving)."""
+        if len(self.performance_history) < 20:
+            return 0.0
+
+        recent = np.mean(self.performance_history[-10:])
+        older = np.mean(self.performance_history[-20:-10])
+
+        return recent - older

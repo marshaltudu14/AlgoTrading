@@ -25,9 +25,14 @@ from src.config.config import INITIAL_CAPITAL
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Enable detailed logging for trading components
+logging.getLogger('src.backtesting.engine').setLevel(logging.INFO)
+logging.getLogger('src.backtesting.environment').setLevel(logging.INFO)
+logging.getLogger('src.training.trainer').setLevel(logging.INFO)
 
 def get_available_symbols(data_dir: str = "data/final") -> List[str]:
     """Get list of available trading symbols from data directory."""
@@ -350,6 +355,9 @@ def run_simple_training(
 
 def main():
     """Main entry point for RL training."""
+    # Initialize error logger
+    from src.utils.error_logger import error_logger
+
     parser = argparse.ArgumentParser(description="Run RL training for trading")
     parser.add_argument("--symbols", nargs="+", help="Trading symbols to train on")
     parser.add_argument("--data-dir", default="data/final", help="Data directory")
@@ -491,6 +499,13 @@ def main():
     except Exception as e:
         logger.error(f"Training failed: {e}")
         raise
+    finally:
+        # Write error summary
+        from src.utils.error_logger import error_logger
+        error_logger.write_summary()
+        summary = error_logger.get_summary()
+        if summary['total_errors'] > 0 or summary['total_warnings'] > 0:
+            logger.info(f"📋 Error Summary: {summary['total_errors']} errors, {summary['total_warnings']} warnings logged to training_errors.txt")
 
 if __name__ == "__main__":
     main()

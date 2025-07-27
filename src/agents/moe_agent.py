@@ -67,6 +67,19 @@ class MoEAgent(BaseAgent):
                 action_outputs = expert.policy_old(state_tensor)
                 action_probs = action_outputs['action_type'].squeeze(0)
                 quantity_pred = action_outputs['quantity'].squeeze(0)
+
+                # Add stability checks for each expert's output
+                if torch.isnan(action_probs).any() or torch.isinf(action_probs).any():
+                    logger.warning(f"NaN/Inf detected in expert action_probs, using uniform distribution")
+                    action_probs = torch.ones_like(action_probs) / action_probs.size(0)
+
+                # Ensure probabilities are positive and sum to 1
+                action_probs = torch.clamp(action_probs, min=1e-8)
+                action_probs = action_probs / action_probs.sum()
+
+                # Clamp quantity to reasonable range
+                quantity_pred = torch.clamp(quantity_pred, min=1.0, max=5.0)
+
                 expert_action_probs.append(action_probs)
                 expert_quantities.append(quantity_pred)
 
@@ -80,6 +93,15 @@ class MoEAgent(BaseAgent):
         # Weighted average of action probabilities and quantities
         weighted_action_probs = torch.sum(expert_probs_tensor * expert_weights_expanded_discrete, dim=0)
         weighted_quantity = torch.sum(expert_quantities_tensor * expert_weights_expanded_continuous, dim=0)
+
+        # Add stability checks for NaN/Inf values
+        if torch.isnan(weighted_action_probs).any() or torch.isinf(weighted_action_probs).any():
+            logger.warning("NaN/Inf detected in weighted_action_probs, using uniform distribution")
+            weighted_action_probs = torch.ones_like(weighted_action_probs) / weighted_action_probs.size(0)
+
+        # Ensure probabilities are positive and sum to 1
+        weighted_action_probs = torch.clamp(weighted_action_probs, min=1e-8)
+        weighted_action_probs = weighted_action_probs / weighted_action_probs.sum()
 
         # Sample discrete action from the weighted probability distribution
         from torch.distributions import Categorical

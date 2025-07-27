@@ -114,11 +114,14 @@ class AutonomousTrainer:
         
         # Initialize data and environment
         self.data_loader = DataLoader()
-        self.instruments = load_instruments()
-        self.instrument = self.instruments.get(config.symbol)
-        
+        self.instruments = load_instruments("config/instruments.yaml")
+
+        # Extract base symbol (remove timeframe suffix)
+        base_symbol = self.data_loader.get_base_symbol(config.symbol)
+        self.instrument = self.instruments.get(base_symbol)
+
         if self.instrument is None:
-            raise ValueError(f"Instrument {config.symbol} not found")
+            raise ValueError(f"Instrument {base_symbol} not found (original symbol: {config.symbol})")
         
         # Population and training state
         self.population: List[AutonomousAgent] = []
@@ -186,12 +189,34 @@ class AutonomousTrainer:
             lookback_window=self.config.lookback_window,
             episode_length=self.config.episode_length
         )
+
+        # Reset environment to get actual observation dimension
+        obs = env.reset()
+        actual_obs_dim = obs.shape[0] if hasattr(obs, 'shape') else len(obs)
+
+        # Update agent's observation dimension if mismatch
+        if actual_obs_dim != self.config.observation_dim:
+            from src.utils.error_logger import log_warning
+            log_warning(f"Observation dimension mismatch: expected {self.config.observation_dim}, got {actual_obs_dim}",
+                       f"Agent evaluation for symbol {self.config.symbol}")
+            # Update the agent's observation dimension instead of skipping
+            agent.observation_dim = actual_obs_dim
+            # Reinitialize the agent's world model with correct dimensions
+            if hasattr(agent, 'world_model'):
+                # Recreate world model with correct input dimension
+                from src.models.world_model import TransformerWorldModel
+                agent.world_model = TransformerWorldModel(
+                    input_dim=actual_obs_dim,
+                    action_dim=agent.action_dim,
+                    hidden_dim=agent.hidden_dim,
+                    prediction_horizon=agent.prediction_horizon
+                )
         
         # Run multiple episodes for robust evaluation
         episode_results = []
         
         for episode in range(self.config.episodes_per_evaluation):
-            obs, _ = env.reset()
+            obs = env.reset()
             done = False
             episode_reward = 0.0
             step_count = 0
@@ -282,6 +307,8 @@ class AutonomousTrainer:
                            f"PF={metrics.profit_factor:.3f}")
                 
             except Exception as e:
+                from src.utils.error_logger import log_error
+                log_error(f"Error evaluating agent {i+1}: {e}", f"Generation: {self.generation}, Symbol: {self.config.symbol}")
                 logger.error(f"Error evaluating agent {i+1}: {e}")
                 fitness_scores.append(0.0)
                 performance_metrics.append(PerformanceMetrics())
@@ -520,10 +547,12 @@ def run_autonomous_stage(config: Dict[str, Any]) -> Dict[str, Any]:
     """
     logger.info("Starting autonomous training stage")
 
-    # Create training configuration with initial capital from config
+    # Create training configuration with symbol and initial capital from config
     autonomous_config = config.get('autonomous', {})
     # Ensure initial_capital comes from the global config
     autonomous_config.pop('initial_capital', None)  # Remove if present
+    # Add symbol from the main config
+    autonomous_config['symbol'] = config.get('symbol', 'NIFTY')
     training_config = AutonomousTrainingConfig(**autonomous_config)
 
     # Initialize trainer
@@ -551,16 +580,13 @@ def run_autonomous_stage(config: Dict[str, Any]) -> Dict[str, Any]:
                    f"Best fitness: {stats['best_fitness']:.4f}, "
                    f"Avg fitness: {stats['current_avg_fitness']:.4f}")
 
-    # Save only the final champion with complete state
-    if trainer.best_agent is not None:
-        symbol = config.get('symbol', 'NIFTY')
-        champion_path = os.path.join(training_config.save_directory, f"{symbol}_autonomous_final.pth")
-        trainer.save_champion_agent(champion_path)
-        logger.info(f"Saved champion agent to {champion_path}")
+    # Don't save individual champion agents - only the universal model is saved
+    # The universal model is saved by the sequence manager
+    logger.info("Autonomous training completed - universal model will be saved by sequence manager")
 
     # Return final statistics
     final_stats = trainer.get_training_statistics()
-    final_stats['champion_path'] = champion_path if trainer.best_agent else None
+    final_stats['champion_path'] = None  # No individual champion saved
 
     logger.info("Autonomous training stage completed")
     return final_stats

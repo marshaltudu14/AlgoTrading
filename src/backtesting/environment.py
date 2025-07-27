@@ -1,7 +1,7 @@
 import gymnasium as gym
 import numpy as np
 import pandas as pd
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 import logging
 import random
 
@@ -9,6 +9,7 @@ from src.utils.data_loader import DataLoader
 from src.backtesting.engine import BacktestingEngine
 from src.config.instrument import Instrument
 from src.utils.instrument_loader import load_instruments
+from src.utils.data_feeding_strategy import DataFeedingStrategyManager, FeedingStrategy
 from src.config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL
 
 # Configure logger
@@ -69,6 +70,9 @@ class TradingEnv(gym.Env):
         self.data = None  # This will store the loaded data for the current episode
         self.current_step = 0
 
+        # Initialize data feeding strategy manager
+        self.feeding_strategy_manager = None  # Will be initialized when data is first loaded
+
         # Initialize data length for streaming mode
         if self.use_streaming:
             self.total_data_length = self.data_loader.get_data_length(self.symbol)
@@ -96,12 +100,21 @@ class TradingEnv(gym.Env):
         self.observation_space = None  # Will be set after data loading
         self.fixed_feature_columns = None  # Fixed feature columns to ensure consistency
 
-    def reset(self) -> np.ndarray:
-        """Reset environment and load data segment for new episode."""
+    def reset(self, performance_metrics: Optional[Dict] = None) -> np.ndarray:
+        """Reset environment and load data segment for new episode with intelligent data feeding."""
         if self.use_streaming:
             self._load_episode_data_segment()
         else:
             self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
+
+            # Initialize feeding strategy manager if not already done
+            if self.feeding_strategy_manager is None:
+                self.feeding_strategy_manager = DataFeedingStrategyManager(
+                    data=self.data,
+                    lookback_window=self.lookback_window,
+                    episode_length=self.episode_length
+                )
+                logger.info(f"🎯 Data feeding strategy initialized: {self.feeding_strategy_manager.current_strategy.value}")
 
         # Set observation space dimensions based on actual data
         if self.observation_space is None:
@@ -113,16 +126,26 @@ class TradingEnv(gym.Env):
 
         self.engine.reset()
 
-        # Randomize starting point to ensure different ATR and price combinations
-        # Leave enough room for episode_length and ensure we don't go beyond data
-        max_start = len(self.data) - self.episode_length - self.lookback_window
-        if max_start > self.lookback_window:
-            random_start = random.randint(self.lookback_window - 1, max_start)
-            self.current_step = random_start
-            logger.debug(f"Episode starting at step {self.current_step} (randomized)")
+        # Use intelligent data feeding strategy for episode start position
+        if self.feeding_strategy_manager is not None:
+            start_idx, end_idx = self.feeding_strategy_manager.get_next_episode_data(performance_metrics)
+            # Ensure we have enough data for lookback
+            self.current_step = max(start_idx + self.lookback_window - 1, self.lookback_window - 1)
+            self.episode_end_step = min(end_idx, len(self.data) - 1)
+            logger.debug(f"Strategic episode: steps {self.current_step} to {self.episode_end_step} "
+                        f"(strategy: {self.feeding_strategy_manager.current_strategy.value})")
         else:
-            self.current_step = self.lookback_window - 1  # Fallback to original behavior
-            logger.debug(f"Episode starting at step {self.current_step} (fixed - insufficient data for randomization)")
+            # Fallback to random positioning
+            max_start = len(self.data) - self.episode_length - self.lookback_window
+            if max_start > self.lookback_window:
+                random_start = random.randint(self.lookback_window - 1, max_start)
+                self.current_step = random_start
+                self.episode_end_step = min(self.current_step + self.episode_length, len(self.data) - 1)
+                logger.debug(f"Episode starting at step {self.current_step} (randomized)")
+            else:
+                self.current_step = self.lookback_window - 1
+                self.episode_end_step = len(self.data) - 1
+                logger.debug(f"Episode starting at step {self.current_step} (fixed - insufficient data for randomization)")
 
         # Reset reward tracking
         self.returns_history = []
@@ -219,16 +242,28 @@ class TradingEnv(gym.Env):
         # Calculate proxy premium for options simulation (based on ATR)
         proxy_premium = self._calculate_proxy_premium(current_price, current_atr)
 
-        # Parse action: [action_type, quantity]
-        if isinstance(action, (list, np.ndarray)) and len(action) >= 2:
+        # Parse action: [action_type, quantity] or (action_type, quantity)
+        if isinstance(action, (list, np.ndarray, tuple)) and len(action) >= 2:
             action_type = int(np.clip(action[0], 0, 4))
             quantity = max(0, float(action[1]))  # Ensure non-negative quantity
+            # Force quantity to be integer for production use
+            quantity = float(int(round(quantity)))
         else:
             # Backward compatibility: treat as discrete action with quantity 1
-            action_type = int(action) if isinstance(action, (int, float)) else 4
+            try:
+                action_type = int(action) if isinstance(action, (int, float)) else 4
+            except (ValueError, TypeError):
+                action_type = 4  # Default to HOLD if conversion fails
             quantity = 1.0 if action_type != 4 else 0.0
 
-        # Execute trade based on action type and quantity
+        # DEBUG: Log every action to see what the agent is doing
+        action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
+        action_name = action_names[action_type]
+
+        if self.current_step % 10 == 0 or action_type != 4:  # Log every 10 steps or non-HOLD actions
+            logger.info(f"🎯 Step {self.current_step}: Agent action: {action} -> {action_name} (qty: {quantity})")
+            logger.info(f"   Current price: ₹{current_price:.2f}, Capital: ₹{prev_capital:.2f}")
+
         if action_type == 0: # BUY_LONG
             self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)
         elif action_type == 1: # SELL_SHORT
@@ -239,6 +274,15 @@ class TradingEnv(gym.Env):
             self.engine.execute_trade("CLOSE_SHORT", current_price, quantity, current_atr, proxy_premium)
         elif action_type == 4: # HOLD
             self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
+
+        # Log significant trading actions (not HOLD) every 50 steps or for trades
+        if action_type != 4 or self.current_step % 50 == 0:
+            account_state = self.engine.get_account_state(current_price=current_price)
+            if action_type != 4:  # Actual trade
+                logger.info(f"🎯 Step {self.current_step}: {action_name} @ ₹{current_price:.2f} (Qty: {quantity})")
+                logger.info(f"   Position: {account_state['current_position_quantity']}, Capital: ₹{account_state['capital']:.2f}")
+            else:  # Periodic status update
+                logger.info(f"📊 Step {self.current_step}: Capital: ₹{account_state['capital']:.2f}, Position: {account_state['current_position_quantity']}")
 
         # Calculate reward using selected reward function
         current_capital = self.engine.get_account_state(current_price=current_price)['capital']
@@ -260,6 +304,11 @@ class TradingEnv(gym.Env):
         shaped_reward = self._apply_reward_shaping(base_reward, action_type, current_capital, prev_capital)
         reward = shaped_reward
 
+        # DEBUG: Log reward calculation
+        if self.current_step % 20 == 0 or abs(reward) > 0.1:
+            logger.info(f"💰 Step {self.current_step}: Reward = {reward:.4f} (base: {base_reward:.4f}, shaped: {shaped_reward:.4f})")
+            logger.info(f"   Capital: {prev_capital:.2f} -> {current_capital:.2f} (change: {current_capital - prev_capital:.2f})")
+
         self.last_action_type = action_type
 
         # Check termination conditions
@@ -271,7 +320,9 @@ class TradingEnv(gym.Env):
 
         info = {"termination_reason": termination_reason} if termination_reason else {}
 
-        return self._get_observation(), reward, done, info
+        # Return 5 values as expected by modern gym environments
+        truncated = False  # We handle episode termination through done
+        return self._get_observation(), reward, done, truncated, info
 
     def _force_close_open_positions(self):
         """Force close any open positions at the end of an episode to ensure accurate final capital."""
@@ -417,7 +468,15 @@ class TradingEnv(gym.Env):
         return reward_adjustment
 
     def _check_termination_conditions(self, current_capital: float) -> tuple:
-        """Check if episode should terminate due to risk management conditions."""
+        """Check if episode should terminate due to risk management conditions or strategic episode end."""
+        # Check strategic episode end (if using data feeding strategy)
+        if hasattr(self, 'episode_end_step') and self.current_step >= self.episode_end_step:
+            return True, f"strategic_episode_end_step_{self.current_step}"
+
+        # Check if we've reached the end of available data
+        if self.current_step >= len(self.data) - 1:
+            return True, f"end_of_data_step_{self.current_step}"
+
         # Update peak equity
         if current_capital > self.peak_equity:
             self.peak_equity = current_capital
@@ -512,49 +571,95 @@ class TradingEnv(gym.Env):
         # Calculate distance to trailing stop
         distance_to_trail = self._calculate_distance_to_trail(current_price)
 
-        # Create raw observation
-        raw_observation = np.concatenate([
-            market_data.flatten(),
-            np.array([
-                account_state['capital'],
-                account_state['current_position_quantity'],
-                account_state['current_position_entry_price'],
-                account_state['unrealized_pnl'],
+        # Create raw observation with proper validation
+        try:
+            # Ensure market_data is properly shaped
+            market_features = market_data.flatten().astype(np.float32)
+
+            # Create account state features
+            account_features = np.array([
+                float(account_state['capital']),
+                float(account_state['current_position_quantity']),
+                float(account_state['current_position_entry_price']),
+                float(account_state['unrealized_pnl']),
                 1.0 if account_state['is_position_open'] else 0.0,
-                distance_to_trail
-            ])
-        ])
+                float(distance_to_trail)
+            ], dtype=np.float32)
 
-        # Store raw observation for statistics
-        self.observation_history.append(raw_observation.copy())
+            # Concatenate all features
+            raw_observation = np.concatenate([market_features, account_features])
 
-        # Apply z-score normalization
-        normalized_observation = self._apply_zscore_normalization(raw_observation)
+            # Ensure no invalid values
+            if not np.isfinite(raw_observation).all():
+                # Replace invalid values with zeros
+                raw_observation = np.where(np.isfinite(raw_observation), raw_observation, 0.0)
 
-        return normalized_observation.astype(np.float32)
+            # Ensure consistent shape
+            if self.observation_dim is not None and len(raw_observation) != self.observation_dim:
+                if len(raw_observation) < self.observation_dim:
+                    # Pad with zeros
+                    raw_observation = np.pad(raw_observation, (0, self.observation_dim - len(raw_observation)), 'constant')
+                else:
+                    # Truncate
+                    raw_observation = raw_observation[:self.observation_dim]
+
+            # Store raw observation for statistics
+            self.observation_history.append(raw_observation.copy())
+
+            # Apply z-score normalization
+            normalized_observation = self._apply_zscore_normalization(raw_observation)
+
+            return normalized_observation.astype(np.float32)
+
+        except Exception as e:
+            print(f"Error creating observation: {e}")
+            # Return a zero observation with correct shape
+            if self.observation_dim is not None:
+                return np.zeros(self.observation_dim, dtype=np.float32)
+            else:
+                return np.zeros(1246, dtype=np.float32)  # Default fallback
 
     def _apply_zscore_normalization(self, observation: np.ndarray) -> np.ndarray:
         """Apply z-score normalization to observation."""
         if len(self.observation_history) < 10:  # Need minimum history
             return observation  # Return raw observation initially
 
-        # Use recent history for statistics (last 100 observations)
-        recent_history = np.array(self.observation_history[-100:])
+        try:
+            # Use recent history for statistics (last 100 observations)
+            # Ensure all observations have the same shape
+            recent_observations = []
+            target_shape = observation.shape
 
-        # Calculate mean and std for each feature
-        means = np.mean(recent_history, axis=0)
-        stds = np.std(recent_history, axis=0)
+            for obs in self.observation_history[-100:]:
+                if obs.shape == target_shape:
+                    recent_observations.append(obs)
+                else:
+                    # Skip observations with different shapes
+                    continue
 
-        # Avoid division by zero
-        stds = np.where(stds == 0, 1.0, stds)
+            if len(recent_observations) < 5:  # Need minimum valid history
+                return observation
 
-        # Apply z-score normalization
-        normalized = (observation - means) / stds
+            recent_history = np.stack(recent_observations, axis=0)
 
-        # Clip extreme values to prevent instability
-        normalized = np.clip(normalized, -5.0, 5.0)
+            # Calculate mean and std for each feature
+            means = np.mean(recent_history, axis=0)
+            stds = np.std(recent_history, axis=0)
 
-        return normalized
+            # Avoid division by zero
+            stds = np.where(stds == 0, 1.0, stds)
+
+            # Apply z-score normalization
+            normalized = (observation - means) / stds
+
+            # Clip extreme values to prevent instability
+            normalized = np.clip(normalized, -5.0, 5.0)
+
+            return normalized
+
+        except Exception as e:
+            print(f"Warning: Z-score normalization failed: {e}, returning raw observation")
+            return observation
 
     def _calculate_distance_to_trail(self, current_price: float) -> float:
         """Calculate normalized distance to trailing stop."""

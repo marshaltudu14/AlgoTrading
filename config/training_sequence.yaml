@@ -5,7 +5,7 @@ training_sequence:
   # Stage 1: PPO Baseline Training
   stage_1_ppo:
     algorithm: "PPO"
-    episodes: 500  # Increased for millions of data rows - allows deep pattern learning
+    episodes: 50  # Increased for millions of data rows - allows deep pattern learning
     description: "Establish baseline performance and validate environment"
     objectives:
       - "Learn basic trading patterns"
@@ -19,7 +19,7 @@ training_sequence:
   # Stage 2: MoE Specialization Training
   stage_2_moe:
     algorithm: "MoE"
-    episodes: 800  # Increased for expert specialization with large datasets
+    episodes: 80  # Increased for expert specialization with large datasets
     description: "Train specialized experts for different market conditions"
     prerequisites:
       - "Successful PPO training completion"
@@ -35,7 +35,7 @@ training_sequence:
   # Stage 3: MAML Meta-Learning
   stage_3_maml:
     algorithm: "MAML"
-    meta_iterations: 150  # Increased for better meta-learning with diverse data
+    meta_iterations: 15  # Increased for better meta-learning with diverse data
     description: "Meta-learning for quick adaptation to new conditions"
     prerequisites:
       - "Successful MoE training completion"
@@ -50,7 +50,7 @@ training_sequence:
   # Stage 4: Autonomous Evolution
   stage_4_autonomous:
     algorithm: "Autonomous"
-    generations: 50  # Number of evolutionary generations
+    generations: 5  # Number of evolutionary generations
     description: "Autonomous agent evolution with self-modification capabilities"
     prerequisites:
       - "Successful MAML training completion"

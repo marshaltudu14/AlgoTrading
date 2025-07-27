@@ -41,23 +41,37 @@ class PPOAgent(BaseAgent):
         self.MseLoss = nn.MSELoss()
 
     def select_action(self, observation: np.ndarray) -> Tuple[int, float]:
+        # Validate observation
+        if not np.isfinite(observation).all():
+            print("Warning: Invalid observation detected, using default action")
+            return 4, 1.0  # Default to HOLD action with quantity 1.0
+
         state = torch.FloatTensor(observation).unsqueeze(0).unsqueeze(0)
         state = to_device(state)
-        
-        # Get both discrete action probabilities and continuous quantity from the actor
-        action_outputs = self.policy_old(state)
-        action_probs = action_outputs['action_type']
-        quantity_pred = action_outputs['quantity']
 
-        # Sample discrete action
-        dist = Categorical(action_probs)
-        action_type = dist.sample()
+        try:
+            # Get both discrete action probabilities and continuous quantity from the actor
+            action_outputs = self.policy_old(state)
+            action_probs = action_outputs['action_type']
+            quantity_pred = action_outputs['quantity']
 
-        # For continuous quantity, we can use the predicted value directly or sample from a distribution
-        # For now, let's use the predicted value directly, ensuring it's positive
-        quantity = torch.clamp(quantity_pred, min=0.01).item() # Ensure quantity is at least 0.01
+            # Check for NaN values
+            if torch.isnan(action_probs).any() or torch.isnan(quantity_pred).any():
+                print("Warning: NaN detected in action outputs, using default action")
+                return 4, 1.0  # Default to HOLD action
 
-        return action_type.item(), quantity
+            # Sample discrete action
+            dist = Categorical(action_probs)
+            action_type = dist.sample()
+
+            # For continuous quantity, use the predicted value directly, ensuring it's positive
+            quantity = torch.clamp(quantity_pred, min=0.01, max=10.0).item()
+
+            return action_type.item(), quantity
+
+        except Exception as e:
+            print(f"Error in select_action: {e}, using default action")
+            return 4, 1.0  # Default to HOLD action
 
     def learn(self, experiences: List[Tuple[np.ndarray, int, float, np.ndarray, bool]]) -> None:
         """
@@ -98,12 +112,27 @@ class PPOAgent(BaseAgent):
             expected_length = None
 
             for i, state in enumerate(states):
-                state_array = np.array(state, dtype=np.float32)
-                if len(state_array.shape) != 1:
-                    print(f"Warning: State {i} has unexpected shape {state_array.shape}, skipping learning")
+                # Handle different input types
+                if isinstance(state, (list, tuple)):
+                    state_array = np.array(state, dtype=np.float32)
+                elif isinstance(state, np.ndarray):
+                    state_array = state.astype(np.float32)
+                else:
+                    print(f"Warning: State {i} has unexpected type {type(state)}, skipping learning")
                     return
 
-                # Set expected length from first state
+                # Ensure it's a 1D array
+                if len(state_array.shape) > 1:
+                    state_array = state_array.flatten()
+                elif len(state_array.shape) == 0:
+                    state_array = np.array([state_array], dtype=np.float32)
+
+                # Check for invalid values
+                if not np.isfinite(state_array).all():
+                    print(f"Warning: State {i} contains invalid values (inf/nan), skipping learning")
+                    return
+
+                # Set expected length from first valid state
                 if expected_length is None:
                     expected_length = len(state_array)
 
@@ -118,45 +147,65 @@ class PPOAgent(BaseAgent):
 
                 state_arrays.append(state_array)
 
+            # Verify we have valid states
+            if not state_arrays:
+                print("Error: No valid states found, skipping learning")
+                return
+
             # Verify all states have the same shape
             if not all(len(state) == expected_length for state in state_arrays):
                 print(f"Error: Failed to normalize state lengths, skipping learning")
                 return
 
-            # Convert to numpy array and then to tensor
-            states_array = np.array(state_arrays, dtype=np.float32)
-            states = torch.FloatTensor(states_array).unsqueeze(1)  # Add sequence dimension
+            # Convert to numpy array and then to tensor with better error handling
+            try:
+                states_array = np.stack(state_arrays, axis=0).astype(np.float32)
+                states = torch.FloatTensor(states_array).unsqueeze(1)  # Add sequence dimension
+            except ValueError as e:
+                print(f"Error creating states tensor: {e}")
+                print(f"State array shapes: {[s.shape for s in state_arrays]}")
+                return
 
             # Same for next_states
             next_state_arrays = []
             for i, next_state in enumerate(next_states):
-                next_state_array = np.array(next_state, dtype=np.float32)
-                if len(next_state_array.shape) != 1:
-                    print(f"Warning: Next state {i} has unexpected shape {next_state_array.shape}, skipping learning")
+                # Handle different input types
+                if isinstance(next_state, (list, tuple)):
+                    next_state_array = np.array(next_state, dtype=np.float32)
+                elif isinstance(next_state, np.ndarray):
+                    next_state_array = next_state.astype(np.float32)
+                else:
+                    print(f"Warning: Next state {i} has unexpected type {type(next_state)}, skipping learning")
                     return
+
+                # Ensure it's a 1D array
+                if len(next_state_array.shape) > 1:
+                    next_state_array = next_state_array.flatten()
+                elif len(next_state_array.shape) == 0:
+                    next_state_array = np.array([next_state_array], dtype=np.float32)
+
+                # Check for invalid values
+                if not np.isfinite(next_state_array).all():
+                    print(f"Warning: Next state {i} contains invalid values (inf/nan), skipping learning")
+                    return
+
+                # Ensure same length as states
+                if len(next_state_array) != expected_length:
+                    if len(next_state_array) < expected_length:
+                        next_state_array = np.pad(next_state_array, (0, expected_length - len(next_state_array)), 'constant')
+                    else:
+                        next_state_array = next_state_array[:expected_length]
+
                 next_state_arrays.append(next_state_array)
 
-            # Check if all next_states have the same length
-            next_state_lengths = [len(next_state) for next_state in next_state_arrays]
-            if len(set(next_state_lengths)) > 1:
-                print(f"Warning: Inconsistent next_state lengths: {set(next_state_lengths)}, using most common length")
-                # Use the most common length
-                from collections import Counter
-                most_common_length = Counter(next_state_lengths).most_common(1)[0][0]
-
-                # Pad or truncate to make them consistent
-                fixed_next_states = []
-                for next_state_array in next_state_arrays:
-                    if len(next_state_array) < most_common_length:
-                        fixed_next_state = np.pad(next_state_array, (0, most_common_length - len(next_state_array)), 'constant')
-                    else:
-                        fixed_next_state = next_state_array[:most_common_length]
-                    fixed_next_states.append(fixed_next_state)
-                next_state_arrays = fixed_next_states
-
-            # Convert to numpy array and then to tensor
-            next_states_array = np.array(next_state_arrays, dtype=np.float32)
-            next_states = torch.FloatTensor(next_states_array).unsqueeze(1)
+            # Convert to numpy array and then to tensor with better error handling
+            try:
+                next_states_array = np.stack(next_state_arrays, axis=0).astype(np.float32)
+                next_states = torch.FloatTensor(next_states_array).unsqueeze(1)
+            except ValueError as e:
+                print(f"Error creating next_states tensor: {e}")
+                print(f"Next state array shapes: {[s.shape for s in next_state_arrays]}")
+                return
 
             # Convert other arrays to tensors
             action_types = torch.LongTensor(action_types)
@@ -180,9 +229,14 @@ class PPOAgent(BaseAgent):
         next_states = to_device(next_states)
         dones = to_device(dones)
 
-        # Calculate returns and advantages
+        # Calculate returns and advantages with numerical stability
         values = self.critic(states).squeeze()
         next_values = self.critic(next_states).squeeze()
+
+        # Check for NaN in critic outputs
+        if torch.isnan(values).any() or torch.isnan(next_values).any():
+            print("Warning: NaN detected in critic values, skipping learning step")
+            return
 
         returns = []
         advantages = []
@@ -196,11 +250,19 @@ class PPOAgent(BaseAgent):
 
             delta = rewards[i] + self.gamma * next_value - values[i]
             gae = delta + self.gamma * 0.95 * gae * (1 - dones[i])  # GAE-lambda
+
+            # Clamp GAE to prevent extreme values
+            gae = torch.clamp(gae, min=-10.0, max=10.0)
+
             advantages.insert(0, gae)
             returns.insert(0, gae + values[i])
 
         advantages = torch.FloatTensor(advantages)
         returns = torch.FloatTensor(returns)
+
+        # Normalize advantages for better training stability
+        if len(advantages) > 1:
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
         advantages = to_device(advantages)
         returns = to_device(returns)
@@ -234,35 +296,58 @@ class PPOAgent(BaseAgent):
             action_probs = action_outputs['action_type']
             quantity_preds = action_outputs['quantity']
 
+            # Check for NaN values in action probabilities
+            if torch.isnan(action_probs).any():
+                print("Warning: NaN detected in action probabilities, skipping learning step")
+                return
+
             dist_discrete = Categorical(action_probs)
             log_probs_discrete = dist_discrete.log_prob(action_types)
             entropy_discrete = dist_discrete.entropy().mean()
 
+            # Clamp quantity predictions to prevent extreme values
+            quantity_preds = torch.clamp(quantity_preds, min=0.01, max=10.0)
             dist_continuous = Normal(quantity_preds, quantity_std)
             log_probs_continuous = dist_continuous.log_prob(quantities)
-            # No entropy for continuous action directly from Normal distribution, it's part of the log_prob
 
             # Combine log probabilities
             log_probs = log_probs_discrete + log_probs_continuous
 
+            # Check for NaN values in log probabilities
+            if torch.isnan(log_probs).any() or torch.isnan(old_log_probs).any():
+                print("Warning: NaN detected in log probabilities, skipping learning step")
+                return
+
             # Calculate ratio and surrogate losses
             ratio = torch.exp(log_probs - old_log_probs)
+            # Clamp ratio to prevent extreme values
+            ratio = torch.clamp(ratio, min=0.1, max=10.0)
+
             surr1 = ratio * advantages
             surr2 = torch.clamp(ratio, 1 - self.epsilon_clip, 1 + self.epsilon_clip) * advantages
-            actor_loss = -torch.min(surr1, surr2).mean() - 0.01 * entropy_discrete  # entropy bonus for discrete action
+            actor_loss = -torch.min(surr1, surr2).mean() - 0.01 * entropy_discrete
 
             # Critic loss
             current_values = self.critic(states).squeeze()
             critic_loss = self.MseLoss(current_values, returns)
 
+            # Check for NaN values in losses
+            if torch.isnan(actor_loss) or torch.isnan(critic_loss):
+                print("Warning: NaN detected in losses, skipping learning step")
+                return
+
             # Update actor
             self.optimizer_actor.zero_grad()
             actor_loss.backward()
+            # Clip gradients to prevent exploding gradients
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), max_norm=1.0)
             self.optimizer_actor.step()
 
             # Update critic
             self.optimizer_critic.zero_grad()
             critic_loss.backward()
+            # Clip gradients to prevent exploding gradients
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), max_norm=1.0)
             self.optimizer_critic.step()
 
         # Update old policy

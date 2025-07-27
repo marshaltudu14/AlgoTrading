@@ -131,7 +131,7 @@ class TradingActor:
                 action = self.agent.select_action(observation)
                 
                 # Take step in environment
-                next_observation, reward, done, info = self.env.step(action)
+                next_observation, reward, done, truncated, info = self.env.step(action)
                 
                 # Store experience
                 experience = (observation, action, reward, next_observation, done)
