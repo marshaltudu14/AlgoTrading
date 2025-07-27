@@ -365,7 +365,6 @@ def main():
     parser.add_argument("--episodes", type=int, default=None, help="Number of episodes for training (uses YAML config if not specified)")
     parser.add_argument("--sequence", action="store_true", default=True, help="Run complete training sequence: PPO -> MoE -> MAML (default)")
     parser.add_argument("--no-sequence", action="store_true", help="Disable sequence training and use single algorithm")
-    parser.add_argument("--universal", action="store_true", help="Train a single universal model on all symbols (recommended)")
     
     args = parser.parse_args()
     
@@ -408,10 +407,10 @@ def main():
 
         if args.sequence:
             # Complete training sequence: PPO -> MoE -> MAML
-            logger.info("Using complete training sequence: PPO -> MoE -> MAML")
+            logger.info("Using complete training sequence: PPO -> MoE -> MAML -> Autonomous")
 
-            if args.universal:
-                # Universal model training on all symbols
+            # Universal model training for multiple symbols, single for one
+            if len(symbols) > 1:
                 logger.info("🚀 TRAINING UNIVERSAL MODEL on all symbols")
                 logger.info(f"📊 Training on {len(symbols)} symbols: {', '.join(symbols)}")
 
@@ -433,22 +432,6 @@ def main():
                 # Display final results
                 all_success = all(r.success for r in results)
                 logger.info(f"Training sequence completed: {'SUCCESS' if all_success else 'PARTIAL SUCCESS'}")
-            else:
-                # Multi-symbol sequence training (individual models)
-                logger.info("⚠️  Training individual models per symbol. Consider using --universal for better results!")
-                all_results = []
-                for symbol in symbols:
-                    try:
-                        data_loader = DataLoader(args.data_dir)
-                        manager = TrainingSequenceManager()
-                        results = manager.run_complete_sequence(data_loader, symbol, episodes_override=args.episodes)
-                        all_results.append(results)
-                        logger.info(f"Completed sequence training for {symbol}")
-                    except Exception as e:
-                        logger.error(f"Failed sequence training for {symbol}: {e}")
-                        continue
-
-                logger.info(f"Sequence training completed: {len(all_results)}/{len(symbols)} successful")
 
         elif args.simple:
             # Simple single-threaded training

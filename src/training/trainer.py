@@ -28,6 +28,8 @@ class Trainer:
         self.log_interval = log_interval
         self.meta_lr = meta_lr
         self.env = None # Will be initialized in train method
+        import logging
+        logging.getLogger('src.backtesting.engine').setLevel(logging.INFO)
 
         # Initialize meta-optimizer for MAML
         if isinstance(agent, MoEAgent):

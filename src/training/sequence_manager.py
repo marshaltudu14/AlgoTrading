@@ -170,10 +170,17 @@ class TrainingSequenceManager:
             logger.error("Universal MoE stage failed. Stopping sequence.")
             return [ppo_result, moe_result]
 
+        # Stage 4: Autonomous Evolution (Universal)
+        if maml_result.success:
+            autonomous_result = self._run_autonomous_stage(data_loader, primary_symbol, initial_capital, maml_result.model_path)
+        else:
+            logger.error("Universal MAML stage failed. Stopping sequence.")
+            return [ppo_result, moe_result, maml_result]
+
         logger.info(f"🎯 Universal model training sequence completed!")
         logger.info(f"✅ Final model: models/universal_final_model.pth")
 
-        return [ppo_result, moe_result, maml_result]
+        return [ppo_result, moe_result, maml_result, autonomous_result]
 
     def _run_universal_maml_stage(self, data_loader: DataLoader, symbol: str,
                                  initial_capital: float, moe_model_path: str, episodes_override: int = None) -> StageResult:
