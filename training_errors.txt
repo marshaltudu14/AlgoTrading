@@ -721,120 +721,65 @@
 2025-07-27 21:55:30,428 - ERROR - Error evaluating agent 19: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
 2025-07-27 21:55:30,611 - WARNING - Insufficient data for market classification
 2025-07-27 21:55:30,611 - ERROR - Error evaluating agent 20: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-ymbol Bank_Nifty_5
-
-[2025-07-27 21:55:11] ERROR: Error evaluating agent 15: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 11, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:11] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:11] ERROR: Error evaluating agent 16: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 11, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:11] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:11] ERROR: Error evaluating agent 17: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 11, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:11] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:11] ERROR: Error evaluating agent 18: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 11, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:11] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:12] ERROR: Error evaluating agent 19: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 11, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:12] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:12] ERROR: Error evaluating agent 20: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 11, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:12] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:12] ERROR: Error evaluating agent 1: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:12] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 2: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 3: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 4: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 5: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 6: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 7: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 8: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 9: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 10: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 11: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 12: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
-    Context: Agent evaluation for symbol Bank_Nifty_5
-
-[2025-07-27 21:55:13] ERROR: Error evaluating agent 13: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
-    Context: Generation: 12, Symbol: Bank_Nifty_5
-
-[2025-07-27 21:55:13] WARNING: Observation dimension mismatch: expected 65, got 306
+2025-07-27 21:55:34,268 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,270 - ERROR - Error evaluating agent 1: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:34,415 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,417 - ERROR - Error evaluating agent 2: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:34,466 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,466 - ERROR - Error evaluating agent 3: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:34,555 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,556 - ERROR - Error evaluating agent 4: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:34,613 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,614 - ERROR - Error evaluating agent 5: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:34,684 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,684 - ERROR - Error evaluating agent 6: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:34,743 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,745 - ERROR - Error evaluating agent 7: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:34,829 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,829 - ERROR - Error evaluating agent 8: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:34,901 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:34,902 - ERROR - Error evaluating agent 9: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,003 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,011 - ERROR - Error evaluating agent 10: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,086 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,093 - ERROR - Error evaluating agent 11: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,197 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,197 - ERROR - Error evaluating agent 12: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,254 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,254 - ERROR - Error evaluating agent 13: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,341 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,341 - ERROR - Error evaluating agent 14: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,554 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,570 - ERROR - Error evaluating agent 15: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,642 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,642 - ERROR - Error evaluating agent 16: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,707 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,708 - ERROR - Error evaluating agent 17: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,769 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,770 - ERROR - Error evaluating agent 18: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,836 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,838 - ERROR - Error evaluating agent 19: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:35,921 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:35,934 - ERROR - Error evaluating agent 20: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:37,275 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:37,277 - ERROR - Error evaluating agent 1: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:37,344 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:37,344 - ERROR - Error evaluating agent 2: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:37,439 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:37,451 - ERROR - Error evaluating agent 3: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:37,534 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:37,538 - ERROR - Error evaluating agent 4: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:37,611 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:37,613 - ERROR - Error evaluating agent 5: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:37,679 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:37,680 - ERROR - Error evaluating agent 6: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:37,981 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:37,983 - ERROR - Error evaluating agent 7: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:38,291 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:38,342 - ERROR - Error evaluating agent 8: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+2025-07-27 21:55:38,899 - WARNING - Insufficient data for market classification
+2025-07-27 21:55:38,946 - ERROR - Error evaluating agent 9: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+d 65, got 306
     Context: Agent evaluation for symbol Bank_Nifty_5
 
 [2025-07-27 21:55:13] ERROR: Error evaluating agent 14: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
@@ -1475,4 +1420,181 @@ ymbol Bank_Nifty_5
 
 [2025-07-27 21:55:30] ERROR: Error evaluating agent 20: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
     Context: Generation: 17, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 1: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 2: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 3: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 4: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 5: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 6: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 7: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 8: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:34] ERROR: Error evaluating agent 9: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:34] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 10: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 11: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 12: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 13: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 14: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 15: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 16: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 17: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 18: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 19: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:35] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:35] ERROR: Error evaluating agent 20: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 18, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:37] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:37] ERROR: Error evaluating agent 1: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:37] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:37] ERROR: Error evaluating agent 2: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:37] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:37] ERROR: Error evaluating agent 3: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:37] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:37] ERROR: Error evaluating agent 4: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:37] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:37] ERROR: Error evaluating agent 5: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:37] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:37] ERROR: Error evaluating agent 6: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:37] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:37] ERROR: Error evaluating agent 7: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:38] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:38] ERROR: Error evaluating agent 8: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:38] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
+
+[2025-07-27 21:55:38] ERROR: Error evaluating agent 9: mat1 and mat2 shapes cannot be multiplied (1x306 and 65x64)
+    Context: Generation: 19, Symbol: Bank_Nifty_5
+
+[2025-07-27 21:55:39] WARNING: Observation dimension mismatch: expected 65, got 306
+    Context: Agent evaluation for symbol Bank_Nifty_5
 
