@@ -16,3 +16,5 @@ seaborn
 plotly
 ipywidgets
 tqdm
+pytest
+psutil
