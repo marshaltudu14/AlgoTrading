@@ -37,17 +37,29 @@ logging.getLogger('src.training.trainer').setLevel(logging.INFO)
 def get_available_symbols(data_dir: str = "data/final") -> List[str]:
     """Get list of available trading symbols from data directory."""
     symbols = []
-    
+
     if not os.path.exists(data_dir):
         logger.warning(f"Data directory {data_dir} does not exist")
         return symbols
 
+    # Scan for all CSV files with features_ prefix
     for filename in os.listdir(data_dir):
         if filename.endswith('.csv') and filename.startswith('features_'):
             symbol = filename.replace('features_', '').replace('.csv', '')
             symbols.append(symbol)
-    
-    logger.info(f"Found {len(symbols)} symbols: {symbols}")
+
+    # Also check parquet directory if it exists
+    parquet_dir = os.path.join(data_dir, "parquet")
+    if os.path.exists(parquet_dir):
+        for filename in os.listdir(parquet_dir):
+            if filename.endswith('.parquet'):
+                # Extract symbol from parquet filename (e.g., Bank_Nifty_5.parquet -> Bank_Nifty_5)
+                symbol = filename.replace('.parquet', '')
+                if symbol not in symbols:  # Avoid duplicates
+                    symbols.append(symbol)
+
+    symbols = sorted(list(set(symbols)))  # Remove duplicates and sort
+    logger.info(f"🔍 Found {len(symbols)} symbols in {data_dir}: {symbols}")
     return symbols
 
 def run_single_symbol_training(

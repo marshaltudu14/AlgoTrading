@@ -218,9 +218,9 @@ def generate_multiple_test_instruments(
     """
     logger.info("Generating test data for multiple instruments")
 
-    # Define instruments based on config/instruments.yaml
+    # Define instruments based on config/instruments.yaml with timeframes (matching real data format)
     instruments = [
-        {"symbol": "RELIANCE", "type": "STOCK", "start_price": 2800.0, "volatility": 0.025},
+        {"symbol": "RELIANCE_1", "type": "STOCK", "start_price": 2800.0, "volatility": 0.025},
         {"symbol": "Bank_Nifty_5", "type": "OPTION", "start_price": 46500.0, "volatility": 0.03}
     ]
 
@@ -277,10 +277,10 @@ def create_test_data_files(
 
     created_files = {}
 
-    # Define instruments to create (based on config/instruments.yaml)
+    # Define instruments to create (based on config/instruments.yaml with timeframes)
     if create_multiple_instruments:
         instruments = [
-            {"symbol": "RELIANCE", "type": "STOCK", "start_price": 2800.0, "volatility": 0.025},
+            {"symbol": "RELIANCE_1", "type": "STOCK", "start_price": 2800.0, "volatility": 0.025},
             {"symbol": "Bank_Nifty_5", "type": "OPTION", "start_price": 46500.0, "volatility": 0.03}
         ]
     else:

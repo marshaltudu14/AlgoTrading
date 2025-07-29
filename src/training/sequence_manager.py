@@ -7,6 +7,8 @@ import os
 import yaml
 import logging
 import pickle
+import torch
+import shutil
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -100,6 +102,8 @@ class TrainingSequenceManager:
 
         # Create a custom data loader that uses the test data
         from src.utils.data_loader import DataLoader
+        import pandas as pd
+        from typing import List, Tuple
 
         class TestDataLoader(DataLoader):
             def __init__(self, test_data_dict):
@@ -147,6 +151,19 @@ class TrainingSequenceManager:
                     return data.iloc[start_idx:end_idx].copy()
                 else:
                     raise ValueError(f"Test data not available for symbol {symbol}")
+
+            def get_task_data(self, instrument_type: str, timeframe: str) -> pd.DataFrame:
+                """Get task data for MAML training."""
+                # For test data, ignore timeframe and just return the symbol data
+                if instrument_type in self.test_data:
+                    return self.test_data[instrument_type]['features'].copy()
+                else:
+                    logger.error(f"Test data not available for symbol {instrument_type}")
+                    return pd.DataFrame()
+
+            def get_available_tasks(self) -> List[Tuple[str, str]]:
+                """Get available tasks from test data."""
+                return [(symbol, "5") for symbol in self.test_data.keys()]
 
         return TestDataLoader(sys.test_data)
     
@@ -261,29 +278,42 @@ class TrainingSequenceManager:
             logger.info(f"📊 Training on {len(symbols)} symbols: {', '.join(symbols)}")
             logger.info(f"🎯 Will create ONE model for all instruments/timeframes")
 
-        # For universal model, we'll train on the first symbol but save as universal model
-        # This creates a single robust model that works across all instruments
-        primary_symbol = symbols[0]  # Use first symbol for training
+        # For universal model, we'll train on ALL symbols to create a robust model
+        # This creates a single universal model that works across all instruments
+        primary_symbol = symbols[0]  # Use first symbol as primary for model initialization
 
-        # Stage 1: PPO Baseline (Universal)
+        # Stage 1: PPO Baseline (Universal) - Train on all symbols
         logger.info("🎯 Starting Stage 1: PPO Baseline Training")
-        ppo_result = self._run_ppo_stage(data_loader, primary_symbol, initial_capital, episodes_override)
+        ppo_result = self._run_ppo_stage_universal(data_loader, symbols, initial_capital, episodes_override)
         logger.info(f"Stage 1 completed: {'SUCCESS' if ppo_result.success else 'PARTIAL SUCCESS'}")
 
-        # Stage 2: MoE Specialization (Universal) - Continue regardless of PPO success
+        # Stage 2: MoE Specialization (Universal) - Train on all symbols
         logger.info("🎯 Starting Stage 2: MoE Specialization Training")
-        moe_result = self._run_moe_stage(data_loader, primary_symbol, initial_capital, ppo_result.model_path, episodes_override)
+        moe_result = self._run_moe_stage_universal(data_loader, symbols, initial_capital, ppo_result.model_path, episodes_override)
         logger.info(f"Stage 2 completed: {'SUCCESS' if moe_result.success else 'PARTIAL SUCCESS'}")
 
-        # Stage 3: MAML Meta-Learning (Universal) - Continue regardless of MoE success
+        # Stage 3: MAML Meta-Learning (Universal) - Use all symbols as tasks
         logger.info("🎯 Starting Stage 3: MAML Meta-Learning Training")
-        maml_result = self._run_maml_stage_direct(data_loader, primary_symbol, initial_capital, moe_result.model_path, episodes_override)
+        maml_result = self._run_maml_stage_universal(data_loader, symbols, initial_capital, moe_result.model_path, episodes_override)
         logger.info(f"Stage 3 completed: {'SUCCESS' if maml_result.success else 'PARTIAL SUCCESS'}")
 
-        # Stage 4: Autonomous Evolution (Universal) - Continue regardless of MAML success
+        # Stage 4: Autonomous Evolution (Universal) - Train on all symbols
         logger.info("🎯 Starting Stage 4: Autonomous Evolution Training")
-        autonomous_result = self._run_autonomous_stage(data_loader, primary_symbol, initial_capital, maml_result.model_path, testing_mode=episodes_override is not None)
+        autonomous_result = self._run_autonomous_stage_universal(data_loader, symbols, initial_capital, maml_result.model_path, testing_mode=episodes_override is not None)
         logger.info(f"Stage 4 completed: {'SUCCESS' if autonomous_result.success else 'PARTIAL SUCCESS'}")
+
+        # Save final universal model
+        final_model_path = "models/universal_final_model.pth"
+        if autonomous_result.success and autonomous_result.model_path:
+            # Copy the autonomous model as the final universal model
+            os.makedirs(os.path.dirname(final_model_path), exist_ok=True)
+            shutil.copy2(autonomous_result.model_path, final_model_path)
+            logger.info(f"💾 Final universal model saved: {final_model_path}")
+        elif maml_result.success and maml_result.model_path:
+            # Fallback to MAML model if autonomous failed
+            os.makedirs(os.path.dirname(final_model_path), exist_ok=True)
+            shutil.copy2(maml_result.model_path, final_model_path)
+            logger.info(f"💾 Final universal model saved (MAML fallback): {final_model_path}")
 
         # Display comprehensive final summary with all metrics
         self._display_final_comprehensive_summary([ppo_result, moe_result, maml_result, autonomous_result], initial_capital)
@@ -1250,6 +1280,342 @@ class TrainingSequenceManager:
                 model_path=None,
                 episodes_completed=0,
                 message=f"MAML training failed: {e}"
+            )
+
+    def _run_ppo_stage_universal(self, data_loader: DataLoader, symbols: List[str],
+                                initial_capital: float, episodes_override: int = None) -> StageResult:
+        """Run PPO baseline training stage on all symbols."""
+        logger.info("=" * 60)
+        logger.info("🎯 STAGE 1: PPO BASELINE TRAINING (UNIVERSAL)")
+        logger.info("=" * 60)
+
+        stage_config = self.config['training_sequence']['stage_1_ppo']
+        episodes_per_symbol = (episodes_override if episodes_override is not None else stage_config.get('episodes', 500)) // len(symbols)
+
+        logger.info(f"🔄 Training on {len(symbols)} symbols with {episodes_per_symbol} episodes each")
+
+        # Use first symbol for model initialization
+        primary_symbol = symbols[0]
+        data = data_loader.load_final_data_for_symbol(primary_symbol)
+
+        # Initialize dynamic parameter manager
+        param_manager = DynamicParameterManager()
+        dynamic_params = param_manager.compute_dynamic_params(data, training_progress=0.0)
+
+        # Create environment with dynamic parameters
+        env = TradingEnv(
+            data_loader=data_loader,
+            symbol=primary_symbol,
+            initial_capital=initial_capital,
+            lookback_window=dynamic_params.lookback_window,
+            episode_length=dynamic_params.episode_length
+        )
+
+        # Reset environment to initialize observation space
+        env.reset()
+        observation_dim = env.observation_space.shape[0]
+        logger.info(f"Dynamic observation dimension for PPO: {observation_dim}")
+
+        # Create PPO agent with dynamic parameters
+        agent = PPOAgent(
+            observation_dim=observation_dim,
+            action_dim_discrete=2,  # BUY_LONG, SELL_SHORT actions
+            action_dim_continuous=1,  # Quantity/position size
+            hidden_dim=dynamic_params.hidden_dim,
+            lr_actor=dynamic_params.lr_actor,
+            lr_critic=dynamic_params.lr_critic,
+            gamma=dynamic_params.gamma,
+            epsilon_clip=dynamic_params.epsilon_clip,
+            k_epochs=dynamic_params.k_epochs
+        )
+
+        # Create trainer
+        trainer = Trainer(agent, env, log_interval=20)
+
+        try:
+            # Train on all symbols cyclically
+            total_episodes = 0
+            for symbol in symbols:
+                logger.info(f"🎯 Training on symbol: {symbol}")
+
+                # Update environment symbol
+                env.symbol = symbol
+
+                # Run training for this symbol
+                trainer.train(data_loader, symbol, initial_capital, env=env, num_episodes=episodes_per_symbol)
+                total_episodes += episodes_per_symbol
+
+                logger.info(f"✅ Completed {episodes_per_symbol} episodes for {symbol}")
+
+            # Save universal model
+            model_path = "models/universal_ppo_model.pth"
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            torch.save(agent.state_dict(), model_path)
+            logger.info(f"💾 Universal PPO model saved: {model_path}")
+
+            return StageResult(
+                stage=TrainingStage.PPO,
+                success=True,
+                metrics={"total_episodes": total_episodes, "symbols_trained": len(symbols)},
+                model_path=model_path,
+                episodes_completed=total_episodes,
+                message=f"PPO universal training completed on {len(symbols)} symbols"
+            )
+
+        except Exception as e:
+            logger.error(f"PPO universal training failed: {e}")
+            return StageResult(
+                stage=TrainingStage.PPO,
+                success=False,
+                metrics={},
+                model_path=None,
+                episodes_completed=0,
+                message=f"PPO universal training failed: {e}"
+            )
+
+    def _run_moe_stage_universal(self, data_loader: DataLoader, symbols: List[str],
+                                initial_capital: float, ppo_model_path: str, episodes_override: int = None) -> StageResult:
+        """Run MoE specialization training stage on all symbols."""
+        logger.info("=" * 60)
+        logger.info("🧠 STAGE 2: MoE SPECIALIZATION TRAINING (UNIVERSAL)")
+        logger.info("=" * 60)
+
+        stage_config = self.config['training_sequence']['stage_2_moe']
+        episodes_per_symbol = (episodes_override if episodes_override is not None else stage_config.get('episodes', 800)) // len(symbols)
+
+        logger.info(f"🔄 Training on {len(symbols)} symbols with {episodes_per_symbol} episodes each")
+
+        # Use first symbol for model initialization
+        primary_symbol = symbols[0]
+        data = data_loader.load_final_data_for_symbol(primary_symbol)
+
+        # Initialize dynamic parameter manager with some training progress
+        param_manager = DynamicParameterManager()
+        dynamic_params = param_manager.compute_dynamic_params(data, training_progress=0.3)
+
+        # Create environment with dynamic parameters
+        env = TradingEnv(
+            data_loader=data_loader,
+            symbol=primary_symbol,
+            initial_capital=initial_capital,
+            lookback_window=dynamic_params.lookback_window,
+            episode_length=dynamic_params.episode_length
+        )
+        # Reset environment to initialize observation space
+        env.reset()
+        observation_dim = env.observation_space.shape[0]
+        logger.info(f"Dynamic observation dimension for MoE: {observation_dim}")
+
+        # Create MoE agent with dynamic parameters
+        expert_configs = {
+            "TrendAgent": {"hidden_dim": dynamic_params.hidden_dim},
+            "MeanReversionAgent": {"hidden_dim": dynamic_params.hidden_dim},
+            "VolatilityAgent": {"hidden_dim": dynamic_params.hidden_dim}
+        }
+
+        agent = MoEAgent(
+            observation_dim=observation_dim,
+            action_dim_discrete=2,  # BUY_LONG, SELL_SHORT actions
+            action_dim_continuous=1,  # Quantity/position size
+            hidden_dim=dynamic_params.hidden_dim,
+            expert_configs=expert_configs,
+            lr_gating=dynamic_params.lr_actor
+        )
+
+        # Load PPO weights if available
+        if ppo_model_path and os.path.exists(ppo_model_path):
+            try:
+                ppo_state = torch.load(ppo_model_path, map_location='cpu')
+                agent.load_ppo_weights(ppo_state)
+                logger.info(f"✅ Loaded PPO weights from {ppo_model_path}")
+            except Exception as e:
+                logger.warning(f"Could not load PPO weights: {e}")
+
+        # Create trainer
+        trainer = Trainer(agent, env, log_interval=20)
+
+        try:
+            # Train on all symbols cyclically
+            total_episodes = 0
+            for symbol in symbols:
+                logger.info(f"🎯 Training on symbol: {symbol}")
+
+                # Update environment symbol
+                env.symbol = symbol
+
+                # Run training for this symbol
+                trainer.train(data_loader, symbol, initial_capital, env=env, num_episodes=episodes_per_symbol)
+                total_episodes += episodes_per_symbol
+
+                logger.info(f"✅ Completed {episodes_per_symbol} episodes for {symbol}")
+
+            # Save universal model
+            model_path = "models/universal_moe_model.pth"
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            torch.save(agent.state_dict(), model_path)
+            logger.info(f"💾 Universal MoE model saved: {model_path}")
+
+            return StageResult(
+                stage=TrainingStage.MOE,
+                success=True,
+                metrics={"total_episodes": total_episodes, "symbols_trained": len(symbols)},
+                model_path=model_path,
+                episodes_completed=total_episodes,
+                message=f"MoE universal training completed on {len(symbols)} symbols"
+            )
+
+        except Exception as e:
+            logger.error(f"MoE universal training failed: {e}")
+            return StageResult(
+                stage=TrainingStage.MOE,
+                success=False,
+                metrics={},
+                model_path=None,
+                episodes_completed=0,
+                message=f"MoE universal training failed: {e}"
+            )
+
+    def _run_maml_stage_universal(self, data_loader: DataLoader, symbols: List[str],
+                                 initial_capital: float, moe_model_path: str, episodes_override: int = None) -> StageResult:
+        """Run MAML meta-learning stage using all symbols as tasks."""
+        logger.info("=" * 60)
+        logger.info("🎯 STAGE 3: MAML META-LEARNING (UNIVERSAL)")
+        logger.info("=" * 60)
+
+        stage_config = self.config['training_sequence']['stage_3_maml']
+        meta_iterations = episodes_override if episodes_override is not None else stage_config.get('meta_iterations', 150)
+
+        logger.info(f"🔄 Meta-learning with {len(symbols)} symbols as tasks for {meta_iterations} iterations")
+
+        # Use first symbol for model initialization
+        primary_symbol = symbols[0]
+        data = data_loader.load_final_data_for_symbol(primary_symbol)
+
+        # Initialize dynamic parameter manager with advanced training progress
+        param_manager = DynamicParameterManager()
+        universal_params = param_manager.compute_dynamic_params(data, training_progress=0.6)
+
+        logger.info(f"🎯 Universal parameters for MAML: lookback={universal_params.lookback_window}, episode_length={universal_params.episode_length}")
+
+        # Create environment with universal parameters to get observation dimension
+        env = TradingEnv(
+            data_loader=data_loader,
+            symbol=primary_symbol,
+            initial_capital=initial_capital,
+            lookback_window=universal_params.lookback_window,
+            episode_length=universal_params.episode_length
+        )
+        env.reset()
+        observation_dim = env.observation_space.shape[0]
+
+        # Load MoE agent for MAML training
+        expert_configs = {
+            "TrendAgent": {"hidden_dim": universal_params.hidden_dim},
+            "MeanReversionAgent": {"hidden_dim": universal_params.hidden_dim},
+            "VolatilityAgent": {"hidden_dim": universal_params.hidden_dim}
+        }
+
+        agent = MoEAgent(
+            observation_dim=observation_dim,
+            action_dim_discrete=2,  # BUY_LONG, SELL_SHORT actions
+            action_dim_continuous=1,  # Quantity/position size
+            hidden_dim=universal_params.hidden_dim,
+            expert_configs=expert_configs,
+            lr_gating=universal_params.lr_actor
+        )
+
+        # Load MoE weights
+        if moe_model_path and os.path.exists(moe_model_path):
+            try:
+                agent.load_state_dict(torch.load(moe_model_path, map_location='cpu'))
+                logger.info(f"✅ Loaded MoE weights from {moe_model_path}")
+            except Exception as e:
+                logger.warning(f"Could not load MoE weights: {e}")
+
+        # Create trainer for MAML
+        trainer = Trainer(agent, env, log_interval=10)
+
+        try:
+            # Create tasks from all symbols - use symbols directly since they already have timeframes
+            tasks = symbols  # Use symbols directly instead of tuples
+            logger.info(f"🎯 Created {len(tasks)} tasks from symbols: {tasks}")
+
+            # Override the data_loader's sample_tasks method to use our specific symbols
+            original_sample_tasks = data_loader.sample_tasks
+            data_loader.sample_tasks = lambda n: tasks[:n] if n <= len(tasks) else tasks * ((n // len(tasks)) + 1)
+
+            try:
+                # Run MAML meta-learning using meta_train method
+                trainer.meta_train(
+                    data_loader=data_loader,
+                    initial_capital=initial_capital,
+                    num_meta_iterations=meta_iterations,
+                    num_inner_loop_steps=5,
+                    num_evaluation_steps=10,
+                    meta_batch_size=len(symbols)  # Use all symbols as batch
+                )
+            finally:
+                # Restore original method
+                data_loader.sample_tasks = original_sample_tasks
+
+            # Save universal model
+            model_path = "models/universal_maml_model.pth"
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
+            torch.save(agent.state_dict(), model_path)
+            logger.info(f"💾 Universal MAML model saved: {model_path}")
+
+            return StageResult(
+                stage=TrainingStage.MAML,
+                success=True,
+                metrics={"meta_iterations": meta_iterations, "symbols_trained": len(symbols)},
+                model_path=model_path,
+                episodes_completed=meta_iterations,
+                message=f"MAML universal meta-learning completed with {len(symbols)} symbols"
+            )
+
+        except Exception as e:
+            logger.error(f"MAML universal stage failed: {e}")
+            return StageResult(
+                stage=TrainingStage.MAML,
+                success=False,
+                metrics={},
+                model_path=None,
+                episodes_completed=0,
+                message=f"MAML universal training failed: {e}"
+            )
+
+    def _run_autonomous_stage_universal(self, data_loader: DataLoader, symbols: List[str],
+                                       initial_capital: float, maml_model_path: str, testing_mode: bool = False) -> StageResult:
+        """Run autonomous evolution stage on all symbols."""
+        logger.info("=" * 60)
+        logger.info("🤖 STAGE 4: AUTONOMOUS EVOLUTION (UNIVERSAL)")
+        logger.info("=" * 60)
+
+        logger.info(f"🔄 Autonomous evolution with {len(symbols)} symbols")
+
+        try:
+            from src.training.autonomous_trainer import run_autonomous_stage
+
+            # Run autonomous stage with all symbols
+            result = run_autonomous_stage(
+                data_loader=data_loader,
+                symbols=symbols,
+                initial_capital=initial_capital,
+                maml_model_path=maml_model_path,
+                testing_mode=testing_mode
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Autonomous universal stage failed: {e}")
+            return StageResult(
+                stage=TrainingStage.AUTONOMOUS,
+                success=False,
+                metrics={},
+                model_path=None,
+                episodes_completed=0,
+                message=f"Autonomous universal training failed: {e}"
             )
 
 def run_training_sequence(symbol: str, data_dir: str = "data/final") -> List[StageResult]:

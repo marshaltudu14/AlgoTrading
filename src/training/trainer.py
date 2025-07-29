@@ -25,12 +25,11 @@ from src.utils.metrics import (
 logger = logging.getLogger(__name__)
 
 class Trainer:
-    def __init__(self, agent: BaseAgent, num_episodes: int, log_interval: int = 10, meta_lr: float = 0.001):
+    def __init__(self, agent: BaseAgent, env: 'TradingEnv' = None, log_interval: int = 10, meta_lr: float = 0.001):
         self.agent = agent
-        self.num_episodes = num_episodes
         self.log_interval = log_interval
         self.meta_lr = meta_lr
-        self.env = None # Will be initialized in train method
+        self.env = env  # Can be provided or initialized in train method
         import logging
         logging.getLogger('src.backtesting.engine').setLevel(logging.INFO)
 
@@ -44,8 +43,10 @@ class Trainer:
         self.capital_history = []
         self.episode_rewards = []
         self.total_reward = 0.0
+        self.cumulative_trade_history = []  # Accumulate trades across all episodes
+        self.cumulative_capital_history = []  # Track capital across all episodes
 
-    def train(self, data_loader: DataLoader, symbol: str, initial_capital: float, env: 'TradingEnv' = None) -> None:
+    def train(self, data_loader: DataLoader, symbol: str, initial_capital: float, env: 'TradingEnv' = None, num_episodes: int = None) -> None:
         # Use provided environment or create a new one
         if env is not None:
             self.env = env
@@ -64,7 +65,14 @@ class Trainer:
         initial_capital = self.env.engine.get_account_state()['capital']
         self.capital_history = [initial_capital]
 
-        for episode in range(self.num_episodes):
+        # Initialize cumulative tracking if not already done
+        if not self.cumulative_capital_history:
+            self.cumulative_capital_history = [initial_capital]
+
+        # Use provided num_episodes or default to 100
+        episodes_to_run = num_episodes if num_episodes is not None else 100
+
+        for episode in range(episodes_to_run):
             observation = self.env.reset()
             done = False
             episode_reward = 0
@@ -86,20 +94,28 @@ class Trainer:
             # Track capital history
             current_capital = self.env.engine.get_account_state()['capital']
             self.capital_history.append(current_capital)
+            self.cumulative_capital_history.append(current_capital)
+
+            # Accumulate trade history from this episode
+            episode_trades = self.env.engine.get_trade_history()
+            if episode_trades:
+                # Add episode number to each trade for tracking
+                for trade in episode_trades:
+                    trade['episode'] = episode + 1
+                self.cumulative_trade_history.extend(episode_trades)
 
             if (episode + 1) % self.log_interval == 0:
-                # Calculate proper metrics
+                # Calculate proper metrics using cumulative data
                 avg_reward = self.total_reward / (episode + 1) if episode > 0 else self.total_reward
 
-                # Get trading metrics from environment
+                # Get trading metrics from cumulative trade history
                 account_state = self.env.engine.get_account_state()
-                trade_history = self.env.engine.get_trade_history()
 
-                # Calculate win rate and other metrics
-                if trade_history:
-                    win_rate = calculate_win_rate(trade_history)
-                    total_pnl = calculate_total_pnl(trade_history)
-                    num_trades = calculate_num_trades(trade_history)
+                # Calculate win rate and other metrics from cumulative trades
+                if self.cumulative_trade_history:
+                    win_rate = calculate_win_rate(self.cumulative_trade_history)
+                    total_pnl = calculate_total_pnl(self.cumulative_trade_history)
+                    num_trades = calculate_num_trades(self.cumulative_trade_history)
 
                     self._log_progress_detailed(episode + 1, self.total_reward, avg_reward,
                                               win_rate, total_pnl, num_trades, account_state['capital'])
@@ -396,16 +412,16 @@ class Trainer:
         print("🎯 COMPREHENSIVE TRAINING SUMMARY")
         print("=" * 80)
 
-        # Get final trading data
-        trade_history = self.env.engine.get_trade_history()
+        # Get final trading data using cumulative history
         final_account = self.env.engine.get_account_state()
 
-        # Calculate comprehensive metrics
+        # Calculate comprehensive metrics using cumulative data
+        total_episodes_run = len(self.episode_rewards)
         metrics = calculate_comprehensive_metrics(
-            trade_history=trade_history,
-            capital_history=self.capital_history,
+            trade_history=self.cumulative_trade_history,
+            capital_history=self.cumulative_capital_history,
             initial_capital=initial_capital,
-            total_episodes=self.num_episodes,
+            total_episodes=total_episodes_run,
             total_reward=self.total_reward
         )
 

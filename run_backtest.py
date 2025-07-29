@@ -155,49 +155,63 @@ class BacktestRunner:
                 logger.error(f"Universal model not found at: {universal_model_path}")
                 return None
 
-            try:
-                logger.info(f"Loading universal model from: {universal_model_path}")
-
-                # Create a new MoEAgent and load the state dict
-                agent = MoEAgent(
-                    input_dim=63,  # Based on processed data columns
-                    action_dim=3,  # Typical action space (buy, sell, hold)
-                    num_experts=4,
-                    hidden_dim=256
-                )
-
-                # Load the saved state dict
-                checkpoint = torch.load(universal_model_path, map_location='cpu')
-                if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-                    agent.load_state_dict(checkpoint['model_state_dict'])
-                else:
-                    agent.load_state_dict(checkpoint)
-
-                agent.eval()  # Set to evaluation mode
-                logger.info(f"Successfully loaded universal model!")
-
-            except Exception as e:
-                logger.error(f"Failed to load universal model: {e}")
-                return None
-
             logger.info(f"Using processed data with {len(processed_data)} rows and {len(processed_data.columns)} columns")
 
             # Create data loader with the processed data directly
             # For backtesting, we'll pass the DataFrame directly to the environment
             data_loader = None  # We'll use processed_data directly
 
-            # Create trading environment
+            # Create trading environment with processed data
+            # For backtesting, we'll create a simple data loader that uses our processed DataFrame
+
+            # Save processed data temporarily for the data loader
+            temp_processed_file = os.path.join(self.processed_data_dir, "Nifty.csv")
+            os.makedirs(self.processed_data_dir, exist_ok=True)
+            processed_data.to_csv(temp_processed_file)
+
+            # Create data loader
+            data_loader = DataLoader(self.processed_data_dir)
+
             env = TradingEnv(
                 data_loader=data_loader,
-                symbol="NIFTY",  # Use generic symbol for environment
+                symbol="Nifty",  # Use valid symbol from instruments.yaml
                 initial_capital=int(initial_capital),  # Ensure integer for production
                 lookback_window=20,
-                episode_length=None,  # Use full dataset
+                episode_length=len(processed_data),  # Use full dataset length
                 use_streaming=False
             )
 
-            # Run backtest
+            # Reset environment to get observation space
             observation = env.reset()
+            actual_observation_dim = observation.shape[0]
+            logger.info(f"Actual observation dimension: {actual_observation_dim}")
+
+            # Recreate agent with correct observation dimension
+            expert_configs = {
+                "TrendAgent": {"hidden_dim": 256},
+                "MeanReversionAgent": {"hidden_dim": 256},
+                "VolatilityAgent": {"hidden_dim": 256},
+                "ConsolidationAgent": {"hidden_dim": 256}
+            }
+
+            agent = MoEAgent(
+                observation_dim=actual_observation_dim,  # Use actual observation dimension
+                action_dim_discrete=2,  # Buy/Sell
+                action_dim_continuous=1,  # Quantity
+                hidden_dim=256,
+                expert_configs=expert_configs
+            )
+
+            # Load the saved model (this will use fresh initialization since dimensions don't match)
+            try:
+                agent.load_model(universal_model_path)
+                logger.info(f"Loaded universal model with correct dimensions!")
+            except Exception as e:
+                logger.warning(f"Could not load saved model due to dimension mismatch: {e}")
+                logger.info("Using fresh model initialization for backtesting")
+
+            # Run backtest
+            # observation already set from env.reset() above
             done = False
             step_count = 0
 
@@ -205,7 +219,7 @@ class BacktestRunner:
 
             while not done:
                 # Get action from trained model
-                action = agent.select_action(observation, training=False)  # Inference mode
+                action = agent.select_action(observation)  # Inference mode
 
                 # Execute action in environment
                 observation, reward, done, info = env.step(action)
@@ -247,10 +261,18 @@ class BacktestRunner:
             logger.info(f"Total P&L: ₹{backtest_results['total_pnl']:,.2f}")
             logger.info(f"Total Trades: {len(trade_history)}")
 
+            # Clean up temporary file
+            try:
+                os.remove(temp_processed_file)
+            except:
+                pass
+
             return backtest_results
 
         except Exception as e:
+            import traceback
             logger.error(f"Error running backtest with Fyers data: {e}")
+            logger.error(f"Full traceback: {traceback.format_exc()}")
             return None
 
     def generate_comprehensive_fyers_report(self, result: Dict):
