@@ -255,11 +255,7 @@ class ActorTransformerModel(MultiHeadTransformerModel):
                          torch.where(sigmoid_val < 0.6, 3.0,
                          torch.where(sigmoid_val < 0.8, 4.0, 5.0))))
 
-        # Debug logging - handle both single and batch cases
-        if sigmoid_val.numel() == 1:
-            print(f"QUANTITY DEBUG: raw={quantity_raw.item():.6f}, sigmoid={sigmoid_val.item():.6f}, final={final_quantity.item()}")
-        else:
-            print(f"QUANTITY DEBUG: batch_size={sigmoid_val.shape[0]}, raw_mean={quantity_raw.mean().item():.6f}, sigmoid_mean={sigmoid_val.mean().item():.6f}, final_mean={final_quantity.mean().item()}")
+
 
         # Return as tensor with same shape as original quantity_raw
         outputs['quantity'] = final_quantity.to(dtype=torch.float32)

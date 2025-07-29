@@ -412,12 +412,21 @@ def main():
     parser.add_argument("--sequence", action="store_true", default=True, help="Run complete training sequence: PPO -> MoE -> MAML (default)")
     parser.add_argument("--no-sequence", action="store_true", help="Disable sequence training and use single algorithm")
     parser.add_argument("--testing", action="store_true", help="Enable testing mode with minimal data and parameters")
+    parser.add_argument("--detailed", action="store_true", help="Enable detailed backtest logging (positions, prices, PnL)")
 
     args = parser.parse_args()
 
     # Configure testing mode
     if args.testing:
         logger.info("🧪 TESTING MODE ENABLED")
+
+    # Configure detailed logging mode
+    if args.detailed:
+        logger.info("📊 DETAILED LOGGING ENABLED - Backtest logs will show positions, prices, and PnL")
+        import os
+        os.environ['DETAILED_BACKTEST_LOGGING'] = 'true'
+    else:
+        logger.info("📝 CONCISE LOGGING MODE - Backtest details suppressed for cleaner analysis")
         logger.info("Using minimal data and parameters for quick testing")
         # Override parameters for testing
         if args.episodes is None:

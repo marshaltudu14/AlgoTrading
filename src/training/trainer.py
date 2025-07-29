@@ -109,7 +109,7 @@ class Trainer:
         # Display comprehensive training summary
         self._display_training_summary(initial_capital)
 
-        self.agent.save_model("trained_agent.pth")
+        # Model will be passed to next stage - no intermediate save needed
 
     def _create_meta_optimizer(self, agent: MoEAgent) -> optim.Optimizer:
         """Create meta-optimizer for MAML that includes all trainable parameters."""
@@ -215,7 +215,7 @@ class Trainer:
         # Display comprehensive MAML training summary
         self._display_maml_training_summary(initial_capital, num_meta_iterations, avg_task_reward)
 
-        self.agent.save_model("meta_trained_agent.pth")
+        # Model will be passed to next stage - no intermediate save needed
 
     def _execute_task_adaptation_and_evaluation(self, data_loader: DataLoader, task: Tuple,
                                               initial_capital: float, num_inner_loop_steps: int,
@@ -363,10 +363,17 @@ class Trainer:
     def _log_progress_detailed(self, episode: int, episode_reward: float, avg_reward: float,
                               win_rate: float, total_pnl: float, num_trades: int, capital: float) -> None:
         """Log detailed training progress with trading metrics."""
-        logger.info(f"📊 Episode {episode} Training Progress:")
-        logger.info(f"  💰 Reward: {episode_reward:.2f} (Avg: {avg_reward:.2f})")
-        logger.info(f"  📈 Trading: {num_trades} trades, Win Rate: {win_rate:.1%}")
-        logger.info(f"  💵 P&L: ₹{total_pnl:.2f}, Capital: ₹{capital:.2f}")
+        import os
+        detailed_logging = os.environ.get('DETAILED_BACKTEST_LOGGING', 'false').lower() == 'true'
+
+        if detailed_logging:
+            logger.info(f"📊 Episode {episode} Training Progress:")
+            logger.info(f"  💰 Reward: {episode_reward:.2f} (Avg: {avg_reward:.2f})")
+            logger.info(f"  📈 Trading: {num_trades} trades, Win Rate: {win_rate:.1%}")
+            logger.info(f"  💵 P&L: ₹{total_pnl:.2f}, Capital: ₹{capital:.2f}")
+        else:
+            # Concise logging - just episode and key metrics
+            logger.info(f"📊 Ep {episode}: Reward {episode_reward:.1f}, {num_trades} trades, Win {win_rate:.0%}, Capital ₹{capital:.0f}")
 
         # Show recent trading decisions
         if hasattr(self.env, 'engine') and hasattr(self.env.engine, 'get_trade_summary'):

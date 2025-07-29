@@ -434,7 +434,9 @@ class SelfModificationManager:
                 logger.info(f"Pruned {pruned_count}/{total_params} parameters ({pruning_ratio:.3f})")
                 return True
             else:
-                logger.warning(f"Pruning ratio {pruning_ratio:.3f} exceeds maximum {self.config.max_pruning_ratio}")
+                from src.utils.error_logger import log_warning
+                log_warning(f"Pruning ratio {pruning_ratio:.3f} exceeds maximum {self.config.max_pruning_ratio}",
+                           "Synaptic Pruning")
                 return False
 
         except Exception as e:

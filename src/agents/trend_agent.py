@@ -109,8 +109,9 @@ class TrendAgent(BaseAgent):
         advantages = torch.FloatTensor(advantages)
         returns = torch.FloatTensor(returns)
 
-        # Normalize advantages
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        # Normalize advantages (only if we have enough samples and non-zero std)
+        if len(advantages) > 1 and advantages.std() > 1e-8:
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
         # Get old action probabilities and quantity predictions (detached for stability)
         old_action_outputs = self.policy_old(states)
@@ -172,6 +173,12 @@ class TrendAgent(BaseAgent):
 
             # Critic loss
             current_values = self.critic(states).squeeze(-1)  # Only squeeze last dimension
+            # Ensure shapes match for MSE loss
+            if current_values.shape != returns.shape:
+                if current_values.dim() == 0 and returns.dim() == 1:
+                    current_values = current_values.unsqueeze(0)
+                elif current_values.dim() == 1 and returns.dim() == 0:
+                    returns = returns.unsqueeze(0)
             critic_loss = self.MseLoss(current_values, returns)
 
             # Update actor
@@ -179,11 +186,8 @@ class TrendAgent(BaseAgent):
 
             # Debug: Check if actor_loss requires gradients
             if not actor_loss.requires_grad:
-                logger.warning(f"Actor loss does not require gradients: {actor_loss}")
-                logger.warning(f"Ratio requires grad: {ratio.requires_grad}")
-                logger.warning(f"Log probs requires grad: {log_probs.requires_grad}")
-                logger.warning(f"Action probs requires grad: {action_probs.requires_grad}")
-                logger.warning(f"States requires grad: {states.requires_grad}")
+                from src.utils.error_logger import log_warning
+                log_warning(f"Actor loss does not require gradients: {actor_loss}", "Trend Agent Gradient Check")
                 continue  # Skip this update
 
             try:

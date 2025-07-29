@@ -270,15 +270,12 @@ class PPOAgent(BaseAgent):
         advantages = torch.FloatTensor(advantages)
         returns = torch.FloatTensor(returns)
 
-        # Normalize advantages for better training stability
-        if len(advantages) > 1:
-            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
-
         advantages = to_device(advantages)
         returns = to_device(returns)
 
-        # Normalize advantages
-        advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+        # Normalize advantages (only if we have enough samples and non-zero std)
+        if len(advantages) > 1 and advantages.std() > 1e-8:
+            advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
         # Get old action probabilities and quantity predictions
         old_action_outputs = self.policy_old(states)
@@ -348,19 +345,23 @@ class PPOAgent(BaseAgent):
 
             # Critic loss
             current_values = self.critic(states).squeeze()
+            # Ensure shapes match for MSE loss
+            if current_values.shape != returns.shape:
+                if current_values.dim() == 0 and returns.dim() == 1:
+                    current_values = current_values.unsqueeze(0)
+                elif current_values.dim() == 1 and returns.dim() == 0:
+                    returns = returns.unsqueeze(0)
             critic_loss = self.MseLoss(current_values, returns)
 
             # Check for NaN values in losses and gradient requirements
             if torch.isnan(actor_loss) or torch.isnan(critic_loss):
-                print("Warning: NaN detected in losses, skipping learning step")
+                from src.utils.error_logger import log_warning
+                log_warning("NaN detected in losses, skipping learning step", "PPO Agent Update")
                 return
 
             if not actor_loss.requires_grad:
-                print(f"Warning: Actor loss does not require gradients: {actor_loss}")
-                print(f"Ratio requires grad: {ratio.requires_grad}")
-                print(f"Log probs requires grad: {log_probs.requires_grad}")
-                print(f"Action probs requires grad: {action_probs.requires_grad}")
-                print(f"States requires grad: {states.requires_grad}")
+                from src.utils.error_logger import log_warning
+                log_warning(f"Actor loss does not require gradients: {actor_loss}", "PPO Agent Gradient Check")
                 continue  # Skip this update
 
             # Update actor
@@ -451,8 +452,14 @@ class PPOAgent(BaseAgent):
             surr2 = torch.clamp(ratio, 1 - self.epsilon_clip, 1 + self.epsilon_clip) * advantage.detach()
             actor_loss = -torch.min(surr1, surr2).mean()
 
-            # Critic loss
-            critic_loss = self.MseLoss(value, target_value.detach())
+            # Critic loss - ensure shapes match
+            target_val = target_value.detach()
+            if value.shape != target_val.shape:
+                if value.dim() == 0 and target_val.dim() == 1:
+                    value = value.unsqueeze(0)
+                elif value.dim() == 1 and target_val.dim() == 0:
+                    target_val = target_val.unsqueeze(0)
+            critic_loss = self.MseLoss(value, target_val)
 
             # Update adapted networks
             adapted_optimizer_actor.zero_grad()

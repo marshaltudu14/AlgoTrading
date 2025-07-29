@@ -108,11 +108,7 @@ class TradingEnv(gym.Env):
         else:
             self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
 
-            # DEBUG: Log detailed information about loaded data
-            logger.info(f"🔍 DEBUG: Loaded data for symbol '{self.symbol}':")
-            logger.info(f"   - Data shape: {self.data.shape}")
-            logger.info(f"   - Columns: {list(self.data.columns)}")
-            logger.info(f"   - Data source: {self.data_loader.final_data_dir}")
+
 
             # Initialize feeding strategy manager if not already done
             if self.feeding_strategy_manager is None:
@@ -193,7 +189,9 @@ class TradingEnv(gym.Env):
         )
 
         if self.data.empty:
-            logging.error(f"Failed to load data segment for {self.symbol}, falling back to full FINAL data loading")
+            from src.utils.error_logger import log_error
+            log_error(f"Failed to load data segment for {self.symbol}, falling back to full FINAL data loading",
+                     f"Episode: {self.current_episode_start}-{self.current_episode_end}")
             self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
             self.use_streaming = False
         else:
@@ -221,6 +219,10 @@ class TradingEnv(gym.Env):
 
     def step(self, action) -> Tuple[np.ndarray, float, bool, Dict]:
         self.current_step += 1
+
+        # Check if detailed logging is enabled
+        import os
+        detailed_logging = os.environ.get('DETAILED_BACKTEST_LOGGING', 'false').lower() == 'true'
 
         if self.current_step >= len(self.data):
             # Force close any open positions before episode ends
@@ -281,13 +283,14 @@ class TradingEnv(gym.Env):
 
             quantity = float(adjusted_quantity)
 
-        # DEBUG: Log every action to see what the agent is doing
-        action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
-        action_name = action_names[action_type]
+        # DEBUG: Log every action to see what the agent is doing (only if detailed logging enabled)
+        if detailed_logging:
+            action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
+            action_name = action_names[action_type]
 
-        if self.current_step % 10 == 0 or action_type != 4:  # Log every 10 steps or non-HOLD actions
-            logger.info(f"🎯 Step {self.current_step}: Agent action: {action} -> {action_name} (qty: {quantity})")
-            logger.info(f"   Current price: ₹{current_price:.2f}, Capital: ₹{prev_capital:.2f}")
+            if self.current_step % 10 == 0 or action_type != 4:  # Log every 10 steps or non-HOLD actions
+                logger.info(f"🎯 Step {self.current_step}: Agent action: {action} -> {action_name} (qty: {quantity})")
+                logger.info(f"   Current price: ₹{current_price:.2f}, Capital: ₹{prev_capital:.2f}")
 
         # Get current position state to validate actions
         account_state = self.engine.get_account_state()
@@ -314,8 +317,10 @@ class TradingEnv(gym.Env):
         elif action_type == 4: # HOLD
             self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
 
-        # Log significant trading actions (not HOLD) every 50 steps or for trades
-        if action_type != 4 or self.current_step % 50 == 0:
+        # Log significant trading actions (not HOLD) every 50 steps or for trades (only if detailed logging enabled)
+        if detailed_logging and (action_type != 4 or self.current_step % 50 == 0):
+            action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
+            action_name = action_names[action_type]
             account_state = self.engine.get_account_state(current_price=current_price)
             if action_type != 4:  # Actual trade
                 logger.info(f"🎯 Step {self.current_step}: {action_name} @ ₹{current_price:.2f} (Qty: {quantity})")
@@ -343,8 +348,8 @@ class TradingEnv(gym.Env):
         shaped_reward = self._apply_reward_shaping(base_reward, action_type, current_capital, prev_capital)
         reward = shaped_reward
 
-        # DEBUG: Log reward calculation
-        if self.current_step % 20 == 0 or abs(reward) > 0.1:
+        # DEBUG: Log reward calculation (only if detailed logging enabled)
+        if detailed_logging and (self.current_step % 20 == 0 or abs(reward) > 0.1):
             logger.info(f"💰 Step {self.current_step}: Reward = {reward:.4f} (base: {base_reward:.4f}, shaped: {shaped_reward:.4f})")
             logger.info(f"   Capital: {prev_capital:.2f} -> {current_capital:.2f} (change: {current_capital - prev_capital:.2f})")
 
@@ -364,6 +369,10 @@ class TradingEnv(gym.Env):
 
     def _force_close_open_positions(self):
         """Force close any open positions at the end of an episode to ensure accurate final capital."""
+        # Check if detailed logging is enabled
+        import os
+        detailed_logging = os.environ.get('DETAILED_BACKTEST_LOGGING', 'false').lower() == 'true'
+
         account_state = self.engine.get_account_state()
 
         if account_state['is_position_open']:
@@ -372,11 +381,13 @@ class TradingEnv(gym.Env):
 
             if position_quantity > 0:
                 # Close long position
-                logging.info(f"Force closing long position at episode end. Price: {current_price}")
+                if detailed_logging:
+                    logging.info(f"Force closing long position at episode end. Price: {current_price}")
                 self.engine.execute_trade("CLOSE_LONG", current_price, abs(position_quantity))
             elif position_quantity < 0:
                 # Close short position
-                logging.info(f"Force closing short position at episode end. Price: {current_price}")
+                if detailed_logging:
+                    logging.info(f"Force closing short position at episode end. Price: {current_price}")
                 self.engine.execute_trade("CLOSE_SHORT", current_price, abs(position_quantity))
 
     def _calculate_reward(self, current_capital: float, prev_capital: float) -> float:

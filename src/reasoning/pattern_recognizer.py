@@ -236,10 +236,17 @@ class PatternRecognizer:
         # Convert input to standardized format
         ohlcv_data = self._prepare_price_data(price_data)
         
-        if len(ohlcv_data) < self.sequence_length:
-            warning_key = f"insufficient_data_pattern_recognition_{len(ohlcv_data)}_{self.sequence_length}"
+        # Dynamically adjust sequence length based on available data
+        effective_sequence_length = min(self.sequence_length, len(ohlcv_data))
+
+        # Minimum viable sequence length for pattern recognition
+        min_sequence_length = 10
+
+        if len(ohlcv_data) < min_sequence_length:
+            # Only warn if we have very little data (less than 10 periods)
+            warning_key = f"insufficient_data_pattern_recognition_{len(ohlcv_data)}_{min_sequence_length}"
             if warning_key not in _warning_cache:
-                logger.warning(f"Insufficient data for pattern recognition: have {len(ohlcv_data)} periods, need {self.sequence_length}")
+                logger.warning(f"Insufficient data for pattern recognition: have {len(ohlcv_data)} periods, need at least {min_sequence_length}")
                 _warning_cache.add(warning_key)
             no_pattern = PatternDetection(
                 pattern_type=PatternType.NO_PATTERN,
@@ -248,16 +255,23 @@ class PatternRecognizer:
                 end_index=len(ohlcv_data) - 1 if len(ohlcv_data) > 0 else 0
             )
             return [no_pattern] if return_all_detections else no_pattern
+
+        # Use effective sequence length for analysis
+        if effective_sequence_length < self.sequence_length:
+            # Silently use available data without warning
+            analysis_length = effective_sequence_length
+        else:
+            analysis_length = self.sequence_length
         
         detections = []
         
         # Rule-based pattern detection
-        rule_based_detections = self._detect_patterns_rule_based(ohlcv_data)
+        rule_based_detections = self._detect_patterns_rule_based(ohlcv_data, analysis_length)
         detections.extend(rule_based_detections)
-        
+
         # Neural network pattern detection
         if self.use_neural_network and self.cnn_model is not None:
-            nn_detections = self._detect_patterns_neural_network(ohlcv_data)
+            nn_detections = self._detect_patterns_neural_network(ohlcv_data, analysis_length)
             detections.extend(nn_detections)
         
         # Filter by confidence threshold
@@ -295,7 +309,9 @@ class PatternRecognizer:
         """
         ohlcv_data = self._prepare_price_data(price_data)
         
-        if len(ohlcv_data) < self.sequence_length:
+        # Use minimum viable sequence length for pattern features
+        min_sequence_length = 10
+        if len(ohlcv_data) < min_sequence_length:
             return {}
         
         # Get all pattern detections
@@ -380,7 +396,7 @@ class PatternRecognizer:
         else:
             raise ValueError(f"Unsupported data type: {type(price_data)}")
     
-    def _detect_patterns_rule_based(self, ohlcv_data: np.ndarray) -> List[PatternDetection]:
+    def _detect_patterns_rule_based(self, ohlcv_data: np.ndarray, analysis_length: int = None) -> List[PatternDetection]:
         """
         Detect patterns using rule-based logic.
         
@@ -620,7 +636,7 @@ class PatternRecognizer:
 
         return shoulder_height_diff < 0.05 and 1.1 < head_shoulder_ratio < 1.5
 
-    def _detect_patterns_neural_network(self, ohlcv_data: np.ndarray) -> List[PatternDetection]:
+    def _detect_patterns_neural_network(self, ohlcv_data: np.ndarray, analysis_length: int = None) -> List[PatternDetection]:
         """
         Detect patterns using neural network.
 
@@ -635,8 +651,11 @@ class PatternRecognizer:
 
         detections = []
 
+        # Use analysis_length if provided, otherwise use default sequence_length
+        effective_length = analysis_length if analysis_length is not None else self.sequence_length
+
         # Prepare data for neural network
-        sequence_data = self._prepare_sequence_for_nn(ohlcv_data)
+        sequence_data = self._prepare_sequence_for_nn(ohlcv_data, effective_length)
 
         if sequence_data is None:
             return detections
@@ -664,7 +683,7 @@ class PatternRecognizer:
                 detections.append(PatternDetection(
                     pattern_type=pattern_type,
                     confidence=confidence,
-                    start_index=len(ohlcv_data) - self.sequence_length,
+                    start_index=len(ohlcv_data) - effective_length,
                     end_index=len(ohlcv_data) - 1,
                     direction=direction,
                     strength=best_pattern_prob
@@ -672,7 +691,7 @@ class PatternRecognizer:
 
         return detections
 
-    def _prepare_sequence_for_nn(self, ohlcv_data: np.ndarray) -> Optional[torch.Tensor]:
+    def _prepare_sequence_for_nn(self, ohlcv_data: np.ndarray, sequence_length: int = None) -> Optional[torch.Tensor]:
         """
         Prepare price sequence for neural network input.
 
@@ -682,11 +701,14 @@ class PatternRecognizer:
         Returns:
             Tensor ready for neural network input or None if insufficient data
         """
-        if len(ohlcv_data) < self.sequence_length:
+        # Use provided sequence_length or default
+        effective_length = sequence_length if sequence_length is not None else self.sequence_length
+
+        if len(ohlcv_data) < effective_length:
             return None
 
-        # Take the last sequence_length periods
-        sequence = ohlcv_data[-self.sequence_length:, :4]  # Only OHLC
+        # Take the last effective_length periods
+        sequence = ohlcv_data[-effective_length:, :4]  # Only OHLC
 
         # Normalize the data (relative to first price)
         base_price = sequence[0, 3]  # First close price

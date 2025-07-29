@@ -132,7 +132,7 @@ def test_trainer_meta_train_loop():
         mock_agent.select_action.call_count > 0
         mock_env_instance.step.call_count > 0
         mock_agent.adapt.call_count > 0
-        mock_agent.save_model.assert_called_once_with("meta_trained_agent.pth")
+        # Model is passed to next stage - no intermediate save expected
 
 def test_comprehensive_backtesting_report():
     mock_env = Mock(spec=TradingEnv)

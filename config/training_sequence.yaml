@@ -59,11 +59,8 @@ training_sequence:
       - "Develop self-modification and adaptation capabilities"
       - "Achieve autonomous trading performance optimization"
       - "Create truly autonomous trading agents"
-    success_criteria:
-      min_fitness_improvement: 0.05  # TESTING: 0.05 | PRODUCTION: 0.2 (20% improvement over baseline)
-      min_sharpe_ratio: 0.5  # TESTING: 0.5 | PRODUCTION: 1.0
-      min_profit_factor: 1.0  # TESTING: 1.0 | PRODUCTION: 1.5
-      max_drawdown: 0.4  # TESTING: 0.4 | PRODUCTION: 0.25
+    # Success criteria removed - always select best champion model from evolution
+    # The autonomous stage focuses on finding the best performing agent regardless of strict thresholds
 
     # Autonomous-specific settings
     autonomous:

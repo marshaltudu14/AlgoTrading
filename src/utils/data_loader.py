@@ -258,33 +258,45 @@ class DataLoader:
     def _load_csv_segment(self, filepath: str, start_idx: int, end_idx: int) -> pd.DataFrame:
         """Load a specific segment from CSV file."""
         try:
+            # Determine if this is a features file (no datetime required)
+            is_features_file = 'features_' in os.path.basename(filepath)
+            require_datetime = not is_features_file
+
             # Use skiprows and nrows for efficient segment loading
             nrows = end_idx - start_idx
             df = pd.read_csv(filepath, skiprows=range(1, start_idx + 1), nrows=nrows)
 
-            if self._validate_chunk(df):
+            if self._validate_chunk(df, require_datetime=require_datetime):
                 return df
             else:
-                logging.warning(f"Invalid data segment in {filepath}")
+                from src.utils.error_logger import log_warning
+                log_warning(f"Invalid data segment in {filepath}", f"Segment: {start_idx}-{end_idx}")
                 return pd.DataFrame()
         except Exception as e:
-            logging.error(f"Error loading CSV segment from {filepath}: {e}")
+            from src.utils.error_logger import log_error
+            log_error(f"Error loading CSV segment from {filepath}: {e}", f"Segment: {start_idx}-{end_idx}")
             return pd.DataFrame()
 
     def _load_parquet_segment(self, filepath: str, start_idx: int, end_idx: int) -> pd.DataFrame:
         """Load a specific segment from Parquet file."""
         try:
+            # Determine if this is a features file (no datetime required)
+            is_features_file = 'features_' in os.path.basename(filepath)
+            require_datetime = not is_features_file
+
             # Parquet allows efficient row-level access
             df = pd.read_parquet(filepath, engine='pyarrow')
             segment = df.iloc[start_idx:end_idx]
 
-            if self._validate_chunk(segment):
+            if self._validate_chunk(segment, require_datetime=require_datetime):
                 return segment
             else:
-                logging.warning(f"Invalid data segment in {filepath}")
+                from src.utils.error_logger import log_warning
+                log_warning(f"Invalid data segment in {filepath}", f"Segment: {start_idx}-{end_idx}")
                 return pd.DataFrame()
         except Exception as e:
-            logging.error(f"Error loading Parquet segment from {filepath}: {e}")
+            from src.utils.error_logger import log_error
+            log_error(f"Error loading Parquet segment from {filepath}: {e}", f"Segment: {start_idx}-{end_idx}")
             return pd.DataFrame()
 
     def get_data_length(self, symbol: str, data_type: str = "raw") -> int:

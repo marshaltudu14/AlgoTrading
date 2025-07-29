@@ -72,7 +72,10 @@ class AutonomousTrainingConfig:
     
     # Evaluation parameters
     fitness_metrics: List[str] = None
-    
+
+    # Testing parameters
+    testing_mode: bool = False
+
     def __post_init__(self):
         """Set default fitness metrics if not provided."""
         if self.fitness_metrics is None:
@@ -152,6 +155,13 @@ class AutonomousTrainer:
         # Create agents from NAS architectures and hyperparameters
         self.population = []
         for i, individual in enumerate(self.nas_controller.population):
+            # Configure pattern recognizer for testing mode
+            pattern_recognizer_config = {}
+            if hasattr(self.config, 'testing_mode') and self.config.testing_mode:
+                # Use smaller sequence length for testing to avoid insufficient data warnings
+                pattern_recognizer_config['sequence_length'] = 20
+                logger.info(f"🧪 Testing mode: Using sequence_length=20 for pattern recognition")
+
             # Create autonomous agent with evolved hyperparameters
             agent = AutonomousAgent(
                 observation_dim=self.config.observation_dim,
@@ -159,7 +169,8 @@ class AutonomousTrainer:
                 hidden_dim=self.config.hidden_dim,
                 memory_size=self.config.memory_size,
                 memory_embedding_dim=self.config.memory_embedding_dim,
-                hyperparameters=individual.hyperparameters
+                hyperparameters=individual.hyperparameters,
+                pattern_recognizer_config=pattern_recognizer_config
             )
 
             # Store architecture and individual reference for evolution
@@ -420,6 +431,12 @@ class AutonomousTrainer:
         new_population = []
 
         for i, individual in enumerate(new_nas_population):
+            # Configure pattern recognizer for testing mode
+            pattern_recognizer_config = {}
+            if hasattr(self.config, 'testing_mode') and self.config.testing_mode:
+                # Use smaller sequence length for testing to avoid insufficient data warnings
+                pattern_recognizer_config['sequence_length'] = 20
+
             # Create new agent with evolved architecture and hyperparameters
             agent = AutonomousAgent(
                 observation_dim=self.config.observation_dim,
@@ -427,7 +444,8 @@ class AutonomousTrainer:
                 hidden_dim=self.config.hidden_dim,
                 memory_size=self.config.memory_size,
                 memory_embedding_dim=self.config.memory_embedding_dim,
-                hyperparameters=individual.hyperparameters
+                hyperparameters=individual.hyperparameters,
+                pattern_recognizer_config=pattern_recognizer_config
             )
 
             # Store architecture and individual reference
@@ -552,8 +570,64 @@ class AutonomousTrainer:
         logger.info(f"Champion fitness: {self.best_fitness:.4f}")
         logger.info(f"Champion hyperparameters: {champion_data['hyperparameters']}")
 
+    def transfer_maml_knowledge(self, maml_agent) -> None:
+        """Transfer knowledge from MAML agent to autonomous population."""
+        logger.info("Transferring MAML knowledge to autonomous agents...")
 
-def run_autonomous_stage(config: Dict[str, Any]) -> Dict[str, Any]:
+        for i, agent in enumerate(self.population):
+            try:
+                # Transfer world model knowledge if compatible
+                if hasattr(maml_agent, 'gating_network') and hasattr(agent, 'world_model'):
+                    # Try to transfer gating network knowledge to world model
+                    try:
+                        # Get compatible state dict components
+                        maml_state = maml_agent.gating_network.state_dict()
+                        agent_state = agent.world_model.state_dict()
+
+                        # Transfer compatible layers
+                        transferred_layers = 0
+                        for key in agent_state.keys():
+                            if key in maml_state and agent_state[key].shape == maml_state[key].shape:
+                                agent_state[key] = maml_state[key].clone()
+                                transferred_layers += 1
+
+                        agent.world_model.load_state_dict(agent_state)
+                        logger.info(f"Agent {i}: Transferred {transferred_layers} layers from MAML gating network")
+
+                    except Exception as e:
+                        logger.warning(f"Agent {i}: Failed to transfer gating network knowledge: {e}")
+
+                # Transfer expert knowledge if available
+                if hasattr(maml_agent, 'experts') and hasattr(agent, 'world_model'):
+                    # Try to transfer expert knowledge to world model components
+                    try:
+                        # Use the first expert as a knowledge source
+                        if len(maml_agent.experts) > 0:
+                            expert = maml_agent.experts[0]
+                            if hasattr(expert, 'actor'):
+                                # Transfer actor knowledge to world model
+                                expert_state = expert.actor.state_dict()
+                                agent_state = agent.world_model.state_dict()
+
+                                transferred_layers = 0
+                                for key in agent_state.keys():
+                                    if key in expert_state and agent_state[key].shape == expert_state[key].shape:
+                                        agent_state[key] = expert_state[key].clone()
+                                        transferred_layers += 1
+
+                                agent.world_model.load_state_dict(agent_state)
+                                logger.info(f"Agent {i}: Transferred {transferred_layers} layers from MAML expert")
+
+                    except Exception as e:
+                        logger.warning(f"Agent {i}: Failed to transfer expert knowledge: {e}")
+
+            except Exception as e:
+                logger.warning(f"Agent {i}: Failed to transfer MAML knowledge: {e}")
+
+        logger.info("MAML knowledge transfer completed")
+
+
+def run_autonomous_stage(config: Dict[str, Any], maml_agent=None) -> Dict[str, Any]:
     """
     Main function to run the autonomous training stage.
 
@@ -600,6 +674,11 @@ def run_autonomous_stage(config: Dict[str, Any]) -> Dict[str, Any]:
     # Initialize population
     trainer.initialize_population()
 
+    # Transfer knowledge from MAML agent if provided
+    if maml_agent is not None:
+        logger.info("Transferring knowledge from MAML agent to autonomous population")
+        trainer.transfer_maml_knowledge(maml_agent)
+
     # Main training loop
     for generation in range(training_config.generations):
         logger.info(f"=== Generation {generation + 1}/{training_config.generations} ===")
@@ -619,14 +698,13 @@ def run_autonomous_stage(config: Dict[str, Any]) -> Dict[str, Any]:
                    f"Best fitness: {stats['best_fitness']:.4f}, "
                    f"Avg fitness: {stats['current_avg_fitness']:.4f}")
 
-    # Don't save individual champion agents - only the universal model is saved
-    # The universal model is saved by the sequence manager
-    logger.info("Autonomous training completed - universal model will be saved by sequence manager")
+    # Skip saving champion model - universal model will be saved in sequence manager
+    logger.info("Champion model will be saved as universal model in sequence manager")
 
-    # Return final statistics with best agent reference for universal model creation
+    # Return final statistics with best agent for universal model creation
     final_stats = trainer.get_training_statistics()
     final_stats['best_agent'] = trainer.best_agent  # Pass best agent for universal model creation
-    final_stats['champion_path'] = None  # No individual champion saved
+    final_stats['champion_path'] = None  # No intermediate champion save
 
     logger.info("Autonomous training stage completed")
     return final_stats
