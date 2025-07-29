@@ -44,7 +44,7 @@ class AutonomousTrainingConfig:
     elite_size: int = 5
     
     # Agent parameters
-    observation_dim: int = 65
+    observation_dim: int = -1  # Dynamic: will be set from environment
     action_dim: int = 5
     hidden_dim: int = 128
     memory_size: int = 1000
@@ -226,19 +226,16 @@ class AutonomousTrainer:
                 action = agent.act(obs)
                 
                 # Take step in environment
-                obs, reward, done, truncated, info = env.step(action)
+                obs, reward, done, info = env.step(action)
                 episode_reward += reward
                 step_count += 1
-                
-                if truncated:
-                    done = True
             
             # Collect episode results
             episode_results.append({
                 'total_reward': episode_reward,
-                'final_capital': env.backtesting_engine._capital,
-                'num_trades': env.backtesting_engine._trade_count,
-                'realized_pnl': env.backtesting_engine._total_realized_pnl
+                'final_capital': env.engine._capital,
+                'num_trades': len(env.engine._trade_history),
+                'realized_pnl': env.engine._realized_pnl
             })
         
         # Calculate performance metrics
@@ -250,23 +247,37 @@ class AutonomousTrainer:
         volatility = np.std(total_returns) if len(total_returns) > 1 else 0.0
         sharpe_ratio = avg_return / (volatility + 1e-8)
         
-        # Calculate profit factor and drawdown
-        avg_capital = np.mean(final_capitals)
-        profit_factor = avg_capital / INITIAL_CAPITAL
-        
-        # Simple drawdown calculation
-        returns_series = np.array(total_returns)
-        cumulative_returns = np.cumsum(returns_series)
-        running_max = np.maximum.accumulate(cumulative_returns)
-        drawdown = cumulative_returns - running_max
-        max_drawdown = np.min(drawdown) if len(drawdown) > 0 else 0.0
-        
-        # Win rate calculation
-        positive_episodes = sum(1 for r in total_returns if r > 0)
-        win_rate = positive_episodes / len(total_returns) if total_returns else 0.0
-        
-        # Total trades
-        total_trades = sum(r['num_trades'] for r in episode_results)
+        # Calculate REAL profit factor from actual trades
+        all_trade_pnls = []
+        total_trades = 0
+        for r in episode_results:
+            if 'realized_pnl' in r and r['realized_pnl'] != 0:
+                all_trade_pnls.append(r['realized_pnl'])
+            total_trades += r['num_trades']
+
+        # Real profit factor calculation
+        if all_trade_pnls:
+            gross_profit = sum(pnl for pnl in all_trade_pnls if pnl > 0)
+            gross_loss = abs(sum(pnl for pnl in all_trade_pnls if pnl < 0))
+            profit_factor = gross_profit / gross_loss if gross_loss > 0 else (10.0 if gross_profit > 0 else 0.0)
+        else:
+            profit_factor = 0.0
+
+        # Real drawdown calculation from capital curve
+        capital_series = np.array(final_capitals)
+        if len(capital_series) > 1:
+            peak = np.maximum.accumulate(capital_series)
+            drawdown_series = (capital_series - peak) / peak
+            max_drawdown = abs(np.min(drawdown_series))
+        else:
+            max_drawdown = 0.0
+
+        # Real win rate from actual trades
+        if all_trade_pnls:
+            winning_trades = sum(1 for pnl in all_trade_pnls if pnl > 0)
+            win_rate = winning_trades / len(all_trade_pnls)
+        else:
+            win_rate = 0.0
         
         return PerformanceMetrics(
             profit_factor=profit_factor,
@@ -342,21 +353,28 @@ class AutonomousTrainer:
         Returns:
             Composite fitness score
         """
-        # Weighted combination of metrics
+        # TRADING-FOCUSED weights - what actually matters for profitability
         weights = {
-            'sharpe_ratio': 0.4,
-            'profit_factor': 0.3,
-            'max_drawdown': 0.2,  # Negative impact
-            'win_rate': 0.1
+            'profit_factor': 0.4,    # Most important - gross profit vs gross loss
+            'max_drawdown': 0.3,     # Critical for risk management
+            'win_rate': 0.2,         # Important for consistency
+            'sharpe_ratio': 0.1      # Less important than actual trading metrics
         }
 
-        # Normalize and combine metrics
-        sharpe_component = max(0, metrics.sharpe_ratio) * weights['sharpe_ratio']
-        profit_component = max(0, metrics.profit_factor - 1.0) * weights['profit_factor']
-        drawdown_component = max(0, -metrics.max_drawdown) * weights['max_drawdown']  # Penalty for drawdown
-        winrate_component = metrics.win_rate * weights['win_rate']
+        # Normalize and combine metrics with proper scaling
+        # Profit factor: 1.0 = break-even, >1.5 = good, >2.0 = excellent
+        profit_component = max(0, (metrics.profit_factor - 1.0) * 2.0) * weights['profit_factor']
 
-        fitness = sharpe_component + profit_component - drawdown_component + winrate_component
+        # Drawdown: 0% = perfect, <5% = excellent, <10% = good, >20% = bad
+        drawdown_penalty = min(1.0, metrics.max_drawdown / 0.2) * weights['max_drawdown']
+
+        # Win rate: 50% = break-even, >60% = good, >70% = excellent
+        winrate_component = max(0, (metrics.win_rate - 0.5) * 2.0) * weights['win_rate']
+
+        # Sharpe ratio: >1.0 = good, >2.0 = excellent
+        sharpe_component = max(0, metrics.sharpe_ratio) * weights['sharpe_ratio']
+
+        fitness = profit_component + winrate_component + sharpe_component - drawdown_penalty
 
         return max(0.0, fitness)  # Ensure non-negative fitness
 
@@ -553,6 +571,27 @@ def run_autonomous_stage(config: Dict[str, Any]) -> Dict[str, Any]:
     autonomous_config.pop('initial_capital', None)  # Remove if present
     # Add symbol from the main config
     autonomous_config['symbol'] = config.get('symbol', 'NIFTY')
+
+    # Get dynamic observation dimension from environment
+    if autonomous_config.get('observation_dim', -1) == -1:
+        from src.utils.data_loader import DataLoader
+        from src.backtesting.environment import TradingEnv
+        from src.config.config import INITIAL_CAPITAL
+
+        # Create temporary environment to get observation dimension
+        data_loader = DataLoader()
+        temp_env = TradingEnv(
+            data_loader=data_loader,
+            symbol=autonomous_config['symbol'],
+            initial_capital=config.get('initial_capital', INITIAL_CAPITAL),
+            lookback_window=autonomous_config.get('lookback_window', 50),
+            episode_length=autonomous_config.get('episode_length', 1000)
+        )
+        temp_env.reset()
+        dynamic_observation_dim = temp_env.observation_space.shape[0]
+        autonomous_config['observation_dim'] = dynamic_observation_dim
+        logger.info(f"🔧 Dynamic observation dimension: {dynamic_observation_dim}")
+
     training_config = AutonomousTrainingConfig(**autonomous_config)
 
     # Initialize trainer

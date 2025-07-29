@@ -354,12 +354,25 @@ class DataLoader:
             f"processed_{symbol}.csv"
         ]
 
+        # Also try to find files with timeframe suffixes
+        import os
+        for filename in os.listdir(self.final_data_dir):
+            if filename.endswith(".csv"):
+                # Check if this file matches the symbol (with or without timeframe)
+                base_name = filename.replace(".csv", "")
+
+                # Pattern: features_Symbol_Timeframe or Symbol_Timeframe
+                if (base_name.startswith(f"features_{symbol}_") or
+                    base_name.startswith(f"processed_{symbol}_") or
+                    base_name.startswith(f"{symbol}_")):
+                    possible_files.append(filename)
+
         for filename in possible_files:
             filepath = os.path.join(self.final_data_dir, filename)
             if os.path.exists(filepath):
                 try:
                     df = pd.read_csv(filepath)
-                    logging.info(f"Loaded final data for {symbol}: {len(df)} rows")
+                    logging.info(f"Loaded final data for {symbol}: {len(df)} rows from {filename}")
                     return df
                 except Exception as e:
                     logging.error(f"Error loading {filepath}: {e}")
@@ -416,6 +429,9 @@ class DataLoader:
 
     def sample_tasks(self, num_tasks: int) -> List[Tuple[str, str]]:
         available_tasks = self.get_available_tasks()
+        if not available_tasks:
+            logging.error(f"No tasks available in {self.final_data_dir}. Cannot sample tasks.")
+            return []
         if len(available_tasks) < num_tasks:
             logging.warning(f"Requested {num_tasks} tasks, but only {len(available_tasks)} are available. Returning all available tasks.")
             return available_tasks

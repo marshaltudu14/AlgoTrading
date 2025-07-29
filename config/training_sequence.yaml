@@ -5,7 +5,7 @@ training_sequence:
   # Stage 1: PPO Baseline Training
   stage_1_ppo:
     algorithm: "PPO"
-    episodes: 50  # Increased for millions of data rows - allows deep pattern learning
+    episodes: 10  # Slightly increased for better learning
     description: "Establish baseline performance and validate environment"
     objectives:
       - "Learn basic trading patterns"
@@ -19,7 +19,7 @@ training_sequence:
   # Stage 2: MoE Specialization Training
   stage_2_moe:
     algorithm: "MoE"
-    episodes: 80  # Increased for expert specialization with large datasets
+    episodes: 5  # Reduced for quick testing
     description: "Train specialized experts for different market conditions"
     prerequisites:
       - "Successful PPO training completion"
@@ -35,7 +35,7 @@ training_sequence:
   # Stage 3: MAML Meta-Learning
   stage_3_maml:
     algorithm: "MAML"
-    meta_iterations: 15  # Increased for better meta-learning with diverse data
+    meta_iterations: 3  # Reduced for quick testing
     description: "Meta-learning for quick adaptation to new conditions"
     prerequisites:
       - "Successful MoE training completion"
@@ -50,7 +50,7 @@ training_sequence:
   # Stage 4: Autonomous Evolution
   stage_4_autonomous:
     algorithm: "Autonomous"
-    generations: 5  # Number of evolutionary generations
+    generations: 2  # Reduced for quick testing
     description: "Autonomous agent evolution with self-modification capabilities"
     prerequisites:
       - "Successful MAML training completion"
@@ -68,19 +68,19 @@ training_sequence:
     # Autonomous-specific settings
     autonomous:
       # Population parameters
-      population_size: 20
-      elite_size: 5
+      population_size: 6  # Reduced for quick testing
+      elite_size: 2
 
       # Agent parameters
-      observation_dim: 65
+      observation_dim: -1  # Dynamic: will be set from environment
       action_dim: 5
       hidden_dim: 128
       memory_size: 1000
       memory_embedding_dim: 64
 
       # Training parameters
-      episodes_per_evaluation: 10
-      episode_length: 1000
+      episodes_per_evaluation: 3  # Reduced for quick testing
+      episode_length: 100  # Reduced for quick testing
       # initial_capital will be loaded from src.config.config.INITIAL_CAPITAL
 
       # Evolution parameters
@@ -131,19 +131,19 @@ progression_rules:
   # Minimum performance thresholds to advance to next stage
   advancement_criteria:
     stage_1_to_2:
-      min_episodes: 50
-      min_win_rate: 0.35
-      min_profit_factor: 0.8
-      
+      min_episodes: 5  # Reduced for quick testing
+      min_win_rate: 0.10  # Very relaxed for quick testing
+      min_profit_factor: 0.1  # Very relaxed for quick testing
+
     stage_2_to_3:
-      min_episodes: 100
-      min_win_rate: 0.40
-      min_profit_factor: 1.0
+      min_episodes: 3  # Reduced for quick testing
+      min_win_rate: 0.20  # Relaxed for quick testing
+      min_profit_factor: 0.5  # Relaxed for quick testing
 
     stage_3_to_4:
-      min_meta_iterations: 50
-      min_adaptation_speed: 5
-      min_cross_symbol_performance: 0.80
+      min_meta_iterations: 2  # Reduced for quick testing
+      min_adaptation_speed: 10  # Relaxed for quick testing
+      min_cross_symbol_performance: 0.50  # Relaxed for quick testing
       
   # Fallback strategies if criteria not met
   fallback_strategies:

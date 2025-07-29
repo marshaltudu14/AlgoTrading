@@ -9,6 +9,9 @@ from src.config.config import RISK_REWARD_CONFIG
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Warning deduplication to prevent spam
+_warning_cache = set()
+
 class BacktestingEngine:
     def __init__(self, initial_capital: float, instrument: Instrument, trailing_stop_percentage: float = 0.02):
         if initial_capital <= 0:
@@ -235,7 +238,10 @@ class BacktestingEngine:
 
         elif action == "CLOSE_LONG":
             if self._current_position_quantity <= 0: # No long position to close
-                logging.warning(f"No long position to CLOSE_LONG. Current position: {self._current_position_quantity}. Trade not executed.")
+                warning_key = f"no_long_position_to_close_{self._current_position_quantity}"
+                if warning_key not in _warning_cache:
+                    logging.warning(f"No long position to CLOSE_LONG. Current position: {self._current_position_quantity}. Trade not executed.")
+                    _warning_cache.add(warning_key)
                 return 0.0, self._unrealized_pnl
             if quantity > self._current_position_quantity:
                 logging.warning(f"Attempted to close {quantity} long, but only {self._current_position_quantity} held. Closing full position.")
@@ -285,7 +291,10 @@ class BacktestingEngine:
 
         elif action == "CLOSE_SHORT":
             if self._current_position_quantity >= 0: # No short position to close
-                logging.warning(f"No short position to CLOSE_SHORT. Current position: {self._current_position_quantity}. Trade not executed.")
+                warning_key = f"no_short_position_to_close_{self._current_position_quantity}"
+                if warning_key not in _warning_cache:
+                    logging.warning(f"No short position to CLOSE_SHORT. Current position: {self._current_position_quantity}. Trade not executed.")
+                    _warning_cache.add(warning_key)
                 return 0.0, self._unrealized_pnl
             if quantity > abs(self._current_position_quantity):
                 logging.warning(f"Attempted to close {quantity} short, but only {abs(self._current_position_quantity)} held. Closing full position.")

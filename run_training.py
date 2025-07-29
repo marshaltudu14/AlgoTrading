@@ -226,6 +226,7 @@ def run_simple_training(
         initial_capital=INITIAL_CAPITAL,
         lookback_window=20,
         episode_length=500,
+        reward_function="trading_focused",  # Use trading-focused reward
         use_streaming=False
     )
 

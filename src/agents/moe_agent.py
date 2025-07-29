@@ -106,10 +106,19 @@ class MoEAgent(BaseAgent):
         # Sample discrete action from the weighted probability distribution
         from torch.distributions import Categorical
         dist = Categorical(weighted_action_probs)
-        final_action_type = dist.sample().item()
+        action_sample = dist.sample()
+        # Handle 0-dimensional tensors
+        if action_sample.dim() == 0:
+            final_action_type = action_sample.item()
+        else:
+            final_action_type = action_sample.squeeze().item()
 
         # For continuous quantity, use the weighted average, ensuring it's positive
-        final_quantity = torch.clamp(weighted_quantity, min=0.01).item()
+        quantity_tensor = torch.clamp(weighted_quantity, min=0.01)
+        if quantity_tensor.dim() == 0:
+            final_quantity = quantity_tensor.item()
+        else:
+            final_quantity = quantity_tensor.squeeze().item()
 
         return final_action_type, final_quantity
 
@@ -177,7 +186,12 @@ class MoEAgent(BaseAgent):
 
             # Use the expert's critic to estimate state value
             with torch.no_grad():
-                state_value = expert.critic(state_tensor).item()
+                critic_output = expert.critic(state_tensor)
+                # Handle 0-dimensional tensors
+                if critic_output.dim() == 0:
+                    state_value = critic_output.item()
+                else:
+                    state_value = critic_output.squeeze().item()
                 # Combine actual reward with estimated value for performance metric
                 performance = reward + 0.5 * state_value  # Simple heuristic
                 performances.append(performance)
@@ -235,7 +249,12 @@ class MoEAgent(BaseAgent):
                 # Use expert's critic to estimate performance
                 state_input = torch.FloatTensor(observation).unsqueeze(0).unsqueeze(0)
                 with torch.no_grad():
-                    expert_value = expert.critic(state_input).item()
+                    critic_output = expert.critic(state_input)
+                    # Handle 0-dimensional tensors
+                    if critic_output.dim() == 0:
+                        expert_value = critic_output.item()
+                    else:
+                        expert_value = critic_output.squeeze().item()
                     # Combine reward with expert's value estimate
                     performance = reward + 0.5 * expert_value
                     expert_performances.append(performance)

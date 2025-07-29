@@ -233,6 +233,12 @@ class PPOAgent(BaseAgent):
         values = self.critic(states).squeeze()
         next_values = self.critic(next_states).squeeze()
 
+        # Ensure values and next_values are at least 1-dimensional for indexing
+        if values.dim() == 0:
+            values = values.unsqueeze(0)
+        if next_values.dim() == 0:
+            next_values = next_values.unsqueeze(0)
+
         # Check for NaN in critic outputs
         if torch.isnan(values).any() or torch.isnan(next_values).any():
             print("Warning: NaN detected in critic values, skipping learning step")
@@ -360,8 +366,18 @@ class PPOAgent(BaseAgent):
         adapted_critic = CriticTransformerModel(self.observation_dim, self.hidden_dim)
         adapted_critic.load_state_dict(self.critic.state_dict())
 
-        adapted_optimizer_actor = optim.Adam(adapted_actor.parameters(), lr=self.optimizer_actor.param_groups[0]['lr'])
-        adapted_optimizer_critic = optim.Adam(adapted_critic.parameters(), lr=self.optimizer_critic.param_groups[0]['lr'])
+        # Safely extract learning rates
+        actor_lr = self.optimizer_actor.param_groups[0]['lr']
+        critic_lr = self.optimizer_critic.param_groups[0]['lr']
+
+        # Handle tensor learning rates
+        if hasattr(actor_lr, 'item'):
+            actor_lr = actor_lr.item()
+        if hasattr(critic_lr, 'item'):
+            critic_lr = critic_lr.item()
+
+        adapted_optimizer_actor = optim.Adam(adapted_actor.parameters(), lr=actor_lr)
+        adapted_optimizer_critic = optim.Adam(adapted_critic.parameters(), lr=critic_lr)
 
         # Perform num_gradient_steps of a standard RL update on these temporary parameters
         for _ in range(num_gradient_steps):
@@ -428,7 +444,17 @@ class PPOAgent(BaseAgent):
 
         # Return a new BaseAgent instance with the adapted parameters
         # For simplicity, we'll return a new PPOAgent instance with adapted weights
-        adapted_agent = PPOAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim, self.optimizer_actor.param_groups[0]['lr'], self.optimizer_critic.param_groups[0]['lr'], self.gamma, self.epsilon_clip, self.k_epochs)
+        # Safely extract learning rates for new agent
+        actor_lr = self.optimizer_actor.param_groups[0]['lr']
+        critic_lr = self.optimizer_critic.param_groups[0]['lr']
+
+        # Handle tensor learning rates
+        if hasattr(actor_lr, 'item'):
+            actor_lr = actor_lr.item()
+        if hasattr(critic_lr, 'item'):
+            critic_lr = critic_lr.item()
+
+        adapted_agent = PPOAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim, actor_lr, critic_lr, self.gamma, self.epsilon_clip, self.k_epochs)
         adapted_agent.actor.load_state_dict(adapted_actor.state_dict())
         adapted_agent.critic.load_state_dict(adapted_critic.state_dict())
         adapted_agent.policy_old.load_state_dict(adapted_actor.state_dict())

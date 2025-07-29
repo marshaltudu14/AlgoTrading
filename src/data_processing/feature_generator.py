@@ -442,17 +442,29 @@ class DynamicFileProcessor:
                                       (close_prices.shift(1) - open_prices) / close_prices.shift(1) * 100, 0)
 
         # === DERIVED FEATURES ===
-        # Moving average crossovers (only if the features exist)
-        if 'sma_5' in features and 'sma_20' in features:
+        # Moving average crossovers (only if the features exist and are not None)
+        if ('sma_5' in features and 'sma_20' in features and
+            features['sma_5'] is not None and features['sma_20'] is not None):
             features['sma_5_20_cross'] = np.where(features['sma_5'] > features['sma_20'], 1, -1)
-        if 'sma_10' in features and 'sma_50' in features:
-            features['sma_10_50_cross'] = np.where(features['sma_10'] > features['sma_50'], 1, -1)
+        else:
+            features['sma_5_20_cross'] = np.zeros(len(close_prices))
 
-        # Price position relative to moving averages (only if the features exist)
-        if 'sma_20' in features:
+        if ('sma_10' in features and 'sma_50' in features and
+            features['sma_10'] is not None and features['sma_50'] is not None):
+            features['sma_10_50_cross'] = np.where(features['sma_10'] > features['sma_50'], 1, -1)
+        else:
+            features['sma_10_50_cross'] = np.zeros(len(close_prices))
+
+        # Price position relative to moving averages (only if the features exist and are not None)
+        if 'sma_20' in features and features['sma_20'] is not None:
             features['price_vs_sma_20'] = (close_prices - features['sma_20']) / features['sma_20'] * 100
-        if 'ema_20' in features:
+        else:
+            features['price_vs_sma_20'] = np.zeros(len(close_prices))
+
+        if 'ema_20' in features and features['ema_20'] is not None:
             features['price_vs_ema_20'] = (close_prices - features['ema_20']) / features['ema_20'] * 100
+        else:
+            features['price_vs_ema_20'] = np.zeros(len(close_prices))
 
         # Volatility measures
         features['volatility_10'] = close_prices.rolling(10).std() / close_prices.rolling(10).mean() * 100

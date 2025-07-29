@@ -9,3 +9,19 @@ instruments:
     type: "OPTION"
     lot_size: 50 # Nifty options lot size (50, 100, 150, 200... = lots × 50)
     tick_size: 0.05
+
+  # Stock Instruments for testing
+  - symbol: "RELIANCE"
+    type: "STOCK"
+    lot_size: 1 # Stock lot size is typically 1 share
+    tick_size: 0.05
+
+  - symbol: "TCS"
+    type: "STOCK"
+    lot_size: 1 # Stock lot size is typically 1 share
+    tick_size: 0.05
+
+  - symbol: "HDFC"
+    type: "STOCK"
+    lot_size: 1 # Stock lot size is typically 1 share
+    tick_size: 0.05

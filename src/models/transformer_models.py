@@ -229,26 +229,20 @@ class ActorTransformerModel(MultiHeadTransformerModel):
         # Map sigmoid output to discrete values: 1, 2, 3, 4, or 5
         sigmoid_val = torch.sigmoid(quantity_raw)
 
-        # Discretize into 5 bins
-        if sigmoid_val < 0.2:
-            final_quantity = 1.0
-        elif sigmoid_val < 0.4:
-            final_quantity = 2.0
-        elif sigmoid_val < 0.6:
-            final_quantity = 3.0
-        elif sigmoid_val < 0.8:
-            final_quantity = 4.0
+        # Discretize into 5 bins using torch.where for tensor operations
+        final_quantity = torch.where(sigmoid_val < 0.2, 1.0,
+                         torch.where(sigmoid_val < 0.4, 2.0,
+                         torch.where(sigmoid_val < 0.6, 3.0,
+                         torch.where(sigmoid_val < 0.8, 4.0, 5.0))))
+
+        # Debug logging - handle both single and batch cases
+        if sigmoid_val.numel() == 1:
+            print(f"QUANTITY DEBUG: raw={quantity_raw.item():.6f}, sigmoid={sigmoid_val.item():.6f}, final={final_quantity.item()}")
         else:
-            final_quantity = 5.0
-
-        # Ensure it's exactly an integer
-        final_quantity = float(int(final_quantity))
-
-        # Debug logging - ALWAYS print to see if this code is being executed
-        print(f"QUANTITY DEBUG: raw={quantity_raw.item():.6f}, sigmoid={sigmoid_val.item():.6f}, final={final_quantity}")
+            print(f"QUANTITY DEBUG: batch_size={sigmoid_val.shape[0]}, raw_mean={quantity_raw.mean().item():.6f}, sigmoid_mean={sigmoid_val.mean().item():.6f}, final_mean={final_quantity.mean().item()}")
 
         # Return as tensor with same shape as original quantity_raw
-        outputs['quantity'] = torch.full_like(quantity_raw, final_quantity, dtype=torch.float32)
+        outputs['quantity'] = final_quantity.to(dtype=torch.float32)
 
         return outputs
 

@@ -72,7 +72,7 @@ class Trainer:
 
             while not done:
                 action = self.agent.select_action(observation)
-                next_observation, reward, done, truncated, info = self.env.step(action)
+                next_observation, reward, done, info = self.env.step(action)
                 experiences.append((observation, action, reward, next_observation, done))
                 observation = next_observation
                 episode_reward += reward
@@ -241,6 +241,7 @@ class Trainer:
             initial_capital=initial_capital,
             lookback_window=20,
             episode_length=500,
+            reward_function="trading_focused",  # Use trading-focused reward
             use_streaming=False  # Use full data for consistent dimensions
         )
 

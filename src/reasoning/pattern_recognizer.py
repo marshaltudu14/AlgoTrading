@@ -18,6 +18,9 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+# Warning deduplication to prevent spam
+_warning_cache = set()
+
 
 class PatternType(Enum):
     """Enumeration of recognizable chart patterns."""
@@ -234,7 +237,10 @@ class PatternRecognizer:
         ohlcv_data = self._prepare_price_data(price_data)
         
         if len(ohlcv_data) < self.sequence_length:
-            logger.warning("Insufficient data for pattern recognition")
+            warning_key = "insufficient_data_pattern_recognition"
+            if warning_key not in _warning_cache:
+                logger.warning("Insufficient data for pattern recognition")
+                _warning_cache.add(warning_key)
             no_pattern = PatternDetection(
                 pattern_type=PatternType.NO_PATTERN,
                 confidence=1.0,

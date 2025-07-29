@@ -14,6 +14,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Warning deduplication to prevent spam
+_warning_cache = set()
+
 
 class MarketRegime(Enum):
     """Enumeration of market regimes."""
@@ -93,7 +96,10 @@ class MarketClassifier:
         ohlcv_data = self._prepare_data(market_data)
         
         if len(ohlcv_data) < max(self.trend_period, self.volatility_period, self.adx_period):
-            logger.warning("Insufficient data for market classification")
+            warning_key = "insufficient_data_market_classification"
+            if warning_key not in _warning_cache:
+                logger.warning("Insufficient data for market classification")
+                _warning_cache.add(warning_key)
             regime = MarketRegime.CONSOLIDATION
             return (regime, 0.5) if return_confidence else regime
         

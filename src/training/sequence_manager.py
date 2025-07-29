@@ -65,7 +65,7 @@ class TrainingSequenceManager:
                     'autonomous': {
                         'population_size': 20,
                         'elite_size': 5,
-                        'observation_dim': 65,
+                        'observation_dim': -1,  # Dynamic
                         'action_dim': 5,
                         'hidden_dim': 128,
                         'memory_size': 1000,

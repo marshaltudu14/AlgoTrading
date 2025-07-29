@@ -11,6 +11,7 @@ from src.config.instrument import Instrument
 from src.utils.instrument_loader import load_instruments
 from src.utils.data_feeding_strategy import DataFeedingStrategyManager, FeedingStrategy
 from src.config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL
+from src.utils.capital_aware_quantity import adjust_quantity_for_capital
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -256,6 +257,24 @@ class TradingEnv(gym.Env):
                 action_type = 4  # Default to HOLD if conversion fails
             quantity = 1.0 if action_type != 4 else 0.0
 
+        # Apply capital-aware quantity adjustment for trading actions (not HOLD)
+        if action_type != 4 and quantity > 0:
+            available_capital = prev_capital
+            adjusted_quantity = adjust_quantity_for_capital(
+                predicted_quantity=quantity,
+                available_capital=available_capital,
+                current_price=current_price,
+                instrument=self.instrument,
+                proxy_premium=proxy_premium if self.instrument.type == "OPTION" else None
+            )
+
+            # Log quantity adjustment if it was changed
+            if adjusted_quantity != quantity:
+                logger.info(f"💰 Quantity adjusted for capital: {quantity} → {adjusted_quantity} lots")
+                logger.info(f"   Available capital: ₹{available_capital:.2f}")
+
+            quantity = float(adjusted_quantity)
+
         # DEBUG: Log every action to see what the agent is doing
         action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
         action_name = action_names[action_type]
@@ -320,9 +339,8 @@ class TradingEnv(gym.Env):
 
         info = {"termination_reason": termination_reason} if termination_reason else {}
 
-        # Return 5 values as expected by modern gym environments
-        truncated = False  # We handle episode termination through done
-        return self._get_observation(), reward, done, truncated, info
+        # Return 4 values as expected by standard gym environments
+        return self._get_observation(), reward, done, info
 
     def _force_close_open_positions(self):
         """Force close any open positions at the end of an episode to ensure accurate final capital."""
@@ -351,6 +369,8 @@ class TradingEnv(gym.Env):
             return self._calculate_sortino_ratio()
         elif self.reward_function == "profit_factor":
             return self._calculate_profit_factor()
+        elif self.reward_function == "trading_focused":
+            return self._calculate_trading_focused_reward(current_capital, prev_capital)
         else:
             return current_capital - prev_capital  # Default to P&L
 
@@ -401,6 +421,49 @@ class TradingEnv(gym.Env):
 
         profit_factor = gross_profit / gross_loss
         return (profit_factor - 1.0) * 5  # Center around 0 and scale
+
+    def _calculate_trading_focused_reward(self, current_capital: float, prev_capital: float) -> float:
+        """Calculate reward focused on key trading metrics: profit factor, drawdown, win rate."""
+        base_reward = current_capital - prev_capital
+
+        # Get current trade history for real-time metrics
+        trade_history = self.engine.get_trade_history()
+
+        if len(trade_history) < 2:
+            return base_reward  # Not enough trades for metrics
+
+        # Calculate real-time profit factor
+        recent_trades = trade_history[-10:]  # Last 10 trades
+        gross_profit = sum(trade['pnl'] for trade in recent_trades if trade['pnl'] > 0)
+        gross_loss = abs(sum(trade['pnl'] for trade in recent_trades if trade['pnl'] < 0))
+
+        profit_factor_bonus = 0.0
+        if gross_loss > 0:
+            pf = gross_profit / gross_loss
+            if pf > 1.5:  # Good profit factor
+                profit_factor_bonus = (pf - 1.0) * 10
+            elif pf < 0.8:  # Poor profit factor
+                profit_factor_bonus = (pf - 1.0) * 20  # Penalty
+
+        # Calculate real-time win rate
+        win_rate = sum(1 for trade in recent_trades if trade['pnl'] > 0) / len(recent_trades)
+        win_rate_bonus = 0.0
+        if win_rate > 0.6:  # Good win rate
+            win_rate_bonus = (win_rate - 0.5) * 20
+        elif win_rate < 0.4:  # Poor win rate
+            win_rate_bonus = (win_rate - 0.5) * 30  # Penalty
+
+        # Calculate drawdown penalty using existing equity_history
+        if len(self.equity_history) > 5:
+            recent_capitals = self.equity_history[-20:]  # Last 20 steps
+            peak = max(recent_capitals)
+            current_dd = (peak - current_capital) / peak if peak > 0 else 0
+            drawdown_penalty = -current_dd * 100 if current_dd > 0.05 else 0  # Penalty if DD > 5%
+        else:
+            drawdown_penalty = 0.0
+
+        total_reward = base_reward + profit_factor_bonus + win_rate_bonus + drawdown_penalty
+        return total_reward
 
     def _apply_reward_shaping(self, base_reward: float, action_type: int, current_capital: float, prev_capital: float) -> float:
         """Apply reward shaping to guide agent behavior."""
