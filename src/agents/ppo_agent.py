@@ -68,12 +68,19 @@ class PPOAgent(BaseAgent):
             quantity = torch.clamp(quantity_pred, min=0.01, max=10.0)
 
             # Use safe tensor conversion
-            from src.agents.moe_agent import safe_tensor_to_scalar
             return int(safe_tensor_to_scalar(action_type, default_value=4)), safe_tensor_to_scalar(quantity, default_value=1.0)
 
         except Exception as e:
             print(f"Error in select_action: {e}, using default action")
             return 4, 1.0  # Default to HOLD action
+
+def safe_tensor_to_scalar(tensor, default_value=0.0):
+    try:
+        if torch.is_tensor(tensor):
+            return tensor.item()
+        return float(tensor)
+    except Exception:
+        return default_value
 
     def learn(self, experiences: List[Tuple[np.ndarray, int, float, np.ndarray, bool]]) -> None:
         """

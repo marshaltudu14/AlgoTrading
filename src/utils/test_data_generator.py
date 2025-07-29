@@ -295,10 +295,7 @@ def create_test_data_files(
         logger.info(f"Creating {inst_type} data for {inst_symbol} (start_price: {start_price})")
 
         # Generate raw data
-        raw_df = generate_raw_test_data(inst_symbol, num_rows, start_price, volatility)
-
-        # Generate features data using actual pipeline
-        features_df = process_raw_to_features_using_pipeline(raw_df, inst_symbol)
+        instrument_data = generate_test_data_in_memory(inst_symbol, num_rows, start_price, volatility)
 
         if create_both:
             # Save raw data

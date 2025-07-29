@@ -1,99 +1,21 @@
 # Training Sequence Configuration
-# Defines the optimal training sequence: PPO -> MoE -> MAML -> Autonomous
+# PPO Training Only - Simplified for single-stage training
 # PRODUCTION VALUES - Optimized for robust real-world trading performance
 
 training_sequence:
-  # Stage 1: PPO Baseline Training
+  # Stage 1: PPO Training
   stage_1_ppo:
     algorithm: "PPO"
-    episodes: 300  # PRODUCTION: Sufficient episodes for stable baseline learning
-    description: "Establish baseline performance and validate environment"
+    episodes: 500  # PRODUCTION: Sufficient episodes for stable learning
+    description: "PPO reinforcement learning for trading"
     objectives:
-      - "Learn basic trading patterns"
-      - "Validate environment and reward functions"
-      - "Establish performance baseline"
+      - "Learn optimal trading patterns"
+      - "Maximize risk-adjusted returns"
+      - "Develop robust trading strategies"
     success_criteria:
       min_win_rate: 0.35  # Realistic for options trading
       min_profit_factor: 0.8
       max_drawdown: 0.4
-
-  # Stage 2: MoE Specialization Training
-  stage_2_moe:
-    algorithm: "MoE"
-    episodes: 500  # PRODUCTION: Sufficient episodes for proper expert specialization
-    description: "Train specialized experts for different market conditions"
-    prerequisites:
-      - "Successful PPO training completion"
-    objectives:
-      - "Create specialized trading experts"
-      - "Learn market condition-specific strategies"
-      - "Improve overall performance through specialization"
-    success_criteria:
-      min_win_rate: 0.40  # Higher expectation after specialization
-      min_profit_factor: 1.0
-      max_drawdown: 0.35
-
-  # Stage 3: MAML Meta-Learning
-  stage_3_maml:
-    algorithm: "MAML"
-    meta_iterations: 100  # PRODUCTION: Sufficient iterations for proper meta-learning
-    description: "Meta-learning for quick adaptation to new conditions"
-    prerequisites:
-      - "Successful MoE training completion"
-    objectives:
-      - "Learn to quickly adapt to new symbols/timeframes"
-      - "Improve generalization across different market conditions"
-      - "Fine-tune adaptation process"
-    success_criteria:
-      min_adaptation_speed: 3  # episodes to adapt (faster with meta-learning)
-      min_cross_symbol_performance: 0.85  # relative to single-symbol performance
-
-  # Stage 4: Autonomous Evolution
-  stage_4_autonomous:
-    algorithm: "Autonomous"
-    generations: 30  # PRODUCTION: Sufficient generations for proper evolution
-    description: "Autonomous agent evolution with self-modification capabilities"
-    prerequisites:
-      - "Successful MAML training completion"
-    objectives:
-      - "Evolve optimal neural architectures through NAS"
-      - "Develop self-modification and adaptation capabilities"
-      - "Achieve autonomous trading performance optimization"
-      - "Create truly autonomous trading agents"
-    # Success criteria removed - always select best champion model from evolution
-    # The autonomous stage focuses on finding the best performing agent regardless of strict thresholds
-
-    # Autonomous-specific settings
-    autonomous:
-      # Population parameters
-      population_size: 30  # PRODUCTION: Larger population for better diversity and exploration
-      elite_size: 6  # PRODUCTION: More elites for better genetic diversity
-
-      # Agent parameters
-      observation_dim: -1  # Dynamic: will be set from environment
-      action_dim: 5
-      hidden_dim: 256  # PRODUCTION: Larger networks for complex pattern recognition
-      memory_size: 3000  # PRODUCTION: Larger memory for better market history retention
-      memory_embedding_dim: 128  # PRODUCTION: Richer memory representations
-
-      # Training parameters
-      episodes_per_evaluation: 15  # PRODUCTION: More episodes for stable fitness evaluation
-      episode_length: 300  # PRODUCTION: Longer episodes for full market cycle learning
-      # initial_capital will be loaded from src.config.config.INITIAL_CAPITAL
-
-      # Evolution parameters
-      mutation_rate: 0.2  # PRODUCTION: Lower mutation rate for stable evolution
-      crossover_rate: 0.8  # PRODUCTION: Higher crossover for better genetic mixing
-
-      # Self-modification parameters
-      enable_self_modification: true
-      modification_frequency: 8  # PRODUCTION: Less frequent but more stable modifications
-
-      # Saving parameters - only save final universal model
-      save_directory: "models/autonomous_agents"
-
-      # Evaluation parameters
-      fitness_metrics: ["sharpe_ratio", "profit_factor", "max_drawdown"]
 
 # Training Parameters - Optimized for Production Performance
 training_params:
@@ -106,42 +28,16 @@ training_params:
     clip_epsilon: 0.15    # PRODUCTION: Conservative clipping for stable policy updates
     k_epochs: 6           # PRODUCTION: More epochs for thorough policy optimization
 
-  # MoE specific parameters
-  moe:
-    num_experts: 5        # PRODUCTION: More experts for better market condition specialization
-    expert_hidden_dim: 128 # PRODUCTION: Larger networks for complex pattern recognition
-    gating_hidden_dim: 64  # PRODUCTION: Sufficient capacity for expert selection
-    gating_temperature: 0.7 # PRODUCTION: Balanced temperature for expert selection
-    diversity_loss_weight: 0.03 # PRODUCTION: Higher diversity for better specialization
-
-  # MAML specific parameters
-  maml:
-    meta_learning_rate: 0.0005  # PRODUCTION: Lower meta-LR for stable meta-learning
-    inner_loop_steps: 7         # PRODUCTION: More adaptation steps for better task adaptation
-    evaluation_steps: 5         # PRODUCTION: More evaluation steps for robust assessment
-    meta_batch_size: 2          # PRODUCTION: Larger meta-batch for better gradient estimates
-
 # Validation and Progression Rules - Production Standards
 progression_rules:
-  # Automatic progression criteria
-  auto_progression: true
+  # No automatic progression needed for single-stage training
+  auto_progression: false
 
-  # Minimum performance thresholds to advance to next stage
-  advancement_criteria:
-    stage_1_to_2:
-      min_episodes: 150  # PRODUCTION: Ensure sufficient baseline learning
-      min_win_rate: 0.35  # PRODUCTION: Realistic performance threshold
-      min_profit_factor: 0.8  # PRODUCTION: Minimum profitability requirement
-
-    stage_2_to_3:
-      min_episodes: 200  # PRODUCTION: Ensure expert specialization
-      min_win_rate: 0.40  # PRODUCTION: Higher expectation after specialization
-      min_profit_factor: 1.0  # PRODUCTION: Profitable trading requirement
-
-    stage_3_to_4:
-      min_meta_iterations: 50  # PRODUCTION: Ensure proper meta-learning
-      min_adaptation_speed: 3  # PRODUCTION: Fast adaptation capability
-      min_cross_symbol_performance: 0.85  # PRODUCTION: Strong generalization
+  # Training completion criteria
+  completion_criteria:
+    min_episodes: 300  # PRODUCTION: Ensure sufficient learning
+    min_win_rate: 0.35  # PRODUCTION: Realistic performance threshold
+    min_profit_factor: 0.8  # PRODUCTION: Minimum profitability requirement
 
   # Fallback strategies if criteria not met
   fallback_strategies:
@@ -169,21 +65,6 @@ testing_overrides:
   training_sequence:
     stage_1_ppo:
       episodes: 5  # Minimal episodes for testing
-    stage_2_moe:
-      episodes: 3  # Minimal episodes for testing
-    stage_3_maml:
-      meta_iterations: 2  # Minimal iterations for testing
-    stage_4_autonomous:
-      generations: 2  # Minimal generations for testing
-      autonomous:
-        population_size: 4  # Small population for testing
-        elite_size: 1  # Minimal elite size
-        hidden_dim: 64  # Smaller networks for testing
-        memory_size: 500  # Smaller memory for testing
-        memory_embedding_dim: 32  # Smaller embeddings for testing
-        episodes_per_evaluation: 2  # Minimal episodes for testing
-        episode_length: 50  # Shorter episodes for testing
-        modification_frequency: 2  # More frequent for testing
 
   # Override training parameters for testing
   training_params:
@@ -192,31 +73,13 @@ testing_overrides:
       batch_size: 32  # Smaller batch for testing
       gamma: 0.99  # Standard gamma for testing
       k_epochs: 3  # Fewer epochs for testing
-    moe:
-      num_experts: 3  # Fewer experts for testing
-      expert_hidden_dim: 64  # Smaller networks for testing
-      gating_hidden_dim: 32  # Smaller gating for testing
-    maml:
-      meta_learning_rate: 0.001  # Higher meta-LR for testing
-      inner_loop_steps: 3  # Fewer steps for testing
-      evaluation_steps: 2  # Fewer evaluation steps for testing
-      meta_batch_size: 1  # Smaller batch for testing
 
   # Override progression rules for testing
   progression_rules:
-    advancement_criteria:
-      stage_1_to_2:
-        min_episodes: 3  # Very low threshold for testing
-        min_win_rate: 0.10  # Very relaxed for testing
-        min_profit_factor: 0.1  # Very relaxed for testing
-      stage_2_to_3:
-        min_episodes: 2  # Very low threshold for testing
-        min_win_rate: 0.15  # Very relaxed for testing
-        min_profit_factor: 0.3  # Very relaxed for testing
-      stage_3_to_4:
-        min_meta_iterations: 1  # Very low threshold for testing
-        min_adaptation_speed: 10  # Very relaxed for testing
-        min_cross_symbol_performance: 0.30  # Very relaxed for testing
+    completion_criteria:
+      min_episodes: 3  # Very low threshold for testing
+      min_win_rate: 0.10  # Very relaxed for testing
+      min_profit_factor: 0.1  # Very relaxed for testing
     fallback_strategies:
       max_extension_episodes: 20  # Minimal extension for testing
 

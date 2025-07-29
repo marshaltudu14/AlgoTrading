@@ -12,7 +12,23 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class DataLoader:
     def __init__(self, final_data_dir: str = "data/final", raw_data_dir: str = "data/raw",
-                 chunk_size: int = 10000, use_parquet: bool = True):
+                 chunk_size: int = 10000, use_parquet: bool = True, testing_mode: bool = False):
+        if testing_mode:
+            self.final_data_dir = "data/test/final"
+            self.raw_data_dir = "data/test/raw"
+        else:
+            self.final_data_dir = final_data_dir
+            self.raw_data_dir = raw_data_dir
+        self.chunk_size = chunk_size
+        self.use_parquet = use_parquet
+        if testing_mode:
+            self.final_data_dir = "data/test/final"
+            self.raw_data_dir = "data/test/raw"
+        else:
+            self.final_data_dir = final_data_dir
+            self.raw_data_dir = raw_data_dir
+        self.chunk_size = chunk_size
+        self.use_parquet = use_parquet
         self.final_data_dir = final_data_dir
         self.raw_data_dir = raw_data_dir
         self.chunk_size = chunk_size
@@ -442,6 +458,8 @@ class DataLoader:
 
     def load_final_data_for_symbol(self, symbol: str) -> pd.DataFrame:
         """Load processed final data for a specific symbol."""
+        logging.info(f"Looking for data for symbol: {symbol} in directory: {self.final_data_dir}")
+
         # Try different possible filename patterns
         possible_files = [
             f"{symbol}.csv",
@@ -451,19 +469,25 @@ class DataLoader:
 
         # Also try to find files with timeframe suffixes
         import os
-        for filename in os.listdir(self.final_data_dir):
-            if filename.endswith(".csv"):
-                # Check if this file matches the symbol (with or without timeframe)
-                base_name = filename.replace(".csv", "")
+        if os.path.exists(self.final_data_dir):
+            logging.info(f"Directory exists. Files in {self.final_data_dir}: {os.listdir(self.final_data_dir)}")
+            for filename in os.listdir(self.final_data_dir):
+                if filename.endswith(".csv"):
+                    # Check if this file matches the symbol (with or without timeframe)
+                    base_name = filename.replace(".csv", "")
 
-                # Pattern: features_Symbol_Timeframe or Symbol_Timeframe
-                if (base_name.startswith(f"features_{symbol}_") or
-                    base_name.startswith(f"processed_{symbol}_") or
-                    base_name.startswith(f"{symbol}_")):
-                    possible_files.append(filename)
+                    # Pattern: features_Symbol_Timeframe or Symbol_Timeframe
+                    if (base_name.startswith(f"features_{symbol}_") or
+                        base_name.startswith(f"processed_{symbol}_") or
+                        base_name.startswith(f"{symbol}_")):
+                        possible_files.append(filename)
+        else:
+            logging.error(f"Directory does not exist: {self.final_data_dir}")
 
+        logging.info(f"Trying files: {possible_files}")
         for filename in possible_files:
             filepath = os.path.join(self.final_data_dir, filename)
+            logging.info(f"Checking file: {filepath}")
             if os.path.exists(filepath):
                 try:
                     df = pd.read_csv(filepath)

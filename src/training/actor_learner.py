@@ -14,7 +14,6 @@ import queue
 
 from src.backtesting.environment import TradingEnv
 from src.utils.data_loader import DataLoader
-from src.agents.base_agent import BaseAgent
 from src.agents.ppo_agent import PPOAgent
 
 logger = logging.getLogger(__name__)
