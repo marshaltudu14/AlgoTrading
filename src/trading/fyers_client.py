@@ -9,27 +9,32 @@ from fyers_apiv3.FyersWebsocket import data_ws
 from src.auth import fyers_auth
 
 class FyersClient:
-    def __init__(self, config):
+    def __init__(self, config=None):
         self.fyers = fyers_auth.fyers
 
-    def get_historical_data(self, symbol, timeframe):
+    def get_historical_data(self, symbol, timeframe, from_date=None, to_date=None):
         from datetime import datetime, timedelta
 
-        today = datetime.now()
-        fifteen_days_ago = today - timedelta(days=15)
+        # Use provided dates or default to 15 days
+        if from_date is None or to_date is None:
+            today = datetime.now()
+            fifteen_days_ago = today - timedelta(days=15)
+            from_date = fifteen_days_ago.strftime("%Y-%m-%d")
+            to_date = today.strftime("%Y-%m-%d")
 
         data = {
             "symbol": symbol,
             "resolution": timeframe,
             "date_format": "1",
-            "range_from": fifteen_days_ago.strftime("%Y-%m-%d"),
-            "range_to": today.strftime("%Y-%m-%d"),
+            "range_from": from_date,
+            "range_to": to_date,
             "cont_flag": "1"
         }
         response = self.fyers.history(data=data)
         if response and response.get('s') == 'ok' and 'candles' in response:
             df = pd.DataFrame(response['candles'], columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
             df['datetime'] = pd.to_datetime(df['datetime'], unit='s')
+            df.set_index('datetime', inplace=True)
             return df
         return pd.DataFrame()
 

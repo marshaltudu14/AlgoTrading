@@ -1,11 +1,12 @@
 # Training Sequence Configuration
 # Defines the optimal training sequence: PPO -> MoE -> MAML -> Autonomous
+# PRODUCTION VALUES - Optimized for robust real-world trading performance
 
 training_sequence:
   # Stage 1: PPO Baseline Training
   stage_1_ppo:
     algorithm: "PPO"
-    episodes: 5  # TESTING: 5 | PRODUCTION: 100-500 for proper baseline learning
+    episodes: 300  # PRODUCTION: Sufficient episodes for stable baseline learning
     description: "Establish baseline performance and validate environment"
     objectives:
       - "Learn basic trading patterns"
@@ -19,7 +20,7 @@ training_sequence:
   # Stage 2: MoE Specialization Training
   stage_2_moe:
     algorithm: "MoE"
-    episodes: 3  # TESTING: 3 | PRODUCTION: 200-800 for proper expert specialization
+    episodes: 500  # PRODUCTION: Sufficient episodes for proper expert specialization
     description: "Train specialized experts for different market conditions"
     prerequisites:
       - "Successful PPO training completion"
@@ -35,7 +36,7 @@ training_sequence:
   # Stage 3: MAML Meta-Learning
   stage_3_maml:
     algorithm: "MAML"
-    meta_iterations: 2  # TESTING: 2 | PRODUCTION: 50-150 for proper meta-learning
+    meta_iterations: 100  # PRODUCTION: Sufficient iterations for proper meta-learning
     description: "Meta-learning for quick adaptation to new conditions"
     prerequisites:
       - "Successful MoE training completion"
@@ -50,7 +51,7 @@ training_sequence:
   # Stage 4: Autonomous Evolution
   stage_4_autonomous:
     algorithm: "Autonomous"
-    generations: 2  # TESTING: 2 | PRODUCTION: 20-50 for proper evolution
+    generations: 30  # PRODUCTION: Sufficient generations for proper evolution
     description: "Autonomous agent evolution with self-modification capabilities"
     prerequisites:
       - "Successful MAML training completion"
@@ -65,28 +66,28 @@ training_sequence:
     # Autonomous-specific settings
     autonomous:
       # Population parameters
-      population_size: 2  # TESTING: 4 | PRODUCTION: 20-50 for better diversity
-      elite_size: 1  # TESTING: 1 | PRODUCTION: 5-10
+      population_size: 30  # PRODUCTION: Larger population for better diversity and exploration
+      elite_size: 6  # PRODUCTION: More elites for better genetic diversity
 
       # Agent parameters
       observation_dim: -1  # Dynamic: will be set from environment
       action_dim: 5
-      hidden_dim: 64  # TESTING: 64 | PRODUCTION: 128-256 for better capacity
-      memory_size: 500  # TESTING: 500 | PRODUCTION: 2000-5000
-      memory_embedding_dim: 32  # TESTING: 32 | PRODUCTION: 64-128
+      hidden_dim: 256  # PRODUCTION: Larger networks for complex pattern recognition
+      memory_size: 3000  # PRODUCTION: Larger memory for better market history retention
+      memory_embedding_dim: 128  # PRODUCTION: Richer memory representations
 
       # Training parameters
-      episodes_per_evaluation: 2  # TESTING: 2 | PRODUCTION: 10-20 for stable evaluation
-      episode_length: 50  # TESTING: 50 | PRODUCTION: 200-500 for full market cycles
+      episodes_per_evaluation: 15  # PRODUCTION: More episodes for stable fitness evaluation
+      episode_length: 300  # PRODUCTION: Longer episodes for full market cycle learning
       # initial_capital will be loaded from src.config.config.INITIAL_CAPITAL
 
       # Evolution parameters
-      mutation_rate: 0.3
-      crossover_rate: 0.7
+      mutation_rate: 0.2  # PRODUCTION: Lower mutation rate for stable evolution
+      crossover_rate: 0.8  # PRODUCTION: Higher crossover for better genetic mixing
 
       # Self-modification parameters
       enable_self_modification: true
-      modification_frequency: 2  # TESTING: 2 | PRODUCTION: 5-10 (Every N generations)
+      modification_frequency: 8  # PRODUCTION: Less frequent but more stable modifications
 
       # Saving parameters - only save final universal model
       save_directory: "models/autonomous_agents"
@@ -94,33 +95,33 @@ training_sequence:
       # Evaluation parameters
       fitness_metrics: ["sharpe_ratio", "profit_factor", "max_drawdown"]
 
-# Training Parameters - Optimized for Testing (with Production Comments)
+# Training Parameters - Optimized for Production Performance
 training_params:
   # PPO specific parameters
   ppo:
-    learning_rate: 0.001   # TESTING: 0.001 | PRODUCTION: 0.0001 (Lower LR for stable learning)
-    batch_size: 32        # TESTING: 32 | PRODUCTION: 128 (Larger batch for better gradient estimates)
-    gamma: 0.99           # TESTING: 0.99 | PRODUCTION: 0.995 (Higher gamma for longer-term planning)
-    gae_lambda: 0.95
-    clip_epsilon: 0.2     # TESTING: 0.2 | PRODUCTION: 0.15 (Slightly lower for more conservative updates)
-    k_epochs: 3           # TESTING: 3 | PRODUCTION: 6 (More epochs for better policy updates)
+    learning_rate: 0.0001  # PRODUCTION: Lower LR for stable, robust learning
+    batch_size: 128       # PRODUCTION: Larger batch for better gradient estimates
+    gamma: 0.995          # PRODUCTION: Higher gamma for longer-term planning in trading
+    gae_lambda: 0.95      # Standard GAE lambda for advantage estimation
+    clip_epsilon: 0.15    # PRODUCTION: Conservative clipping for stable policy updates
+    k_epochs: 6           # PRODUCTION: More epochs for thorough policy optimization
 
   # MoE specific parameters
   moe:
-    num_experts: 3        # TESTING: 3 | PRODUCTION: 4-6 (More experts for better specialization)
-    expert_hidden_dim: 64 # TESTING: 64 | PRODUCTION: 128 (Larger networks for complex patterns)
-    gating_hidden_dim: 32 # TESTING: 32 | PRODUCTION: 64
-    gating_temperature: 0.8 # Lower temperature for sharper expert selection
-    diversity_loss_weight: 0.02 # Higher diversity for better specialization
+    num_experts: 5        # PRODUCTION: More experts for better market condition specialization
+    expert_hidden_dim: 128 # PRODUCTION: Larger networks for complex pattern recognition
+    gating_hidden_dim: 64  # PRODUCTION: Sufficient capacity for expert selection
+    gating_temperature: 0.7 # PRODUCTION: Balanced temperature for expert selection
+    diversity_loss_weight: 0.03 # PRODUCTION: Higher diversity for better specialization
 
   # MAML specific parameters
   maml:
-    meta_learning_rate: 0.001   # TESTING: 0.001 | PRODUCTION: 0.0005 (Lower meta-LR for stable meta-learning)
-    inner_loop_steps: 3         # TESTING: 3 | PRODUCTION: 7 (More adaptation steps)
-    evaluation_steps: 2         # TESTING: 2 | PRODUCTION: 5 (More evaluation steps)
-    meta_batch_size: 1          # TESTING: 1 | PRODUCTION: 2 (Larger meta-batch for better gradients)
+    meta_learning_rate: 0.0005  # PRODUCTION: Lower meta-LR for stable meta-learning
+    inner_loop_steps: 7         # PRODUCTION: More adaptation steps for better task adaptation
+    evaluation_steps: 5         # PRODUCTION: More evaluation steps for robust assessment
+    meta_batch_size: 2          # PRODUCTION: Larger meta-batch for better gradient estimates
 
-# Validation and Progression Rules
+# Validation and Progression Rules - Production Standards
 progression_rules:
   # Automatic progression criteria
   auto_progression: true
@@ -128,24 +129,24 @@ progression_rules:
   # Minimum performance thresholds to advance to next stage
   advancement_criteria:
     stage_1_to_2:
-      min_episodes: 3  # TESTING: 3 | PRODUCTION: 50 (Ensure sufficient baseline learning)
-      min_win_rate: 0.10  # TESTING: 0.10 | PRODUCTION: 0.35 (Very relaxed for testing)
-      min_profit_factor: 0.1  # TESTING: 0.1 | PRODUCTION: 0.8 (Very relaxed for testing)
+      min_episodes: 150  # PRODUCTION: Ensure sufficient baseline learning
+      min_win_rate: 0.35  # PRODUCTION: Realistic performance threshold
+      min_profit_factor: 0.8  # PRODUCTION: Minimum profitability requirement
 
     stage_2_to_3:
-      min_episodes: 2  # TESTING: 2 | PRODUCTION: 100 (Ensure expert specialization)
-      min_win_rate: 0.15  # TESTING: 0.15 | PRODUCTION: 0.40 (Relaxed for testing)
-      min_profit_factor: 0.3  # TESTING: 0.3 | PRODUCTION: 1.0 (Relaxed for testing)
+      min_episodes: 200  # PRODUCTION: Ensure expert specialization
+      min_win_rate: 0.40  # PRODUCTION: Higher expectation after specialization
+      min_profit_factor: 1.0  # PRODUCTION: Profitable trading requirement
 
     stage_3_to_4:
-      min_meta_iterations: 1  # TESTING: 1 | PRODUCTION: 20 (Ensure meta-learning)
-      min_adaptation_speed: 10  # TESTING: 10 | PRODUCTION: 3 (Relaxed for testing)
-      min_cross_symbol_performance: 0.30  # TESTING: 0.30 | PRODUCTION: 0.85 (Relaxed for testing)
+      min_meta_iterations: 50  # PRODUCTION: Ensure proper meta-learning
+      min_adaptation_speed: 3  # PRODUCTION: Fast adaptation capability
+      min_cross_symbol_performance: 0.85  # PRODUCTION: Strong generalization
 
   # Fallback strategies if criteria not met
   fallback_strategies:
     extend_training: true
-    max_extension_episodes: 50  # TESTING: 50 | PRODUCTION: 200
+    max_extension_episodes: 200  # PRODUCTION: More training if needed
     hyperparameter_tuning: true
 
 # Output and Monitoring
@@ -161,3 +162,66 @@ model_management:
   model_naming_convention: "{symbol}_{stage}_{algorithm}_{timestamp}"
   keep_best_models: true
   transfer_learning: true  # Use previous stage as initialization
+
+# Testing Configuration - Minimal values for quick pipeline validation
+testing_overrides:
+  # Override training sequence for testing
+  training_sequence:
+    stage_1_ppo:
+      episodes: 5  # Minimal episodes for testing
+    stage_2_moe:
+      episodes: 3  # Minimal episodes for testing
+    stage_3_maml:
+      meta_iterations: 2  # Minimal iterations for testing
+    stage_4_autonomous:
+      generations: 2  # Minimal generations for testing
+      autonomous:
+        population_size: 4  # Small population for testing
+        elite_size: 1  # Minimal elite size
+        hidden_dim: 64  # Smaller networks for testing
+        memory_size: 500  # Smaller memory for testing
+        memory_embedding_dim: 32  # Smaller embeddings for testing
+        episodes_per_evaluation: 2  # Minimal episodes for testing
+        episode_length: 50  # Shorter episodes for testing
+        modification_frequency: 2  # More frequent for testing
+
+  # Override training parameters for testing
+  training_params:
+    ppo:
+      learning_rate: 0.001  # Higher LR for faster testing
+      batch_size: 32  # Smaller batch for testing
+      gamma: 0.99  # Standard gamma for testing
+      k_epochs: 3  # Fewer epochs for testing
+    moe:
+      num_experts: 3  # Fewer experts for testing
+      expert_hidden_dim: 64  # Smaller networks for testing
+      gating_hidden_dim: 32  # Smaller gating for testing
+    maml:
+      meta_learning_rate: 0.001  # Higher meta-LR for testing
+      inner_loop_steps: 3  # Fewer steps for testing
+      evaluation_steps: 2  # Fewer evaluation steps for testing
+      meta_batch_size: 1  # Smaller batch for testing
+
+  # Override progression rules for testing
+  progression_rules:
+    advancement_criteria:
+      stage_1_to_2:
+        min_episodes: 3  # Very low threshold for testing
+        min_win_rate: 0.10  # Very relaxed for testing
+        min_profit_factor: 0.1  # Very relaxed for testing
+      stage_2_to_3:
+        min_episodes: 2  # Very low threshold for testing
+        min_win_rate: 0.15  # Very relaxed for testing
+        min_profit_factor: 0.3  # Very relaxed for testing
+      stage_3_to_4:
+        min_meta_iterations: 1  # Very low threshold for testing
+        min_adaptation_speed: 10  # Very relaxed for testing
+        min_cross_symbol_performance: 0.30  # Very relaxed for testing
+    fallback_strategies:
+      max_extension_episodes: 20  # Minimal extension for testing
+
+  # Testing data configuration
+  test_data:
+    num_rows: 500  # Sufficient data for technical indicators + NaN removal
+    symbols: ["RELIANCE", "Bank_Nifty_5"]  # Test with both STOCK and OPTION
+    save_models: false  # Don't save models in testing mode

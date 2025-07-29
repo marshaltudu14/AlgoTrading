@@ -48,10 +48,107 @@ class TrainingSequenceManager:
         """Load training sequence configuration."""
         try:
             with open(self.config_path, 'r') as f:
-                return yaml.safe_load(f)
+                config = yaml.safe_load(f)
+
+            # Check if testing mode is enabled
+            if os.environ.get('TESTING_MODE') == 'true':
+                logger.info("🧪 Applying testing configuration overrides")
+                config = self._apply_testing_overrides(config)
+
+            return config
         except FileNotFoundError:
             logger.error(f"Configuration file {self.config_path} not found")
             return self._get_default_config()
+
+    def _apply_testing_overrides(self, config: Dict) -> Dict:
+        """Apply testing configuration overrides."""
+        if 'testing_overrides' in config:
+            testing_config = config['testing_overrides']
+
+            # Override training sequence parameters
+            if 'training_sequence' in testing_config:
+                for stage, params in testing_config['training_sequence'].items():
+                    if stage in config['training_sequence']:
+                        config['training_sequence'][stage].update(params)
+
+            # Override training parameters
+            if 'training_params' in testing_config:
+                if 'training_params' not in config:
+                    config['training_params'] = {}
+                for param_type, params in testing_config['training_params'].items():
+                    if param_type not in config['training_params']:
+                        config['training_params'][param_type] = {}
+                    config['training_params'][param_type].update(params)
+
+            # Override progression rules
+            if 'progression_rules' in testing_config:
+                if 'progression_rules' not in config:
+                    config['progression_rules'] = {}
+                config['progression_rules'].update(testing_config['progression_rules'])
+
+            logger.info("✅ Testing overrides applied successfully")
+
+        return config
+
+    def _create_test_data_loader(self, symbol: str) -> DataLoader:
+        """Create a data loader with synthetic test data."""
+        import sys
+
+        if not hasattr(sys, 'test_data') or symbol not in sys.test_data:
+            logger.error(f"Test data not available for symbol {symbol}")
+            raise ValueError(f"Test data not found for symbol {symbol}")
+
+        # Create a custom data loader that uses the test data
+        from src.utils.data_loader import DataLoader
+
+        class TestDataLoader(DataLoader):
+            def __init__(self, test_data_dict):
+                # Don't call parent __init__ since we're not loading from files
+                self.test_data = test_data_dict
+                # Set all attributes that the parent class expects
+                self.final_data_dir = "test_data/final"
+                self.raw_data_dir = "test_data/raw"
+                self.chunk_size = 10000
+                self.use_parquet = False  # We're using in-memory data, not parquet
+                self.parquet_final_dir = "test_data/parquet_final"
+                self.parquet_raw_dir = "test_data/parquet_raw"
+
+            def load_data(self, symbol: str):
+                """Load test data for the given symbol."""
+                if symbol in self.test_data:
+                    return self.test_data[symbol]['features']
+                else:
+                    raise ValueError(f"Test data not available for symbol {symbol}")
+
+            def load_final_data_for_symbol(self, symbol: str):
+                """Load final processed test data for the given symbol."""
+                if symbol in self.test_data:
+                    features_data = self.test_data[symbol]['features']
+                    logger.info(f"Loaded test data for {symbol}: {len(features_data)} rows")
+                    return features_data
+                else:
+                    raise ValueError(f"Test data not available for symbol {symbol}")
+
+            def get_available_symbols(self):
+                """Get available test symbols."""
+                return list(self.test_data.keys())
+
+            def get_data_length(self, symbol: str, data_type: str = "final"):
+                """Get the length of test data for a symbol."""
+                if symbol in self.test_data:
+                    return len(self.test_data[symbol]['features'])
+                else:
+                    return 0
+
+            def load_data_segment(self, symbol: str, start_idx: int, end_idx: int, data_type: str = "final"):
+                """Load a segment of test data."""
+                if symbol in self.test_data:
+                    data = self.test_data[symbol]['features']
+                    return data.iloc[start_idx:end_idx].copy()
+                else:
+                    raise ValueError(f"Test data not available for symbol {symbol}")
+
+        return TestDataLoader(sys.test_data)
     
     def _get_default_config(self) -> Dict:
         """Get default configuration if file not found."""
@@ -148,9 +245,21 @@ class TrainingSequenceManager:
         Returns:
             List of stage results
         """
-        logger.info(f"🚀 Starting UNIVERSAL model training sequence")
-        logger.info(f"📊 Training on {len(symbols)} symbols: {', '.join(symbols)}")
-        logger.info(f"🎯 Will create ONE model for all instruments/timeframes")
+        # Check if we're in testing mode
+        testing_mode = os.environ.get('TESTING_MODE') == 'true'
+
+        if testing_mode:
+            logger.info(f"🧪 Starting TESTING mode training sequence")
+            logger.info(f"📊 Using synthetic test data for {len(symbols)} symbols: {', '.join(symbols)}")
+            logger.info(f"🎯 Testing pipeline without saving models")
+
+            # Use test data loader
+            primary_symbol = symbols[0]
+            data_loader = self._create_test_data_loader(primary_symbol)
+        else:
+            logger.info(f"🚀 Starting UNIVERSAL model training sequence")
+            logger.info(f"📊 Training on {len(symbols)} symbols: {', '.join(symbols)}")
+            logger.info(f"🎯 Will create ONE model for all instruments/timeframes")
 
         # For universal model, we'll train on the first symbol but save as universal model
         # This creates a single robust model that works across all instruments
@@ -627,62 +736,74 @@ class TrainingSequenceManager:
             logger.info(f"📊 Fitness improvement: {metrics['fitness_improvement']:.4f}")
             logger.info("🏆 Best champion model selected from all candidates")
 
-            # Save the universal final model in Stage 4 (Autonomous)
-            os.makedirs("models", exist_ok=True)
+            # Save the universal final model in Stage 4 (Autonomous) - Skip in testing mode
+            testing_mode = os.environ.get('TESTING_MODE') == 'true'
             universal_model_path = "models/universal_final_model.pth"
 
-            # Save best agent directly as universal model (no intermediate champion save)
-            if 'best_agent' in results and results['best_agent'] is not None:
-                # Save best_agent directly as universal model
-                logger.info("Saving best_agent directly as universal model")
-                import torch
-                best_agent = results['best_agent']
+            if testing_mode:
+                logger.info("🧪 TESTING MODE: Skipping model saving")
+                universal_model_path = None  # No model saved in testing mode
+            else:
+                os.makedirs("models", exist_ok=True)
 
-                # Create universal model data structure
-                universal_model_data = {
-                    'agent_state_dict': best_agent.state_dict() if hasattr(best_agent, 'state_dict') else None,
-                    'agent_config': {
-                        'observation_dim': getattr(best_agent, 'observation_dim', 0),
-                        'action_dim': getattr(best_agent, 'action_dim', 0),
-                        'hidden_dim': getattr(best_agent, 'hidden_dim', 128),
-                        'memory_size': getattr(best_agent, 'memory_size', 1000),
-                        'memory_embedding_dim': getattr(best_agent, 'memory_embedding_dim', 64)
-                    },
-                    'hyperparameters': best_agent.get_hyperparameters() if hasattr(best_agent, 'get_hyperparameters') else {},
-                    'architecture': getattr(best_agent, '_nas_architecture', None),
-                    'fitness_score': metrics.get('best_fitness', 0.0),
-                    'generation': metrics.get('generations_completed', 0),
-                    'model_type': 'autonomous_agent',
-                    'version': '1.0'
-                }
+                # Save best agent directly as universal model (no intermediate champion save)
+                if 'best_agent' in results and results['best_agent'] is not None:
+                    # Save best_agent directly as universal model
+                    logger.info("Saving best_agent directly as universal model")
+                    import torch
+                    best_agent = results['best_agent']
 
-                # Save additional components if available
-                if hasattr(best_agent, 'world_model'):
-                    universal_model_data['world_model_state_dict'] = best_agent.world_model.state_dict()
-                if hasattr(best_agent, 'external_memory'):
-                    universal_model_data['external_memory_state'] = {
-                        'memories': getattr(best_agent.external_memory, 'memories', []),
-                        'config': getattr(best_agent.external_memory, 'config', {})
+                    # Create universal model data structure
+                    universal_model_data = {
+                        'agent_state_dict': best_agent.state_dict() if hasattr(best_agent, 'state_dict') else None,
+                        'agent_config': {
+                            'observation_dim': getattr(best_agent, 'observation_dim', 0),
+                            'action_dim': getattr(best_agent, 'action_dim', 0),
+                            'hidden_dim': getattr(best_agent, 'hidden_dim', 128),
+                            'memory_size': getattr(best_agent, 'memory_size', 1000),
+                            'memory_embedding_dim': getattr(best_agent, 'memory_embedding_dim', 64)
+                        },
+                        'hyperparameters': best_agent.get_hyperparameters() if hasattr(best_agent, 'get_hyperparameters') else {},
+                        'architecture': getattr(best_agent, '_nas_architecture', None),
+                        'fitness_score': metrics.get('best_fitness', 0.0),
+                        'generation': metrics.get('generations_completed', 0),
+                        'model_type': 'autonomous_agent',
+                        'version': '1.0'
                     }
 
-                torch.save(universal_model_data, universal_model_path)
-                logger.info(f"✅ UNIVERSAL FINAL MODEL SAVED: {universal_model_path}")
-                logger.info(f"🎯 This is your production-ready universal model for all instruments!")
+                    # Save additional components if available
+                    if hasattr(best_agent, 'world_model'):
+                        universal_model_data['world_model_state_dict'] = best_agent.world_model.state_dict()
+                    if hasattr(best_agent, 'external_memory'):
+                        universal_model_data['external_memory_state'] = {
+                            'memories': getattr(best_agent.external_memory, 'memories', []),
+                            'config': getattr(best_agent.external_memory, 'config', {})
+                        }
+
+                    torch.save(universal_model_data, universal_model_path)
+                    logger.info(f"✅ UNIVERSAL FINAL MODEL SAVED: {universal_model_path}")
+                    logger.info(f"🎯 This is your production-ready universal model for all instruments!")
+                else:
+                    logger.error(f"❌ No best_agent available for universal model!")
+                    logger.error(f"Best agent available: {'best_agent' in results}")
+                    # Create a minimal placeholder to prevent crashes
+                    import torch
+                    torch.save({'error': 'No model available'}, universal_model_path)
+                    logger.warning(f"⚠️ Created minimal placeholder at {universal_model_path}")
+
+            # Create appropriate message based on testing mode
+            if testing_mode:
+                message = "Autonomous evolution training completed - Testing mode (no model saved)"
             else:
-                logger.error(f"❌ No best_agent available for universal model!")
-                logger.error(f"Best agent available: {'best_agent' in results}")
-                # Create a minimal placeholder to prevent crashes
-                import torch
-                torch.save({'error': 'No model available'}, universal_model_path)
-                logger.warning(f"⚠️ Created minimal placeholder at {universal_model_path}")
+                message = "Autonomous evolution training completed - Universal model saved"
 
             return StageResult(
                 stage=TrainingStage.AUTONOMOUS,
                 success=success,
                 metrics=metrics,
-                model_path=universal_model_path,  # Return universal model path
+                model_path=universal_model_path,  # Return universal model path (None in testing mode)
                 episodes_completed=metrics['generations_completed'],
-                message="Autonomous evolution training completed - Universal model saved"
+                message=message
             )
 
         except Exception as e:

@@ -419,6 +419,38 @@ def main():
     # Configure testing mode
     if args.testing:
         logger.info("🧪 TESTING MODE ENABLED")
+        logger.info("Using synthetic test data and minimal parameters for quick pipeline validation")
+
+        # Generate synthetic test data instead of loading from files
+        from src.utils.test_data_generator import generate_multiple_test_instruments
+        logger.info("Generating synthetic test data...")
+        test_data = generate_multiple_test_instruments(num_rows=500)  # More data for technical indicators
+
+        # Use test symbols
+        symbols = list(test_data.keys())
+        logger.info(f"Generated test data for symbols: {symbols}")
+
+        # Set environment variable for testing mode
+        import os
+        os.environ['TESTING_MODE'] = 'true'
+        os.environ['TEST_DATA_AVAILABLE'] = 'true'
+
+        # Store test data globally for access by training components
+        import sys
+        sys.test_data = test_data
+
+    else:
+        # Production mode - load real data
+        logger.info("🚀 PRODUCTION MODE - Using real market data")
+
+        # Get available symbols from data directory
+        if args.symbols:
+            symbols = args.symbols
+        else:
+            symbols = get_available_symbols(args.data_dir)
+            if not symbols:
+                logger.error("No symbols found. Please specify symbols or ensure data directory contains CSV files.")
+                return
 
     # Configure detailed logging mode
     if args.detailed:
@@ -427,21 +459,6 @@ def main():
         os.environ['DETAILED_BACKTEST_LOGGING'] = 'true'
     else:
         logger.info("📝 CONCISE LOGGING MODE - Backtest details suppressed for cleaner analysis")
-        logger.info("Using minimal data and parameters for quick testing")
-        # Override parameters for testing
-        if args.episodes is None:
-            args.episodes = 5  # Minimal episodes for testing
-        if args.iterations is None:
-            args.iterations = 3  # Minimal iterations for testing
-
-    # Get available symbols
-    if args.symbols:
-        symbols = args.symbols
-    else:
-        symbols = get_available_symbols(args.data_dir)
-        if not symbols:
-            logger.error("No symbols found. Please specify symbols or ensure data directory contains CSV files.")
-            return
     
     # Create configuration
     config = get_recommended_config(symbols, args.mode)
