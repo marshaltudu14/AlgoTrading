@@ -1,626 +1,858 @@
-2025-07-29 17:23:05,601 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:05,603 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:05,603 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:10,183 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:10,188 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:10,190 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:10,583 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:10,583 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:10,583 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:10,583 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:10,591 - WARNING - States requires grad: True
-2025-07-29 17:23:10,604 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:10,604 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:10,604 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:10,610 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:10,610 - WARNING - States requires grad: True
-2025-07-29 17:23:10,723 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:10,741 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:10,890 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:10,909 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,052 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,053 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:11,053 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:11,054 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:11,054 - WARNING - States requires grad: True
-2025-07-29 17:23:11,076 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,076 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:11,077 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:11,077 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:11,077 - WARNING - States requires grad: True
-2025-07-29 17:23:11,093 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,093 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:11,093 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:11,093 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:11,098 - WARNING - States requires grad: True
-2025-07-29 17:23:11,149 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,170 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,191 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,236 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,255 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,271 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,396 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,397 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:11,397 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:11,397 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:11,398 - WARNING - States requires grad: True
-2025-07-29 17:23:11,411 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,411 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:11,411 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:11,411 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:11,416 - WARNING - States requires grad: True
-2025-07-29 17:23:11,437 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,439 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:11,439 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:11,440 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:11,441 - WARNING - States requires grad: True
-2025-07-29 17:23:11,486 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,505 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,526 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,593 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,605 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,633 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:11,973 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:11,973 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:11,973 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:12,687 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:12,687 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:12,687 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:12,687 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:12,701 - WARNING - States requires grad: True
-2025-07-29 17:23:12,721 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:12,721 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:12,721 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:12,721 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:12,726 - WARNING - States requires grad: True
-2025-07-29 17:23:12,857 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:12,877 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:12,989 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,023 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,301 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,308 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:13,308 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:13,308 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:13,308 - WARNING - States requires grad: True
-2025-07-29 17:23:13,342 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,342 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:13,345 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:13,345 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:13,345 - WARNING - States requires grad: True
-2025-07-29 17:23:13,361 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,362 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:13,363 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:13,364 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:13,365 - WARNING - States requires grad: True
-2025-07-29 17:23:13,418 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,432 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,456 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,501 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,515 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,547 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,702 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,702 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:13,702 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:13,704 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:13,704 - WARNING - States requires grad: True
-2025-07-29 17:23:13,733 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,733 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:13,735 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:13,736 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:13,736 - WARNING - States requires grad: True
-2025-07-29 17:23:13,760 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,760 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:13,760 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:13,760 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:13,760 - WARNING - States requires grad: True
-2025-07-29 17:23:13,857 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,872 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,888 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,935 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,973 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:13,990 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,176 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,178 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:14,179 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:14,179 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:14,179 - WARNING - States requires grad: True
-2025-07-29 17:23:14,195 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,195 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:14,195 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:14,201 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:14,201 - WARNING - States requires grad: True
-2025-07-29 17:23:14,218 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,218 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:14,218 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:14,218 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:14,222 - WARNING - States requires grad: True
-2025-07-29 17:23:14,278 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,303 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,352 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,409 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,428 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,448 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,624 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,624 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:14,624 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:14,624 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:14,635 - WARNING - States requires grad: True
-2025-07-29 17:23:14,653 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,659 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:14,661 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:14,661 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:14,662 - WARNING - States requires grad: True
-2025-07-29 17:23:14,674 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,674 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:14,674 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:14,683 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:14,683 - WARNING - States requires grad: True
-2025-07-29 17:23:14,736 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,752 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,775 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,834 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,851 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:14,876 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:15,762 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:15,763 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:15,764 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:15,764 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:15,764 - WARNING - States requires grad: True
-2025-07-29 17:23:15,782 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:15,782 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:15,782 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:15,786 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:15,786 - WARNING - States requires grad: True
-2025-07-29 17:23:15,931 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:15,958 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,149 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,183 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,372 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,387 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:16,387 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:16,388 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:16,388 - WARNING - States requires grad: True
-2025-07-29 17:23:16,406 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,406 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:16,406 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:16,409 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:16,409 - WARNING - States requires grad: True
-2025-07-29 17:23:16,427 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,427 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:16,427 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:16,427 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:16,427 - WARNING - States requires grad: True
-2025-07-29 17:23:16,479 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,510 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,558 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,656 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,721 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:16,747 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,002 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,002 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:17,002 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:17,002 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:17,010 - WARNING - States requires grad: True
-2025-07-29 17:23:17,042 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,042 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:17,050 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:17,051 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:17,051 - WARNING - States requires grad: True
-2025-07-29 17:23:17,078 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,081 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:17,084 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:17,084 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:17,085 - WARNING - States requires grad: True
-2025-07-29 17:23:17,150 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,176 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,205 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,281 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,314 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,335 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,601 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,617 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:17,617 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:17,618 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:17,619 - WARNING - States requires grad: True
-2025-07-29 17:23:17,666 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,667 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:17,667 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:17,667 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:17,668 - WARNING - States requires grad: True
-2025-07-29 17:23:17,718 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,718 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:17,719 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:17,721 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:17,721 - WARNING - States requires grad: True
-2025-07-29 17:23:17,797 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,832 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,863 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,931 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,964 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:17,981 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,163 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,165 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:18,165 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:18,166 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:18,166 - WARNING - States requires grad: True
-2025-07-29 17:23:18,184 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,193 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:18,193 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:18,194 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:18,194 - WARNING - States requires grad: True
-2025-07-29 17:23:18,222 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,222 - WARNING - Ratio requires grad: False
-2025-07-29 17:23:18,223 - WARNING - Log probs requires grad: False
-2025-07-29 17:23:18,224 - WARNING - Action probs requires grad: False
-2025-07-29 17:23:18,235 - WARNING - States requires grad: True
-2025-07-29 17:23:18,328 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,409 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,505 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,879 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,951 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:18,978 - WARNING - Actor loss does not require gradients: nan
-2025-07-29 17:23:19,588 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:19,589 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:19,592 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:19,791 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:19,792 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:19,793 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:19,860 - WARNING - Insufficient data for pattern recognition: have 20 periods, need 50
-2025-07-29 17:23:19,958 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:19,959 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:19,960 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:20,183 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:20,202 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:20,473 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:20,475 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:20,476 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:20,650 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:20,655 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:20,656 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:20,958 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:20,958 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:20,963 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:21,079 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:21,079 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:21,083 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:21,439 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:21,461 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:21,611 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:21,614 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:21,615 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:21,791 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:21,791 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:21,791 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:22,046 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:22,046 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:22,047 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:22,168 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:22,169 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:22,173 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:22,318 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:22,333 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:22,510 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:22,510 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:22,516 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:22,627 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:22,627 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:22,630 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:22,917 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:22,917 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:22,917 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:23,628 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:23,652 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:23,700 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:23,910 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:23,932 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:24,083 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:24,097 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:24,099 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:24,230 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:24,230 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:24,235 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:24,545 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:24,546 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:24,550 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:24,737 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:24,739 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:24,740 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:24,888 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:24,904 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:25,037 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:25,037 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:25,042 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:25,171 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:25,171 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:25,173 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:25,671 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:25,671 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:25,676 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:25,859 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:25,859 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:25,874 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:26,007 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:26,023 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:26,163 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:26,168 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:26,168 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:26,323 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:26,324 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:26,325 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:26,868 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:26,868 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:26,873 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:27,004 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:27,004 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:27,005 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:27,136 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:27,154 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:27,291 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:27,291 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:27,294 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:27,425 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:27,425 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:27,428 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:27,869 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:27,869 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:27,869 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:28,002 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:28,003 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:28,003 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:28,125 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:28,140 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:28,289 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:28,290 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:28,291 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:28,428 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:28,430 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:28,431 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:28,661 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:28,661 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:28,674 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:28,862 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:28,862 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:28,868 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:28,980 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:28,999 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:29,145 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:29,146 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:29,146 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:29,297 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:29,297 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:29,312 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:29,579 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:29,579 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:29,589 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:29,706 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:29,706 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:29,711 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:29,861 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:29,878 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:30,025 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:30,025 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:30,033 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:30,154 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:30,154 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:30,161 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:30,641 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:30,641 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:30,647 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:30,781 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:30,781 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:30,784 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:30,915 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:30,942 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:31,094 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:31,094 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:31,094 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:31,243 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:31,243 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:31,250 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:31,499 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:31,499 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:31,503 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:31,628 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:31,628 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:31,634 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:31,780 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:31,797 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:31,954 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:31,961 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:31,962 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:32,074 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:32,074 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:32,083 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:32,350 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:32,350 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:32,350 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:32,484 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:32,484 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:32,487 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:32,661 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:32,727 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:32,966 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:32,972 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:32,972 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:33,106 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:33,106 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:33,108 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:33,369 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:33,369 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:33,374 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:33,497 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:33,497 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:33,497 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:33,619 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:33,636 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:33,823 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:33,823 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:33,823 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:33,974 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:33,983 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:33,984 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:34,221 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:34,221 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:34,221 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:34,638 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:34,643 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:34,648 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:34,787 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:34,806 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:34,950 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:34,950 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:34,956 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:35,117 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:35,125 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:35,126 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:35,386 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:35,387 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:35,387 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:35,517 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:35,518 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:35,519 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:35,635 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:35,668 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:35,824 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:35,824 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:35,827 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:35,936 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:35,936 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:35,941 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:36,181 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:36,181 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:36,188 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:36,328 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:36,328 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:36,344 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:36,482 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:36,511 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:36,669 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:36,669 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:36,675 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:37,038 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:37,039 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:37,040 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:37,268 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:37,268 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:37,280 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:37,439 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:37,439 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:37,439 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:37,585 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:37,611 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:37,760 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:37,760 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:37,768 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:37,909 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:37,909 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:37,918 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:38,178 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:38,179 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:38,180 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:38,297 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:38,304 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:38,305 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:38,464 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:38,496 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:38,686 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:38,686 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:38,695 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:38,830 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:38,830 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:38,837 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:39,089 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:39,089 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:39,089 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:39,221 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:39,221 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:39,231 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:39,365 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:39,381 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:39,538 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:39,543 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:39,544 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:39,689 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:39,690 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:39,691 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:39,982 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:39,982 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:39,984 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:40,115 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:40,115 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:40,118 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:40,251 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:40,266 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:40,693 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:40,698 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:40,699 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:40,860 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:40,870 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:40,870 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:41,129 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:41,129 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:41,133 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:41,250 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:41,250 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:41,254 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:41,384 - WARNING - Pruning ratio 0.389 exceeds maximum 0.2
-2025-07-29 17:23:41,401 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:41,562 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:41,562 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:41,573 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:41,701 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:41,701 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:41,702 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:41,968 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:41,970 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:41,970 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:42,108 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:42,108 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:42,114 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:42,243 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:42,260 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
-2025-07-29 17:23:42,420 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:42,420 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:42,423 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:42,536 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:42,536 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:42,536 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:42,789 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:42,800 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:42,802 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:42,958 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:42,958 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:42,958 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:43,087 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:43,112 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:43,267 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:43,268 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:43,272 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:43,424 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:43,424 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:43,427 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:43,688 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:43,690 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:43,691 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:43,863 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:43,863 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:43,878 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:44,195 - WARNING - Pruning ratio 0.389 exceeds maximum 0.2
-2025-07-29 17:23:44,282 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
-2025-07-29 17:23:44,407 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:44,417 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:44,420 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:44,576 - ERROR - Invalid data in data/final\features_Bank_Nifty_5.csv, skipping conversion
-2025-07-29 17:23:44,578 - ERROR - Error loading Parquet segment from data/final\parquet\Bank_Nifty_5.parquet: [Errno 2] No such file or directory: 'data/final\\parquet\\Bank_Nifty_5.parquet'
-2025-07-29 17:23:44,579 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
-2025-07-29 17:23:44,712 - WARNING - WARNING: Autonomous evolution training completed but didn't meet success criteria
-2025-07-29 17:23:44,715 - WARNING - Champion model not found at None, creating placeholder universal model
-2025-07-29 17:23:44,736 - ERROR - Error analyzing model complexity: pickle data was truncated
+2025-07-29 19:47:27,531 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:27,534 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:31,175 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:31,178 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:31,731 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:31,731 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:31,736 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:31,737 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:31,738 - WARNING - States requires grad: True
+2025-07-29 19:47:31,754 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:31,754 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:31,758 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:31,761 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:31,764 - WARNING - States requires grad: True
+2025-07-29 19:47:31,891 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:31,912 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,026 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,057 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,191 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,191 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:32,191 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:32,191 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:32,191 - WARNING - States requires grad: True
+2025-07-29 19:47:32,215 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,215 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:32,218 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:32,218 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:32,218 - WARNING - States requires grad: True
+2025-07-29 19:47:32,234 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,234 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:32,237 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:32,237 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:32,237 - WARNING - States requires grad: True
+2025-07-29 19:47:32,291 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,311 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,325 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,476 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,521 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,538 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,671 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,671 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:32,676 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:32,676 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:32,676 - WARNING - States requires grad: True
+2025-07-29 19:47:32,695 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,695 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:32,698 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:32,699 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:32,699 - WARNING - States requires grad: True
+2025-07-29 19:47:32,721 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,721 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:32,723 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:32,723 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:32,723 - WARNING - States requires grad: True
+2025-07-29 19:47:32,777 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,793 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,815 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,871 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,887 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:32,909 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,036 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,036 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:33,036 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:33,038 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:33,038 - WARNING - States requires grad: True
+2025-07-29 19:47:33,055 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,055 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:33,060 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:33,060 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:33,060 - WARNING - States requires grad: True
+2025-07-29 19:47:33,075 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,075 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:33,077 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:33,077 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:33,077 - WARNING - States requires grad: True
+2025-07-29 19:47:33,122 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,138 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,153 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,207 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,221 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,242 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,361 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,361 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:33,364 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:33,364 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:33,364 - WARNING - States requires grad: True
+2025-07-29 19:47:33,381 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,381 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:33,382 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:33,382 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:33,382 - WARNING - States requires grad: True
+2025-07-29 19:47:33,397 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,397 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:33,397 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:33,397 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:33,397 - WARNING - States requires grad: True
+2025-07-29 19:47:33,449 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,467 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,483 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,541 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,558 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,576 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:33,869 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:33,871 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:34,314 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,315 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:34,316 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:34,316 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:34,317 - WARNING - States requires grad: True
+2025-07-29 19:47:34,334 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,334 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:34,339 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:34,339 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:34,339 - WARNING - States requires grad: True
+2025-07-29 19:47:34,443 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,461 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,570 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,586 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,714 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,714 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:34,722 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:34,723 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:34,723 - WARNING - States requires grad: True
+2025-07-29 19:47:34,740 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,740 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:34,741 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:34,741 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:34,741 - WARNING - States requires grad: True
+2025-07-29 19:47:34,754 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,760 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:34,763 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:34,764 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:34,764 - WARNING - States requires grad: True
+2025-07-29 19:47:34,808 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,832 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:34,846 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,006 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,021 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,037 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,148 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,148 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,148 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,148 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,152 - WARNING - States requires grad: True
+2025-07-29 19:47:35,163 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,168 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,169 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,169 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,169 - WARNING - States requires grad: True
+2025-07-29 19:47:35,188 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,188 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,190 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,190 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,190 - WARNING - States requires grad: True
+2025-07-29 19:47:35,231 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,246 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,261 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,301 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,323 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,340 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,454 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,454 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,457 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,457 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,458 - WARNING - States requires grad: True
+2025-07-29 19:47:35,472 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,472 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,475 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,475 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,475 - WARNING - States requires grad: True
+2025-07-29 19:47:35,491 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,491 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,496 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,497 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,497 - WARNING - States requires grad: True
+2025-07-29 19:47:35,541 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,555 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,582 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,634 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,656 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,676 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,795 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,795 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,798 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,798 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,798 - WARNING - States requires grad: True
+2025-07-29 19:47:35,816 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,821 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,821 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,821 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,821 - WARNING - States requires grad: True
+2025-07-29 19:47:35,846 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,847 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:35,847 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:35,847 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:35,848 - WARNING - States requires grad: True
+2025-07-29 19:47:35,897 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,911 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,934 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:35,981 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,001 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,014 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,466 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,471 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:36,473 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:36,473 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:36,473 - WARNING - States requires grad: True
+2025-07-29 19:47:36,487 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,487 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:36,490 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:36,490 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:36,490 - WARNING - States requires grad: True
+2025-07-29 19:47:36,597 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,613 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,724 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,741 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,865 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,868 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:36,871 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:36,871 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:36,871 - WARNING - States requires grad: True
+2025-07-29 19:47:36,884 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,884 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:36,889 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:36,889 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:36,889 - WARNING - States requires grad: True
+2025-07-29 19:47:36,908 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,910 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:36,913 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:36,914 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:36,914 - WARNING - States requires grad: True
+2025-07-29 19:47:36,953 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,974 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:36,993 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,041 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,059 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,073 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,193 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,193 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:37,197 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:37,197 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:37,197 - WARNING - States requires grad: True
+2025-07-29 19:47:37,215 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,215 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:37,219 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:37,219 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:37,219 - WARNING - States requires grad: True
+2025-07-29 19:47:37,234 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,234 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:37,237 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:37,237 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:37,237 - WARNING - States requires grad: True
+2025-07-29 19:47:37,283 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,436 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,456 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,508 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,522 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,540 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,673 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,673 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:37,676 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:37,676 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:37,676 - WARNING - States requires grad: True
+2025-07-29 19:47:37,697 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,698 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:37,698 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:37,698 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:37,698 - WARNING - States requires grad: True
+2025-07-29 19:47:37,716 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,716 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:37,717 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:37,717 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:37,717 - WARNING - States requires grad: True
+2025-07-29 19:47:37,765 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,781 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,801 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,846 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,862 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:37,888 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,002 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,006 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:38,007 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:38,007 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:38,008 - WARNING - States requires grad: True
+2025-07-29 19:47:38,021 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,021 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:38,025 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:38,025 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:38,025 - WARNING - States requires grad: True
+2025-07-29 19:47:38,042 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,042 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:38,042 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:38,042 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:38,046 - WARNING - States requires grad: True
+2025-07-29 19:47:38,095 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,111 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,127 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,176 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,191 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,209 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,691 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,694 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:38,694 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:38,694 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:38,695 - WARNING - States requires grad: True
+2025-07-29 19:47:38,711 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,711 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:38,712 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:38,712 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:38,712 - WARNING - States requires grad: True
+2025-07-29 19:47:38,818 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,836 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,937 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:38,953 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,078 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,082 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,082 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,082 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,082 - WARNING - States requires grad: True
+2025-07-29 19:47:39,100 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,100 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,101 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,102 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,102 - WARNING - States requires grad: True
+2025-07-29 19:47:39,116 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,122 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,123 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,124 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,124 - WARNING - States requires grad: True
+2025-07-29 19:47:39,170 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,188 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,201 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,253 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,271 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,287 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,411 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,411 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,414 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,415 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,415 - WARNING - States requires grad: True
+2025-07-29 19:47:39,431 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,431 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,436 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,436 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,436 - WARNING - States requires grad: True
+2025-07-29 19:47:39,454 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,457 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,458 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,458 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,458 - WARNING - States requires grad: True
+2025-07-29 19:47:39,506 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,525 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,541 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,591 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,606 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,623 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,751 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,751 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,751 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,756 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,756 - WARNING - States requires grad: True
+2025-07-29 19:47:39,775 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,863 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,864 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,864 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,865 - WARNING - States requires grad: True
+2025-07-29 19:47:39,911 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,911 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:39,911 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:39,911 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:39,911 - WARNING - States requires grad: True
+2025-07-29 19:47:39,959 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,975 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:39,993 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,042 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,061 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,081 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,206 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,206 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:40,211 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:40,211 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:40,211 - WARNING - States requires grad: True
+2025-07-29 19:47:40,233 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,234 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:40,234 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:40,234 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:40,235 - WARNING - States requires grad: True
+2025-07-29 19:47:40,249 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,251 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:40,252 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:40,253 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:40,256 - WARNING - States requires grad: True
+2025-07-29 19:47:40,302 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,320 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,341 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,391 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,405 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,421 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,889 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,889 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:40,890 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:40,891 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:40,891 - WARNING - States requires grad: True
+2025-07-29 19:47:40,908 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:40,908 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:40,908 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:40,911 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:40,911 - WARNING - States requires grad: True
+2025-07-29 19:47:41,017 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,031 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,146 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,161 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,284 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,284 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:41,287 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:41,287 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:41,287 - WARNING - States requires grad: True
+2025-07-29 19:47:41,301 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,301 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:41,306 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:41,307 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:41,308 - WARNING - States requires grad: True
+2025-07-29 19:47:41,325 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,326 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:41,326 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:41,326 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:41,326 - WARNING - States requires grad: True
+2025-07-29 19:47:41,374 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,394 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,410 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,461 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,481 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,499 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,627 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,631 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:41,631 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:41,631 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:41,631 - WARNING - States requires grad: True
+2025-07-29 19:47:41,649 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,649 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:41,650 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:41,650 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:41,650 - WARNING - States requires grad: True
+2025-07-29 19:47:41,673 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,677 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:41,677 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:41,678 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:41,679 - WARNING - States requires grad: True
+2025-07-29 19:47:41,729 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,746 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,763 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,814 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,831 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,847 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,961 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,961 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:41,966 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:41,966 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:41,966 - WARNING - States requires grad: True
+2025-07-29 19:47:41,981 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:41,981 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:41,984 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:41,984 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:41,984 - WARNING - States requires grad: True
+2025-07-29 19:47:42,005 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,005 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:42,005 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:42,005 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:42,006 - WARNING - States requires grad: True
+2025-07-29 19:47:42,054 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,071 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,088 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,252 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,271 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,288 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,397 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,398 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:42,398 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:42,400 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:42,402 - WARNING - States requires grad: True
+2025-07-29 19:47:42,416 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,416 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:42,422 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:42,422 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:42,422 - WARNING - States requires grad: True
+2025-07-29 19:47:42,441 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,443 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:42,443 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:42,443 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:42,444 - WARNING - States requires grad: True
+2025-07-29 19:47:42,490 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,507 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,526 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,574 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,596 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:42,615 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,059 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,060 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:43,060 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:43,060 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:43,060 - WARNING - States requires grad: True
+2025-07-29 19:47:43,076 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,076 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:43,078 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:43,078 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:43,078 - WARNING - States requires grad: True
+2025-07-29 19:47:43,184 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,205 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,312 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,329 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,450 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,450 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:43,451 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:43,452 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:43,452 - WARNING - States requires grad: True
+2025-07-29 19:47:43,471 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,471 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:43,474 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:43,474 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:43,474 - WARNING - States requires grad: True
+2025-07-29 19:47:43,492 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,492 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:43,495 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:43,496 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:43,497 - WARNING - States requires grad: True
+2025-07-29 19:47:43,551 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,570 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,588 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,636 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,654 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,681 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,802 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,802 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:43,807 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:43,807 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:43,807 - WARNING - States requires grad: True
+2025-07-29 19:47:43,822 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,822 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:43,825 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:43,825 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:43,828 - WARNING - States requires grad: True
+2025-07-29 19:47:43,842 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,842 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:43,842 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:43,846 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:43,846 - WARNING - States requires grad: True
+2025-07-29 19:47:43,895 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,913 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,930 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,977 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:43,993 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,011 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,129 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,130 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:44,130 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:44,130 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:44,130 - WARNING - States requires grad: True
+2025-07-29 19:47:44,148 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,148 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:44,152 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:44,152 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:44,152 - WARNING - States requires grad: True
+2025-07-29 19:47:44,166 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,166 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:44,168 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:44,168 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:44,169 - WARNING - States requires grad: True
+2025-07-29 19:47:44,215 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,232 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,246 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,298 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,318 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,337 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,454 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,455 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:44,455 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:44,455 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:44,458 - WARNING - States requires grad: True
+2025-07-29 19:47:44,471 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,471 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:44,476 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:44,476 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:44,476 - WARNING - States requires grad: True
+2025-07-29 19:47:44,494 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,497 - WARNING - Ratio requires grad: False
+2025-07-29 19:47:44,497 - WARNING - Log probs requires grad: False
+2025-07-29 19:47:44,497 - WARNING - Action probs requires grad: False
+2025-07-29 19:47:44,498 - WARNING - States requires grad: True
+2025-07-29 19:47:44,542 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,562 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,582 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,634 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,650 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:44,665 - WARNING - Actor loss does not require gradients: nan
+2025-07-29 19:47:45,195 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:45,195 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:45,330 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:45,331 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:45,381 - WARNING - Insufficient data for pattern recognition: have 20 periods, need 50
+2025-07-29 19:47:45,472 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:45,473 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:45,579 - WARNING - Pruning ratio 0.389 exceeds maximum 0.2
+2025-07-29 19:47:45,596 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:45,728 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:45,728 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:45,843 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:45,847 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:46,094 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:46,179 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:46,349 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:46,351 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:46,459 - WARNING - Pruning ratio 0.386 exceeds maximum 0.2
+2025-07-29 19:47:46,474 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:46,769 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:46,769 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:46,876 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:46,876 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:47,073 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:47,074 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:47,176 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:47,176 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:47,282 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:47,296 - WARNING - Pruning ratio 0.386 exceeds maximum 0.2
+2025-07-29 19:47:47,404 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:47,405 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:47,624 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:47,624 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:47,836 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:47,838 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:47,954 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:47,955 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:48,071 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:48,082 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:48,342 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:48,347 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:48,456 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:48,461 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:48,690 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:48,691 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:48,805 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:48,805 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:48,915 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:48,937 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:49,058 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:49,060 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:49,165 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:49,165 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:49,377 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:49,378 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:49,487 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:49,488 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:49,582 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:49,597 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:49,720 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:49,721 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:49,838 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:49,839 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:50,244 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:50,245 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:50,335 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:50,338 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:50,473 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:50,487 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:50,629 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:50,629 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:51,001 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:51,166 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:51,573 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:51,581 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:51,729 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:51,731 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:51,897 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:51,913 - WARNING - Pruning ratio 0.389 exceeds maximum 0.2
+2025-07-29 19:47:52,047 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:52,047 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:52,166 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:52,166 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:52,405 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:52,405 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:52,569 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:52,571 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:52,716 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:52,742 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:52,865 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:52,865 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:53,011 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:53,012 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:53,263 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:53,263 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:53,397 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:53,397 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:53,521 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:53,535 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:53,659 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:53,660 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:53,789 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:53,789 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:53,983 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:53,984 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:54,087 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:54,088 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:54,215 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:54,229 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:54,338 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:54,342 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:54,449 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:54,451 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:54,658 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:54,662 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:54,779 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:54,779 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:54,882 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:54,898 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:55,003 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:55,004 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:55,124 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:55,125 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:55,311 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:55,314 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:55,431 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:55,432 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:55,523 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:55,536 - WARNING - Pruning ratio 0.389 exceeds maximum 0.2
+2025-07-29 19:47:55,644 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:55,645 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:55,762 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:55,767 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:55,954 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:55,954 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:56,063 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:56,065 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:56,162 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:56,171 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:56,285 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:56,285 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:56,391 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:56,391 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:56,603 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:56,608 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:56,711 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:56,717 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:56,821 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:56,836 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:56,944 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:56,944 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:57,048 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:57,049 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:57,247 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:57,249 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:57,366 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:57,366 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:57,474 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:57,489 - WARNING - Pruning ratio 0.389 exceeds maximum 0.2
+2025-07-29 19:47:57,596 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:57,597 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:57,714 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:57,715 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:58,037 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:58,037 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:58,160 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:58,161 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:58,273 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:58,286 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:58,396 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:58,397 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:58,505 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:58,505 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:58,703 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:58,703 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:58,842 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:58,842 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:58,943 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:58,957 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:59,066 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:59,068 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:59,185 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:59,186 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:59,388 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:59,391 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:59,500 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:59,501 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:59,756 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:47:59,767 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:47:59,877 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:59,877 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:47:59,996 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:47:59,996 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:00,195 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:00,195 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:00,407 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:00,415 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:00,530 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:48:00,542 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:48:00,659 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:00,659 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:00,780 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:00,781 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:00,991 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:00,991 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:01,114 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:01,114 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:01,221 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:48:01,234 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:48:01,341 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:01,343 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:01,442 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:01,447 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:01,657 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:01,660 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:01,781 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:01,783 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:01,944 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:48:01,957 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:48:02,063 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:02,063 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:02,171 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:02,174 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:02,367 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:02,368 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:02,475 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:02,475 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:02,581 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:48:02,595 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:48:02,811 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:02,816 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:02,923 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:02,924 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:03,112 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:03,112 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:03,220 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:03,220 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:03,314 - WARNING - Pruning ratio 0.387 exceeds maximum 0.2
+2025-07-29 19:48:03,329 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:48:03,434 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:03,437 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:03,550 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:03,551 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:03,754 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:03,754 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:03,874 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:03,874 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:03,984 - WARNING - Pruning ratio 0.388 exceeds maximum 0.2
+2025-07-29 19:48:03,999 - WARNING - Pruning ratio 0.389 exceeds maximum 0.2
+2025-07-29 19:48:04,110 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:04,111 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:04,216 - WARNING - Invalid data segment in data/final\parquet\Bank_Nifty_5.parquet
+2025-07-29 19:48:04,221 - ERROR - Failed to load data segment for Bank_Nifty_5, falling back to full FINAL data loading
+2025-07-29 19:48:04,314 - WARNING - WARNING: Autonomous evolution training completed but didn't meet success criteria
+2025-07-29 19:48:04,314 - WARNING - Champion model not found at None, creating placeholder universal model
+2025-07-29 19:48:04,345 - ERROR - Error analyzing model complexity: pickle data was truncated
 
 ================================================================================
 SESSION SUMMARY
 ================================================================================
 Total Errors: 0
 Total Warnings: 0
-Session Duration: 0:00:39.252951
+Session Duration: 0:00:37.187046
 ================================================================================

@@ -185,7 +185,8 @@ def run_multi_symbol_training(
 def run_simple_training(
     symbol: str,
     num_episodes: int = None,
-    agent_type: str = "PPO"
+    agent_type: str = "PPO",
+    testing_mode: bool = False
 ) -> dict:
     """
     Run simple single-threaded training for a symbol.
@@ -216,8 +217,21 @@ def run_simple_training(
             num_episodes = 500  # fallback to PPO default
         logger.info(f"Using {num_episodes} episodes from YAML configuration")
 
-    # Initialize data loader
-    data_loader = DataLoader(final_data_dir="data/final", use_parquet=True)
+    # Initialize data loader (use test data files if in testing mode)
+    data_dir = "data/test" if testing_mode else "data/final"
+    if testing_mode:
+        logger.info(f"🧪 Using test data directory: {data_dir}")
+        # Create test data files using actual pipeline (creates both STOCK and OPTION data)
+        from src.utils.test_data_generator import create_test_data_files
+        create_test_data_files(
+            data_dir="data/test",
+            symbol=symbol,
+            num_rows=150,
+            create_both=True,
+            create_multiple_instruments=True  # Creates RELIANCE (STOCK) and Bank_Nifty_5 (OPTION)
+        )
+
+    data_loader = DataLoader(final_data_dir=data_dir, use_parquet=True)
 
     # Create environment (disable streaming for consistent dimensions)
     env = TradingEnv(
@@ -340,6 +354,29 @@ def run_simple_training(
             logger.info(f"Training {agent_type} agent for {num_episodes} episodes...")
             trainer.train(data_loader, symbol, INITIAL_CAPITAL)
 
+        # Save the trained model (skip in testing mode)
+        if not testing_mode:
+            model_path = f"models/{symbol}_{agent_type.lower()}_model.pkl"
+            os.makedirs("models", exist_ok=True)
+
+            # Save agent state
+            agent_state = {
+                'type': agent_type,
+                'observation_dim': observation_dim,
+                'action_dim_discrete': action_dim_discrete,
+                'action_dim_continuous': action_dim_continuous,
+                'training_episodes': num_episodes,
+                'symbol': symbol
+            }
+
+            import pickle
+            with open(model_path, 'wb') as f:
+                pickle.dump(agent_state, f)
+
+            logger.info(f"Model saved to {model_path}")
+        else:
+            logger.info("🧪 Testing mode: Skipping model save")
+
         results = {
             "symbol": symbol,
             "agent_type": agent_type,
@@ -374,9 +411,20 @@ def main():
     parser.add_argument("--episodes", type=int, default=None, help="Number of episodes for training (uses YAML config if not specified)")
     parser.add_argument("--sequence", action="store_true", default=True, help="Run complete training sequence: PPO -> MoE -> MAML (default)")
     parser.add_argument("--no-sequence", action="store_true", help="Disable sequence training and use single algorithm")
-    
+    parser.add_argument("--testing", action="store_true", help="Enable testing mode with minimal data and parameters")
+
     args = parser.parse_args()
-    
+
+    # Configure testing mode
+    if args.testing:
+        logger.info("🧪 TESTING MODE ENABLED")
+        logger.info("Using minimal data and parameters for quick testing")
+        # Override parameters for testing
+        if args.episodes is None:
+            args.episodes = 5  # Minimal episodes for testing
+        if args.iterations is None:
+            args.iterations = 3  # Minimal iterations for testing
+
     # Get available symbols
     if args.symbols:
         symbols = args.symbols
@@ -458,7 +506,7 @@ def main():
                 all_results = []
                 for symbol in symbols:
                     try:
-                        results = run_simple_training(symbol, args.episodes, args.algorithm)
+                        results = run_simple_training(symbol, args.episodes, args.algorithm, args.testing)
                         all_results.append(results)
                         logger.info(f"Completed training for {symbol}")
                     except Exception as e:

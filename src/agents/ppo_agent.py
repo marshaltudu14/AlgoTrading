@@ -223,8 +223,10 @@ class PPOAgent(BaseAgent):
 
 
 
-        # Move to device
+        # Move to device and ensure gradients are preserved
         states = to_device(states)
+        if not states.requires_grad:
+            states.requires_grad_(True)
         action_types = to_device(action_types)
         quantities = to_device(quantities)
         rewards = to_device(rewards)
@@ -304,10 +306,19 @@ class PPOAgent(BaseAgent):
             action_probs = action_outputs['action_type']
             quantity_preds = action_outputs['quantity']
 
+            # Ensure action_probs requires gradients
+            if not action_probs.requires_grad:
+                print("Warning: Action probabilities don't require gradients, enabling...")
+                action_probs.requires_grad_(True)
+
             # Check for NaN values in action probabilities
             if torch.isnan(action_probs).any():
                 print("Warning: NaN detected in action probabilities, skipping learning step")
                 return
+
+            # Add numerical stability to action probabilities
+            action_probs = torch.clamp(action_probs, min=1e-8, max=1.0)
+            action_probs = action_probs / action_probs.sum(dim=-1, keepdim=True)  # Renormalize
 
             dist_discrete = Categorical(action_probs)
             log_probs_discrete = dist_discrete.log_prob(action_types)
@@ -339,10 +350,18 @@ class PPOAgent(BaseAgent):
             current_values = self.critic(states).squeeze()
             critic_loss = self.MseLoss(current_values, returns)
 
-            # Check for NaN values in losses
+            # Check for NaN values in losses and gradient requirements
             if torch.isnan(actor_loss) or torch.isnan(critic_loss):
                 print("Warning: NaN detected in losses, skipping learning step")
                 return
+
+            if not actor_loss.requires_grad:
+                print(f"Warning: Actor loss does not require gradients: {actor_loss}")
+                print(f"Ratio requires grad: {ratio.requires_grad}")
+                print(f"Log probs requires grad: {log_probs.requires_grad}")
+                print(f"Action probs requires grad: {action_probs.requires_grad}")
+                print(f"States requires grad: {states.requires_grad}")
+                continue  # Skip this update
 
             # Update actor
             self.optimizer_actor.zero_grad()

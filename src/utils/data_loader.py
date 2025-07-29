@@ -94,9 +94,13 @@ class DataLoader:
     def _load_csv_chunks(self, filepath: str) -> Iterator[pd.DataFrame]:
         """Load CSV file in chunks."""
         try:
+            # Determine if this is a features file (no datetime required)
+            is_features_file = 'features_' in os.path.basename(filepath)
+            require_datetime = not is_features_file
+
             for chunk in pd.read_csv(filepath, chunksize=self.chunk_size):
                 # Apply basic validation to each chunk
-                if self._validate_chunk(chunk):
+                if self._validate_chunk(chunk, require_datetime=require_datetime):
                     yield chunk
                 else:
                     logging.warning(f"Skipping invalid chunk in {filepath}")
@@ -106,25 +110,36 @@ class DataLoader:
     def _load_parquet_chunks(self, filepath: str) -> Iterator[pd.DataFrame]:
         """Load Parquet file in chunks."""
         try:
+            # Determine if this is a features file (no datetime required)
+            is_features_file = 'features_' in os.path.basename(filepath)
+            require_datetime = not is_features_file
+
             parquet_file = pq.ParquetFile(filepath)
             for batch in parquet_file.iter_batches(batch_size=self.chunk_size):
                 df = batch.to_pandas()
-                if self._validate_chunk(df):
+                if self._validate_chunk(df, require_datetime=require_datetime):
                     yield df
                 else:
                     logging.warning(f"Skipping invalid chunk in {filepath}")
         except Exception as e:
             logging.error(f"Error loading Parquet chunks from {filepath}: {e}")
 
-    def _validate_chunk(self, chunk: pd.DataFrame) -> bool:
+    def _validate_chunk(self, chunk: pd.DataFrame, require_datetime: bool = True) -> bool:
         """Validate a data chunk."""
         if chunk.empty:
             return False
 
         # Check for required columns (basic validation)
-        required_cols = ['datetime', 'open', 'high', 'low', 'close']
+        required_cols = ['open', 'high', 'low', 'close']
+        if require_datetime:
+            required_cols = ['datetime'] + required_cols
+
         if not all(col in chunk.columns for col in required_cols):
-            return False
+            # For features files, datetime might not be present
+            if not require_datetime and all(col in chunk.columns for col in ['open', 'high', 'low', 'close']):
+                pass  # Valid features file
+            else:
+                return False
 
         # Basic OHLC validation
         try:
@@ -145,11 +160,18 @@ class DataLoader:
             logging.info(f"Converting {csv_path} to Parquet format...")
             df = pd.read_csv(csv_path)
 
+            # Determine if this is a features file (no datetime required)
+            is_features_file = 'features_' in os.path.basename(csv_path)
+            require_datetime = not is_features_file
+
             # Basic data cleaning and validation
-            if self._validate_chunk(df):
-                # Convert datetime column to proper datetime type
+            if self._validate_chunk(df, require_datetime=require_datetime):
+                # Convert datetime column to proper datetime type if present
                 if 'datetime' in df.columns:
                     df['datetime'] = pd.to_datetime(df['datetime'])
+
+                # Ensure parquet directory exists
+                os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
 
                 # Save as Parquet
                 df.to_parquet(parquet_path, index=False, engine='pyarrow')
