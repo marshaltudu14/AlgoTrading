@@ -623,8 +623,9 @@ def run_autonomous_stage(config: Dict[str, Any]) -> Dict[str, Any]:
     # The universal model is saved by the sequence manager
     logger.info("Autonomous training completed - universal model will be saved by sequence manager")
 
-    # Return final statistics
+    # Return final statistics with best agent reference for universal model creation
     final_stats = trainer.get_training_statistics()
+    final_stats['best_agent'] = trainer.best_agent  # Pass best agent for universal model creation
     final_stats['champion_path'] = None  # No individual champion saved
 
     logger.info("Autonomous training stage completed")

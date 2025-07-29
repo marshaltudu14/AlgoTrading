@@ -53,7 +53,7 @@ class MarketClassifier:
     ):
         """
         Initialize the Market Classifier.
-        
+
         Args:
             trend_period: Period for trend calculation (moving averages)
             volatility_period: Period for volatility calculation
@@ -95,13 +95,16 @@ class MarketClassifier:
         # Convert input to standardized format
         ohlcv_data = self._prepare_data(market_data)
         
-        if len(ohlcv_data) < max(self.trend_period, self.volatility_period, self.adx_period):
-            warning_key = "insufficient_data_market_classification"
+        required_periods = max(self.trend_period, self.volatility_period, self.adx_period)
+        if len(ohlcv_data) < required_periods:
+            warning_key = f"insufficient_data_market_classification_{len(ohlcv_data)}_{required_periods}"
             if warning_key not in _warning_cache:
-                logger.warning("Insufficient data for market classification")
+                logger.warning(f"Insufficient data for market classification: have {len(ohlcv_data)} periods, need {required_periods}")
                 _warning_cache.add(warning_key)
+            # Return default regime with low confidence
             regime = MarketRegime.CONSOLIDATION
-            return (regime, 0.5) if return_confidence else regime
+            confidence = 0.25  # Low confidence due to insufficient data
+            return (regime, confidence) if return_confidence else regime
         
         # Calculate technical indicators
         indicators = self._calculate_indicators(ohlcv_data)

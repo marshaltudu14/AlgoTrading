@@ -74,11 +74,11 @@ class TradingEnv(gym.Env):
         # Initialize data feeding strategy manager
         self.feeding_strategy_manager = None  # Will be initialized when data is first loaded
 
-        # Initialize data length for streaming mode
+        # Initialize data length for streaming mode using FINAL data
         if self.use_streaming:
-            self.total_data_length = self.data_loader.get_data_length(self.symbol)
+            self.total_data_length = self.data_loader.get_data_length(self.symbol, data_type="final")
             if self.total_data_length == 0:
-                logging.warning(f"No data found for symbol {self.symbol}, falling back to full loading")
+                logging.warning(f"No final data found for symbol {self.symbol}, falling back to full loading")
                 self.use_streaming = False
 
         # Define action and observation space
@@ -107,6 +107,12 @@ class TradingEnv(gym.Env):
             self._load_episode_data_segment()
         else:
             self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
+
+            # DEBUG: Log detailed information about loaded data
+            logger.info(f"🔍 DEBUG: Loaded data for symbol '{self.symbol}':")
+            logger.info(f"   - Data shape: {self.data.shape}")
+            logger.info(f"   - Columns: {list(self.data.columns)}")
+            logger.info(f"   - Data source: {self.data_loader.final_data_dir}")
 
             # Initialize feeding strategy manager if not already done
             if self.feeding_strategy_manager is None:
@@ -167,9 +173,9 @@ class TradingEnv(gym.Env):
         max_start = max(0, self.total_data_length - self.episode_length - self.lookback_window)
 
         if max_start <= 0:
-            # Not enough data for streaming, load all
-            logging.warning(f"Insufficient data for streaming mode, loading all data for {self.symbol}")
-            self.data = self.data_loader.load_raw_data_for_symbol(self.symbol)
+            # Not enough data for streaming, load all FINAL data (not raw!)
+            logging.warning(f"Insufficient data for streaming mode, loading all FINAL data for {self.symbol}")
+            self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
             self.use_streaming = False
             return
 
@@ -178,17 +184,17 @@ class TradingEnv(gym.Env):
         self.current_episode_start = random.randint(0, max_start)
         self.current_episode_end = self.current_episode_start + self.episode_length + self.lookback_window
 
-        # Load only the required segment
+        # Load only the required segment from FINAL processed data
         self.data = self.data_loader.load_data_segment(
             symbol=self.symbol,
             start_idx=self.current_episode_start,
             end_idx=self.current_episode_end,
-            data_type="raw"
+            data_type="final"
         )
 
         if self.data.empty:
-            logging.error(f"Failed to load data segment for {self.symbol}, falling back to full loading")
-            self.data = self.data_loader.load_raw_data_for_symbol(self.symbol)
+            logging.error(f"Failed to load data segment for {self.symbol}, falling back to full FINAL data loading")
+            self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
             self.use_streaming = False
         else:
             # Reset data index for consistent access
@@ -283,14 +289,28 @@ class TradingEnv(gym.Env):
             logger.info(f"🎯 Step {self.current_step}: Agent action: {action} -> {action_name} (qty: {quantity})")
             logger.info(f"   Current price: ₹{current_price:.2f}, Capital: ₹{prev_capital:.2f}")
 
+        # Get current position state to validate actions
+        account_state = self.engine.get_account_state()
+        current_position = account_state['current_position_quantity']
+
         if action_type == 0: # BUY_LONG
             self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)
         elif action_type == 1: # SELL_SHORT
             self.engine.execute_trade("SELL_SHORT", current_price, quantity, current_atr, proxy_premium)
         elif action_type == 2: # CLOSE_LONG
-            self.engine.execute_trade("CLOSE_LONG", current_price, quantity, current_atr, proxy_premium)
+            # Only execute if we have a long position to close
+            if current_position > 0:
+                self.engine.execute_trade("CLOSE_LONG", current_price, quantity, current_atr, proxy_premium)
+            else:
+                # Convert invalid action to HOLD to reduce warnings
+                self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
         elif action_type == 3: # CLOSE_SHORT
-            self.engine.execute_trade("CLOSE_SHORT", current_price, quantity, current_atr, proxy_premium)
+            # Only execute if we have a short position to close
+            if current_position < 0:
+                self.engine.execute_trade("CLOSE_SHORT", current_price, quantity, current_atr, proxy_premium)
+            else:
+                # Convert invalid action to HOLD to reduce warnings
+                self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
         elif action_type == 4: # HOLD
             self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
 

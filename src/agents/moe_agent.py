@@ -4,9 +4,57 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 from typing import Tuple, List, Dict
+import logging
 
 from src.agents.base_agent import BaseAgent
 from src.models.transformer_models import TransformerModel, ActorTransformerModel
+
+logger = logging.getLogger(__name__)
+
+def safe_tensor_to_scalar(tensor: torch.Tensor, default_value: float = 0.0) -> float:
+    """
+    Safely convert a tensor to a scalar value, handling various tensor dimensions.
+
+    Args:
+        tensor: Input tensor to convert
+        default_value: Default value to return if conversion fails
+
+    Returns:
+        Scalar float value
+    """
+    try:
+        if tensor is None:
+            return default_value
+
+        # Handle different tensor types and dimensions
+        if isinstance(tensor, (int, float)):
+            return float(tensor)
+
+        if not isinstance(tensor, torch.Tensor):
+            return float(tensor)
+
+        # Handle 0-dimensional tensors
+        if tensor.dim() == 0:
+            return tensor.item()
+
+        # Handle 1-dimensional tensors
+        if tensor.dim() == 1:
+            if tensor.numel() == 1:
+                return tensor.item()
+            else:
+                # Take the first element if multiple elements
+                return tensor[0].item()
+
+        # Handle multi-dimensional tensors
+        flattened = tensor.flatten()
+        if flattened.numel() > 0:
+            return flattened[0].item()
+        else:
+            return default_value
+
+    except Exception as e:
+        logger.warning(f"Failed to convert tensor to scalar: {e}. Using default value {default_value}")
+        return default_value
 
 class GatingNetwork(nn.Module):
     def __init__(self, input_dim: int, num_experts: int, hidden_dim: int):
@@ -14,9 +62,41 @@ class GatingNetwork(nn.Module):
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, num_experts)
 
+        # Initialize weights with small values for numerical stability
+        nn.init.xavier_uniform_(self.fc1.weight, gain=0.01)
+        nn.init.xavier_uniform_(self.fc2.weight, gain=0.01)
+        nn.init.constant_(self.fc1.bias, 0)
+        nn.init.constant_(self.fc2.bias, 0)
+
     def forward(self, market_features: torch.Tensor) -> torch.Tensor:
-        x = F.relu(self.fc1(market_features))
-        return F.softmax(self.fc2(x), dim=-1)
+        # Check for NaN/Inf in input
+        if torch.isnan(market_features).any() or torch.isinf(market_features).any():
+            market_features = torch.zeros_like(market_features)
+
+        x = self.fc1(market_features)
+
+        # Check for NaN/Inf after first layer
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            x = torch.zeros_like(x)
+
+        x = F.relu(x)
+        x = self.fc2(x)
+
+        # Check for NaN/Inf before softmax
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            x = torch.zeros_like(x)
+
+        # Clamp logits to prevent extreme values
+        x = torch.clamp(x, min=-10, max=10)
+
+        # Apply softmax with numerical stability
+        output = F.softmax(x, dim=-1)
+
+        # Final check for NaN and use uniform distribution as fallback
+        if torch.isnan(output).any():
+            output = torch.ones_like(output) / output.size(-1)
+
+        return output
 
 class MoEAgent(BaseAgent):
     def __init__(self, observation_dim: int, action_dim_discrete: int, action_dim_continuous: int, hidden_dim: int, expert_configs: Dict, lr_gating: float = 0.001):
@@ -56,32 +136,38 @@ class MoEAgent(BaseAgent):
         market_features = torch.FloatTensor(observation).unsqueeze(0)
         expert_weights = self.gating_network(market_features).squeeze(0)
 
+        # Check for NaN/Inf in expert weights
+        if torch.isnan(expert_weights).any() or torch.isinf(expert_weights).any():
+            logger.warning("NaN/Inf detected in expert weights, using uniform distribution")
+            expert_weights = torch.ones_like(expert_weights) / expert_weights.size(0)
+
         # Get action probabilities and quantities from all experts
         expert_action_probs = []
         expert_quantities = []
         state_tensor = torch.FloatTensor(observation).unsqueeze(0).unsqueeze(0)
 
         for expert in self.experts:
-            # Get action probabilities and quantities from each expert's policy
-            with torch.no_grad():
-                action_outputs = expert.policy_old(state_tensor)
-                action_probs = action_outputs['action_type'].squeeze(0)
-                quantity_pred = action_outputs['quantity'].squeeze(0)
+            # Get action probabilities and quantities from each expert's current policy
+            # CRITICAL: Use expert.actor (not policy_old) to preserve gradients for training
+            action_outputs = expert.actor(state_tensor)
+            action_probs = action_outputs['action_type'].squeeze(0)
+            quantity_pred = action_outputs['quantity'].squeeze(0)
 
-                # Add stability checks for each expert's output
-                if torch.isnan(action_probs).any() or torch.isinf(action_probs).any():
-                    logger.warning(f"NaN/Inf detected in expert action_probs, using uniform distribution")
-                    action_probs = torch.ones_like(action_probs) / action_probs.size(0)
+            # Add stability checks for each expert's output
+            if torch.isnan(action_probs).any() or torch.isinf(action_probs).any():
+                logger.warning(f"NaN/Inf detected in expert action_probs, using uniform distribution")
+                action_probs = torch.ones_like(action_probs, requires_grad=True) / action_probs.size(0)
 
-                # Ensure probabilities are positive and sum to 1
-                action_probs = torch.clamp(action_probs, min=1e-8)
-                action_probs = action_probs / action_probs.sum()
+            # Ensure probabilities are positive and sum to 1 (for both NaN and normal cases)
+            action_probs = torch.clamp(action_probs, min=1e-8)
+            action_probs = action_probs / action_probs.sum()
 
-                # Clamp quantity to reasonable range
-                quantity_pred = torch.clamp(quantity_pred, min=1.0, max=5.0)
+            # Clamp quantity to reasonable range (for both NaN and normal cases)
+            quantity_pred = torch.clamp(quantity_pred, min=1.0, max=5.0)
 
-                expert_action_probs.append(action_probs)
-                expert_quantities.append(quantity_pred)
+            # Always append the processed values
+            expert_action_probs.append(action_probs)
+            expert_quantities.append(quantity_pred)
 
         # Stack expert probabilities and quantities
         expert_probs_tensor = torch.stack(expert_action_probs)  # Shape: [num_experts, action_dim_discrete]
@@ -107,18 +193,16 @@ class MoEAgent(BaseAgent):
         from torch.distributions import Categorical
         dist = Categorical(weighted_action_probs)
         action_sample = dist.sample()
-        # Handle 0-dimensional tensors
-        if action_sample.dim() == 0:
-            final_action_type = action_sample.item()
-        else:
-            final_action_type = action_sample.squeeze().item()
+
+        # Use safe tensor conversion for action type
+        final_action_type = int(safe_tensor_to_scalar(action_sample, default_value=4))  # Default to HOLD
 
         # For continuous quantity, use the weighted average, ensuring it's positive
         quantity_tensor = torch.clamp(weighted_quantity, min=0.01)
-        if quantity_tensor.dim() == 0:
-            final_quantity = quantity_tensor.item()
-        else:
-            final_quantity = quantity_tensor.squeeze().item()
+        final_quantity = safe_tensor_to_scalar(quantity_tensor, default_value=1.0)
+
+        # Ensure final_quantity is positive and reasonable
+        final_quantity = max(0.01, min(final_quantity, 10.0))
 
         return final_action_type, final_quantity
 
@@ -187,11 +271,8 @@ class MoEAgent(BaseAgent):
             # Use the expert's critic to estimate state value
             with torch.no_grad():
                 critic_output = expert.critic(state_tensor)
-                # Handle 0-dimensional tensors
-                if critic_output.dim() == 0:
-                    state_value = critic_output.item()
-                else:
-                    state_value = critic_output.squeeze().item()
+                # Use safe tensor conversion
+                state_value = safe_tensor_to_scalar(critic_output, default_value=0.0)
                 # Combine actual reward with estimated value for performance metric
                 performance = reward + 0.5 * state_value  # Simple heuristic
                 performances.append(performance)
@@ -250,11 +331,8 @@ class MoEAgent(BaseAgent):
                 state_input = torch.FloatTensor(observation).unsqueeze(0).unsqueeze(0)
                 with torch.no_grad():
                     critic_output = expert.critic(state_input)
-                    # Handle 0-dimensional tensors
-                    if critic_output.dim() == 0:
-                        expert_value = critic_output.item()
-                    else:
-                        expert_value = critic_output.squeeze().item()
+                    # Use safe tensor conversion
+                    expert_value = safe_tensor_to_scalar(critic_output, default_value=0.0)
                     # Combine reward with expert's value estimate
                     performance = reward + 0.5 * expert_value
                     expert_performances.append(performance)
@@ -296,39 +374,97 @@ class MoEAgent(BaseAgent):
         }, path)
 
     def load_model(self, path: str) -> None:
-        """Load gating network, optimizer, and all experts."""
-        checkpoint = torch.load(path)
-        self.gating_network.load_state_dict(checkpoint['gating_network_state_dict'])
-        self.gating_optimizer.load_state_dict(checkpoint['gating_optimizer_state_dict'])
+        """Load gating network, optimizer, and all experts with dimension mismatch handling."""
+        try:
+            checkpoint = torch.load(path, map_location='cpu')
 
-        # Re-initialize experts with loaded dimensions
-        self.observation_dim = checkpoint['observation_dim']
-        self.action_dim_discrete = checkpoint['action_dim_discrete']
-        self.action_dim_continuous = checkpoint['action_dim_continuous']
-        self.hidden_dim = checkpoint['hidden_dim']
-        self.expert_configs = checkpoint['expert_configs']
+            # Check for dimension mismatch
+            saved_obs_dim = checkpoint.get('observation_dim', None)
+            if saved_obs_dim is not None and saved_obs_dim != self.observation_dim:
+                logger.warning(f"Observation dimension mismatch: saved={saved_obs_dim}, current={self.observation_dim}")
+                logger.info("Skipping model loading due to dimension mismatch - using fresh initialization")
+                return
+            elif saved_obs_dim is None:
+                logger.warning("No observation_dim found in checkpoint, attempting to detect mismatch from model structure")
+                # Try to detect dimension mismatch from gating network structure
+                try:
+                    gating_state = checkpoint.get('gating_network_state_dict', {})
+                    if gating_state:
+                        # Check the first layer input dimension
+                        first_layer_key = next((k for k in gating_state.keys() if 'weight' in k and 'layers.0' in k), None)
+                        if first_layer_key:
+                            first_layer_weight = gating_state[first_layer_key]
+                            saved_input_dim = first_layer_weight.shape[1]  # Input dimension
+                            if saved_input_dim != self.observation_dim:
+                                logger.warning(f"Detected dimension mismatch from model structure: saved={saved_input_dim}, current={self.observation_dim}")
+                                logger.info("Skipping model loading due to detected dimension mismatch")
+                                return
+                except Exception as e:
+                    logger.warning(f"Could not detect dimension mismatch from model structure: {e}")
+                    logger.info("Proceeding with model loading (may cause errors)")
 
-        # Clear existing experts and re-create them with correct dimensions
-        self.experts = []
-        for expert_type, config in self.expert_configs.items():
-            if expert_type == "TrendAgent":
-                from src.agents.trend_agent import TrendAgent
-                self.experts.append(TrendAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
-            elif expert_type == "MeanReversionAgent":
-                from src.agents.mean_reversion_agent import MeanReversionAgent
-                self.experts.append(MeanReversionAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
-            elif expert_type == "VolatilityAgent":
-                from src.agents.volatility_agent import VolatilityAgent
-                self.experts.append(VolatilityAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
-            elif expert_type == "ConsolidationAgent":
-                from src.agents.consolidation_agent import ConsolidationAgent
-                self.experts.append(ConsolidationAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
-            else:
-                raise ValueError(f"Unknown expert type: {expert_type}")
+            # Load gating network and optimizer
+            try:
+                self.gating_network.load_state_dict(checkpoint['gating_network_state_dict'])
+                self.gating_optimizer.load_state_dict(checkpoint['gating_optimizer_state_dict'])
+                logger.info("Loaded gating network and optimizer")
+            except Exception as e:
+                logger.warning(f"Failed to load gating network/optimizer: {e}")
+                logger.info("Using fresh gating network initialization")
 
-        for i, expert_state in enumerate(checkpoint['experts_state_dicts']):
-            self.experts[i].actor.load_state_dict(expert_state['actor_state_dict'])
-            self.experts[i].critic.load_state_dict(expert_state['critic_state_dict'])
-            self.experts[i].policy_old.load_state_dict(expert_state['policy_old_state_dict'])
-            self.experts[i].optimizer_actor.load_state_dict(expert_state['optimizer_actor_state_dict'])
-            self.experts[i].optimizer_critic.load_state_dict(expert_state['optimizer_critic_state_dict'])
+            # Update dimensions from checkpoint (only if they match)
+            self.action_dim_discrete = checkpoint.get('action_dim_discrete', self.action_dim_discrete)
+            self.action_dim_continuous = checkpoint.get('action_dim_continuous', self.action_dim_continuous)
+            self.hidden_dim = checkpoint.get('hidden_dim', self.hidden_dim)
+            self.expert_configs = checkpoint.get('expert_configs', self.expert_configs)
+
+            # Clear existing experts and re-create them with correct dimensions
+            self.experts = []
+            for expert_type, config in self.expert_configs.items():
+                if expert_type == "TrendAgent":
+                    from src.agents.trend_agent import TrendAgent
+                    self.experts.append(TrendAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
+                elif expert_type == "MeanReversionAgent":
+                    from src.agents.mean_reversion_agent import MeanReversionAgent
+                    self.experts.append(MeanReversionAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
+                elif expert_type == "VolatilityAgent":
+                    from src.agents.volatility_agent import VolatilityAgent
+                    self.experts.append(VolatilityAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
+                elif expert_type == "ConsolidationAgent":
+                    from src.agents.consolidation_agent import ConsolidationAgent
+                    self.experts.append(ConsolidationAgent(self.observation_dim, self.action_dim_discrete, self.action_dim_continuous, self.hidden_dim))
+                else:
+                    raise ValueError(f"Unknown expert type: {expert_type}")
+
+            # Load expert states with dimension-aware error handling
+            if 'experts_state_dicts' in checkpoint:
+                for i, expert_state in enumerate(checkpoint['experts_state_dicts']):
+                    if i < len(self.experts):
+                        try:
+                            # Check if expert state dimensions match current expert
+                            actor_state = expert_state['actor_state_dict']
+                            # Check the first layer weight to detect dimension mismatch
+                            first_layer_key = next((k for k in actor_state.keys() if 'weight' in k and 'layers.0' in k), None)
+                            if first_layer_key:
+                                first_layer_weight = actor_state[first_layer_key]
+                                saved_expert_dim = first_layer_weight.shape[1]  # Input dimension
+                                if saved_expert_dim != self.observation_dim:
+                                    logger.warning(f"Expert {i} dimension mismatch: saved={saved_expert_dim}, current={self.observation_dim}")
+                                    logger.info(f"Expert {i} will use fresh initialization due to dimension mismatch")
+                                    continue
+
+                            # If dimensions match, load the state
+                            self.experts[i].actor.load_state_dict(expert_state['actor_state_dict'])
+                            self.experts[i].critic.load_state_dict(expert_state['critic_state_dict'])
+                            self.experts[i].policy_old.load_state_dict(expert_state['policy_old_state_dict'])
+                            self.experts[i].optimizer_actor.load_state_dict(expert_state['optimizer_actor_state_dict'])
+                            self.experts[i].optimizer_critic.load_state_dict(expert_state['optimizer_critic_state_dict'])
+                            logger.info(f"Loaded expert {i} state")
+                        except Exception as e:
+                            logger.warning(f"Failed to load expert {i} state: {e}")
+                            logger.info(f"Expert {i} will use fresh initialization")
+
+            logger.info(f"MoE model loaded from {path}")
+        except Exception as e:
+            logger.error(f"Failed to load MoE model from {path}: {e}")
+            logger.info("Using fresh model initialization")

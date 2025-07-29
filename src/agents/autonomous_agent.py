@@ -168,20 +168,106 @@ class AutonomousAgent(BaseAgent):
         
         logger.info(f"Initialized AutonomousAgent with {observation_dim}D observations, "
                    f"{action_dim} actions, {memory_size} memory capacity")
-    
+
+        # Store observation structure for OHLCV extraction
+        # Observation structure: [lookback_window * features_per_step] + [account_features] + [trailing_features]
+        # We need to determine features_per_step from the observation_dim
+        # Default assumption: 5 features per step (OHLCV + volume), 5 account features, 1 trailing feature
+        self.account_state_features = 5
+        self.trailing_features = 1
+        self.lookback_window = 20  # Default, will be updated if needed
+        self.features_per_step = 5  # Default OHLCV + volume
+
+        # Calculate features_per_step from observation_dim if possible
+        remaining_features = observation_dim - self.account_state_features - self.trailing_features
+        if remaining_features > 0 and remaining_features % self.lookback_window == 0:
+            self.features_per_step = remaining_features // self.lookback_window
+
+        logger.debug(f"OHLCV extraction setup: lookback_window={self.lookback_window}, "
+                    f"features_per_step={self.features_per_step}, "
+                    f"account_features={self.account_state_features}, "
+                    f"trailing_features={self.trailing_features}")
+
+    def _extract_ohlcv_from_observation(self, market_state: torch.Tensor) -> np.ndarray:
+        """
+        Extract OHLCV data from the flattened market observation.
+
+        The observation structure is:
+        [lookback_window * features_per_step] + [account_features] + [trailing_features]
+
+        Args:
+            market_state: Flattened market observation tensor
+
+        Returns:
+            OHLCV data as numpy array with shape (lookback_window, 5)
+        """
+        try:
+            # Convert to numpy and remove batch dimension if present
+            obs_data = market_state.cpu().numpy()
+            if len(obs_data.shape) > 1:
+                obs_data = obs_data.flatten()
+
+            # Calculate the number of market features (excluding account and trailing features)
+            market_features_length = len(obs_data) - self.account_state_features - self.trailing_features
+
+            # Extract only the market features part
+            market_features = obs_data[:market_features_length]
+
+            # Reshape to (lookback_window, features_per_step)
+            if market_features_length > 0:
+                # Try to determine the actual lookback window and features per step
+                if market_features_length % self.features_per_step == 0:
+                    actual_lookback = market_features_length // self.features_per_step
+                    reshaped_data = market_features.reshape(actual_lookback, self.features_per_step)
+                else:
+                    # Fallback: assume the data is already in the right format or use defaults
+                    logger.warning(f"Cannot reshape market features: length={market_features_length}, "
+                                 f"features_per_step={self.features_per_step}")
+                    # Create a minimal OHLCV array with the last few values
+                    min_periods = min(20, market_features_length // 5) if market_features_length >= 5 else 1
+                    reshaped_data = np.zeros((min_periods, 5))
+                    if market_features_length >= 5:
+                        # Use the last 5 values as a single OHLCV row, repeated
+                        last_ohlcv = market_features[-5:]
+                        for i in range(min_periods):
+                            reshaped_data[i] = last_ohlcv
+                    else:
+                        # Use whatever data we have, padded with zeros
+                        reshaped_data[0, :len(market_features)] = market_features
+
+                # Ensure we have at least OHLCV (5 columns)
+                if reshaped_data.shape[1] >= 5:
+                    # Take only the first 5 columns (OHLCV + volume)
+                    ohlcv_data = reshaped_data[:, :5]
+                else:
+                    # Pad with zeros if we don't have enough columns
+                    ohlcv_data = np.zeros((reshaped_data.shape[0], 5))
+                    ohlcv_data[:, :reshaped_data.shape[1]] = reshaped_data
+
+                return ohlcv_data
+            else:
+                # Fallback: return minimal OHLCV data
+                logger.warning("No market features found in observation, using fallback OHLCV data")
+                return np.ones((1, 5))  # Minimal 1-period OHLCV data
+
+        except Exception as e:
+            logger.error(f"Error extracting OHLCV from observation: {e}")
+            # Return minimal fallback data
+            return np.ones((1, 5))
+
     def act(self, market_state: Union[np.ndarray, torch.Tensor]) -> int:
         """
         Perform the "Think" loop and return a trading action.
-        
+
         This is the core method that implements the autonomous decision-making process:
         1. Embed the current market state
         2. Retrieve relevant memories from past experiences
         3. Feed state and memories into the World Model
         4. Return action from the policy head
-        
+
         Args:
             market_state: Current market observation
-            
+
         Returns:
             Selected trading action (integer)
         """
@@ -190,15 +276,18 @@ class AutonomousAgent(BaseAgent):
             market_state = torch.FloatTensor(market_state).to(self.device)
         elif not isinstance(market_state, torch.Tensor):
             market_state = torch.FloatTensor(market_state).to(self.device)
-        
+
         # Ensure correct shape (add batch dimension if needed)
         if len(market_state.shape) == 1:
             market_state = market_state.unsqueeze(0)  # (1, observation_dim)
-        
+
         with torch.no_grad():
+            # Extract OHLCV data from the flattened market state for market analysis
+            ohlcv_data = self._extract_ohlcv_from_observation(market_state)
+
             # Step 1: Classify the current market regime
             market_regime, regime_confidence = self.market_classifier.classify_market(
-                market_state.cpu().numpy(), return_confidence=True
+                ohlcv_data, return_confidence=True
             )
 
             # Step 2: Embed the current market state
@@ -208,7 +297,7 @@ class AutonomousAgent(BaseAgent):
             memory_context = self._retrieve_and_aggregate_memories(state_embedding)
 
             # Step 4: Recognize chart patterns
-            pattern_detection = self.pattern_recognizer.recognize_pattern(market_state.cpu().numpy())
+            pattern_detection = self.pattern_recognizer.recognize_pattern(ohlcv_data)
 
             # Step 5: Create market regime and pattern embeddings
             regime_embedding = self._encode_market_regime(market_regime, regime_confidence)
@@ -229,7 +318,9 @@ class AutonomousAgent(BaseAgent):
                 action_probs = torch.softmax(torch.log(action_probs + 1e-8) / self.temperature, dim=-1)
             
             # Sample action from probability distribution
-            action = torch.multinomial(action_probs, 1).item()
+            action_tensor = torch.multinomial(action_probs, 1)
+            from src.agents.moe_agent import safe_tensor_to_scalar
+            action = int(safe_tensor_to_scalar(action_tensor, default_value=4))
         
         self.total_actions += 1
         
@@ -351,9 +442,12 @@ class AutonomousAgent(BaseAgent):
             market_state = market_state.unsqueeze(0)
         
         with torch.no_grad():
+            # Extract OHLCV data from the flattened market state for market analysis
+            ohlcv_data = self._extract_ohlcv_from_observation(market_state)
+
             # Classify the current market regime
             market_regime, regime_confidence = self.market_classifier.classify_market(
-                market_state.cpu().numpy(), return_confidence=True
+                ohlcv_data, return_confidence=True
             )
 
             # Embed state and retrieve memories
@@ -362,7 +456,7 @@ class AutonomousAgent(BaseAgent):
             memory_context = self._retrieve_and_aggregate_memories(state_embedding)
 
             # Recognize chart patterns
-            pattern_detection = self.pattern_recognizer.recognize_pattern(market_state.cpu().numpy())
+            pattern_detection = self.pattern_recognizer.recognize_pattern(ohlcv_data)
 
             # Encode market regime and patterns
             regime_embedding = self._encode_market_regime(market_regime, regime_confidence)
@@ -394,11 +488,11 @@ class AutonomousAgent(BaseAgent):
                 'attention_weights': world_model_output.get('attention_weights', []),
                 'market_regime': market_regime.value,
                 'regime_confidence': regime_confidence,
-                'market_features': self.market_classifier.get_market_features(market_state.cpu().numpy()),
+                'market_features': self.market_classifier.get_market_features(ohlcv_data),
                 'detected_pattern': pattern_detection.pattern_type.value,
                 'pattern_confidence': pattern_detection.confidence,
                 'pattern_direction': pattern_detection.direction,
-                'pattern_features': self.pattern_recognizer.get_pattern_features(market_state.cpu().numpy())
+                'pattern_features': self.pattern_recognizer.get_pattern_features(ohlcv_data)
             }
     
     def learn_from_experience(

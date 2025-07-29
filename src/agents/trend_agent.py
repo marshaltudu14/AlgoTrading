@@ -6,6 +6,34 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from typing import Tuple, List
+import logging
+
+logger = logging.getLogger(__name__)
+
+def safe_tensor_to_scalar(tensor: torch.Tensor, default_value: float = 0.0) -> float:
+    """Safely convert a tensor to a scalar value, handling various tensor dimensions."""
+    try:
+        if tensor is None:
+            return default_value
+        if isinstance(tensor, (int, float)):
+            return float(tensor)
+        if not isinstance(tensor, torch.Tensor):
+            return float(tensor)
+        if tensor.dim() == 0:
+            return tensor.item()
+        if tensor.dim() == 1:
+            if tensor.numel() == 1:
+                return tensor.item()
+            else:
+                return tensor[0].item()
+        flattened = tensor.flatten()
+        if flattened.numel() > 0:
+            return flattened[0].item()
+        else:
+            return default_value
+    except Exception as e:
+        logger.warning(f"Failed to convert tensor to scalar: {e}. Using default value {default_value}")
+        return default_value
 
 class TrendAgent(BaseAgent):
     def __init__(self, observation_dim: int, action_dim_discrete: int, action_dim_continuous: int, hidden_dim: int,
@@ -38,9 +66,9 @@ class TrendAgent(BaseAgent):
         dist = Categorical(action_probs)
         action_type = dist.sample()
 
-        quantity = torch.clamp(quantity_pred, min=0.01).item()
+        quantity = torch.clamp(quantity_pred, min=0.01)
 
-        return action_type.item(), quantity
+        return int(safe_tensor_to_scalar(action_type, default_value=4)), safe_tensor_to_scalar(quantity, default_value=1.0)
 
     def learn(self, experiences: List[Tuple[np.ndarray, Tuple[int, float], float, np.ndarray, bool]]) -> None:
         """
@@ -51,7 +79,7 @@ class TrendAgent(BaseAgent):
             return
 
         # Convert experiences to tensors
-        states = torch.FloatTensor([exp[0] for exp in experiences]).unsqueeze(1)  # Add sequence dimension
+        states = torch.FloatTensor([exp[0] for exp in experiences]).unsqueeze(1).requires_grad_(True)  # Add sequence dimension and enable gradients
         action_types = torch.LongTensor([exp[1][0] for exp in experiences])
         quantities = torch.FloatTensor([exp[1][1] for exp in experiences])
         rewards = torch.FloatTensor([exp[2] for exp in experiences])
@@ -59,8 +87,8 @@ class TrendAgent(BaseAgent):
         dones = torch.FloatTensor([exp[4] for exp in experiences])
 
         # Calculate discounted rewards and advantages
-        values = self.critic(states).squeeze()
-        next_values = self.critic(next_states).squeeze()
+        values = self.critic(states).squeeze(-1)  # Only squeeze last dimension to avoid 0-dim tensors
+        next_values = self.critic(next_states).squeeze(-1)  # Only squeeze last dimension to avoid 0-dim tensors
 
         # Calculate returns using GAE (Generalized Advantage Estimation)
         returns = []
@@ -84,12 +112,20 @@ class TrendAgent(BaseAgent):
         # Normalize advantages
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-        # Get old action probabilities and quantity predictions
+        # Get old action probabilities and quantity predictions (detached for stability)
         old_action_outputs = self.policy_old(states)
         old_action_probs = old_action_outputs['action_type'].detach()
         old_quantity_preds = old_action_outputs['quantity'].detach()
-        old_action_probs = old_action_outputs['action_type']
-        old_quantity_preds = old_action_outputs['quantity']
+
+        # Add numerical stability to old action probs to prevent NaN values
+        old_action_probs = torch.clamp(old_action_probs, min=1e-8, max=1.0)
+        old_action_probs = old_action_probs / old_action_probs.sum(dim=-1, keepdim=True)  # Renormalize
+
+        # Check for NaN values and handle gracefully
+        if torch.isnan(old_action_probs).any():
+            logger.warning("NaN detected in old_action_probs, using uniform distribution")
+            uniform_probs = torch.ones_like(old_action_probs, requires_grad=True) / old_action_probs.shape[-1]
+            old_action_probs = torch.where(torch.isnan(old_action_probs), uniform_probs, old_action_probs)
 
         old_dist_discrete = Categorical(old_action_probs)
         old_log_probs_discrete = old_dist_discrete.log_prob(action_types).detach()
@@ -108,6 +144,16 @@ class TrendAgent(BaseAgent):
             action_probs = action_outputs['action_type']
             quantity_preds = action_outputs['quantity']
 
+            # Add numerical stability to prevent NaN values
+            action_probs = torch.clamp(action_probs, min=1e-8, max=1.0)
+            action_probs = action_probs / action_probs.sum(dim=-1, keepdim=True)  # Renormalize
+
+            # Check for NaN values and handle gracefully
+            if torch.isnan(action_probs).any():
+                logger.warning("NaN detected in action_probs, using uniform distribution")
+                uniform_probs = torch.ones_like(action_probs, requires_grad=True) / action_probs.shape[-1]
+                action_probs = torch.where(torch.isnan(action_probs), uniform_probs, action_probs)
+
             dist_discrete = Categorical(action_probs)
             log_probs_discrete = dist_discrete.log_prob(action_types)
             entropy_discrete = dist_discrete.entropy().mean()
@@ -125,13 +171,27 @@ class TrendAgent(BaseAgent):
             actor_loss = -torch.min(surr1, surr2).mean() - 0.01 * entropy_discrete  # entropy bonus
 
             # Critic loss
-            current_values = self.critic(states).squeeze()
+            current_values = self.critic(states).squeeze(-1)  # Only squeeze last dimension
             critic_loss = self.MseLoss(current_values, returns)
 
             # Update actor
             self.optimizer_actor.zero_grad()
-            actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)  # gradient clipping
+
+            # Debug: Check if actor_loss requires gradients
+            if not actor_loss.requires_grad:
+                logger.warning(f"Actor loss does not require gradients: {actor_loss}")
+                logger.warning(f"Ratio requires grad: {ratio.requires_grad}")
+                logger.warning(f"Log probs requires grad: {log_probs.requires_grad}")
+                logger.warning(f"Action probs requires grad: {action_probs.requires_grad}")
+                logger.warning(f"States requires grad: {states.requires_grad}")
+                continue  # Skip this update
+
+            try:
+                actor_loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.actor.parameters(), 0.5)  # gradient clipping
+            except RuntimeError as e:
+                logger.warning(f"Gradient computation failed: {e}")
+                continue  # Skip this update
             self.optimizer_actor.step()
 
             # Update critic

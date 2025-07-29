@@ -179,18 +179,59 @@ class DataLoader:
         if self.use_parquet:
             parquet_path = os.path.join(parquet_dir, f"{symbol}.parquet")
             if not os.path.exists(parquet_path):
-                # Convert CSV to Parquet first
-                csv_path = os.path.join(data_dir, f"{symbol}.csv")
-                if os.path.exists(csv_path):
-                    self._convert_csv_to_parquet(csv_path, parquet_path)
-                else:
-                    logging.error(f"No data found for symbol: {symbol}")
+                # Convert CSV to Parquet first - try different filename patterns
+                possible_files = [
+                    f"{symbol}.csv",
+                    f"features_{symbol}.csv",
+                    f"processed_{symbol}.csv"
+                ]
+
+                # Also try to find files with timeframe suffixes
+                for filename in os.listdir(data_dir):
+                    if filename.endswith(".csv"):
+                        base_name = filename.replace(".csv", "")
+                        if (base_name.startswith(f"features_{symbol}_") or
+                            base_name.startswith(f"processed_{symbol}_") or
+                            base_name.startswith(f"{symbol}_")):
+                            possible_files.append(filename)
+
+                csv_found = False
+                for filename in possible_files:
+                    csv_path = os.path.join(data_dir, filename)
+                    if os.path.exists(csv_path):
+                        self._convert_csv_to_parquet(csv_path, parquet_path)
+                        csv_found = True
+                        break
+
+                if not csv_found:
+                    logging.error(f"No CSV data found for symbol: {symbol} in {data_dir}")
                     return pd.DataFrame()
 
             return self._load_parquet_segment(parquet_path, start_idx, end_idx)
         else:
-            csv_path = os.path.join(data_dir, f"{symbol}.csv")
-            return self._load_csv_segment(csv_path, start_idx, end_idx)
+            # Try different filename patterns for CSV
+            possible_files = [
+                f"{symbol}.csv",
+                f"features_{symbol}.csv",
+                f"processed_{symbol}.csv"
+            ]
+
+            # Also try to find files with timeframe suffixes
+            for filename in os.listdir(data_dir):
+                if filename.endswith(".csv"):
+                    base_name = filename.replace(".csv", "")
+                    if (base_name.startswith(f"features_{symbol}_") or
+                        base_name.startswith(f"processed_{symbol}_") or
+                        base_name.startswith(f"{symbol}_")):
+                        possible_files.append(filename)
+
+            for filename in possible_files:
+                csv_path = os.path.join(data_dir, filename)
+                if os.path.exists(csv_path):
+                    return self._load_csv_segment(csv_path, start_idx, end_idx)
+
+            logging.error(f"No CSV data file found for symbol: {symbol} in {data_dir}")
+            return pd.DataFrame()
 
     def _load_csv_segment(self, filepath: str, start_idx: int, end_idx: int) -> pd.DataFrame:
         """Load a specific segment from CSV file."""
@@ -239,15 +280,35 @@ class DataLoader:
                     logging.error(f"Error reading Parquet metadata: {e}")
                     return 0
 
-        # Fallback to CSV
-        csv_path = os.path.join(data_dir, f"{symbol}.csv")
-        try:
-            # Count lines efficiently
-            with open(csv_path, 'r') as f:
-                return sum(1 for _ in f) - 1  # Subtract header
-        except Exception as e:
-            logging.error(f"Error counting CSV rows: {e}")
-            return 0
+        # Fallback to CSV - try different filename patterns
+        possible_files = [
+            f"{symbol}.csv",
+            f"features_{symbol}.csv",
+            f"processed_{symbol}.csv"
+        ]
+
+        # Also try to find files with timeframe suffixes
+        for filename in os.listdir(data_dir):
+            if filename.endswith(".csv"):
+                base_name = filename.replace(".csv", "")
+                if (base_name.startswith(f"features_{symbol}_") or
+                    base_name.startswith(f"processed_{symbol}_") or
+                    base_name.startswith(f"{symbol}_")):
+                    possible_files.append(filename)
+
+        for filename in possible_files:
+            csv_path = os.path.join(data_dir, filename)
+            if os.path.exists(csv_path):
+                try:
+                    # Count lines efficiently
+                    with open(csv_path, 'r') as f:
+                        return sum(1 for _ in f) - 1  # Subtract header
+                except Exception as e:
+                    logging.error(f"Error counting CSV rows in {filename}: {e}")
+                    continue
+
+        logging.error(f"No data file found for symbol: {symbol} in {data_dir}")
+        return 0
 
     def convert_all_csv_to_parquet(self, data_type: str = "raw") -> None:
         """Convert all CSV files to Parquet format for better performance."""
@@ -417,25 +478,118 @@ class DataLoader:
 
     def get_available_tasks(self) -> List[Tuple[str, str]]:
         tasks = set()
-        for filename in os.listdir(self.final_data_dir):
-            if filename.endswith(".csv"):
-                # Assuming filename format like 'INSTRUMENT_TIMEFRAME.csv'
-                parts = filename.replace(".csv", "").split('_')
-                if len(parts) >= 2:
-                    instrument_type = "_".join(parts[:-1])
-                    timeframe = parts[-1]
-                    tasks.add((instrument_type, timeframe))
+        try:
+            for filename in os.listdir(self.final_data_dir):
+                if filename.endswith(".csv"):
+                    # Handle filename format like 'features_INSTRUMENT_TIMEFRAME.csv' or 'INSTRUMENT_TIMEFRAME.csv'
+                    base_name = filename.replace(".csv", "")
+
+                    # Remove "features_" prefix if present
+                    if base_name.startswith("features_"):
+                        base_name = base_name[9:]  # Remove "features_" prefix
+
+                    parts = base_name.split('_')
+                    if len(parts) >= 2:
+                        instrument_type = "_".join(parts[:-1])
+                        timeframe = parts[-1]
+                        tasks.add((instrument_type, timeframe))
+                        logging.info(f"Found task: ({instrument_type}, {timeframe}) from file {filename}")
+        except Exception as e:
+            logging.error(f"Error scanning for available tasks: {e}")
+
+        logging.info(f"Total available tasks: {len(tasks)}")
         return sorted(list(tasks))
 
     def sample_tasks(self, num_tasks: int) -> List[Tuple[str, str]]:
         available_tasks = self.get_available_tasks()
+
+        # Handle empty tasks case
         if not available_tasks:
-            logging.error(f"No tasks available in {self.final_data_dir}. Cannot sample tasks.")
-            return []
+            logging.warning(f"No tasks available in {self.final_data_dir}. Creating fallback tasks.")
+            # Create fallback tasks based on available data files
+            fallback_tasks = self._create_fallback_tasks()
+            if fallback_tasks:
+                return fallback_tasks[:num_tasks] if num_tasks > 0 else fallback_tasks
+            else:
+                logging.error("No data files found for fallback tasks.")
+                return []
+
+        # Handle invalid num_tasks
+        if num_tasks <= 0:
+            logging.warning(f"Invalid num_tasks: {num_tasks}. Returning first available task.")
+            return [available_tasks[0]] if available_tasks else []
+
+        # If we have fewer tasks than requested, return all available with repetition if needed
         if len(available_tasks) < num_tasks:
-            logging.warning(f"Requested {num_tasks} tasks, but only {len(available_tasks)} are available. Returning all available tasks.")
-            return available_tasks
-        return random.sample(available_tasks, num_tasks)
+            logging.warning(f"Requested {num_tasks} tasks, but only {len(available_tasks)} are available.")
+            # Repeat tasks to meet the requirement
+            repeated_tasks = []
+            for i in range(num_tasks):
+                repeated_tasks.append(available_tasks[i % len(available_tasks)])
+            return repeated_tasks
+
+        # Use safe sampling to avoid "Cannot choose from an empty sequence" error
+        try:
+            return random.sample(available_tasks, num_tasks)
+        except ValueError as e:
+            logging.error(f"Error sampling tasks: {e}. Available tasks: {len(available_tasks)}, Requested: {num_tasks}")
+            # Return all available tasks as fallback
+            return available_tasks[:num_tasks] if len(available_tasks) >= num_tasks else available_tasks
+
+    def _create_fallback_tasks(self) -> List[Tuple[str, str]]:
+        """Create fallback tasks from available data files."""
+        fallback_tasks = []
+
+        try:
+            # Check for any CSV files in the final data directory
+            if os.path.exists(self.final_data_dir):
+                for filename in os.listdir(self.final_data_dir):
+                    if filename.endswith(".csv"):
+                        # Extract instrument and timeframe from filename
+                        base_name = filename.replace(".csv", "")
+                        if base_name.startswith("features_"):
+                            base_name = base_name[9:]  # Remove "features_" prefix
+
+                        # Try to split into instrument and timeframe
+                        parts = base_name.split('_')
+                        if len(parts) >= 2:
+                            instrument = "_".join(parts[:-1])
+                            timeframe = parts[-1]
+                            fallback_tasks.append((instrument, timeframe))
+                        else:
+                            # Use the whole name as instrument with default timeframe
+                            fallback_tasks.append((base_name, "5"))
+
+            # Also check the raw data directory for additional tasks
+            if os.path.exists(self.data_dir):
+                for filename in os.listdir(self.data_dir):
+                    if filename.endswith(".csv"):
+                        base_name = filename.replace(".csv", "")
+                        # Create task from raw data filename
+                        fallback_tasks.append((base_name, "5"))
+
+            if not fallback_tasks:
+                # Create multiple minimal fallback tasks for better MAML training
+                logging.warning("No CSV files found, creating minimal fallback tasks")
+                fallback_tasks = [
+                    ("Nifty", "5"),
+                    ("BankNifty", "5"),
+                    ("Nifty", "15"),
+                    ("BankNifty", "15")
+                ]
+
+        except Exception as e:
+            logging.error(f"Error creating fallback tasks: {e}")
+            # Create multiple fallback tasks to avoid empty sequence
+            fallback_tasks = [
+                ("Nifty", "5"),
+                ("BankNifty", "5"),
+                ("Nifty", "15"),
+                ("BankNifty", "15")
+            ]
+
+        logging.info(f"Created {len(fallback_tasks)} fallback tasks: {fallback_tasks}")
+        return fallback_tasks
 
     def get_task_data(self, instrument_type: str, timeframe: str) -> pd.DataFrame:
         filename = f"{instrument_type}_{timeframe}.csv"

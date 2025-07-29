@@ -51,8 +51,8 @@ class PerformanceMetrics:
     
     def __post_init__(self):
         """Validate metrics after initialization."""
-        if self.max_drawdown > 0:
-            logger.warning("Max drawdown should typically be negative or zero")
+        # Max drawdown should be negative for actual drawdowns, 0 for no drawdown
+        # Remove the warning since our updated calculation correctly returns negative values
 
 
 @dataclass

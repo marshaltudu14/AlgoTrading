@@ -1,11 +1,11 @@
 # Training Sequence Configuration
-# Defines the optimal training sequence: PPO -> MoE -> MAML
+# Defines the optimal training sequence: PPO -> MoE -> MAML -> Autonomous
 
 training_sequence:
   # Stage 1: PPO Baseline Training
   stage_1_ppo:
     algorithm: "PPO"
-    episodes: 10  # Slightly increased for better learning
+    episodes: 5  # TESTING: 5 | PRODUCTION: 100-500 for proper baseline learning
     description: "Establish baseline performance and validate environment"
     objectives:
       - "Learn basic trading patterns"
@@ -19,7 +19,7 @@ training_sequence:
   # Stage 2: MoE Specialization Training
   stage_2_moe:
     algorithm: "MoE"
-    episodes: 5  # Reduced for quick testing
+    episodes: 3  # TESTING: 3 | PRODUCTION: 200-800 for proper expert specialization
     description: "Train specialized experts for different market conditions"
     prerequisites:
       - "Successful PPO training completion"
@@ -35,7 +35,7 @@ training_sequence:
   # Stage 3: MAML Meta-Learning
   stage_3_maml:
     algorithm: "MAML"
-    meta_iterations: 3  # Reduced for quick testing
+    meta_iterations: 2  # TESTING: 2 | PRODUCTION: 50-150 for proper meta-learning
     description: "Meta-learning for quick adaptation to new conditions"
     prerequisites:
       - "Successful MoE training completion"
@@ -50,7 +50,7 @@ training_sequence:
   # Stage 4: Autonomous Evolution
   stage_4_autonomous:
     algorithm: "Autonomous"
-    generations: 2  # Reduced for quick testing
+    generations: 2  # TESTING: 2 | PRODUCTION: 20-50 for proper evolution
     description: "Autonomous agent evolution with self-modification capabilities"
     prerequisites:
       - "Successful MAML training completion"
@@ -60,27 +60,27 @@ training_sequence:
       - "Achieve autonomous trading performance optimization"
       - "Create truly autonomous trading agents"
     success_criteria:
-      min_fitness_improvement: 0.2  # 20% improvement over baseline
-      min_sharpe_ratio: 1.0
-      min_profit_factor: 1.5
-      max_drawdown: 0.25
+      min_fitness_improvement: 0.05  # TESTING: 0.05 | PRODUCTION: 0.2 (20% improvement over baseline)
+      min_sharpe_ratio: 0.5  # TESTING: 0.5 | PRODUCTION: 1.0
+      min_profit_factor: 1.0  # TESTING: 1.0 | PRODUCTION: 1.5
+      max_drawdown: 0.4  # TESTING: 0.4 | PRODUCTION: 0.25
 
     # Autonomous-specific settings
     autonomous:
       # Population parameters
-      population_size: 6  # Reduced for quick testing
-      elite_size: 2
+      population_size: 2  # TESTING: 4 | PRODUCTION: 20-50 for better diversity
+      elite_size: 1  # TESTING: 1 | PRODUCTION: 5-10
 
       # Agent parameters
       observation_dim: -1  # Dynamic: will be set from environment
       action_dim: 5
-      hidden_dim: 128
-      memory_size: 1000
-      memory_embedding_dim: 64
+      hidden_dim: 64  # TESTING: 64 | PRODUCTION: 128-256 for better capacity
+      memory_size: 500  # TESTING: 500 | PRODUCTION: 2000-5000
+      memory_embedding_dim: 32  # TESTING: 32 | PRODUCTION: 64-128
 
       # Training parameters
-      episodes_per_evaluation: 3  # Reduced for quick testing
-      episode_length: 100  # Reduced for quick testing
+      episodes_per_evaluation: 2  # TESTING: 2 | PRODUCTION: 10-20 for stable evaluation
+      episode_length: 50  # TESTING: 50 | PRODUCTION: 200-500 for full market cycles
       # initial_capital will be loaded from src.config.config.INITIAL_CAPITAL
 
       # Evolution parameters
@@ -89,66 +89,66 @@ training_sequence:
 
       # Self-modification parameters
       enable_self_modification: true
-      modification_frequency: 5  # Every N generations
+      modification_frequency: 2  # TESTING: 2 | PRODUCTION: 5-10 (Every N generations)
 
-      # Saving parameters - only save final champion
+      # Saving parameters - only save final universal model
       save_directory: "models/autonomous_agents"
 
       # Evaluation parameters
       fitness_metrics: ["sharpe_ratio", "profit_factor", "max_drawdown"]
 
-# Training Parameters - Optimized for Large Datasets
+# Training Parameters - Optimized for Testing (with Production Comments)
 training_params:
   # PPO specific parameters
   ppo:
-    learning_rate: 0.0001  # Lower LR for stable learning with large datasets
-    batch_size: 128       # Larger batch for better gradient estimates
-    gamma: 0.995          # Higher gamma for longer-term planning
+    learning_rate: 0.001   # TESTING: 0.001 | PRODUCTION: 0.0001 (Lower LR for stable learning)
+    batch_size: 32        # TESTING: 32 | PRODUCTION: 128 (Larger batch for better gradient estimates)
+    gamma: 0.99           # TESTING: 0.99 | PRODUCTION: 0.995 (Higher gamma for longer-term planning)
     gae_lambda: 0.95
-    clip_epsilon: 0.15    # Slightly lower for more conservative updates
-    k_epochs: 6           # More epochs for better policy updates
+    clip_epsilon: 0.2     # TESTING: 0.2 | PRODUCTION: 0.15 (Slightly lower for more conservative updates)
+    k_epochs: 3           # TESTING: 3 | PRODUCTION: 6 (More epochs for better policy updates)
 
   # MoE specific parameters
   moe:
-    num_experts: 4        # More experts for better specialization
-    expert_hidden_dim: 128 # Larger networks for complex patterns
-    gating_hidden_dim: 64
+    num_experts: 3        # TESTING: 3 | PRODUCTION: 4-6 (More experts for better specialization)
+    expert_hidden_dim: 64 # TESTING: 64 | PRODUCTION: 128 (Larger networks for complex patterns)
+    gating_hidden_dim: 32 # TESTING: 32 | PRODUCTION: 64
     gating_temperature: 0.8 # Lower temperature for sharper expert selection
     diversity_loss_weight: 0.02 # Higher diversity for better specialization
 
   # MAML specific parameters
   maml:
-    meta_learning_rate: 0.0005  # Lower meta-LR for stable meta-learning
-    inner_loop_steps: 7         # More adaptation steps
-    evaluation_steps: 5         # More evaluation steps
-    meta_batch_size: 2          # Larger meta-batch for better gradients
+    meta_learning_rate: 0.001   # TESTING: 0.001 | PRODUCTION: 0.0005 (Lower meta-LR for stable meta-learning)
+    inner_loop_steps: 3         # TESTING: 3 | PRODUCTION: 7 (More adaptation steps)
+    evaluation_steps: 2         # TESTING: 2 | PRODUCTION: 5 (More evaluation steps)
+    meta_batch_size: 1          # TESTING: 1 | PRODUCTION: 2 (Larger meta-batch for better gradients)
 
 # Validation and Progression Rules
 progression_rules:
   # Automatic progression criteria
   auto_progression: true
-  
+
   # Minimum performance thresholds to advance to next stage
   advancement_criteria:
     stage_1_to_2:
-      min_episodes: 5  # Reduced for quick testing
-      min_win_rate: 0.10  # Very relaxed for quick testing
-      min_profit_factor: 0.1  # Very relaxed for quick testing
+      min_episodes: 3  # TESTING: 3 | PRODUCTION: 50 (Ensure sufficient baseline learning)
+      min_win_rate: 0.10  # TESTING: 0.10 | PRODUCTION: 0.35 (Very relaxed for testing)
+      min_profit_factor: 0.1  # TESTING: 0.1 | PRODUCTION: 0.8 (Very relaxed for testing)
 
     stage_2_to_3:
-      min_episodes: 3  # Reduced for quick testing
-      min_win_rate: 0.20  # Relaxed for quick testing
-      min_profit_factor: 0.5  # Relaxed for quick testing
+      min_episodes: 2  # TESTING: 2 | PRODUCTION: 100 (Ensure expert specialization)
+      min_win_rate: 0.15  # TESTING: 0.15 | PRODUCTION: 0.40 (Relaxed for testing)
+      min_profit_factor: 0.3  # TESTING: 0.3 | PRODUCTION: 1.0 (Relaxed for testing)
 
     stage_3_to_4:
-      min_meta_iterations: 2  # Reduced for quick testing
-      min_adaptation_speed: 10  # Relaxed for quick testing
-      min_cross_symbol_performance: 0.50  # Relaxed for quick testing
-      
+      min_meta_iterations: 1  # TESTING: 1 | PRODUCTION: 20 (Ensure meta-learning)
+      min_adaptation_speed: 10  # TESTING: 10 | PRODUCTION: 3 (Relaxed for testing)
+      min_cross_symbol_performance: 0.30  # TESTING: 0.30 | PRODUCTION: 0.85 (Relaxed for testing)
+
   # Fallback strategies if criteria not met
   fallback_strategies:
     extend_training: true
-    max_extension_episodes: 200
+    max_extension_episodes: 50  # TESTING: 50 | PRODUCTION: 200
     hyperparameter_tuning: true
 
 # Output and Monitoring

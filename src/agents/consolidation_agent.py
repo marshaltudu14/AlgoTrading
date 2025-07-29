@@ -6,6 +6,34 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions import Categorical, Normal
 from typing import Tuple, List
+import logging
+
+logger = logging.getLogger(__name__)
+
+def safe_tensor_to_scalar(tensor: torch.Tensor, default_value: float = 0.0) -> float:
+    """Safely convert a tensor to a scalar value, handling various tensor dimensions."""
+    try:
+        if tensor is None:
+            return default_value
+        if isinstance(tensor, (int, float)):
+            return float(tensor)
+        if not isinstance(tensor, torch.Tensor):
+            return float(tensor)
+        if tensor.dim() == 0:
+            return tensor.item()
+        if tensor.dim() == 1:
+            if tensor.numel() == 1:
+                return tensor.item()
+            else:
+                return tensor[0].item()
+        flattened = tensor.flatten()
+        if flattened.numel() > 0:
+            return flattened[0].item()
+        else:
+            return default_value
+    except Exception as e:
+        logger.warning(f"Failed to convert tensor to scalar: {e}. Using default value {default_value}")
+        return default_value
 
 class ConsolidationAgent(BaseAgent):
     def __init__(self, observation_dim: int, action_dim_discrete: int, action_dim_continuous: int, hidden_dim: int,
@@ -38,9 +66,9 @@ class ConsolidationAgent(BaseAgent):
         dist = Categorical(action_probs)
         action_type = dist.sample()
 
-        quantity = torch.clamp(quantity_pred, min=0.01).item()
+        quantity = torch.clamp(quantity_pred, min=0.01)
 
-        return action_type.item(), quantity
+        return int(safe_tensor_to_scalar(action_type, default_value=4)), safe_tensor_to_scalar(quantity, default_value=1.0)
 
     def learn(self, experiences: List[Tuple[np.ndarray, Tuple[int, float], float, np.ndarray, bool]]) -> None:
         """
@@ -59,8 +87,8 @@ class ConsolidationAgent(BaseAgent):
         dones = torch.FloatTensor([exp[4] for exp in experiences])
 
         # Calculate discounted rewards and advantages
-        values = self.critic(states).squeeze()
-        next_values = self.critic(next_states).squeeze()
+        values = self.critic(states).squeeze(-1)  # Only squeeze last dimension to avoid 0-dim tensors
+        next_values = self.critic(next_states).squeeze(-1)  # Only squeeze last dimension to avoid 0-dim tensors
 
         # Calculate returns using GAE (Generalized Advantage Estimation)
         returns = []
@@ -125,7 +153,7 @@ class ConsolidationAgent(BaseAgent):
             actor_loss = -torch.min(surr1, surr2).mean() - 0.01 * entropy_discrete  # entropy bonus
 
             # Critic loss
-            current_values = self.critic(states).squeeze()
+            current_values = self.critic(states).squeeze(-1)  # Only squeeze last dimension
             critic_loss = self.MseLoss(current_values, returns)
 
             # Update actor

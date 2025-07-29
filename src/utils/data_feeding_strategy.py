@@ -267,7 +267,12 @@ class DataFeedingStrategyManager:
         
         if not suitable_segments:
             suitable_segments = self.data_segments  # Fallback to all segments
-        
+
+        # Handle empty data segments case
+        if not suitable_segments:
+            logger.warning("No data segments available for curriculum episode, using random episode")
+            return self._get_random_episode()
+
         # Select random segment from suitable ones
         segment = random.choice(suitable_segments)
         start_idx = random.randint(segment.start_idx, 
@@ -296,7 +301,12 @@ class DataFeedingStrategyManager:
         
         if not suitable_segments:
             suitable_segments = self.data_segments
-        
+
+        # Handle empty data segments case
+        if not suitable_segments:
+            logger.warning("No data segments available for balanced episode, using random episode")
+            return self._get_random_episode()
+
         segment = random.choice(suitable_segments)
         start_idx = random.randint(segment.start_idx, 
                                  max(segment.start_idx, segment.end_idx - self.episode_length))
@@ -361,8 +371,9 @@ class DataFeedingStrategyManager:
         suitable_segments = self.market_regimes[current_regime]
         
         if not suitable_segments:
+            logger.warning("No suitable segments for adaptive episode, using random episode")
             return self._get_random_episode()
-        
+
         segment = random.choice(suitable_segments)
         start_idx = random.randint(segment.start_idx, 
                                  max(segment.start_idx, segment.end_idx - self.episode_length))

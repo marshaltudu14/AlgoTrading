@@ -190,7 +190,7 @@ class PatternRecognizer:
     ):
         """
         Initialize the Pattern Recognizer.
-        
+
         Args:
             sequence_length: Length of price sequences to analyze
             min_pattern_confidence: Minimum confidence threshold for pattern detection
@@ -237,13 +237,13 @@ class PatternRecognizer:
         ohlcv_data = self._prepare_price_data(price_data)
         
         if len(ohlcv_data) < self.sequence_length:
-            warning_key = "insufficient_data_pattern_recognition"
+            warning_key = f"insufficient_data_pattern_recognition_{len(ohlcv_data)}_{self.sequence_length}"
             if warning_key not in _warning_cache:
-                logger.warning("Insufficient data for pattern recognition")
+                logger.warning(f"Insufficient data for pattern recognition: have {len(ohlcv_data)} periods, need {self.sequence_length}")
                 _warning_cache.add(warning_key)
             no_pattern = PatternDetection(
                 pattern_type=PatternType.NO_PATTERN,
-                confidence=1.0,
+                confidence=0.1,  # Very low confidence due to insufficient data
                 start_index=0,
                 end_index=len(ohlcv_data) - 1 if len(ohlcv_data) > 0 else 0
             )

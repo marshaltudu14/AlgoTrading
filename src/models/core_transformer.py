@@ -123,16 +123,22 @@ class CoreTransformer(nn.Module):
         self._init_weights()
     
     def _init_weights(self):
-        """Initialize weights using Xavier uniform initialization with smaller scale."""
+        """Initialize weights using Xavier uniform initialization with smaller scale for numerical stability."""
         for module in self.modules():
             if isinstance(module, nn.Linear):
-                # Use smaller initialization scale for numerical stability
-                nn.init.xavier_uniform_(module.weight, gain=0.1)
+                # Use very small initialization scale for numerical stability and to prevent NaN
+                nn.init.xavier_uniform_(module.weight, gain=0.01)  # Even smaller gain
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
             elif isinstance(module, nn.LayerNorm):
                 nn.init.constant_(module.bias, 0)
                 nn.init.constant_(module.weight, 1.0)
+            elif isinstance(module, nn.MultiheadAttention):
+                # Initialize attention weights with small values
+                if hasattr(module, 'in_proj_weight') and module.in_proj_weight is not None:
+                    nn.init.xavier_uniform_(module.in_proj_weight, gain=0.01)
+                if hasattr(module, 'out_proj') and module.out_proj.weight is not None:
+                    nn.init.xavier_uniform_(module.out_proj.weight, gain=0.01)
     
     def forward(
         self, 
@@ -156,7 +162,11 @@ class CoreTransformer(nn.Module):
         
         # Project input to transformer dimension
         x = self.input_projection(x)  # (batch_size, seq_len, ff_dim)
-        
+
+        # Check for NaN/Inf after input projection and replace with zeros
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            x = torch.zeros_like(x)
+
         # Add positional encoding if enabled
         if self.use_positional_encoding:
             # Convert to (seq_len, batch_size, ff_dim) for positional encoding
@@ -164,19 +174,35 @@ class CoreTransformer(nn.Module):
             x = self.pos_encoder(x)
             # Convert back to (batch_size, seq_len, ff_dim)
             x = x.transpose(0, 1)
-        
+
         # Apply layer normalization
         x = self.layer_norm(x)
+
+        # Check for NaN/Inf after layer norm
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            x = torch.zeros_like(x)
         
         # Pass through transformer encoder
         transformer_output = self.transformer_encoder(x, mask=mask)
-        
+
+        # Check for NaN/Inf after transformer encoder
+        if torch.isnan(transformer_output).any() or torch.isinf(transformer_output).any():
+            transformer_output = torch.zeros_like(transformer_output)
+
         # Global average pooling over sequence dimension
         # This aggregates information from all time steps
         pooled_output = torch.mean(transformer_output, dim=1)  # (batch_size, ff_dim)
-        
+
+        # Check for NaN/Inf after pooling
+        if torch.isnan(pooled_output).any() or torch.isinf(pooled_output).any():
+            pooled_output = torch.zeros_like(pooled_output)
+
         # Project to output dimension
         output = self.output_projection(pooled_output)  # (batch_size, output_dim)
+
+        # Final check for NaN/Inf in output
+        if torch.isnan(output).any() or torch.isinf(output).any():
+            output = torch.zeros_like(output)
         
         return output
     

@@ -65,9 +65,11 @@ class PPOAgent(BaseAgent):
             action_type = dist.sample()
 
             # For continuous quantity, use the predicted value directly, ensuring it's positive
-            quantity = torch.clamp(quantity_pred, min=0.01, max=10.0).item()
+            quantity = torch.clamp(quantity_pred, min=0.01, max=10.0)
 
-            return action_type.item(), quantity
+            # Use safe tensor conversion
+            from src.agents.moe_agent import safe_tensor_to_scalar
+            return int(safe_tensor_to_scalar(action_type, default_value=4)), safe_tensor_to_scalar(quantity, default_value=1.0)
 
         except Exception as e:
             print(f"Error in select_action: {e}, using default action")

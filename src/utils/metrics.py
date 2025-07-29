@@ -18,11 +18,28 @@ def calculate_profit_factor(trade_history: List[Dict]) -> float:
     return abs(gross_profit / gross_loss)
 
 def calculate_max_drawdown(equity_curve: pd.Series) -> float:
-    if equity_curve.empty:
+    """
+    Calculate maximum drawdown as a negative percentage.
+    Returns negative value for drawdowns, 0.0 for no drawdown.
+    """
+    if equity_curve.empty or len(equity_curve) < 2:
         return 0.0
+
+    # Calculate running maximum (peak)
     peak = equity_curve.expanding(min_periods=1).max()
+
+    # Calculate drawdown as percentage from peak
     drawdown = (equity_curve - peak) / peak
-    return abs(drawdown.min())
+
+    # Return the minimum (most negative) drawdown
+    # This will be negative for actual drawdowns, 0 or positive for no drawdown
+    min_drawdown = drawdown.min()
+
+    # Ensure we return a negative value for actual drawdowns
+    if min_drawdown >= 0:
+        return 0.0  # No drawdown
+    else:
+        return min_drawdown  # Return negative value
 
 def calculate_win_rate(trade_history: List[Dict]) -> float:
     if not trade_history:
@@ -93,7 +110,7 @@ def calculate_comprehensive_metrics(trade_history: List[Dict], capital_history: 
         else:
             sharpe_ratio = 0.0
 
-        # Max drawdown
+        # Max drawdown (already returns negative percentage)
         capital_series = pd.Series(capital_history)
         max_drawdown_percentage = calculate_max_drawdown(capital_series) * 100
     else:

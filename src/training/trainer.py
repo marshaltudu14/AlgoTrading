@@ -235,12 +235,23 @@ class Trainer:
         else:
             symbol = task
 
+        # CRITICAL: Use universal parameters to ensure consistent observation dimensions
+        if hasattr(self, 'universal_params') and self.universal_params:
+            lookback_window = self.universal_params.lookback_window
+            episode_length = self.universal_params.episode_length
+            logger.info(f"🎯 MAML using universal parameters: lookback={lookback_window}, episode_length={episode_length}")
+        else:
+            # Fallback to default values if universal params not available
+            lookback_window = 20
+            episode_length = 500
+            logger.warning("⚠️ Universal parameters not available for MAML, using defaults")
+
         self.env = TradingEnv(
             data_loader=data_loader,
             symbol=symbol,
             initial_capital=initial_capital,
-            lookback_window=20,
-            episode_length=500,
+            lookback_window=lookback_window,
+            episode_length=episode_length,
             reward_function="trading_focused",  # Use trading-focused reward
             use_streaming=False  # Use full data for consistent dimensions
         )
@@ -277,7 +288,15 @@ class Trainer:
 
             while not done:
                 action = adapted_agent.select_action(observation)
-                next_observation, reward, done, truncated, info = self.env.step(action)
+
+                # Handle both Gym API versions (4 vs 5 return values)
+                step_result = self.env.step(action)
+                if len(step_result) == 5:
+                    next_observation, reward, done, truncated, info = step_result
+                else:
+                    next_observation, reward, done, info = step_result
+                    truncated = False  # For older Gym versions
+
                 episode_reward += reward
                 episode_experiences.append((observation, action, reward, next_observation, done))
                 observation = next_observation

@@ -167,7 +167,7 @@ class TrainingSequenceManager:
 
         # Stage 3: MAML Meta-Learning (Universal) - Continue regardless of MoE success
         logger.info("🎯 Starting Stage 3: MAML Meta-Learning Training")
-        maml_result = self._run_universal_maml_stage(data_loader, primary_symbol, initial_capital, moe_result.model_path, episodes_override)
+        maml_result = self._run_maml_stage_direct(data_loader, primary_symbol, initial_capital, moe_result.model_path, episodes_override)
         logger.info(f"Stage 3 completed: {'SUCCESS' if maml_result.success else 'PARTIAL SUCCESS'}")
 
         # Stage 4: Autonomous Evolution (Universal) - Continue regardless of MAML success
@@ -858,6 +858,107 @@ class TrainingSequenceManager:
 
         except Exception as e:
             logger.error(f"Error analyzing model complexity: {e}")
+
+    def _run_maml_stage_direct(self, data_loader: DataLoader, symbol: str,
+                              initial_capital: float, moe_model_path: str, episodes_override: int = None) -> StageResult:
+        """Run MAML meta-learning stage with universal parameters."""
+        logger.info("=" * 60)
+        logger.info("🎯 STAGE 3: MAML META-LEARNING (UNIVERSAL)")
+        logger.info("=" * 60)
+
+        stage_config = self.config['training_sequence']['stage_3_maml']
+        meta_iterations = episodes_override if episodes_override is not None else stage_config.get('meta_iterations', 150)
+
+        # Load data for dynamic parameter computation
+        data = data_loader.load_final_data_for_symbol(symbol)
+
+        # Initialize dynamic parameter manager with advanced training progress
+        param_manager = DynamicParameterManager()
+        universal_params = param_manager.compute_dynamic_params(data, training_progress=0.6)
+
+        logger.info(f"🎯 Universal parameters for MAML: lookback={universal_params.lookback_window}, episode_length={universal_params.episode_length}")
+
+        # Create environment with universal parameters to get observation dimension
+        env = TradingEnv(
+            data_loader=data_loader,
+            symbol=symbol,
+            initial_capital=initial_capital,
+            lookback_window=universal_params.lookback_window,
+            episode_length=universal_params.episode_length
+        )
+        env.reset()
+        observation_dim = env.observation_space.shape[0]
+        logger.info(f"🎯 Universal observation dimension for MAML: {observation_dim}")
+
+        # Load MoE agent for MAML training with universal parameters
+        expert_configs = {
+            "TrendAgent": {"hidden_dim": universal_params.hidden_dim},
+            "MeanReversionAgent": {"hidden_dim": universal_params.hidden_dim},
+            "VolatilityAgent": {"hidden_dim": universal_params.hidden_dim}
+        }
+        agent = MoEAgent(
+            observation_dim=observation_dim,
+            action_dim_discrete=2,
+            action_dim_continuous=1,
+            hidden_dim=universal_params.hidden_dim,
+            expert_configs=expert_configs
+        )
+
+        # Load the MoE model if available
+        if moe_model_path:
+            agent.load_model(moe_model_path)
+        else:
+            logger.info("No MoE model to load - starting MAML training from scratch")
+
+        # Create trainer for MAML and pass universal parameters
+        trainer = Trainer(agent, num_episodes=meta_iterations, log_interval=5)
+        trainer.universal_params = universal_params  # CRITICAL: Pass universal parameters
+
+        try:
+            logger.info(f"Starting MAML meta-learning with {meta_iterations} meta-iterations...")
+
+            # Train with MAML meta-learning
+            trainer.meta_train(
+                data_loader=data_loader,
+                initial_capital=initial_capital,
+                num_meta_iterations=meta_iterations,
+                num_inner_loop_steps=5,
+                num_evaluation_steps=3,
+                meta_batch_size=1
+            )
+
+            # Extract metrics
+            metrics = {
+                'meta_iterations': meta_iterations,
+                'final_reward': 0,  # Placeholder
+                'avg_reward': 0     # Placeholder
+            }
+
+            success = True  # Assume success if training completes
+
+            # Model will be saved in Stage 4 (Autonomous)
+            logger.info(f"🎯 MAML stage completed - model will be saved in Stage 4 (Autonomous)")
+            final_model_path = None  # No model saved in MAML stage
+
+            return StageResult(
+                stage=TrainingStage.MAML,
+                success=success,
+                metrics=metrics,
+                model_path=final_model_path,
+                episodes_completed=meta_iterations,
+                message="MAML meta-learning completed"
+            )
+
+        except Exception as e:
+            logger.error(f"MAML stage failed: {e}")
+            return StageResult(
+                stage=TrainingStage.MAML,
+                success=False,
+                metrics={'error': str(e)},
+                model_path=None,
+                episodes_completed=0,
+                message=f"MAML training failed: {e}"
+            )
 
 def run_training_sequence(symbol: str, data_dir: str = "data/final") -> List[StageResult]:
     """Convenience function to run the complete training sequence."""

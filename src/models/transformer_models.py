@@ -215,14 +215,34 @@ class ActorTransformerModel(MultiHeadTransformerModel):
         outputs = super().forward(x, mask)
 
         # Apply softmax to action_type logits for valid probabilities
-        # Add small epsilon for numerical stability
+        # Add small epsilon for numerical stability and prevent NaN
         action_logits = outputs['action_type']
-        action_logits = torch.clamp(action_logits, min=-10, max=10)  # Prevent extreme values
-        outputs['action_type'] = F.softmax(action_logits, dim=-1)
+
+        # Check for NaN/Inf in logits and replace with zeros if found
+        if torch.isnan(action_logits).any() or torch.isinf(action_logits).any():
+            action_logits = torch.zeros_like(action_logits)
+
+        # Clamp to prevent extreme values that could cause NaN in softmax
+        action_logits = torch.clamp(action_logits, min=-10, max=10)
+
+        # Apply softmax with numerical stability
+        action_probs = F.softmax(action_logits, dim=-1)
+
+        # Final check for NaN in probabilities and use uniform distribution as fallback
+        if torch.isnan(action_probs).any():
+            batch_size, action_dim = action_probs.shape
+            action_probs = torch.ones_like(action_probs) / action_dim
+
+        outputs['action_type'] = action_probs
 
         # FORCE INTEGER QUANTITIES FOR PRODUCTION USE
         # Apply sigmoid to quantity and scale to whole lots (1 to 5 lots)
         quantity_raw = outputs['quantity']
+
+        # Check for NaN/Inf in quantity predictions and replace with default
+        if torch.isnan(quantity_raw).any() or torch.isinf(quantity_raw).any():
+            quantity_raw = torch.ones_like(quantity_raw)  # Default to 1.0
+
         quantity_raw = torch.clamp(quantity_raw, min=-5, max=5)  # Prevent extreme values
 
         # Use a more aggressive approach to ensure integer outputs
