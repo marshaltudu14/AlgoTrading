@@ -106,12 +106,7 @@ class PPOAgent(BaseAgent):
         next_states = []
         dones = []
 
-        # Debug: Check experience format
-        if len(experiences) > 0:
-            exp = experiences[0]
-            print(f"Experience format: {len(exp)} elements, types: {[type(x) for x in exp]}")
-            if len(exp) >= 2:
-                print(f"Action element: {exp[1]}, type: {type(exp[1])}")
+
 
         for state, action_tuple, reward, next_state, done in experiences:
             states.append(state)

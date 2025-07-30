@@ -4,6 +4,7 @@ import pandas as pd
 from typing import Tuple, Dict, Optional
 import logging
 import random
+from enum import Enum
 
 from src.utils.data_loader import DataLoader
 from src.backtesting.engine import BacktestingEngine
@@ -11,24 +12,44 @@ from src.config.instrument import Instrument
 from src.utils.instrument_loader import load_instruments
 from src.utils.data_feeding_strategy import DataFeedingStrategyManager, FeedingStrategy
 from src.config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL
-from src.utils.capital_aware_quantity import adjust_quantity_for_capital
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
+class TradingMode(Enum):
+    """Trading environment modes."""
+    TRAINING = "training"
+    BACKTESTING = "backtesting"
+    LIVE = "live"
+
 class TradingEnv(gym.Env):
-    def __init__(self, data_loader: DataLoader, symbol: str, initial_capital: float,
+    def __init__(self, data_loader: DataLoader = None, symbol: str = None, initial_capital: float = None,
                  lookback_window: int = 50, trailing_stop_percentage: float = None,
                  reward_function: str = "pnl", episode_length: int = 1000,
-                 use_streaming: bool = True):
+                 use_streaming: bool = True, mode: TradingMode = TradingMode.TRAINING,
+                 external_data: pd.DataFrame = None):
         super(TradingEnv, self).__init__()
-        self.data_loader = data_loader
-        self.symbol = symbol
-        self.initial_capital = initial_capital
+
+        # Mode and data handling
+        self.mode = mode
+        self.external_data = external_data
+
+        # For TRAINING mode, require data_loader and symbol
+        if mode == TradingMode.TRAINING:
+            if data_loader is None or symbol is None:
+                raise ValueError("TRAINING mode requires data_loader and symbol")
+            self.data_loader = data_loader
+            self.symbol = symbol
+        else:
+            # For BACKTESTING/LIVE modes, external_data can be provided
+            self.data_loader = data_loader  # Optional for backtesting/live
+            self.symbol = symbol or "INDEX"  # Default symbol for backtesting/live
+
+        self.initial_capital = initial_capital or INITIAL_CAPITAL
         self.lookback_window = lookback_window
         self.reward_function = reward_function
         self.episode_length = episode_length
-        self.use_streaming = use_streaming
+        self.use_streaming = use_streaming and (mode == TradingMode.TRAINING)  # Only use streaming for training
 
         # For streaming mode
         self.total_data_length = 0
@@ -56,18 +77,29 @@ class TradingEnv(gym.Env):
         # Load instrument details
         self.instruments = load_instruments('config/instruments.yaml')
 
-        # Get base symbol (remove timeframe suffix)
-        self.base_symbol = self.data_loader.get_base_symbol(self.symbol)
-
-        if self.base_symbol not in self.instruments:
-            raise ValueError(f"Instrument {self.base_symbol} not found in instruments.yaml (original symbol: {self.symbol})")
-        self.instrument = self.instruments[self.base_symbol]
+        # Handle different modes for instrument loading
+        if self.mode == TradingMode.TRAINING:
+            # Get base symbol (remove timeframe suffix)
+            self.base_symbol = self.data_loader.get_base_symbol(self.symbol)
+            if self.base_symbol not in self.instruments:
+                raise ValueError(f"Instrument {self.base_symbol} not found in instruments.yaml (original symbol: {self.symbol})")
+            self.instrument = self.instruments[self.base_symbol]
+        else:
+            # For BACKTESTING/LIVE modes, use INDEX instrument (no options/margin complexity)
+            # Create a simple index instrument for point-based trading
+            self.base_symbol = "INDEX"
+            self.instrument = Instrument(
+                symbol="INDEX",
+                type="INDEX",
+                lot_size=1,  # 1 point = 1 unit
+                tick_size=0.01
+            )
 
         # Use centralized trailing stop configuration if not provided
         if trailing_stop_percentage is None:
             trailing_stop_percentage = RISK_REWARD_CONFIG['trailing_stop_percentage']
 
-        self.engine = BacktestingEngine(initial_capital, self.instrument, trailing_stop_percentage)
+        self.engine = BacktestingEngine(self.initial_capital, self.instrument, trailing_stop_percentage)
         self.data = None  # This will store the loaded data for the current episode
         self.current_step = 0
 
@@ -103,12 +135,14 @@ class TradingEnv(gym.Env):
 
     def reset(self, performance_metrics: Optional[Dict] = None) -> np.ndarray:
         """Reset environment and load data segment for new episode with intelligent data feeding."""
-        if self.use_streaming:
-            self._load_episode_data_segment()
-        else:
-            self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
 
-
+        # Handle data loading based on mode
+        if self.mode == TradingMode.TRAINING:
+            # TRAINING mode: Use data_loader (current behavior)
+            if self.use_streaming:
+                self._load_episode_data_segment()
+            else:
+                self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
 
             # Initialize feeding strategy manager if not already done
             if self.feeding_strategy_manager is None:
@@ -118,6 +152,22 @@ class TradingEnv(gym.Env):
                     episode_length=self.episode_length
                 )
                 logger.info(f"🎯 Data feeding strategy initialized: {self.feeding_strategy_manager.current_strategy.value}")
+
+        elif self.mode == TradingMode.BACKTESTING:
+            # BACKTESTING mode: Use external data
+            if self.external_data is None:
+                raise ValueError("BACKTESTING mode requires external_data")
+            self.data = self.external_data.copy()
+            self.feeding_strategy_manager = None  # No episodes in backtesting
+            logger.info(f"🎯 BACKTESTING mode: Using external data with {len(self.data)} rows")
+
+        elif self.mode == TradingMode.LIVE:
+            # LIVE mode: Use external data (placeholder)
+            if self.external_data is None:
+                raise ValueError("LIVE mode requires external_data")
+            self.data = self.external_data.copy()
+            self.feeding_strategy_manager = None  # No episodes in live trading
+            logger.info(f"🎯 LIVE mode: Using external data with {len(self.data)} rows")
 
         # Set observation space dimensions based on actual data
         if self.observation_space is None:
@@ -129,26 +179,33 @@ class TradingEnv(gym.Env):
 
         self.engine.reset()
 
-        # Use intelligent data feeding strategy for episode start position
-        if self.feeding_strategy_manager is not None:
-            start_idx, end_idx = self.feeding_strategy_manager.get_next_episode_data(performance_metrics)
-            # Ensure we have enough data for lookback
-            self.current_step = max(start_idx + self.lookback_window - 1, self.lookback_window - 1)
-            self.episode_end_step = min(end_idx, len(self.data) - 1)
-            logger.debug(f"Strategic episode: steps {self.current_step} to {self.episode_end_step} "
-                        f"(strategy: {self.feeding_strategy_manager.current_strategy.value})")
-        else:
-            # Fallback to random positioning
-            max_start = len(self.data) - self.episode_length - self.lookback_window
-            if max_start > self.lookback_window:
-                random_start = random.randint(self.lookback_window - 1, max_start)
-                self.current_step = random_start
-                self.episode_end_step = min(self.current_step + self.episode_length, len(self.data) - 1)
-                logger.debug(f"Episode starting at step {self.current_step} (randomized)")
+        # Handle episode positioning based on mode
+        if self.mode == TradingMode.TRAINING:
+            # TRAINING mode: Use intelligent data feeding strategy for episode start position
+            if self.feeding_strategy_manager is not None:
+                start_idx, end_idx = self.feeding_strategy_manager.get_next_episode_data(performance_metrics)
+                # Ensure we have enough data for lookback
+                self.current_step = max(start_idx + self.lookback_window - 1, self.lookback_window - 1)
+                self.episode_end_step = min(end_idx, len(self.data) - 1)
+                logger.debug(f"Strategic episode: steps {self.current_step} to {self.episode_end_step} "
+                            f"(strategy: {self.feeding_strategy_manager.current_strategy.value})")
             else:
-                self.current_step = self.lookback_window - 1
-                self.episode_end_step = len(self.data) - 1
-                logger.debug(f"Episode starting at step {self.current_step} (fixed - insufficient data for randomization)")
+                # Fallback to random positioning for training
+                max_start = len(self.data) - self.episode_length - self.lookback_window
+                if max_start > self.lookback_window:
+                    random_start = random.randint(self.lookback_window - 1, max_start)
+                    self.current_step = random_start
+                    self.episode_end_step = min(self.current_step + self.episode_length, len(self.data) - 1)
+                    logger.debug(f"Episode starting at step {self.current_step} (randomized)")
+                else:
+                    self.current_step = self.lookback_window - 1
+                    self.episode_end_step = len(self.data) - 1
+                    logger.debug(f"Episode starting at step {self.current_step} (fixed - insufficient data for randomization)")
+        else:
+            # BACKTESTING/LIVE modes: Sequential processing from start
+            self.current_step = self.lookback_window - 1  # Start after lookback window
+            self.episode_end_step = len(self.data) - 1  # Process all data
+            logger.debug(f"Sequential processing: steps {self.current_step} to {self.episode_end_step}")
 
         # Reset reward tracking
         self.returns_history = []
@@ -248,8 +305,9 @@ class TradingEnv(gym.Env):
 
         prev_capital = self.engine.get_account_state()['capital']
 
-        # Calculate proxy premium for options simulation (based on ATR)
-        proxy_premium = self._calculate_proxy_premium(current_price, current_atr)
+        # Use point-based calculation for all modes (no proxy premium)
+        # Direct price for index trading - no option premium complexity
+        proxy_premium = current_price
 
         # Parse action: [action_type, quantity] or (action_type, quantity)
         if isinstance(action, (list, np.ndarray, tuple)) and len(action) >= 2:
@@ -268,13 +326,8 @@ class TradingEnv(gym.Env):
         # Apply capital-aware quantity adjustment for trading actions (not HOLD)
         if action_type != 4 and quantity > 0:
             available_capital = prev_capital
-            adjusted_quantity = adjust_quantity_for_capital(
-                predicted_quantity=quantity,
-                available_capital=available_capital,
-                current_price=current_price,
-                instrument=self.instrument,
-                proxy_premium=proxy_premium if self.instrument.type == "OPTION" else None
-            )
+            # Use predicted quantity directly for all modes (no capital constraints for index trading)
+            adjusted_quantity = int(round(quantity))
 
             # Log quantity adjustment if it was changed
             if adjusted_quantity != quantity:
@@ -563,81 +616,70 @@ class TradingEnv(gym.Env):
 
     def _check_termination_conditions(self, current_capital: float) -> tuple:
         """Check if episode should terminate due to risk management conditions or strategic episode end."""
-        # Check strategic episode end (if using data feeding strategy)
-        if hasattr(self, 'episode_end_step') and self.current_step >= self.episode_end_step:
-            return True, f"strategic_episode_end_step_{self.current_step}"
 
         # Check if we've reached the end of available data
         if self.current_step >= len(self.data) - 1:
             return True, f"end_of_data_step_{self.current_step}"
 
-        # Update peak equity
-        if current_capital > self.peak_equity:
-            self.peak_equity = current_capital
+        if self.mode == TradingMode.TRAINING:
+            # TRAINING mode: Use episode-based termination
+            # Check strategic episode end (if using data feeding strategy)
+            if hasattr(self, 'episode_end_step') and self.current_step >= self.episode_end_step:
+                return True, f"strategic_episode_end_step_{self.current_step}"
 
-        # Check maximum drawdown
-        current_drawdown = (self.peak_equity - current_capital) / self.peak_equity
-        if current_drawdown > self.max_drawdown_pct:
-            return True, f"max_drawdown_exceeded_{current_drawdown:.2%}"
+            # Update peak equity
+            if current_capital > self.peak_equity:
+                self.peak_equity = current_capital
 
-        # Check insufficient capital (AC 1.3.7)
-        # Estimate minimum capital needed for one trade
-        if hasattr(self, 'data') and self.current_step < len(self.data):
-            safe_step = min(self.current_step, len(self.data) - 1)
-            current_price = self.data['close'].iloc[safe_step]
+            # Check maximum drawdown
+            current_drawdown = (self.peak_equity - current_capital) / self.peak_equity
+            if current_drawdown > self.max_drawdown_pct:
+                return True, f"max_drawdown_exceeded_{current_drawdown:.2%}"
 
-            # Get ATR if available, otherwise use a default volatility estimate
-            if 'atr' in self.data.columns:
-                current_atr = self.data['atr'].iloc[safe_step]
-            else:
-                # Fallback: use 2% of current price as volatility estimate
-                current_atr = current_price * 0.02
+            # No capital constraints for index trading - removed insufficient capital check
 
-            proxy_premium = self._calculate_proxy_premium(current_price, current_atr)
-
-            if self.instrument.type == "OPTION":
-                min_trade_cost = (proxy_premium * 1 * self.instrument.lot_size) + self.engine.BROKERAGE_ENTRY
-            else:
-                min_trade_cost = (current_price * 1 * self.instrument.lot_size) + self.engine.BROKERAGE_ENTRY
-
-            if current_capital < min_trade_cost:
-                return True, f"insufficient_capital_{current_capital:.2f}_needed_{min_trade_cost:.2f}"
+        else:
+            # BACKTESTING/LIVE modes: No early termination, process all data
+            # Update peak equity for tracking
+            if current_capital > self.peak_equity:
+                self.peak_equity = current_capital
 
         return False, None
 
-    def _calculate_proxy_premium(self, current_price: float, atr: float) -> float:
-        """
-        Calculate realistic proxy premium for options simulation.
 
-        Even for futures trading, we simulate the cost as if trading options
-        to provide realistic trading costs and risk management.
-        """
-        # Calculate volatility-based premium regardless of instrument type
-        # ATR represents daily volatility, scale it to option premium
-        volatility_factor = atr / current_price
+    def get_backtest_results(self) -> Dict:
+        """Get comprehensive backtesting results for BACKTESTING/LIVE modes."""
+        if self.mode == TradingMode.TRAINING:
+            return {}  # No backtest results for training
 
-        # Base premium: 1.5% of underlying (typical for ATM options)
-        base_premium_pct = 0.015
+        account_state = self.engine.get_account_state()
 
-        # Adjust based on volatility (higher volatility = higher premium)
-        # Scale volatility factor to reasonable range (0.5x to 3x base premium)
-        volatility_multiplier = max(0.5, min(3.0, 1 + (volatility_factor * 10)))
+        # Calculate performance metrics
+        total_return = (account_state['capital'] - self.initial_capital) / self.initial_capital
+        max_drawdown = (self.peak_equity - account_state['capital']) / self.peak_equity if self.peak_equity > 0 else 0
 
-        # Calculate final premium percentage
-        premium_percentage = base_premium_pct * volatility_multiplier
+        # Get trade history from engine
+        trades = getattr(self.engine, 'trade_history', [])
 
-        # Ensure premium is within realistic bounds (0.5% to 5%)
-        premium_percentage = max(0.005, min(0.05, premium_percentage))
+        results = {
+            'mode': self.mode.value,
+            'symbol': self.symbol,
+            'initial_capital': self.initial_capital,
+            'final_capital': account_state['capital'],
+            'total_return': total_return,
+            'total_return_pct': total_return * 100,
+            'max_drawdown': max_drawdown,
+            'max_drawdown_pct': max_drawdown * 100,
+            'peak_equity': self.peak_equity,
+            'total_trades': len(trades),
+            'equity_curve': self.equity_history.copy(),
+            'trades': trades,
+            'current_position': account_state['current_position_quantity'],
+            'total_steps': self.current_step + 1,
+            'data_length': len(self.data) if self.data is not None else 0
+        }
 
-        proxy_premium = current_price * premium_percentage
-
-        # Minimum premium based on instrument (Bank Nifty vs Nifty)
-        if "Bank_Nifty" in self.symbol:
-            min_premium = 50.0  # Bank Nifty options typically cost at least ₹50
-        else:
-            min_premium = 25.0  # Nifty options typically cost at least ₹25
-
-        return max(proxy_premium, min_premium)
+        return results
 
     def _get_observation(self) -> np.ndarray:
         # Get market data for the lookback window

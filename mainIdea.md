@@ -58,19 +58,11 @@ This document outlines the technical architecture for building a fully autonomou
 - **Reward Function**: Optimized for risk-adjusted returns during uncertainty
 - **Architecture**: Transformer-based for handling regime changes
 
-**Consolidation Agent**
-- **Specialization**: Range-bound markets, sideways trading, accumulation phases
-- **Training Data**: Low volatility periods, consolidation patterns
-- **Reward Function**: Optimized for patient positioning, breakout preparation
-- **Architecture**: GRU-based for long-term memory of range boundaries
-
-#### Mixture of Experts (MoE) Architecture
-
-**Gating Network**
-- **Purpose**: Determines which agents to activate based on market regime
-- **Input**: Market state features, volatility measures, trend strength
-- **Output**: Probability weights for each specialist agent
-- **Technology**: Transformer-based attention mechanism with regime detection
+**PPO Agent**
+- **Specialization**: Universal trading across all market conditions
+- **Training Data**: Full diverse dataset including all market regimes
+- **Reward Function**: Optimized for risk-adjusted returns across all conditions
+- **Architecture**: Transformer-based for enhanced memory and pattern recognition
 
 **Agent Consensus System**
 - **Conflict Resolution**: Weighted voting based on agent confidence and market fit

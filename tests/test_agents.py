@@ -2,11 +2,6 @@ import pytest
 import torch
 from src.agents.base_agent import BaseAgent
 from src.agents.ppo_agent import PPOAgent
-from src.agents.trend_agent import TrendAgent
-from src.agents.mean_reversion_agent import MeanReversionAgent
-from src.agents.volatility_agent import VolatilityAgent
-from src.agents.consolidation_agent import ConsolidationAgent
-from src.agents.moe_agent import GatingNetwork, MoEAgent
 import abc
 import numpy as np
 from typing import Tuple, List
@@ -179,94 +174,18 @@ def test_gating_network_output_shape():
     # Check if the output sums to approximately 1 along the expert dimension (due to softmax)
     assert torch.allclose(output.sum(dim=-1), torch.ones(batch_size))
 
-def test_moe_agent_initialization():
-    observation_dim = 10
-    action_dim_discrete = 5
-    action_dim_continuous = 1
-    hidden_dim = 64
-    expert_configs = {
-        "TrendAgent": {},
-        "MeanReversionAgent": {},
-        "VolatilityAgent": {},
-        "ConsolidationAgent": {}
-    }
+# MoE agent tests removed - only using PPO for now
 
-    moe_agent = MoEAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, expert_configs)
-
-    assert isinstance(moe_agent, MoEAgent)
-    assert isinstance(moe_agent, BaseAgent)
-    assert moe_agent.gating_network is not None
-    assert len(moe_agent.experts) == len(expert_configs)
-    for expert in moe_agent.experts:
-        assert isinstance(expert, BaseAgent)
-
-def test_moe_agent_select_action():
-    observation_dim = 10
-    action_dim_discrete = 5
-    action_dim_continuous = 1
-    hidden_dim = 64
-    expert_configs = {
-        "TrendAgent": {},
-        "MeanReversionAgent": {},
-        "VolatilityAgent": {},
-        "ConsolidationAgent": {}
-    }
-
-    moe_agent = MoEAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, expert_configs)
-    observation = np.random.rand(observation_dim).astype(np.float32)
-
-    action_type, quantity = moe_agent.select_action(observation)
-
-    assert isinstance(action_type, int)
-    assert 0 <= action_type < action_dim_discrete
-    assert isinstance(quantity, float)
-    assert quantity >= 0.01 # Assuming quantity is always positive
-
-def test_moe_agent_learn_placeholder():
-    observation_dim = 10
-    action_dim_discrete = 5
-    action_dim_continuous = 1
-    hidden_dim = 64
-    expert_configs = {
-        "TrendAgent": {},
-        "MeanReversionAgent": {},
-        "VolatilityAgent": {},
-        "ConsolidationAgent": {}
-    }
-
-    moe_agent = MoEAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, expert_configs)
-    experiences = [
-        (np.random.rand(observation_dim).astype(np.float32), (0, 0.5), 0.1, np.random.rand(observation_dim).astype(np.float32), False),
-        (np.random.rand(observation_dim).astype(np.float32), (1, 1.0), -0.5, np.random.rand(observation_dim).astype(np.float32), True)
-    ]
-
-    try:
-        moe_agent.learn(experiences)
-    except Exception as e:
-        pytest.fail(f"learn method raised an unexpected exception: {e}")
-
-@pytest.mark.parametrize(
-    "AgentClass", [PPOAgent, TrendAgent, MeanReversionAgent, VolatilityAgent, ConsolidationAgent, MoEAgent]
-)
-def test_agent_adapt_method(AgentClass):
+# Agent adaptation tests removed - only using PPO for now
+def test_ppo_agent_adapt_method():
+    """Test PPO agent adaptation method."""
     observation_dim = 10
     action_dim_discrete = 5
     action_dim_continuous = 1
     hidden_dim = 64
     num_gradient_steps = 1
 
-    if AgentClass == PPOAgent:
-        agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, 0.001, 0.001, 0.99, 0.2, 3)
-    elif AgentClass == MoEAgent:
-        expert_configs = {
-            "TrendAgent": {},
-            "MeanReversionAgent": {},
-            "VolatilityAgent": {},
-            "ConsolidationAgent": {}
-        }
-        agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, expert_configs)
-    else:
-        agent = AgentClass(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim)
+    agent = PPOAgent(observation_dim, action_dim_discrete, action_dim_continuous, hidden_dim, 0.001, 0.001, 0.99, 0.2, 3)
 
     observation = np.random.rand(observation_dim).astype(np.float32)
     action_tuple = (0, 0.5) # Discrete action and continuous quantity

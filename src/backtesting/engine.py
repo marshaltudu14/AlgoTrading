@@ -162,24 +162,11 @@ class BacktestingEngine:
                 decision_log['reason'] = f"Already have position: {self._current_position_quantity}"
                 self._decision_log.append(decision_log)
                 return 0.0, self._unrealized_pnl
-            # Calculate cost: quantity (lots) × lot_size × price + brokerage
-            # For indices: quantity=2 lots, lot_size=25 → actual_quantity=50
-            # For stocks: quantity=2 lots, lot_size=1 → actual_quantity=2
-            if self.instrument.type == "OPTION":
-                cost = (proxy_premium * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
-                self._premium_paid_per_lot = proxy_premium # Store premium for options P&L
-            else:
-                # For STOCK, cost = stock price * quantity * lot_size (lot_size = 1 for stocks)
-                cost = (price * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
-            if self._capital < cost:
-                logger.warning(f"💸 Step {self._current_step}: Insufficient capital for BUY_LONG - Need: ₹{cost:.2f}, Have: ₹{self._capital:.2f}")
-                decision_log['result'] = 'REJECTED_INSUFFICIENT_CAPITAL'
-                decision_log['reason'] = f"Need: ₹{cost:.2f}, Have: ₹{self._capital:.2f}"
-                self._decision_log.append(decision_log)
-                return 0.0, self._unrealized_pnl
+            # No capital deduction for index trading - point-based calculation
+            # Just track the position without deducting capital
+            cost = 0.0  # No upfront cost for index trading
 
-            # Execute the trade
-            self._capital -= cost
+            # Execute the trade (no capital deduction for index trading)
             self._current_position_quantity = quantity
             self._current_position_entry_price = price
             self._is_position_open = True
@@ -219,17 +206,8 @@ class BacktestingEngine:
             if self._current_position_quantity != 0:
                 logging.info(f"Cannot SELL_SHORT. Already have an open position ({self._current_position_quantity}). Trade not executed.")
                 return 0.0, self._unrealized_pnl
-            if self.instrument.type == "OPTION":
-                cost = (proxy_premium * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
-                self._premium_paid_per_lot = proxy_premium # Store premium for options P&L
-            else:
-                # For STOCK short selling, cost = stock price * quantity * lot_size (lot_size = 1 for stocks)
-                cost = (price * quantity * self.instrument.lot_size) + self.BROKERAGE_ENTRY
-            if self._capital < cost:
-                logging.warning(f"Insufficient capital to SELL_SHORT {quantity} at {price}. Capital: {self._capital:.2f}, Cost: {cost:.2f}. Trade not executed.")
-                return 0.0, self._unrealized_pnl
-
-            self._capital -= cost
+            # No capital deduction for index trading - point-based calculation
+            cost = 0.0  # No upfront cost for index trading
             self._current_position_quantity = -quantity # Negative for short position
             self._current_position_entry_price = price
             self._is_position_open = True
@@ -259,25 +237,13 @@ class BacktestingEngine:
                 logging.warning(f"Attempted to close {quantity} long, but only {self._current_position_quantity} held. Closing full position.")
                 quantity = self._current_position_quantity
 
-            if self.instrument.type == "OPTION":
-                # For option trading simulation: calculate P&L as underlying movement
-                # The premium is already paid as cost, so P&L is just the underlying movement
-                realized_pnl_this_trade = (price - self._current_position_entry_price) * quantity * self.instrument.lot_size
-                # Note: Premium cost is already deducted from capital when opening position
-            else:
-                realized_pnl_this_trade = (price - self._current_position_entry_price) * quantity * self.instrument.lot_size
+            # Point-based P&L calculation for index trading
+            realized_pnl_this_trade = (price - self._current_position_entry_price) * quantity * self.instrument.lot_size
 
             # Calculate net P&L after brokerage
             net_pnl_this_trade = realized_pnl_this_trade - self.BROKERAGE_EXIT
 
-            # For OPTIONS, release the premium cost when closing position
-            # For STOCKS, no premium to release
-            if self.instrument.type == "OPTION":
-                # Release the premium that was paid when opening the position
-                premium_to_release = self._premium_paid_per_lot * quantity * self.instrument.lot_size
-                self._capital += premium_to_release
-
-            # Then apply the P&L
+            # Apply the P&L directly to capital
             self._realized_pnl += net_pnl_this_trade
             self._capital += net_pnl_this_trade  # Add profit or subtract loss
             self._total_realized_pnl += net_pnl_this_trade
@@ -289,12 +255,7 @@ class BacktestingEngine:
                 self._is_position_open = False # Close position
 
             # Calculate total P&L from initial capital
-            # For OPTIONS, use total realized P&L (excludes premium costs)
-            # For STOCKS, use capital difference
-            if self.instrument.type == "OPTION":
-                total_pnl_from_initial = self._total_realized_pnl
-            else:
-                total_pnl_from_initial = self._capital - self._initial_capital
+            total_pnl_from_initial = self._capital - self._initial_capital
 
             if detailed_logging:
                 logging.info(f"Executed CLOSE_LONG. Quantity: {quantity}, Price: {price}.")
@@ -313,25 +274,13 @@ class BacktestingEngine:
                 logging.warning(f"Attempted to close {quantity} short, but only {abs(self._current_position_quantity)} held. Closing full position.")
                 quantity = abs(self._current_position_quantity)
 
-            if self.instrument.type == "OPTION":
-                # For option trading simulation: calculate P&L as underlying movement
-                # The premium is already paid as cost, so P&L is just the underlying movement
-                realized_pnl_this_trade = (self._current_position_entry_price - price) * quantity * self.instrument.lot_size
-                # Note: Premium cost is already deducted from capital when opening position
-            else:
-                realized_pnl_this_trade = (self._current_position_entry_price - price) * quantity * self.instrument.lot_size
+            # Point-based P&L calculation for index trading (short position)
+            realized_pnl_this_trade = (self._current_position_entry_price - price) * quantity * self.instrument.lot_size
 
             # Calculate net P&L after brokerage
             net_pnl_this_trade = realized_pnl_this_trade - self.BROKERAGE_EXIT
 
-            # For OPTIONS, release the premium cost when closing position
-            # For STOCKS, no premium to release
-            if self.instrument.type == "OPTION":
-                # Release the premium that was paid when opening the position
-                premium_to_release = self._premium_paid_per_lot * quantity * self.instrument.lot_size
-                self._capital += premium_to_release
-
-            # Then apply the P&L
+            # Apply the P&L directly to capital
             self._realized_pnl += net_pnl_this_trade
             self._capital += net_pnl_this_trade  # Add profit or subtract loss
             self._total_realized_pnl += net_pnl_this_trade
@@ -343,12 +292,7 @@ class BacktestingEngine:
                 self._is_position_open = False # Close position
 
             # Calculate total P&L from initial capital
-            # For OPTIONS, use total realized P&L (excludes premium costs)
-            # For STOCKS, use capital difference
-            if self.instrument.type == "OPTION":
-                total_pnl_from_initial = self._total_realized_pnl
-            else:
-                total_pnl_from_initial = self._capital - self._initial_capital
+            total_pnl_from_initial = self._capital - self._initial_capital
 
             if detailed_logging:
                 logging.info(f"Executed CLOSE_SHORT. Quantity: {quantity}, Price: {price}.")

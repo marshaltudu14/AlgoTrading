@@ -2,14 +2,13 @@
 
 ## 1. Executive Summary
 
-This document outlines the architectural vision for the Reinforcement Learning (RL) component of the Autonomous Trading Bot. The core principle is to develop an **instrument-agnostic** RL model capable of generating universal trading signals (`BUY`, `SELL`, `HOLD`, `CLOSE`) across diverse market data (stocks, indices, various timeframes) in the Indian market. The architecture emphasizes **Meta-Learning (MAML)** for rapid adaptation to changing market conditions and instrument types, leveraging a Mixture of Experts (MoE) framework to maximize profitability.
+This document outlines the architectural vision for the Reinforcement Learning (RL) component of the Autonomous Trading Bot. The core principle is to develop an **instrument-agnostic** RL model capable of generating universal trading signals (`BUY`, `SELL`, `HOLD`, `CLOSE`) across diverse market data (stocks, indices, various timeframes) in the Indian market. The architecture uses **PPO (Proximal Policy Optimization)** for robust trading strategy learning.
 
 ## 2. Core Architectural Principles
 
 *   **Instrument Agnosticism:** The RL model's input features will be normalized and standardized to allow it to learn patterns independent of specific instrument types (stocks, futures, options) or timeframes. The model will not inherently distinguish between these.
 *   **Simplified Action Space:** The model's output will be limited to four fundamental trading actions: `BUY`, `SELL`, `HOLD`, `CLOSE`. The decision of *which* specific instrument to apply these actions to will be handled by an external, higher-level logic.
-*   **Meta-Learning for Adaptability (MAML):** The system will incorporate MAML to enable the RL agents to quickly adapt to new market regimes, instruments, or timeframes with minimal additional training. Each unique combination of `(instrument_type, timeframe)` will be considered a distinct task for meta-training.
-*   **Mixture of Experts (MoE):** Specialized agents will focus on different market conditions, with a gating network dynamically selecting or weighting their outputs based on the perceived market regime.
+*   **PPO-Based Learning:** The system uses Proximal Policy Optimization (PPO) for stable and efficient reinforcement learning, providing robust performance across different market conditions.
 *   **Realistic Simulation:** The backtesting environment will accurately simulate Indian market conditions, including fixed brokerage costs (25 INR entry, 35 INR exit) and negligible slippage.
 
 ## 3. Architectural Components
@@ -56,16 +55,7 @@ This document outlines the architectural vision for the Reinforcement Learning (
 *   **Purpose:** The decision-making entities that learn optimal trading policies.
 *   **Components:**
     *   **`src/agents/base_agent.py`:** Defines a common interface for all RL agents, ensuring consistency.
-    *   **`src/agents/ppo_agent.py` (Baseline):** An initial, general-purpose RL agent (e.g., using PPO) to establish a performance benchmark. This agent will be trained on the full, diverse dataset.
-    *   **Specialized Agents (Future):**
-        *   `src/agents/trend_agent.py`
-        *   `src/agents/mean_reversion_agent.py`
-        *   `src/agents/volatility_agent.py`
-        *   `src/agents/consolidation_agent.py`
-        *   Each will be trained on specific market regimes and will output the same `BUY`/`SELL`/`HOLD`/`CLOSE` actions.
-    *   **Mixture of Experts (MoE) Agent (`src/agents/moe_agent.py`):**
-        *   **Gating Network:** A meta-learning component that dynamically assesses the current market regime and assigns weights to the specialized agents.
-        *   **Consensus System:** Combines the recommendations of the specialized agents based on the gating network's weights to produce the final `BUY`/`SELL`/`HOLD`/`CLOSE` action.
+    *   **`src/agents/ppo_agent.py`:** The main PPO-based RL agent that learns optimal trading strategies across all market conditions. This agent is trained on the full, diverse dataset and outputs `BUY`/`SELL`/`HOLD`/`CLOSE` actions.
 
 ### 3.5. Neural Network Models (`src/models/`)
 
@@ -78,7 +68,7 @@ This document outlines the architectural vision for the Reinforcement Learning (
 
 *   **Purpose:** Orchestrate the learning process and assess agent performance.
 *   **Components:**
-    *   **`src/training/trainer.py`:** Manages the RL training loops, interacting with the `TradingEnv`, updating agent policies, and logging progress. This will implement the MAML algorithm.
+    *   **`src/training/trainer.py`:** Manages the PPO training loops, interacting with the `TradingEnv`, updating agent policies, and logging progress.
     *   **`src/utils/metrics.py`:** Implements standard trading performance metrics for rigorous evaluation.
 
 ## 4. Interaction Flow (High-Level)

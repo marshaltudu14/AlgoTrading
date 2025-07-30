@@ -18,10 +18,8 @@ import logging
 from src.utils.data_loader import DataLoader
 from src.backtesting.environment import TradingEnv
 from src.agents.ppo_agent import PPOAgent
-from src.agents.moe_agent import MoEAgent
 from src.agents.base_agent import BaseAgent
 from src.training.trainer import Trainer
-from src.training.sequence_manager import TrainingSequenceManager
 from src.config.config import INITIAL_CAPITAL
 
 # Configure logging for tests
@@ -180,23 +178,7 @@ def sample_ppo_agent():
         k_epochs=3
     )
 
-@pytest.fixture
-def sample_moe_agent():
-    """Create a MoE agent for testing."""
-    expert_configs = {
-        'TrendAgent': {'lr': 0.001, 'hidden_dim': TEST_HIDDEN_DIM},
-        'MeanReversionAgent': {'lr': 0.001, 'hidden_dim': TEST_HIDDEN_DIM},
-        'VolatilityAgent': {'lr': 0.001, 'hidden_dim': TEST_HIDDEN_DIM},
-        'ConsolidationAgent': {'lr': 0.001, 'hidden_dim': TEST_HIDDEN_DIM}
-    }
-    
-    return MoEAgent(
-        observation_dim=TEST_OBSERVATION_DIM,
-        action_dim_discrete=TEST_ACTION_DIM_DISCRETE,
-        action_dim_continuous=TEST_ACTION_DIM_CONTINUOUS,
-        hidden_dim=TEST_HIDDEN_DIM,
-        expert_configs=expert_configs
-    )
+# MoE agent fixture removed - only using PPO for now
 
 @pytest.fixture
 def sample_experiences():

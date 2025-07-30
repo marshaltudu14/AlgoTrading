@@ -14,9 +14,7 @@ from unittest.mock import Mock, patch
 from src.utils.data_loader import DataLoader
 from src.backtesting.environment import TradingEnv
 from src.agents.ppo_agent import PPOAgent
-from src.agents.moe_agent import MoEAgent
 from src.training.trainer import Trainer
-from src.training.sequence_manager import TrainingSequenceManager
 from src.config.config import INITIAL_CAPITAL
 
 # Configure logging for integration tests
@@ -131,55 +129,7 @@ class TestAgentEnvironmentIntegration:
         # Should complete without errors
         assert len(experiences) == 10
     
-    def test_moe_agent_environment_integration(self, mock_data_loader):
-        """Test MoE agent integration with TradingEnv."""
-        # Create environment
-        env = TradingEnv(
-            data_loader=mock_data_loader,
-            symbol="Bank_Nifty",
-            initial_capital=INITIAL_CAPITAL,
-            lookback_window=10,
-            episode_length=50,
-            use_streaming=False
-        )
-        
-        # Get observation dimension
-        obs = env.reset()
-        observation_dim = len(obs)
-        
-        # Create MoE agent
-        expert_configs = {
-            'TrendAgent': {'lr': 0.001, 'hidden_dim': 32},
-            'MeanReversionAgent': {'lr': 0.001, 'hidden_dim': 32},
-            'VolatilityAgent': {'lr': 0.001, 'hidden_dim': 32}
-        }
-        
-        agent = MoEAgent(
-            observation_dim=observation_dim,
-            action_dim_discrete=5,
-            action_dim_continuous=1,
-            hidden_dim=32,
-            expert_configs=expert_configs
-        )
-        
-        # Test agent-environment interaction
-        experiences = []
-        for _ in range(10):
-            action_type, quantity = agent.select_action(obs)
-            action = (action_type, quantity)
-            
-            next_obs, reward, done, info = env.step(action)
-            experiences.append((obs, action, reward, next_obs, done))
-            
-            obs = next_obs
-            if done:
-                obs = env.reset()
-        
-        # Test agent learning
-        agent.learn(experiences)
-        
-        # Should complete without errors
-        assert len(experiences) == 10
+    # MoE agent tests removed - only using PPO for now
 
 class TestTrainingPipelineIntegration:
     """Test integration of training pipeline components."""
@@ -225,7 +175,7 @@ class TestTrainingPipelineIntegration:
             
             # Test stage configurations
             assert 'stage_1_ppo' in config['training_sequence']
-            assert 'stage_2_moe' in config['training_sequence']
+            # Only using PPO stage for now
             
         except Exception as e:
             logger.error(f"Sequence manager failed: {e}")
@@ -308,30 +258,7 @@ class TestEndToEndPipeline:
         
         logger.info(f"Training completed. Total reward: {total_reward:.2f}")
         
-        # Step 5: MoE Agent Testing
-        logger.info("Testing MoE agent creation...")
-        expert_configs = {
-            'TrendAgent': {'lr': 0.001, 'hidden_dim': 32},
-            'MeanReversionAgent': {'lr': 0.001, 'hidden_dim': 32}
-        }
-        
-        moe_agent = MoEAgent(
-            observation_dim=observation_dim,
-            action_dim_discrete=5,
-            action_dim_continuous=1,
-            hidden_dim=32,
-            expert_configs=expert_configs
-        )
-        logger.info("MoE agent created successfully")
-        
-        # Test MoE agent action selection
-        obs = env.reset()
-        action_type, quantity = moe_agent.select_action(obs)
-        assert 0 <= action_type < 5
-        assert quantity > 0
-        logger.info("MoE agent action selection successful")
-        
-        # Step 6: Model Persistence
+        # Step 5: Model Persistence (MoE agent testing removed - only using PPO)
         logger.info("Testing model persistence...")
         with tempfile.TemporaryDirectory() as temp_dir:
             model_path = os.path.join(temp_dir, "test_model.pth")

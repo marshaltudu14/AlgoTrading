@@ -22,6 +22,8 @@ from src.utils.data_loader import DataLoader
 from src.data_processing.feature_generator import DynamicFileProcessor
 from src.utils.instrument_loader import load_instruments
 from src.utils.metrics import calculate_comprehensive_metrics
+from src.utils.realtime_data_loader import RealtimeDataLoader
+from src.utils.config_loader import BacktestingConfigLoader
 import src.config as config
 
 # Configure logging
@@ -36,15 +38,62 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class BacktestRunner:
-    """Backtesting system for trained PPO models."""
+    """Backtesting system for trained PPO models with real-time data support."""
 
-    def __init__(self, model_dir: str, processed_data_dir: str = "data/processed", raw_data_dir: str = "data/raw"):
+    def __init__(self, model_dir: str, processed_data_dir: str = "data/processed", raw_data_dir: str = "data/raw", use_realtime: bool = False):
         self.model_dir = model_dir
         self.processed_data_dir = processed_data_dir
         self.raw_data_dir = raw_data_dir
+        self.use_realtime = use_realtime
         self.data_processor = DynamicFileProcessor()
         self.instruments = load_instruments('config/instruments.yaml')
+
+        # Initialize configuration and real-time data loader
+        self.config_loader = BacktestingConfigLoader()
+        self.realtime_loader = RealtimeDataLoader() if use_realtime else None
+
         os.makedirs(self.processed_data_dir, exist_ok=True)
+
+    def load_realtime_data(self, symbol: str = None) -> Optional[pd.DataFrame]:
+        """
+        Load real-time data from Fyers API for backtesting.
+
+        Args:
+            symbol (str): Symbol to fetch data for (uses config default if None)
+
+        Returns:
+            pd.DataFrame: Processed data ready for backtesting
+        """
+        if not self.use_realtime or not self.realtime_loader:
+            logger.error("Real-time data loading not enabled")
+            return None
+
+        try:
+            # Get backtesting parameters from config
+            params = self.config_loader.get_backtesting_params(symbol=symbol)
+
+            logger.info(f"🔄 Loading real-time data for backtesting...")
+            logger.info(f"   Symbol: {params['symbol']} -> {params['fyers_symbol']}")
+            logger.info(f"   Timeframe: {params['timeframe']} minutes")
+            logger.info(f"   Days: {params['days']}")
+
+            # Fetch and process real-time data
+            data = self.realtime_loader.fetch_and_process_data(
+                symbol=params['symbol'],
+                timeframe=params['timeframe'],
+                days=params['days']
+            )
+
+            if data is None or data.empty:
+                logger.error("Failed to load real-time data")
+                return None
+
+            logger.info(f"✅ Real-time data loaded: {len(data)} data points, {data.shape[1]} features")
+            return data
+
+        except Exception as e:
+            logger.error(f"Error loading real-time data: {e}", exc_info=True)
+            return None
 
     def discover_raw_data_files(self) -> List[str]:
         """Discover all raw data files in the raw data directory."""
@@ -92,9 +141,10 @@ class BacktestRunner:
 
     def load_trained_model(self, symbol: str, env: TradingEnv) -> Optional[PPOAgent]:
         """Load the trained PPO model for backtesting."""
-        model_path = os.path.join(self.model_dir, f"{symbol}_ppo_model.pth")
+        # Use universal model instead of symbol-specific models
+        model_path = os.path.join(self.model_dir, "universal_final_model.pth")
         if not os.path.exists(model_path):
-            logger.error(f"Model not found for {symbol} at {model_path}")
+            logger.error(f"Universal model not found at {model_path}")
             return None
 
         try:
@@ -122,21 +172,61 @@ class BacktestRunner:
             logger.error(f"Error loading model for {symbol}: {e}", exc_info=True)
             return None
 
-    def run_backtest(self, symbol: str, initial_capital: float = 100000.0) -> Optional[Dict]:
-        """Run backtest for a single symbol."""
+    def run_backtest(self, symbol: str, data_file: str = None, initial_capital: float = 100000.0, realtime_data: pd.DataFrame = None) -> Optional[Dict]:
+        """
+        Run backtest for a single symbol using either static data file or real-time data.
+
+        Args:
+            symbol (str): Symbol to backtest
+            data_file (str): Path to static data file (optional if using real-time data)
+            initial_capital (float): Initial capital for backtesting
+            realtime_data (pd.DataFrame): Real-time data to use instead of file (optional)
+
+        Returns:
+            dict: Backtest results or None if failed
+        """
         try:
-            logger.info(f"Starting backtest for {symbol}")
-            
-            data_loader = DataLoader(self.processed_data_dir)
-            
-            env = TradingEnv(
-                data_loader=data_loader,
-                symbol=symbol,
-                initial_capital=initial_capital,
-                lookback_window=20,
-                episode_length=None,  # Use full dataset
-                use_streaming=False
-            )
+            if realtime_data is not None:
+                logger.info(f"🔄 Starting real-time backtest for {symbol}")
+                logger.info(f"   Data points: {len(realtime_data)}")
+                logger.info(f"   Features: {realtime_data.shape[1]}")
+                data_source = "real-time Fyers API"
+            else:
+                logger.info(f"📁 Starting backtest for {symbol} using data from {data_file}")
+                data_source = data_file
+
+            # Load data and create environment
+            if realtime_data is not None:
+                # Use real-time data directly
+                # Create a temporary data loader with the real-time data
+                from src.utils.data_loader import DataLoader
+                data_loader = DataLoader()
+                data_loader._data_cache = {symbol: realtime_data}  # Cache the real-time data
+
+                # Get configuration parameters
+                params = self.config_loader.get_backtesting_params(symbol=symbol)
+
+                env = TradingEnv(
+                    data_loader=data_loader,
+                    symbol=symbol,
+                    initial_capital=params.get('initial_capital', initial_capital),
+                    lookback_window=params.get('lookback_window', 20),
+                    episode_length=params.get('episode_length', 1000),
+                    use_streaming=params.get('use_streaming', False)
+                )
+            else:
+                # Use static data file (original behavior)
+                data_dir = os.path.dirname(data_file)
+                data_loader = DataLoader(data_dir)
+
+                env = TradingEnv(
+                    data_loader=data_loader,
+                    symbol=symbol,
+                    initial_capital=initial_capital,
+                    lookback_window=20,
+                    episode_length=1000,  # Set a reasonable episode length for backtesting
+                    use_streaming=False
+                )
             
             agent = self.load_trained_model(symbol, env)
             if agent is None:
@@ -188,6 +278,56 @@ class BacktestRunner:
             logger.error(f"Error running backtest for {symbol}: {e}", exc_info=True)
             return None
 
+    def run_realtime_backtest(self, symbol: str = None) -> Optional[Dict]:
+        """
+        Run backtest using real-time data from Fyers API.
+
+        Args:
+            symbol (str): Symbol to backtest (uses config default if None)
+
+        Returns:
+            dict: Backtest results or None if failed
+        """
+        if not self.use_realtime:
+            logger.error("Real-time backtesting not enabled. Initialize with use_realtime=True")
+            return None
+
+        try:
+            # Load real-time data
+            realtime_data = self.load_realtime_data(symbol=symbol)
+            if realtime_data is None:
+                logger.error("Failed to load real-time data")
+                return None
+
+            # Get symbol from config if not provided
+            if symbol is None:
+                params = self.config_loader.get_backtesting_params()
+                symbol = params['symbol']
+
+            # Get initial capital from config
+            params = self.config_loader.get_backtesting_params(symbol=symbol)
+            initial_capital = params.get('initial_capital', 100000.0)
+
+            # Run backtest with real-time data
+            results = self.run_backtest(
+                symbol=symbol,
+                data_file=None,  # No file needed
+                initial_capital=initial_capital,
+                realtime_data=realtime_data
+            )
+
+            if results:
+                results['data_source'] = 'real-time'
+                results['fyers_symbol'] = params.get('fyers_symbol', symbol)
+                results['timeframe'] = params.get('timeframe', '5')
+                results['days'] = params.get('days', 30)
+
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in real-time backtest: {e}", exc_info=True)
+            return None
+
     def generate_report(self, results: List[Dict], output_file: str = None):
         """Generate a comprehensive backtest report."""
         if not results:
@@ -236,15 +376,42 @@ def main():
     parser.add_argument("--initial-capital", type=float, default=100000.0, help="Initial capital for backtesting.")
     parser.add_argument("--process-data", action="store_true", help="Process raw data before backtesting.")
     parser.add_argument("--report-file", help="Save backtest report to a file.")
-    
+    parser.add_argument("--realtime", action="store_true", help="Use real-time data from Fyers API instead of static files.")
+    parser.add_argument("--symbol", help="Single symbol for real-time backtesting (e.g., 'banknifty').")
+    parser.add_argument("--timeframe", default="5", help="Timeframe in minutes for real-time data (default: 5).")
+    parser.add_argument("--days", type=int, default=30, help="Number of days for real-time data (default: 30).")
+
     args = parser.parse_args()
 
     runner = BacktestRunner(
         model_dir=args.model_dir,
         processed_data_dir=args.processed_data_dir,
-        raw_data_dir=args.raw_data_dir
+        raw_data_dir=args.raw_data_dir,
+        use_realtime=args.realtime
     )
 
+    # Handle real-time backtesting
+    if args.realtime:
+        logger.info("🔄 Starting real-time backtesting with Fyers API data")
+
+        if args.symbol:
+            # Single symbol real-time backtest
+            logger.info(f"Running real-time backtest for {args.symbol}")
+            result = runner.run_realtime_backtest(symbol=args.symbol)
+            results = [result] if result else []
+        else:
+            # Use default symbol from config
+            logger.info("Running real-time backtest for default symbol")
+            result = runner.run_realtime_backtest()
+            results = [result] if result else []
+
+        if results:
+            runner.generate_report(results, args.report_file)
+        else:
+            logger.error("Real-time backtesting failed")
+        return
+
+    # Handle static data backtesting (original behavior)
     if args.process_data:
         logger.info("Processing raw data files...")
         raw_files = runner.discover_raw_data_files()
@@ -253,24 +420,31 @@ def main():
 
     symbols_to_backtest = args.symbols
     if not symbols_to_backtest:
-        # Discover from models if not specified
-        model_files = glob.glob(os.path.join(args.model_dir, "*_ppo_model.pth"))
-        symbols_to_backtest = [os.path.basename(f).replace("_ppo_model.pth", "") for f in model_files]
+        # Discover from final data files if not specified (since we use universal model)
+        data_files = glob.glob(os.path.join("data/final", "features_*.csv"))
+        symbols_to_backtest = [os.path.basename(f).replace("features_", "").replace(".csv", "") for f in data_files]
 
     if not symbols_to_backtest:
         logger.error("No symbols found to backtest. Please train a model first or specify symbols.")
         return
 
-    logger.info(f"Running backtests for: {', '.join(symbols_to_backtest)}")
-    
+    logger.info(f"📁 Running static data backtests for: {', '.join(symbols_to_backtest)}")
+
     results = []
     for symbol in symbols_to_backtest:
+        # Look for data in final directory first, then processed
+        final_file = os.path.join("data/final", f"features_{symbol}.csv")
         processed_file = os.path.join(args.processed_data_dir, f"{symbol}.csv")
-        if not os.path.exists(processed_file):
-            logger.warning(f"Processed data not found for {symbol}, skipping backtest.")
+
+        if os.path.exists(final_file):
+            data_file = final_file
+        elif os.path.exists(processed_file):
+            data_file = processed_file
+        else:
+            logger.warning(f"Data not found for {symbol}, skipping backtest.")
             continue
-        
-        result = runner.run_backtest(symbol, args.initial_capital)
+
+        result = runner.run_backtest(symbol, data_file, args.initial_capital)
         if result:
             results.append(result)
 

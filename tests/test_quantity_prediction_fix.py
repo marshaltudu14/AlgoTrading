@@ -12,7 +12,6 @@ import pandas as pd
 
 from src.models.transformer_models import ActorTransformerModel
 from src.agents.ppo_agent import PPOAgent
-from src.agents.moe_agent import MoEAgent
 from src.backtesting.environment import TradingEnv
 from src.backtesting.engine import BacktestingEngine
 from src.utils.data_loader import DataLoader
@@ -73,29 +72,7 @@ class TestQuantityPredictionFix:
             assert isinstance(quantity, (int, float))
             assert quantity in [1.0, 2.0, 3.0, 4.0, 5.0], f"Expected integer quantity, got {quantity}"
     
-    def test_moe_agent_integer_quantity_preservation(self):
-        """Test that MoEAgent preserves integer quantities."""
-        expert_configs = {
-            'TrendAgent': {'lr': 0.001, 'hidden_dim': 32},
-            'MeanReversionAgent': {'lr': 0.001, 'hidden_dim': 32}
-        }
-        
-        agent = MoEAgent(
-            observation_dim=20,
-            action_dim_discrete=5,
-            action_dim_continuous=1,
-            hidden_dim=32,
-            expert_configs=expert_configs
-        )
-        
-        # Test multiple action selections
-        for _ in range(10):
-            obs = np.random.rand(20).astype(np.float32)
-            action_type, quantity = agent.select_action(obs)
-            
-            # Quantity should be an integer (1, 2, 3, 4, or 5)
-            assert isinstance(quantity, (int, float))
-            assert quantity in [1.0, 2.0, 3.0, 4.0, 5.0], f"Expected integer quantity, got {quantity}"
+    # MoE agent test removed - only using PPO for now
 
 class TestCapitalBasedQuantityAdjustment:
     """Test capital-based quantity adjustment."""

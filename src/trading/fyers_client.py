@@ -12,31 +12,74 @@ class FyersClient:
     def __init__(self, config=None):
         self.fyers = fyers_auth.fyers
 
-    def get_historical_data(self, symbol, timeframe, from_date=None, to_date=None):
+        # No hardcoded symbols - let the caller specify exact Fyers symbol
+
+    def get_historical_data(self, symbol, timeframe, days=30, from_date=None, to_date=None):
+        """
+        Fetch historical data from Fyers API with configurable parameters.
+
+        Args:
+            symbol (str): Trading symbol (e.g., "NSE:BANKNIFTY23DEC46500CE")
+            timeframe (str): Timeframe for candles ("1", "5", "15", "30", "60", "D")
+            days (int): Number of days to fetch (default: 30)
+            from_date (str): Start date in YYYY-MM-DD format (overrides days)
+            to_date (str): End date in YYYY-MM-DD format (overrides days)
+
+        Returns:
+            pd.DataFrame: Historical data with OHLCV columns
+        """
         from datetime import datetime, timedelta
+        import logging
 
-        # Use provided dates or default to 15 days
-        if from_date is None or to_date is None:
-            today = datetime.now()
-            fifteen_days_ago = today - timedelta(days=15)
-            from_date = fifteen_days_ago.strftime("%Y-%m-%d")
-            to_date = today.strftime("%Y-%m-%d")
+        logger = logging.getLogger(__name__)
 
-        data = {
-            "symbol": symbol,
-            "resolution": timeframe,
-            "date_format": "1",
-            "range_from": from_date,
-            "range_to": to_date,
-            "cont_flag": "1"
-        }
-        response = self.fyers.history(data=data)
-        if response and response.get('s') == 'ok' and 'candles' in response:
+        try:
+            # Use provided dates or calculate from days parameter
+            if from_date is None or to_date is None:
+                today = datetime.now()
+                start_date = today - timedelta(days=days)
+                from_date = start_date.strftime("%Y-%m-%d")
+                to_date = today.strftime("%Y-%m-%d")
+
+            logger.info(f"Fetching {days} days of {timeframe}-minute data for {symbol}")
+            logger.info(f"Date range: {from_date} to {to_date}")
+
+            data = {
+                "symbol": symbol,
+                "resolution": timeframe,
+                "date_format": "1",
+                "range_from": from_date,
+                "range_to": to_date,
+                "cont_flag": "1"
+            }
+
+            response = self.fyers.history(data=data)
+
+            if not response:
+                logger.error(f"No response received from Fyers API for {symbol}")
+                return pd.DataFrame()
+
+            if response.get('s') != 'ok':
+                logger.error(f"Fyers API error for {symbol}: {response.get('message', 'Unknown error')}")
+                return pd.DataFrame()
+
+            if 'candles' not in response or not response['candles']:
+                logger.warning(f"No candle data received for {symbol}")
+                return pd.DataFrame()
+
+            # Create DataFrame with proper column names
             df = pd.DataFrame(response['candles'], columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
             df['datetime'] = pd.to_datetime(df['datetime'], unit='s')
             df.set_index('datetime', inplace=True)
+
+            logger.info(f"Successfully fetched {len(df)} candles for {symbol}")
             return df
-        return pd.DataFrame()
+
+        except Exception as e:
+            logger.error(f"Error fetching historical data for {symbol}: {e}")
+            return pd.DataFrame()
+
+    # Removed unnecessary helper methods - caller should provide exact Fyers symbol
 
     def place_order(self, symbol, side, qty):
         data = {
