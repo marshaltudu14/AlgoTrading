@@ -1,27 +1,22 @@
 instruments:
-  # Index Options (lot_size = actual lot size for indices)
+  # Generic data instruments (no type distinctions - all treated as data)
   - symbol: "Bank_Nifty"
-    type: "OPTION"
-    lot_size: 25 # Bank Nifty options lot size (25, 50, 75, 100... = lots × 25)
+    lot_size: 25 # Bank Nifty lot size
     tick_size: 0.05
 
   - symbol: "Nifty"
-    type: "OPTION"
-    lot_size: 50 # Nifty options lot size (50, 100, 150, 200... = lots × 50)
+    lot_size: 50 # Nifty lot size
     tick_size: 0.05
 
-  # Stock Instruments for testing
+  # Additional data instruments for testing
   - symbol: "RELIANCE"
-    type: "STOCK"
-    lot_size: 1 # Stock lot size is typically 1 share
+    lot_size: 1 # RELIANCE lot size
     tick_size: 0.05
 
   - symbol: "TCS"
-    type: "STOCK"
-    lot_size: 1 # Stock lot size is typically 1 share
+    lot_size: 1 # TCS lot size
     tick_size: 0.05
 
   - symbol: "HDFC"
-    type: "STOCK"
-    lot_size: 1 # Stock lot size is typically 1 share
+    lot_size: 1 # HDFC lot size
     tick_size: 0.05

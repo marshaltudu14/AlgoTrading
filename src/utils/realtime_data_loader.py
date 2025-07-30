@@ -179,20 +179,18 @@ class RealtimeDataLoader:
     
     def _get_instrument_config(self, symbol: str) -> Dict[str, Any]:
         """Get instrument configuration for the symbol."""
-        # Map common symbols to instrument types
+        # Map common symbols to generic data configurations
         symbol_lower = symbol.lower()
-        
+
         if 'banknifty' in symbol_lower or 'nifty' in symbol_lower:
             return {
                 'symbol': symbol,
-                'type': 'OPTION',  # Treat indices as options for backtesting
                 'lot_size': 25,    # Bank Nifty lot size
                 'tick_size': 0.05
             }
         else:
             return {
                 'symbol': symbol,
-                'type': 'STOCK',
                 'lot_size': 1,
                 'tick_size': 0.05
             }

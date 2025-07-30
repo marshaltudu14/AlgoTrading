@@ -92,23 +92,19 @@ class CapitalAwareQuantitySelector:
     ) -> float:
         """
         Calculate the total cost of a trade.
-        
+
         Args:
             quantity: Number of lots to trade
             current_price: Current market price
             instrument: Instrument specification
-            proxy_premium: Premium for options (if applicable)
-            
+            proxy_premium: Not used (kept for compatibility)
+
         Returns:
             Total cost including brokerage
         """
-        if instrument.type == "OPTION":
-            if proxy_premium is None:
-                proxy_premium = current_price * 0.015
-            cost = (proxy_premium * quantity * instrument.lot_size) + self.brokerage_entry
-        else:
-            cost = (current_price * quantity * instrument.lot_size) + self.brokerage_entry
-        
+        # Simple cost calculation for all data types
+        cost = (current_price * quantity * instrument.lot_size) + self.brokerage_entry
+
         return cost
     
     def get_affordable_quantities(

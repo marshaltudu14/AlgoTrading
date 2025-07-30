@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test instrument type handling for stocks vs options.
+Test instrument handling for generic data.
 """
 
 import numpy as np
@@ -93,24 +93,23 @@ def test_stock_instrument():
         obs = env.reset()
         if obs is not None:
             # Verify instrument is loaded correctly
-            assert env.instrument.type == "STOCK"
             assert env.instrument.lot_size == 1
-            
+
             # Test a few trading actions
             for step in range(5):
                 # BUY action with quantity 2
                 action = (0, 2.0)  # BUY_LONG, 2 lots
                 obs, reward, done, info = env.step(action)
-                
+
                 print(f"   Step {step}: Action=BUY_LONG, Quantity=2, Reward={reward:.4f}")
-                
+
                 if done:
                     break
-            
-            print("✅ STOCK instrument handling working correctly")
+
+            print("✅ RELIANCE instrument handling working correctly")
             return True
         else:
-            print("⚠️ Could not reset environment for STOCK")
+            print("⚠️ Could not reset environment for RELIANCE")
             return False
 
 def test_option_instrument():
@@ -156,24 +155,23 @@ def test_option_instrument():
         obs = env.reset()
         if obs is not None:
             # Verify instrument is loaded correctly
-            assert env.instrument.type == "OPTION"
             assert env.instrument.lot_size == 25
-            
+
             # Test a few trading actions
             for step in range(5):
                 # BUY action with quantity 1
                 action = (0, 1.0)  # BUY_LONG, 1 lot
                 obs, reward, done, info = env.step(action)
-                
+
                 print(f"   Step {step}: Action=BUY_LONG, Quantity=1, Reward={reward:.4f}")
-                
+
                 if done:
                     break
-            
-            print("✅ OPTION instrument handling working correctly")
+
+            print("✅ Bank_Nifty instrument handling working correctly")
             return True
         else:
-            print("⚠️ Could not reset environment for OPTION")
+            print("⚠️ Could not reset environment for Bank_Nifty")
             return False
 
 def test_premium_calculation():

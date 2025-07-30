@@ -86,5 +86,5 @@ testing_overrides:
   # Testing data configuration
   test_data:
     num_rows: 500  # Sufficient data for technical indicators + NaN removal
-    symbols: ["RELIANCE_1", "Bank_Nifty_5"]  # Test with both STOCK and OPTION (with timeframes)
+    symbols: ["RELIANCE_1", "Bank_Nifty_5"]  # Test with different data sources (with timeframes)
     save_models: false  # Don't save models in testing mode

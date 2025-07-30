@@ -355,22 +355,13 @@ class BacktestingEngine:
         return realized_pnl_this_trade, self._unrealized_pnl
 
     def _update_unrealized_pnl(self, current_price: float):
-        if self.instrument.type == "OPTION":
-            # For option trading simulation: calculate unrealized P&L as underlying movement
-            # The premium cost is already accounted for in capital, so this is just mark-to-market
-            if self._current_position_quantity > 0:  # Long position
-                self._unrealized_pnl = (current_price - self._current_position_entry_price) * self._current_position_quantity * self.instrument.lot_size
-            elif self._current_position_quantity < 0:  # Short position
-                self._unrealized_pnl = (self._current_position_entry_price - current_price) * abs(self._current_position_quantity) * self.instrument.lot_size
-            else:
-                self._unrealized_pnl = 0.0
+        # Generic P&L calculation for all data types
+        if self._current_position_quantity > 0:  # Long position
+            self._unrealized_pnl = (current_price - self._current_position_entry_price) * self._current_position_quantity * self.instrument.lot_size
+        elif self._current_position_quantity < 0:  # Short position
+            self._unrealized_pnl = (self._current_position_entry_price - current_price) * abs(self._current_position_quantity) * self.instrument.lot_size
         else:
-            if self._current_position_quantity > 0:  # Long position
-                self._unrealized_pnl = (current_price - self._current_position_entry_price) * self._current_position_quantity * self.instrument.lot_size
-            elif self._current_position_quantity < 0:  # Short position
-                self._unrealized_pnl = (self._current_position_entry_price - current_price) * abs(self._current_position_quantity) * self.instrument.lot_size
-            else:
-                self._unrealized_pnl = 0.0
+            self._unrealized_pnl = 0.0
 
     def get_account_state(self, current_price: float = None) -> Dict[str, float]:
         if current_price is not None:
@@ -386,7 +377,7 @@ class BacktestingEngine:
             "is_position_open": self._is_position_open,
             # Enhanced P&L tracking
             "total_realized_pnl": self._total_realized_pnl,
-            "total_pnl_from_initial": self._total_realized_pnl if self.instrument.type == "OPTION" else self._capital - self._initial_capital,
+            "total_pnl_from_initial": self._capital - self._initial_capital,
             "trade_count": self._trade_count,
             "initial_capital": self._initial_capital
         }

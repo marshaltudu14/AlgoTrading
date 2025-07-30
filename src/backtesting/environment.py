@@ -85,12 +85,11 @@ class TradingEnv(gym.Env):
                 raise ValueError(f"Instrument {self.base_symbol} not found in instruments.yaml (original symbol: {self.symbol})")
             self.instrument = self.instruments[self.base_symbol]
         else:
-            # For BACKTESTING/LIVE modes, use INDEX instrument (no options/margin complexity)
-            # Create a simple index instrument for point-based trading
-            self.base_symbol = "INDEX"
+            # For BACKTESTING/LIVE modes, use generic data instrument
+            # Create a simple generic instrument for point-based trading
+            self.base_symbol = "GENERIC_DATA"
             self.instrument = Instrument(
-                symbol="INDEX",
-                type="INDEX",
+                symbol="GENERIC_DATA",
                 lot_size=1,  # 1 point = 1 unit
                 tick_size=0.01
             )

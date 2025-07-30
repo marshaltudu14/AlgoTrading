@@ -82,7 +82,6 @@ class BacktestingConfigLoader:
         # Return default configuration if symbol not found
         return {
             'fyers_symbol': symbol,
-            'instrument_type': 'STOCK',
             'lot_size': 1,
             'tick_size': 0.05,
             'timeframe': '5',
@@ -146,7 +145,6 @@ class BacktestingConfigLoader:
             'detailed_logging': environment.get('detailed_logging', False),
             
             # Trading parameters
-            'instrument_type': symbol_config.get('instrument_type', 'STOCK'),
             'lot_size': symbol_config.get('lot_size', 1),
             'tick_size': symbol_config.get('tick_size', 0.05),
             
@@ -203,7 +201,6 @@ class BacktestingConfigLoader:
             'symbols': {
                 'banknifty': {
                     'fyers_symbol': 'NSE:BANKNIFTY-INDEX',
-                    'instrument_type': 'OPTION',
                     'lot_size': 25,
                     'tick_size': 0.05,
                     'timeframe': '5',

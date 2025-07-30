@@ -10,10 +10,9 @@ def load_instruments(file_path: str) -> dict[str, Instrument]:
         data = yaml.safe_load(f)
         for item in data.get('instruments', []):
             symbol = item['symbol']
-            instrument_type = item['type']
             lot_size = item['lot_size']
             tick_size = item['tick_size']
-            instruments[symbol] = Instrument(symbol, instrument_type, lot_size, tick_size)
+            instruments[symbol] = Instrument(symbol, lot_size, tick_size)
     return instruments
 
 if __name__ == '__main__':
