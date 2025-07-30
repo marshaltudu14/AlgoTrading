@@ -104,16 +104,6 @@ RISK_REWARD_CONFIG = {
     'max_risk_per_trade': 0.02,  # Maximum 2% risk per trade
 }
 
-# Model Configuration
-MODEL_CONFIG = {
-    'lookback_window': 20,     # Number of previous rows for model prediction
-    'hidden_dim': 64,          # Hidden layer dimension for PPO agent
-    'action_dim_discrete': 5,  # Number of discrete actions (BUY_LONG, SELL_SHORT, CLOSE_LONG, CLOSE_SHORT, HOLD)
-    'action_dim_continuous': 1, # Continuous action dimension (quantity)
-}
-
-
-
 def get_config():
     """
     Get the complete configuration dictionary.

@@ -16,7 +16,6 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from src.agents.ppo_agent import PPOAgent
 from src.backtesting.environment import TradingEnv
 from src.utils.data_loader import DataLoader
-from src.config.config import INITIAL_CAPITAL, MODEL_CONFIG
 from src.training.trainer import Trainer
 from src.utils.test_data_generator import create_test_data_files
 
@@ -71,12 +70,21 @@ def run_ppo_training(
     symbol: str,
     num_episodes: int,
     data_dir: str,
-    testing_mode: bool = False
+    testing_mode: bool = False,
+    config: dict = None
 ):
     """
     Run single-threaded PPO training for a symbol.
     """
     logger.info(f"Starting PPO training for symbol: {symbol}")
+
+    # Load configuration if not provided
+    if config is None:
+        config = load_training_config()
+
+    # Get configuration sections
+    env_config = config.get('environment', {})
+    model_config = config.get('model', {})
 
     # Use appropriate data directory for testing vs production
     final_data_dir = "data/test/final" if testing_mode else data_dir
@@ -85,11 +93,12 @@ def run_ppo_training(
     env = TradingEnv(
         data_loader=data_loader,
         symbol=symbol,
-        initial_capital=INITIAL_CAPITAL,
-        lookback_window=MODEL_CONFIG['lookback_window'],
-        episode_length=500,
-        reward_function="trading_focused",
-        use_streaming=False
+        initial_capital=env_config.get('initial_capital', 100000.0),
+        lookback_window=env_config.get('lookback_window', 50),
+        episode_length=env_config.get('episode_length', 500),
+        reward_function=env_config.get('reward_function', "trading_focused"),
+        use_streaming=env_config.get('use_streaming', False),
+        trailing_stop_percentage=env_config.get('trailing_stop_percentage', 0.02)
     )
 
     obs = env.reset()
@@ -103,7 +112,7 @@ def run_ppo_training(
         observation_dim=observation_dim,
         action_dim_discrete=action_dim_discrete,
         action_dim_continuous=action_dim_continuous,
-        hidden_dim=MODEL_CONFIG['hidden_dim'],
+        hidden_dim=model_config.get('hidden_dim', 64),
         lr_actor=0.001,
         lr_critic=0.001,
         gamma=0.99,
@@ -113,7 +122,7 @@ def run_ppo_training(
 
     trainer = Trainer(agent, num_episodes=num_episodes, log_interval=10)
     logger.info(f"Training PPO agent for {num_episodes} episodes...")
-    trainer.train(data_loader, symbol, INITIAL_CAPITAL)
+    trainer.train(data_loader, symbol, env_config.get('initial_capital', 100000.0))
 
     # Only save model in production mode (not testing)
     if not testing_mode:
@@ -196,7 +205,7 @@ def main():
 
     for symbol in symbols:
         try:
-            run_ppo_training(symbol, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing)
+            run_ppo_training(symbol, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing, config=config)
         except Exception as e:
             logger.error(f"Failed to train {symbol}: {e}", exc_info=True)
             continue

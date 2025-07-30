@@ -27,7 +27,7 @@ class TradingEnv(gym.Env):
                  lookback_window: int = 50, trailing_stop_percentage: float = None,
                  reward_function: str = "pnl", episode_length: int = 1000,
                  use_streaming: bool = True, mode: TradingMode = TradingMode.TRAINING,
-                 external_data: pd.DataFrame = None):
+                 external_data: pd.DataFrame = None, smart_action_filtering: bool = False):
         super(TradingEnv, self).__init__()
 
         # Mode and data handling
@@ -50,6 +50,7 @@ class TradingEnv(gym.Env):
         self.reward_function = reward_function
         self.episode_length = episode_length
         self.use_streaming = use_streaming and (mode == TradingMode.TRAINING)  # Only use streaming for training
+        self.smart_action_filtering = smart_action_filtering  # Prevent redundant position attempts
 
         # For streaming mode
         self.total_data_length = 0
@@ -132,6 +133,9 @@ class TradingEnv(gym.Env):
         self.observation_space = None  # Will be set after data loading
         self.fixed_feature_columns = None  # Fixed feature columns to ensure consistency
 
+        # Reward normalization parameters for different instrument types
+        self.reward_normalization_factor = self._calculate_reward_normalization_factor(symbol)
+
     def reset(self, performance_metrics: Optional[Dict] = None) -> np.ndarray:
         """Reset environment and load data segment for new episode with intelligent data feeding."""
 
@@ -170,11 +174,16 @@ class TradingEnv(gym.Env):
 
         # Set observation space dimensions based on actual data
         if self.observation_space is None:
-            feature_columns = [col for col in self.data.columns if col.lower() not in ['datetime', 'date', 'time', 'timestamp']]
+            # CRITICAL: Exclude raw OHLC prices for universal model - only use derived features
+            # NOTE: datetime_epoch is INCLUDED as a feature for temporal learning
+            excluded_columns = ['datetime', 'date', 'time', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
+            feature_columns = [col for col in self.data.columns if col.lower() not in [x.lower() for x in excluded_columns]]
             self.features_per_step = len(feature_columns)
             self.observation_dim = (self.lookback_window * self.features_per_step) + self.account_state_features + self.trailing_features
             self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.observation_dim,), dtype=np.float32)
-            logger.info(f"Observation space set: {self.features_per_step} features per step, total dim: {self.observation_dim}")
+            logger.info(f"🔧 Universal Model: Excluded raw OHLC prices, using {len(feature_columns)} derived features")
+            logger.info(f"📊 Observation space set: {self.features_per_step} features per step, total dim: {self.observation_dim}")
+            logger.info(f"🎯 Feature columns: {feature_columns[:10]}...")  # Show first 10 features
 
         self.engine.reset()
 
@@ -251,9 +260,10 @@ class TradingEnv(gym.Env):
             self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
             self.use_streaming = False
         else:
-            # Reset data index for consistent access
-            self.data = self.data.reset_index(drop=True)
+            # PRESERVE datetime index - do NOT reset it!
+            # The datetime index contains readable timestamps for logging
             logging.info(f"Loaded data segment for {self.symbol}: rows {self.current_episode_start}-{self.current_episode_end}")
+            logging.info(f"✅ Preserved datetime index with {len(self.data)} rows")
 
     def get_episode_info(self) -> Dict:
         """Get information about the current episode data segment."""
@@ -348,6 +358,13 @@ class TradingEnv(gym.Env):
         account_state = self.engine.get_account_state()
         current_position = account_state['current_position_quantity']
 
+        # Smart action filtering to prevent redundant position attempts
+        if self.smart_action_filtering:
+            if action_type == 0 and current_position != 0:  # BUY_LONG when already have position
+                action_type = 4  # Convert to HOLD
+            elif action_type == 1 and current_position != 0:  # SELL_SHORT when already have position
+                action_type = 4  # Convert to HOLD
+
         if action_type == 0: # BUY_LONG
             self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)
         elif action_type == 1: # SELL_SHORT
@@ -398,7 +415,8 @@ class TradingEnv(gym.Env):
 
         base_reward = self._calculate_reward(current_capital, prev_capital)
         shaped_reward = self._apply_reward_shaping(base_reward, action_type, current_capital, prev_capital)
-        reward = shaped_reward
+        # Apply normalization for universal model training across different instruments
+        reward = self._normalize_reward(shaped_reward)
 
         # DEBUG: Log reward calculation (only if detailed logging enabled)
         if detailed_logging and (self.current_step % 20 == 0 or abs(reward) > 0.1):
@@ -445,7 +463,10 @@ class TradingEnv(gym.Env):
     def _calculate_reward(self, current_capital: float, prev_capital: float) -> float:
         """Calculate reward based on selected reward function."""
         if self.reward_function == "pnl":
-            return current_capital - prev_capital
+            # Include unrealized P&L in reward calculation
+            account_state = self.engine.get_account_state()
+            total_pnl_change = (current_capital + account_state['unrealized_pnl']) - prev_capital
+            return total_pnl_change
         elif self.reward_function == "sharpe":
             return self._calculate_sharpe_ratio()
         elif self.reward_function == "sortino":
@@ -454,8 +475,13 @@ class TradingEnv(gym.Env):
             return self._calculate_profit_factor()
         elif self.reward_function == "trading_focused":
             return self._calculate_trading_focused_reward(current_capital, prev_capital)
+        elif self.reward_function == "enhanced_trading_focused":
+            return self._calculate_enhanced_trading_focused_reward(current_capital, prev_capital)
         else:
-            return current_capital - prev_capital  # Default to P&L
+            # Default to P&L including unrealized gains/losses
+            account_state = self.engine.get_account_state()
+            total_pnl_change = (current_capital + account_state['unrealized_pnl']) - prev_capital
+            return total_pnl_change
 
     def _calculate_sharpe_ratio(self) -> float:
         """Calculate Sharpe ratio based on recent returns."""
@@ -507,7 +533,9 @@ class TradingEnv(gym.Env):
 
     def _calculate_trading_focused_reward(self, current_capital: float, prev_capital: float) -> float:
         """Calculate reward focused on key trading metrics: profit factor, drawdown, win rate."""
-        base_reward = current_capital - prev_capital
+        # Include unrealized P&L in base reward calculation
+        account_state = self.engine.get_account_state()
+        base_reward = (current_capital + account_state['unrealized_pnl']) - prev_capital
 
         # Get current trade history for real-time metrics
         trade_history = self.engine.get_trade_history()
@@ -515,26 +543,53 @@ class TradingEnv(gym.Env):
         if len(trade_history) < 2:
             return base_reward  # Not enough trades for metrics
 
-        # Calculate real-time profit factor
-        recent_trades = trade_history[-10:]  # Last 10 trades
-        gross_profit = sum(trade['pnl'] for trade in recent_trades if trade['pnl'] > 0)
-        gross_loss = abs(sum(trade['pnl'] for trade in recent_trades if trade['pnl'] < 0))
+        # Calculate real-time profit factor (only for closing trades)
+        recent_trades = trade_history[-20:]  # Last 20 trades for better sample size
+        closing_trades = [trade for trade in recent_trades if trade.get('trade_type') == 'CLOSE']
 
         profit_factor_bonus = 0.0
-        if gross_loss > 0:
-            pf = gross_profit / gross_loss
-            if pf > 1.5:  # Good profit factor
-                profit_factor_bonus = (pf - 1.0) * 10
-            elif pf < 0.8:  # Poor profit factor
-                profit_factor_bonus = (pf - 1.0) * 20  # Penalty
+        if len(closing_trades) >= 5:  # Need minimum trades for meaningful PF
+            gross_profit = sum(trade['pnl'] for trade in closing_trades if trade['pnl'] > 0)
+            gross_loss = abs(sum(trade['pnl'] for trade in closing_trades if trade['pnl'] < 0))
 
-        # Calculate real-time win rate
-        win_rate = sum(1 for trade in recent_trades if trade['pnl'] > 0) / len(recent_trades)
-        win_rate_bonus = 0.0
-        if win_rate > 0.6:  # Good win rate
-            win_rate_bonus = (win_rate - 0.5) * 20
-        elif win_rate < 0.4:  # Poor win rate
-            win_rate_bonus = (win_rate - 0.5) * 30  # Penalty
+            if gross_loss > 0:
+                pf = gross_profit / gross_loss
+                # ENHANCED: Much stronger focus on profit factor since profits matter most
+                if pf > 3.0:  # Exceptional profit factor
+                    profit_factor_bonus = (pf - 1.0) * 100  # Massive bonus for exceptional performance
+                elif pf > 2.0:  # Excellent profit factor
+                    profit_factor_bonus = (pf - 1.0) * 75   # Very high bonus
+                elif pf > 1.5:  # Good profit factor
+                    profit_factor_bonus = (pf - 1.0) * 50   # High bonus
+                elif pf > 1.2:  # Decent profit factor
+                    profit_factor_bonus = (pf - 1.0) * 30   # Moderate bonus
+                elif pf > 1.0:  # Barely profitable
+                    profit_factor_bonus = (pf - 1.0) * 15   # Small bonus
+                elif pf < 0.5:  # Terrible profit factor
+                    profit_factor_bonus = (pf - 1.0) * 80   # Severe penalty
+                elif pf < 0.7:  # Very poor profit factor
+                    profit_factor_bonus = (pf - 1.0) * 60   # High penalty
+                else:  # Poor profit factor
+                    profit_factor_bonus = (pf - 1.0) * 40   # Moderate penalty
+
+        # Calculate real-time win rate (only for closing trades)
+        closing_trades = [trade for trade in recent_trades if trade.get('trade_type') == 'CLOSE']
+        if closing_trades:
+            win_rate = sum(1 for trade in closing_trades if trade['pnl'] > 0) / len(closing_trades)
+            win_rate_bonus = 0.0
+            # REDUCED: Lower emphasis on win rate since profit factor matters more
+            if win_rate > 0.7:  # Excellent win rate
+                win_rate_bonus = (win_rate - 0.5) * 30  # Moderate bonus
+            elif win_rate > 0.6:  # Good win rate
+                win_rate_bonus = (win_rate - 0.5) * 20  # Small bonus
+            elif win_rate > 0.5:  # Decent win rate
+                win_rate_bonus = (win_rate - 0.5) * 10  # Very small bonus
+            elif win_rate < 0.3:  # Very poor win rate
+                win_rate_bonus = (win_rate - 0.5) * 25  # Moderate penalty
+            elif win_rate < 0.4:  # Poor win rate
+                win_rate_bonus = (win_rate - 0.5) * 15  # Small penalty
+        else:
+            win_rate_bonus = 0.0
 
         # Calculate drawdown penalty using existing equity_history
         if len(self.equity_history) > 5:
@@ -548,6 +603,101 @@ class TradingEnv(gym.Env):
         total_reward = base_reward + profit_factor_bonus + win_rate_bonus + drawdown_penalty
         return total_reward
 
+    def _calculate_enhanced_trading_focused_reward(self, current_capital: float, prev_capital: float) -> float:
+        """Enhanced reward function targeting 70%+ win rate with better profit factor."""
+        # Include unrealized P&L in base reward calculation
+        account_state = self.engine.get_account_state()
+        base_reward = (current_capital + account_state['unrealized_pnl']) - prev_capital
+
+        # Get current trade history for real-time metrics
+        trade_history = self.engine.get_trade_history()
+
+        if len(trade_history) < 2:
+            return base_reward  # Not enough trades for metrics
+
+        # Calculate real-time profit factor with enhanced bonuses
+        recent_trades = trade_history[-30:]  # Increased sample size for better metrics
+        closing_trades = [trade for trade in recent_trades if trade.get('trade_type') == 'CLOSE']
+
+        profit_factor_bonus = 0.0
+        if len(closing_trades) >= 3:  # Reduced minimum for faster feedback
+            gross_profit = sum(trade['pnl'] for trade in closing_trades if trade['pnl'] > 0)
+            gross_loss = abs(sum(trade['pnl'] for trade in closing_trades if trade['pnl'] < 0))
+
+            if gross_loss > 0:
+                pf = gross_profit / gross_loss
+                # ULTRA-ENHANCED: Massive focus on profit factor for 70%+ performance
+                if pf > 4.0:  # Exceptional profit factor
+                    profit_factor_bonus = (pf - 1.0) * 200  # Massive bonus
+                elif pf > 3.0:  # Excellent profit factor
+                    profit_factor_bonus = (pf - 1.0) * 150  # Very high bonus
+                elif pf > 2.5:  # Very good profit factor
+                    profit_factor_bonus = (pf - 1.0) * 120  # High bonus
+                elif pf > 2.0:  # Good profit factor
+                    profit_factor_bonus = (pf - 1.0) * 100  # Good bonus
+                elif pf > 1.5:  # Decent profit factor
+                    profit_factor_bonus = (pf - 1.0) * 80   # Moderate bonus
+                elif pf > 1.2:  # Barely good
+                    profit_factor_bonus = (pf - 1.0) * 50   # Small bonus
+                elif pf > 1.0:  # Barely profitable
+                    profit_factor_bonus = (pf - 1.0) * 25   # Tiny bonus
+                elif pf < 0.4:  # Terrible profit factor
+                    profit_factor_bonus = (pf - 1.0) * 150  # Severe penalty
+                elif pf < 0.6:  # Very poor profit factor
+                    profit_factor_bonus = (pf - 1.0) * 100  # High penalty
+                else:  # Poor profit factor
+                    profit_factor_bonus = (pf - 1.0) * 75   # Moderate penalty
+
+        # Enhanced win rate calculation targeting 70%+
+        win_rate_bonus = 0.0
+        if closing_trades:
+            win_rate = sum(1 for trade in closing_trades if trade['pnl'] > 0) / len(closing_trades)
+            # ENHANCED: Strong bonuses for high win rates (targeting 70%+)
+            if win_rate >= 0.8:  # Exceptional win rate (80%+)
+                win_rate_bonus = (win_rate - 0.5) * 100  # Massive bonus
+            elif win_rate >= 0.7:  # Target win rate (70%+)
+                win_rate_bonus = (win_rate - 0.5) * 80   # High bonus
+            elif win_rate >= 0.6:  # Good win rate
+                win_rate_bonus = (win_rate - 0.5) * 60   # Moderate bonus
+            elif win_rate >= 0.5:  # Decent win rate
+                win_rate_bonus = (win_rate - 0.5) * 40   # Small bonus
+            elif win_rate < 0.3:  # Very poor win rate
+                win_rate_bonus = (win_rate - 0.5) * 60   # High penalty
+            elif win_rate < 0.4:  # Poor win rate
+                win_rate_bonus = (win_rate - 0.5) * 40   # Moderate penalty
+
+        # Enhanced drawdown penalty for better risk management
+        drawdown_penalty = 0.0
+        if len(self.equity_history) > 5:
+            recent_capitals = self.equity_history[-30:]  # Longer history for better DD calculation
+            peak = max(recent_capitals)
+            current_dd = (peak - current_capital) / peak if peak > 0 else 0
+            # Stricter drawdown penalties
+            if current_dd > 0.1:  # 10%+ drawdown
+                drawdown_penalty = -current_dd * 200  # Severe penalty
+            elif current_dd > 0.05:  # 5%+ drawdown
+                drawdown_penalty = -current_dd * 100  # High penalty
+            elif current_dd > 0.02:  # 2%+ drawdown
+                drawdown_penalty = -current_dd * 50   # Moderate penalty
+
+        # Risk-reward ratio bonus
+        risk_reward_bonus = 0.0
+        if len(closing_trades) >= 3:
+            avg_win = np.mean([trade['pnl'] for trade in closing_trades if trade['pnl'] > 0]) if any(trade['pnl'] > 0 for trade in closing_trades) else 0
+            avg_loss = abs(np.mean([trade['pnl'] for trade in closing_trades if trade['pnl'] < 0])) if any(trade['pnl'] < 0 for trade in closing_trades) else 1
+
+            if avg_loss > 0:
+                risk_reward_ratio = avg_win / avg_loss
+                if risk_reward_ratio > 3.0:  # Excellent risk-reward
+                    risk_reward_bonus = risk_reward_ratio * 20
+                elif risk_reward_ratio > 2.0:  # Good risk-reward
+                    risk_reward_bonus = risk_reward_ratio * 15
+                elif risk_reward_ratio > 1.5:  # Decent risk-reward
+                    risk_reward_bonus = risk_reward_ratio * 10
+
+        total_reward = base_reward + profit_factor_bonus + win_rate_bonus + drawdown_penalty + risk_reward_bonus
+        return total_reward
+
     def _apply_reward_shaping(self, base_reward: float, action_type: int, current_capital: float, prev_capital: float) -> float:
         """Apply reward shaping to guide agent behavior."""
         shaped_reward = base_reward
@@ -557,23 +707,59 @@ class TradingEnv(gym.Env):
             if not self.engine.get_account_state()['is_position_open']:
                 shaped_reward -= 0.1 * (self.idle_steps - 10)  # Increasing penalty
 
-        # Bonus for realizing profits
+        # Enhanced bonus/penalty for trade outcomes
         if action_type in [2, 3]:  # CLOSE_LONG or CLOSE_SHORT
             pnl_change = current_capital - prev_capital
             if pnl_change > 0:
-                shaped_reward += 0.5  # Bonus for profitable trade
+                # Larger bonus for profitable trades to encourage winning
+                shaped_reward += min(pnl_change * 0.01, 5.0)  # Scale with profit, cap at 5
+            else:
+                # Penalty for losing trades to discourage bad exits
+                shaped_reward += max(pnl_change * 0.005, -2.0)  # Scale with loss, cap at -2
 
         # Penalty for over-trading (too many trades in short period)
         if self.trade_count > 0:
             recent_trade_rate = self.trade_count / max(1, self.current_step - self.lookback_window + 1)
-            if recent_trade_rate > 0.5:  # More than 50% of steps are trades
-                shaped_reward -= 0.2  # Over-trading penalty
+            if recent_trade_rate > 0.3:  # More than 30% of steps are trades
+                shaped_reward -= 0.5 * (recent_trade_rate - 0.3)  # Scaled over-trading penalty
+
+        # Bonus for maintaining profitable positions
+        account_state = self.engine.get_account_state()
+        if account_state['is_position_open'] and action_type == 4:  # HOLD with open position
+            unrealized_pnl = account_state['unrealized_pnl']
+            if unrealized_pnl > 0:
+                # Small bonus for holding profitable positions
+                shaped_reward += min(unrealized_pnl * 0.001, 0.5)  # Scale with unrealized profit
 
         # Trailing stop reward shaping (AC 1.3.9)
         trailing_reward = self._calculate_trailing_stop_reward_shaping(action_type)
         shaped_reward += trailing_reward
 
         return shaped_reward
+
+    def _calculate_reward_normalization_factor(self, symbol: str) -> float:
+        """Calculate normalization factor based on instrument type and typical price ranges."""
+        symbol_lower = symbol.lower()
+
+        # Index instruments (typically higher values, more volatile)
+        if any(keyword in symbol_lower for keyword in ['nifty', 'sensex', 'bank_nifty', 'fin_nifty']):
+            # Indices typically range from 15,000-25,000+ points
+            # Normalize to make rewards comparable across different price levels
+            return 0.0001  # Scale down large index movements
+
+        # Stock instruments (typically lower values per share but higher lot sizes)
+        elif any(keyword in symbol_lower for keyword in ['reliance', 'sbi', 'hdfc', 'icici', 'tcs', 'infy']):
+            # Individual stocks typically range from 100-3000 per share
+            # But lot sizes can vary significantly
+            return 0.001  # Moderate scaling for stocks
+
+        # Default for unknown instruments
+        else:
+            return 0.001  # Conservative default scaling
+
+    def _normalize_reward(self, reward: float) -> float:
+        """Apply normalization to make rewards consistent across different instruments."""
+        return reward * self.reward_normalization_factor
 
     def _calculate_trailing_stop_reward_shaping(self, action_type: int) -> float:
         """Calculate reward shaping for trailing stops."""
@@ -686,6 +872,7 @@ class TradingEnv(gym.Env):
         end_index = self.current_step + 1
 
         # Use ALL available columns for RL training (except datetime if present)
+        # NOTE: datetime_epoch is INCLUDED as a feature for temporal learning
         feature_columns = [col for col in self.data.columns if col.lower() not in ['datetime', 'date', 'time', 'timestamp']]
 
         # Ensure we don't go out of bounds
@@ -741,8 +928,8 @@ class TradingEnv(gym.Env):
             # Store raw observation for statistics
             self.observation_history.append(raw_observation.copy())
 
-            # Apply z-score normalization
-            normalized_observation = self._apply_zscore_normalization(raw_observation)
+            # Apply selective z-score normalization (exclude datetime_epoch)
+            normalized_observation = self._apply_selective_zscore_normalization(raw_observation)
 
             return normalized_observation.astype(np.float32)
 
@@ -795,6 +982,75 @@ class TradingEnv(gym.Env):
         except Exception as e:
             print(f"Warning: Z-score normalization failed: {e}, returning raw observation")
             return observation
+
+    def _apply_selective_zscore_normalization(self, observation: np.ndarray) -> np.ndarray:
+        """Apply z-score normalization to observation, excluding datetime_epoch features."""
+        if len(self.observation_history) < 10:  # Need minimum history
+            return observation  # Return raw observation initially
+
+        try:
+            # Identify datetime_epoch feature indices
+            datetime_epoch_indices = self._get_datetime_epoch_indices()
+
+            # Use recent history for statistics (last 100 observations)
+            recent_observations = []
+            target_shape = observation.shape
+
+            for obs in self.observation_history[-100:]:
+                if obs.shape == target_shape:
+                    recent_observations.append(obs)
+
+            if len(recent_observations) < 5:  # Need minimum valid history
+                return observation
+
+            recent_history = np.stack(recent_observations, axis=0)
+
+            # Calculate mean and std for each feature
+            means = np.mean(recent_history, axis=0)
+            stds = np.std(recent_history, axis=0)
+
+            # Avoid division by zero
+            stds = np.where(stds == 0, 1.0, stds)
+
+            # Apply z-score normalization
+            normalized = (observation - means) / stds
+
+            # CRITICAL: Keep datetime_epoch features unnormalized
+            for idx in datetime_epoch_indices:
+                if idx < len(normalized):
+                    normalized[idx] = observation[idx]  # Keep original datetime_epoch value
+
+            # Clip extreme values to prevent instability (except datetime_epoch)
+            for i in range(len(normalized)):
+                if i not in datetime_epoch_indices:
+                    normalized[i] = np.clip(normalized[i], -5.0, 5.0)
+
+            return normalized
+
+        except Exception as e:
+            print(f"Warning: Selective z-score normalization failed: {e}, returning raw observation")
+            return observation
+
+    def _get_datetime_epoch_indices(self) -> list:
+        """Get indices of datetime_epoch features in the flattened observation."""
+        try:
+            # Find datetime_epoch column index in feature_columns
+            excluded_columns = ['datetime', 'date', 'time', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
+            feature_columns = [col for col in self.data.columns if col.lower() not in [x.lower() for x in excluded_columns]]
+
+            datetime_epoch_indices = []
+            for i, col in enumerate(feature_columns):
+                if 'datetime_epoch' in col.lower():
+                    # Calculate indices in flattened observation
+                    # Each timestep contributes len(feature_columns) features
+                    for t in range(self.lookback_window):
+                        idx = t * len(feature_columns) + i
+                        datetime_epoch_indices.append(idx)
+
+            return datetime_epoch_indices
+        except Exception as e:
+            print(f"Warning: Could not identify datetime_epoch indices: {e}")
+            return []
 
     def _calculate_distance_to_trail(self, current_price: float) -> float:
         """Calculate normalized distance to trailing stop."""

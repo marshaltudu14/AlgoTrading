@@ -5,6 +5,8 @@ import pandas as pd
 from typing import Tuple, List, Dict, Any
 import copy
 import logging
+import yaml
+import os
 
 from src.backtesting.environment import TradingEnv
 from src.agents.base_agent import BaseAgent
@@ -32,6 +34,9 @@ class Trainer:
         import logging
         logging.getLogger('src.backtesting.engine').setLevel(logging.INFO)
 
+        # Load configuration
+        self.config = self._load_config()
+
         # Enhanced tracking for comprehensive metrics
         self.capital_history = []
         self.episode_rewards = []
@@ -39,19 +44,50 @@ class Trainer:
         self.cumulative_trade_history = []  # Accumulate trades across all episodes
         self.cumulative_capital_history = []  # Track capital across all episodes
 
+    def _load_config(self) -> dict:
+        """Load configuration from training_sequence.yaml"""
+        config_path = "config/training_sequence.yaml"
+        try:
+            with open(config_path, 'r') as file:
+                config = yaml.safe_load(file)
+            logger.info(f"✅ Configuration loaded from {config_path}")
+            return config
+        except Exception as e:
+            logger.warning(f"Could not load config from {config_path}: {e}")
+            return self._get_default_config()
+
+    def _get_default_config(self) -> dict:
+        """Get default configuration if file loading fails"""
+        return {
+            'environment': {
+                'initial_capital': 100000.0,
+                'lookback_window': 50,
+                'episode_length': 500,
+                'use_streaming': False,
+                'reward_function': "trading_focused",
+                'trailing_stop_percentage': 0.02
+            }
+        }
+
     def train(self, data_loader: DataLoader, symbol: str, initial_capital: float, env: 'TradingEnv' = None) -> None:
         # Use provided environment or create a new one
         if env is not None:
             self.env = env
         else:
-            # Initialize the environment for the specific symbol with consistent configuration
+            # Get environment configuration
+            env_config = self.config.get('environment', {})
+
+            # Initialize the environment for the specific symbol with configuration
             self.env = TradingEnv(
                 data_loader=data_loader,
                 symbol=symbol,
-                initial_capital=initial_capital,
-                lookback_window=20,
-                episode_length=500,
-                use_streaming=False  # Use full data for consistent dimensions
+                initial_capital=env_config.get('initial_capital', initial_capital),
+                lookback_window=env_config.get('lookback_window', 50),
+                episode_length=env_config.get('episode_length', 500),
+                use_streaming=env_config.get('use_streaming', False),
+                reward_function=env_config.get('reward_function', "trading_focused"),
+                trailing_stop_percentage=env_config.get('trailing_stop_percentage', 0.02),
+                smart_action_filtering=env_config.get('smart_action_filtering', False)
             )
 
         # Initialize tracking
@@ -68,12 +104,32 @@ class Trainer:
             episode_reward = 0
             experiences = []
 
+            step_count = 0
             while not done:
                 action = self.agent.select_action(observation)
                 next_observation, reward, done, info = self.env.step(action)
                 experiences.append((observation, action, reward, next_observation, done))
                 observation = next_observation
                 episode_reward += reward
+                step_count += 1
+
+                # Log EVERY SINGLE STEP with datetime as requested by user
+                current_datetime = "N/A"
+                epoch_feature = "N/A"
+                try:
+                    if hasattr(self.env, 'data') and self.env.data is not None and self.env.current_step < len(self.env.data):
+                        # Use the datetime index (readable format)
+                        current_datetime = str(self.env.data.index[self.env.current_step])
+                        # Also show epoch feature for verification
+                        epoch_feature = self.env.data['datetime_epoch'].iloc[self.env.current_step] if 'datetime_epoch' in self.env.data.columns else "N/A"
+                except Exception as e:
+                    current_datetime = f"Step_{self.env.current_step}"
+                    epoch_feature = "N/A"
+
+                account_state = self.env.engine.get_account_state()
+                action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
+                action_name = action_names[action[0]] if action[0] < len(action_names) else "UNKNOWN"
+                logger.info(f"🎯 Episode {episode + 1} | Step {step_count} | {current_datetime} | Epoch: {epoch_feature} | Action: {action_name} | Capital: ₹{account_state['capital']:.2f} | Position: {account_state['current_position_quantity']} | Reward: {reward:.4f}")
 
             if hasattr(self.agent, 'learn'):
                 self.agent.learn(experiences)
@@ -161,60 +217,101 @@ class Trainer:
         # Get final trading data using cumulative history
         final_account = self.env.engine.get_account_state()
 
-        # Calculate comprehensive metrics using cumulative data
+        # Calculate metrics properly - use only last episode for capital-based metrics
+        # but cumulative for trade statistics
         total_episodes_run = len(self.episode_rewards)
-        metrics = calculate_comprehensive_metrics(
-            trade_history=self.cumulative_trade_history,
-            capital_history=self.cumulative_capital_history,
-            initial_capital=initial_capital,
-            total_episodes=total_episodes_run,
-            total_reward=self.total_reward
-        )
+
+        # For trade statistics, use cumulative data but calculate averages
+        if self.cumulative_trade_history:
+            closing_trades = [trade for trade in self.cumulative_trade_history if trade.get('trade_type') == 'CLOSE']
+            avg_trades_per_episode = len(closing_trades) / total_episodes_run if total_episodes_run > 0 else 0
+            win_rate = calculate_win_rate(self.cumulative_trade_history)
+            profit_factor = calculate_profit_factor(closing_trades)
+            avg_pnl_per_trade = calculate_avg_pnl_per_trade(self.cumulative_trade_history)
+            total_trades = len(closing_trades)
+        else:
+            avg_trades_per_episode = 0
+            win_rate = 0.0
+            profit_factor = 0.0
+            avg_pnl_per_trade = 0.0
+            total_trades = 0
+
+        # For capital-based metrics, use only the final episode's performance
+        final_capital = final_account['capital']
+        total_return_percentage = ((final_capital - initial_capital) / initial_capital) * 100
+
+        # Calculate average reward per episode
+        avg_reward_per_episode = self.total_reward / total_episodes_run if total_episodes_run > 0 else 0.0
 
         # Display metrics in organized sections
         print(f"\n📊 TRADING PERFORMANCE:")
-        print(f"   Win Rate: {metrics['win_rate']:.1%}")
-        print(f"   Total Trades: {metrics['total_trades']}")
-        print(f"   Profit Factor: {metrics['profit_factor']:.2f}")
-        print(f"   Avg P&L per Trade: ₹{metrics['avg_pnl_per_trade']:.2f}")
+        print(f"   Win Rate: {win_rate:.1%}")
+        print(f"   Total Trades: {total_trades}")
+        print(f"   Avg Trades per Episode: {avg_trades_per_episode:.1f}")
+        print(f"   Profit Factor: {profit_factor:.2f}")
+        print(f"   Avg P&L per Trade: ₹{avg_pnl_per_trade:.2f}")
 
-        print(f"\n💰 FINANCIAL METRICS:")
+        print(f"\n💰 FINANCIAL METRICS (Final Episode):")
         print(f"   Initial Capital: ₹{initial_capital:,.2f}")
-        print(f"   Final Capital: ₹{final_account['capital']:,.2f}")
-        print(f"   Total P&L: ₹{metrics['total_pnl']:,.2f}")
-        print(f"   Total Return: {metrics['total_return_percentage']:.2f}%")
-        print(f"   Max Drawdown: {metrics['max_drawdown_percentage']:.2f}%")
+        print(f"   Final Capital: ₹{final_capital:,.2f}")
+        print(f"   Episode P&L: ₹{final_capital - initial_capital:,.2f}")
+        print(f"   Episode Return: {total_return_percentage:.2f}%")
+
+        # Calculate simple max drawdown for final episode
+        if len(self.capital_history) > 1:
+            episode_capitals = self.capital_history[-100:]  # Last episode's capital history
+            peak = max(episode_capitals)
+            trough = min(episode_capitals)
+            max_drawdown_pct = ((trough - peak) / peak) * 100 if peak > 0 else 0
+            print(f"   Max Drawdown (Final Episode): {max_drawdown_pct:.2f}%")
+        else:
+            print(f"   Max Drawdown (Final Episode): 0.00%")
 
         print(f"\n📈 RISK METRICS:")
-        print(f"   Sharpe Ratio: {metrics['sharpe_ratio']:.3f}")
-        print(f"   Profit Factor: {metrics['profit_factor']:.2f}")
+        # Calculate Sharpe ratio for final episode only
+        if len(self.capital_history) > 1:
+            episode_returns = []
+            for i in range(1, len(self.capital_history)):
+                ret = (self.capital_history[i] - self.capital_history[i-1]) / self.capital_history[i-1]
+                episode_returns.append(ret)
+
+            if episode_returns:
+                returns_series = pd.Series(episode_returns)
+                sharpe_ratio = calculate_sharpe_ratio(returns_series)
+            else:
+                sharpe_ratio = 0.0
+        else:
+            sharpe_ratio = 0.0
+
+        print(f"   Sharpe Ratio (Final Episode): {sharpe_ratio:.3f}")
+        print(f"   Profit Factor: {profit_factor:.2f}")
 
         print(f"\n🤖 TRAINING METRICS:")
-        print(f"   Total Episodes: {self.num_episodes}")
-        print(f"   Total Reward: {metrics['total_reward']:.2f}")
-        print(f"   Avg Reward per Episode: {metrics['avg_reward_per_episode']:.2f}")
+        print(f"   Total Episodes: {total_episodes_run}")
+        print(f"   Total Reward: {self.total_reward:.2f}")
+        print(f"   Avg Reward per Episode: {avg_reward_per_episode:.2f}")
 
         # Performance assessment
         print(f"\n🎯 PERFORMANCE ASSESSMENT:")
-        if metrics['win_rate'] >= 0.6:
-            print(f"   ✅ Excellent Win Rate ({metrics['win_rate']:.1%})")
-        elif metrics['win_rate'] >= 0.5:
-            print(f"   ✅ Good Win Rate ({metrics['win_rate']:.1%})")
+        if win_rate >= 0.6:
+            print(f"   ✅ Excellent Win Rate ({win_rate:.1%})")
+        elif win_rate >= 0.5:
+            print(f"   ✅ Good Win Rate ({win_rate:.1%})")
         else:
-            print(f"   ⚠️ Low Win Rate ({metrics['win_rate']:.1%}) - Consider strategy adjustment")
+            print(f"   ⚠️ Low Win Rate ({win_rate:.1%}) - Consider strategy adjustment")
 
-        if metrics['profit_factor'] >= 1.5:
-            print(f"   ✅ Excellent Profit Factor ({metrics['profit_factor']:.2f})")
-        elif metrics['profit_factor'] >= 1.0:
-            print(f"   ✅ Profitable Strategy ({metrics['profit_factor']:.2f})")
+        if profit_factor >= 1.5:
+            print(f"   ✅ Excellent Profit Factor ({profit_factor:.2f})")
+        elif profit_factor >= 1.0:
+            print(f"   ✅ Profitable Strategy ({profit_factor:.2f})")
         else:
-            print(f"   ❌ Losing Strategy ({metrics['profit_factor']:.2f}) - Needs improvement")
+            print(f"   ❌ Losing Strategy ({profit_factor:.2f}) - Needs improvement")
 
-        if metrics['sharpe_ratio'] >= 1.0:
-            print(f"   ✅ Good Risk-Adjusted Returns (Sharpe: {metrics['sharpe_ratio']:.3f})")
-        elif metrics['sharpe_ratio'] >= 0.5:
-            print(f"   ⚠️ Moderate Risk-Adjusted Returns (Sharpe: {metrics['sharpe_ratio']:.3f})")
+        if sharpe_ratio >= 1.0:
+            print(f"   ✅ Good Risk-Adjusted Returns (Sharpe: {sharpe_ratio:.3f})")
+        elif sharpe_ratio >= 0.5:
+            print(f"   ⚠️ Moderate Risk-Adjusted Returns (Sharpe: {sharpe_ratio:.3f})")
         else:
-            print(f"   ❌ Poor Risk-Adjusted Returns (Sharpe: {metrics['sharpe_ratio']:.3f})")
+            print(f"   ❌ Poor Risk-Adjusted Returns (Sharpe: {sharpe_ratio:.3f})")
 
         print("=" * 80)

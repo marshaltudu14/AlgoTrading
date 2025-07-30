@@ -289,12 +289,11 @@ class DynamicFileProcessor:
 
             
 
-            # Convert datetime with timezone conversion
-            ist = timezone('Asia/Kolkata')
-            df['datetime'] = pd.to_datetime(df['datetime'], unit='s')
-            df['datetime'] = df['datetime'].dt.tz_localize('UTC').dt.tz_convert(ist).dt.tz_localize(None)
+            # CRITICAL: Keep datetime as epoch for enhanced processing in process_dataframe
+            # Do NOT convert to pandas datetime here - let process_dataframe handle it
+            # This ensures consistent datetime processing for both pipeline and backtesting paths
 
-            # Sort by datetime and remove duplicates
+            # Sort by datetime (epoch) and remove duplicates
             df = df.sort_values('datetime').reset_index(drop=True)
             df = df.drop_duplicates(subset=['datetime']).reset_index(drop=True)
 
@@ -304,8 +303,7 @@ class DynamicFileProcessor:
                    (df['high'] >= df['close']) & (df['low'] <= df['open']) &
                    (df['low'] <= df['close'])]
 
-            # Set datetime as index after processing
-            df.set_index('datetime', inplace=True)
+            # Do NOT set datetime as index here - process_dataframe will handle it
 
             logger.info(f"Loaded {len(df)} rows from {file_path.name}")
             return df
@@ -509,8 +507,9 @@ class DynamicFileProcessor:
             open_prices, high_prices, low_prices, close_prices
         )
 
-        # Reset index for proper concatenation
-        df_reset = df.reset_index()
+        # CRITICAL: Preserve datetime index - do NOT reset it
+        # Keep the datetime index that was set in the enhanced datetime processing
+        df_reset = df.copy()
 
         # Ensure features_df has the same length as df_reset
         if len(features_df) != len(df_reset):
@@ -536,7 +535,8 @@ class DynamicFileProcessor:
 
         # Remove rows with NaN values (but keep legitimate 0 values)
         df.dropna(inplace=True)
-        df.reset_index(drop=True, inplace=True)
+        # CRITICAL: Do NOT reset index - preserve datetime index
+        # df.reset_index(drop=True, inplace=True)  # REMOVED to preserve datetime index
 
         removed_rows = initial_rows - len(df)
         if removed_rows > 0:
@@ -549,9 +549,33 @@ class DynamicFileProcessor:
         """Process an in-memory DataFrame and generate all features"""
         logger.info(f"Processing in-memory DataFrame with {len(df)} rows...")
 
-        # Ensure datetime is index
+        # Clean and prepare data first
         if 'datetime' in df.columns:
-            df = df.set_index('datetime')
+            # Sort by datetime and remove duplicates
+            df = df.sort_values('datetime').reset_index(drop=True)
+            df = df.drop_duplicates(subset=['datetime']).reset_index(drop=True)
+
+            # ENHANCED: Keep epoch datetime as feature for temporal learning
+            if df['datetime'].dtype in ['int64', 'float64']:
+                # Already epoch format
+                df['datetime_epoch'] = df['datetime']
+                # Convert epoch to readable datetime for index (IST timezone for Indian markets)
+                df['datetime_readable'] = pd.to_datetime(df['datetime'], unit='s').dt.tz_localize('UTC').dt.tz_convert('Asia/Kolkata').dt.tz_localize(None)
+            else:
+                # Convert to epoch for feature
+                df['datetime_epoch'] = pd.to_datetime(df['datetime']).astype('int64') // 10**9
+                # Keep readable datetime (assume already in IST)
+                df['datetime_readable'] = pd.to_datetime(df['datetime'])
+
+            # Set readable datetime as index, keep epoch as feature
+            df = df.set_index('datetime_readable')
+            df = df.drop(columns=['datetime'])  # Remove original datetime column
+            logger.info("✅ Enhanced datetime processing: epoch as feature, readable as index")
+
+        # Remove any remaining duplicate indices
+        if df.index.duplicated().any():
+            logger.warning(f"Found {df.index.duplicated().sum()} duplicate datetime indices, removing...")
+            df = df[~df.index.duplicated(keep='first')]
 
         # Extract OHLC data
         open_prices = df['open']
@@ -592,7 +616,8 @@ class DynamicFileProcessor:
 
                 # Save processed file (replace existing)
                 output_path = self.processed_folder / f"features_{file_path.name}"
-                processed_df.to_csv(output_path, index=False)
+                # CRITICAL: Save with index=True to preserve datetime index
+                processed_df.to_csv(output_path, index=True)
 
                 results[file_path.name] = f"Success: {len(processed_df)} rows, {len(processed_df.columns)} features"
                 logger.info(f"Processed {file_path.name}: {len(processed_df)} rows, {len(processed_df.columns)} features")

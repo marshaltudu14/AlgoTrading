@@ -1,10 +1,11 @@
 import logging
+import yaml
+import os
 from typing import Dict, Tuple, Optional
 from datetime import datetime
 import time
 
 from src.config.instrument import Instrument
-from src.config.config import RISK_REWARD_CONFIG
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -32,8 +33,18 @@ class BacktestingEngine:
         self.trailing_stop_percentage = trailing_stop_percentage
         self._premium_paid_per_lot = 0.0 # For options P&L calculation
 
-        self.BROKERAGE_ENTRY = 25.0  # INR
-        self.BROKERAGE_EXIT = 35.0   # INR
+        # Load configuration for brokerage and risk management
+        self.config = self._load_config()
+        trading_config = self.config.get('trading', {})
+        risk_config = self.config.get('risk_management', {})
+
+        self.BROKERAGE_ENTRY = trading_config.get('brokerage_entry', 25.0)  # INR
+        self.BROKERAGE_EXIT = trading_config.get('brokerage_exit', 35.0)   # INR
+
+        # Risk management configuration
+        self.risk_multiplier = risk_config.get('risk_multiplier', 1.0)
+        self.reward_multiplier = risk_config.get('reward_multiplier', 2.0)
+        self.use_atr_based_stops = risk_config.get('use_atr_based_stops', True)
 
         # Enhanced P&L tracking
         self._total_realized_pnl = 0.0  # Total P&L from all closed trades
@@ -42,11 +53,26 @@ class BacktestingEngine:
         # Real-time trade decision logging
         self._current_step = 0
         self._decision_log = []  # Detailed log of all decisions
+
+    def _load_config(self) -> dict:
+        """Load configuration from training_sequence.yaml"""
+        config_path = "config/training_sequence.yaml"
+        try:
+            with open(config_path, 'r') as file:
+                config = yaml.safe_load(file)
+            return config
+        except Exception as e:
+            logger.warning(f"Could not load config from {config_path}: {e}")
+            return {
+                'trading': {'brokerage_entry': 25.0, 'brokerage_exit': 35.0},
+                'risk_management': {'risk_multiplier': 1.0, 'reward_multiplier': 2.0, 'use_atr_based_stops': True}
+            }
         self._position_entry_time = None
         self._position_entry_reason = ""
         self._last_decision_timestamp = None
 
     def reset(self):
+        logger.info(f"🔄 Engine reset: Position before reset: {self._current_position_quantity}")
         self._capital = self._initial_capital
         self._current_position_quantity = 0.0
         self._current_position_entry_price = 0.0
@@ -62,6 +88,8 @@ class BacktestingEngine:
         # Enhanced P&L tracking
         self._total_realized_pnl = 0.0  # Total P&L from all closed trades
         self._trade_count = 0  # Number of completed trades
+
+        logger.info(f"✅ Engine reset complete: Position after reset: {self._current_position_quantity}, Capital: ₹{self._capital:.2f}")
 
     def _update_trailing_stop(self, current_price: float):
         if self._current_position_quantity > 0:  # Long position
@@ -162,11 +190,12 @@ class BacktestingEngine:
                 decision_log['reason'] = f"Already have position: {self._current_position_quantity}"
                 self._decision_log.append(decision_log)
                 return 0.0, self._unrealized_pnl
-            # No capital deduction for index trading - point-based calculation
-            # Just track the position without deducting capital
-            cost = 0.0  # No upfront cost for index trading
 
-            # Execute the trade (no capital deduction for index trading)
+            # Deduct entry brokerage for realistic trading costs
+            cost = self.BROKERAGE_ENTRY
+            self._capital -= cost  # Deduct entry brokerage from capital
+
+            # Execute the trade
             self._current_position_quantity = quantity
             self._current_position_entry_price = price
             self._is_position_open = True
@@ -174,8 +203,8 @@ class BacktestingEngine:
             self._position_entry_reason = f"BUY_LONG signal at step {self._current_step}"
 
             # Use centralized risk-reward configuration
-            risk_multiplier = RISK_REWARD_CONFIG['risk_multiplier']
-            reward_multiplier = RISK_REWARD_CONFIG['reward_multiplier']
+            risk_multiplier = self.risk_multiplier
+            reward_multiplier = self.reward_multiplier
 
             self._stop_loss_price = price - (atr_value * risk_multiplier)  # SL = risk_multiplier * ATR below entry for long
             self._target_profit_price = price + (atr_value * reward_multiplier)  # TP = reward_multiplier * ATR above entry for long
@@ -185,7 +214,7 @@ class BacktestingEngine:
             # Detailed position entry logging (only if detailed logging enabled)
             if detailed_logging:
                 logger.info(f"🟢 Step {self._current_step}: BUY_LONG EXECUTED")
-                logger.info(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Cost: ₹{cost:.2f})")
+                logger.info(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Entry Brokerage: ₹{cost:.2f})")
                 logger.info(f"   🛑 Stop Loss: ₹{self._stop_loss_price:.2f} ({risk_multiplier}x ATR)")
                 logger.info(f"   🎯 Target: ₹{self._target_profit_price:.2f} ({reward_multiplier}x ATR)")
                 logger.info(f"   📉 Trailing SL: ₹{self._trailing_stop_price:.2f} ({self.trailing_stop_percentage:.1%})")
@@ -206,8 +235,11 @@ class BacktestingEngine:
             if self._current_position_quantity != 0:
                 logging.info(f"Cannot SELL_SHORT. Already have an open position ({self._current_position_quantity}). Trade not executed.")
                 return 0.0, self._unrealized_pnl
-            # No capital deduction for index trading - point-based calculation
-            cost = 0.0  # No upfront cost for index trading
+
+            # Deduct entry brokerage for realistic trading costs
+            cost = self.BROKERAGE_ENTRY
+            self._capital -= cost  # Deduct entry brokerage from capital
+
             self._current_position_quantity = -quantity # Negative for short position
             self._current_position_entry_price = price
             self._is_position_open = True
@@ -215,16 +247,21 @@ class BacktestingEngine:
 
 
             # Use centralized risk-reward configuration
-            risk_multiplier = RISK_REWARD_CONFIG['risk_multiplier']
-            reward_multiplier = RISK_REWARD_CONFIG['reward_multiplier']
+            risk_multiplier = self.risk_multiplier
+            reward_multiplier = self.reward_multiplier
 
             self._stop_loss_price = price + (atr_value * risk_multiplier)  # SL = risk_multiplier * ATR above entry for short
             self._target_profit_price = price - (atr_value * reward_multiplier)  # TP = reward_multiplier * ATR below entry for short
             self._peak_price = price # Initialize peak price for trailing stop
             self._trailing_stop_price = self._peak_price * (1 + self.trailing_stop_percentage)
             if detailed_logging:
-                logging.info(f"Executed SELL_SHORT. Quantity: {quantity}, Price: {price}. New position: {self._current_position_quantity:.2f} at {self._current_position_entry_price:.2f}. SL: {self._stop_loss_price:.2f}, TP: {self._target_profit_price:.2f}, Trailing SL: {self._trailing_stop_price:.2f}")
-                logging.info(f"RR Config - Risk: {risk_multiplier}x ATR ({atr_value:.2f}), Reward: {reward_multiplier}x ATR, RR Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
+                logging.info(f"🔴 Step {self._current_step}: SELL_SHORT EXECUTED")
+                logging.info(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Entry Brokerage: ₹{cost:.2f})")
+                logging.info(f"   🛑 Stop Loss: ₹{self._stop_loss_price:.2f} ({risk_multiplier}x ATR)")
+                logging.info(f"   🎯 Target: ₹{self._target_profit_price:.2f} ({reward_multiplier}x ATR)")
+                logging.info(f"   📈 Trailing SL: ₹{self._trailing_stop_price:.2f} ({self.trailing_stop_percentage:.1%})")
+                logging.info(f"   💰 Capital remaining: ₹{self._capital:.2f}")
+                logging.info(f"   📉 Risk-Reward Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
 
         elif action == "CLOSE_LONG":
             if self._current_position_quantity <= 0: # No long position to close
@@ -312,8 +349,24 @@ class BacktestingEngine:
         # Update unrealized P&L based on current market price
         self._update_unrealized_pnl(price)
 
-        # Record trade for history (only for completed trades)
-        if action in ["CLOSE_LONG", "CLOSE_SHORT"]:
+        # Record trade for history (both openings and closings for better tracking)
+        if action in ["BUY_LONG", "SELL_SHORT"]:
+            # Record position opening
+            self._trade_history.append({
+                "action": action,
+                "price": price,
+                "quantity": quantity,
+                "pnl": -cost,  # Entry cost as negative P&L (brokerage paid)
+                "realized_pnl_this_trade": 0.0,  # No realized P&L on opening
+                "cost": cost,
+                "capital_after_trade": self._capital,
+                "position_after_trade": self._current_position_quantity,
+                "entry_price_after_trade": self._current_position_entry_price,
+                "unrealized_pnl_after_trade": self._unrealized_pnl,
+                "trade_type": "OPEN"
+            })
+        elif action in ["CLOSE_LONG", "CLOSE_SHORT"]:
+            # Record position closing
             net_pnl_for_history = realized_pnl_this_trade - self.BROKERAGE_EXIT
             self._trade_history.append({
                 "action": action,
@@ -325,7 +378,8 @@ class BacktestingEngine:
                 "capital_after_trade": self._capital,
                 "position_after_trade": self._current_position_quantity,
                 "entry_price_after_trade": self._current_position_entry_price,
-                "unrealized_pnl_after_trade": self._unrealized_pnl
+                "unrealized_pnl_after_trade": self._unrealized_pnl,
+                "trade_type": "CLOSE"
             })
 
         # Complete decision log entry

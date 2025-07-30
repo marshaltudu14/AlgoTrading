@@ -92,16 +92,30 @@ def calculate_max_drawdown(equity_curve: pd.Series) -> float:
 def calculate_win_rate(trade_history: List[Dict]) -> float:
     if not trade_history:
         return 0.0
-    winning_trades = sum(1 for trade in trade_history if trade.get('pnl', 0) > 0)
-    return winning_trades / len(trade_history)
+
+    # Only consider closing trades for win rate calculation
+    closing_trades = [trade for trade in trade_history if trade.get('trade_type') == 'CLOSE']
+    if not closing_trades:
+        return 0.0
+
+    winning_trades = sum(1 for trade in closing_trades if trade.get('pnl', 0) > 0)
+    return winning_trades / len(closing_trades)
 
 def calculate_avg_pnl_per_trade(trade_history: List[Dict]) -> float:
     if not trade_history:
         return 0.0
-    return sum(trade.get('pnl', 0) for trade in trade_history) / len(trade_history)
+
+    # Only consider closing trades for P&L calculation
+    closing_trades = [trade for trade in trade_history if trade.get('trade_type') == 'CLOSE']
+    if not closing_trades:
+        return 0.0
+
+    return sum(trade.get('pnl', 0) for trade in closing_trades) / len(closing_trades)
 
 def calculate_num_trades(trade_history: List[Dict]) -> int:
-    return len(trade_history)
+    # Only count closing trades as completed trades
+    closing_trades = [trade for trade in trade_history if trade.get('trade_type') == 'CLOSE']
+    return len(closing_trades)
 
 def calculate_avg_winning_trade(trade_history: List[Dict]) -> float:
     """Calculate average winning trade amount."""

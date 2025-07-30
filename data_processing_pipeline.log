@@ -1,0 +1,136 @@
+2025-07-30 22:02:41,689 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-30 22:02:41,690 - __main__ - INFO - ================================================================================
+2025-07-30 22:02:41,690 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-30 22:02:41,690 - __main__ - INFO - ================================================================================
+2025-07-30 22:02:41,690 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-30 22:02:41,690 - __main__ - INFO - ----------------------------------------
+2025-07-30 22:02:41,690 - __main__ - INFO - Running feature generator...
+2025-07-30 22:02:42,246 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-30 22:02:42,344 - feature_generator - INFO - Dropped 'volume' column from Bank_Nifty_5.csv
+2025-07-30 22:02:46,794 - feature_generator - INFO - Loaded 19983 rows from Bank_Nifty_5.csv
+2025-07-30 22:02:46,795 - feature_generator - INFO - Processing in-memory DataFrame with 19983 rows...
+2025-07-30 22:03:13,595 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 19784 rows
+2025-07-30 22:03:13,596 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:03:14,965 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 19784 rows, 62 features
+2025-07-30 22:03:14,965 - feature_generator - INFO - Replaced existing file: data\final\features_Bank_Nifty_5.csv
+2025-07-30 22:03:15,057 - feature_generator - INFO - Dropped 'volume' column from Nifty_2.csv
+2025-07-30 22:03:15,086 - feature_generator - INFO - Loaded 50093 rows from Nifty_2.csv
+2025-07-30 22:03:15,086 - feature_generator - INFO - Processing in-memory DataFrame with 50093 rows...
+2025-07-30 22:04:04,352 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 49894 rows
+2025-07-30 22:04:04,352 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:04:06,939 - feature_generator - INFO - Processed Nifty_2.csv: 49894 rows, 62 features
+2025-07-30 22:04:06,939 - feature_generator - INFO - Replaced existing file: data\final\features_Nifty_2.csv
+2025-07-30 22:04:06,939 - __main__ - INFO - Feature generator completed successfully
+2025-07-30 22:04:06,939 - __main__ - INFO - Feature generation completed: 0 files
+2025-07-30 22:04:06,939 - __main__ - INFO - Pipeline report saved: reports\pipeline\pipeline_report_1753893246.txt
+2025-07-30 22:04:06,939 - __main__ - INFO - ================================================================================
+2025-07-30 22:04:06,939 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
+2025-07-30 22:04:06,947 - __main__ - INFO - ================================================================================
+2025-07-30 22:20:59,643 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-30 22:20:59,643 - __main__ - INFO - ================================================================================
+2025-07-30 22:20:59,643 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-07-30 22:20:59,643 - __main__ - INFO - ================================================================================
+2025-07-30 22:20:59,643 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-07-30 22:20:59,643 - __main__ - INFO - ----------------------------------------
+2025-07-30 22:20:59,643 - __main__ - INFO - Running feature generator...
+2025-07-30 22:21:00,095 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-30 22:21:00,140 - feature_generator - INFO - Dropped 'volume' column from Bank_Nifty_5.csv
+2025-07-30 22:21:00,525 - feature_generator - INFO - Loaded 19983 rows from Bank_Nifty_5.csv
+2025-07-30 22:21:00,525 - feature_generator - INFO - Processing in-memory DataFrame with 19983 rows...
+2025-07-30 22:21:31,818 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 19784 rows
+2025-07-30 22:21:31,818 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:21:33,103 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 19784 rows, 62 features
+2025-07-30 22:21:33,103 - feature_generator - INFO - Replaced existing file: data\final\features_Bank_Nifty_5.csv
+2025-07-30 22:21:33,260 - feature_generator - INFO - Dropped 'volume' column from Nifty_2.csv
+2025-07-30 22:21:33,289 - feature_generator - INFO - Loaded 50093 rows from Nifty_2.csv
+2025-07-30 22:21:33,289 - feature_generator - INFO - Processing in-memory DataFrame with 50093 rows...
+2025-07-30 22:22:47,426 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 49894 rows
+2025-07-30 22:22:47,426 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:22:52,606 - feature_generator - INFO - Processed Nifty_2.csv: 49894 rows, 62 features
+2025-07-30 22:22:52,609 - feature_generator - INFO - Replaced existing file: data\final\features_Nifty_2.csv
+2025-07-30 22:22:52,612 - __main__ - INFO - Feature generator completed successfully
+2025-07-30 22:22:52,616 - __main__ - INFO - Feature generation completed: 0 files
+2025-07-30 22:22:52,623 - __main__ - INFO - Pipeline report saved: reports\pipeline\pipeline_report_1753894372.txt
+2025-07-30 22:22:52,628 - __main__ - INFO - ================================================================================
+2025-07-30 22:22:52,629 - __main__ - INFO - PIPELINE COMPLETED SUCCESSFULLY
+2025-07-30 22:22:52,630 - __main__ - INFO - ================================================================================
+2025-07-30 22:23:12,151 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-30 22:23:12,151 - __main__ - INFO - Running feature generator...
+2025-07-30 22:23:12,543 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-30 22:23:12,584 - feature_generator - INFO - Dropped 'volume' column from Bank_Nifty_5.csv
+2025-07-30 22:23:12,601 - feature_generator - INFO - Loaded 19983 rows from Bank_Nifty_5.csv
+2025-07-30 22:23:12,602 - feature_generator - INFO - Processing in-memory DataFrame with 19983 rows...
+2025-07-30 22:23:12,612 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-07-30 22:23:31,288 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 19784 rows
+2025-07-30 22:23:31,288 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:23:32,789 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 19784 rows, 63 features
+2025-07-30 22:23:32,789 - feature_generator - INFO - Replaced existing file: data\final\features_Bank_Nifty_5.csv
+2025-07-30 22:23:32,863 - feature_generator - INFO - Dropped 'volume' column from Nifty_2.csv
+2025-07-30 22:23:32,890 - feature_generator - INFO - Loaded 50093 rows from Nifty_2.csv
+2025-07-30 22:23:32,890 - feature_generator - INFO - Processing in-memory DataFrame with 50093 rows...
+2025-07-30 22:23:32,917 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-07-30 22:24:16,718 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 49894 rows
+2025-07-30 22:24:16,733 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:24:20,426 - feature_generator - INFO - Processed Nifty_2.csv: 49894 rows, 63 features
+2025-07-30 22:24:20,427 - feature_generator - INFO - Replaced existing file: data\final\features_Nifty_2.csv
+2025-07-30 22:24:20,430 - __main__ - INFO - Feature generator completed successfully
+2025-07-30 22:39:38,438 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-30 22:39:38,438 - __main__ - INFO - Running feature generator...
+2025-07-30 22:39:38,834 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-30 22:39:38,879 - feature_generator - INFO - Dropped 'volume' column from Bank_Nifty_5.csv
+2025-07-30 22:39:38,891 - feature_generator - INFO - Loaded 19983 rows from Bank_Nifty_5.csv
+2025-07-30 22:39:38,891 - feature_generator - INFO - Processing in-memory DataFrame with 19983 rows...
+2025-07-30 22:39:38,905 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-07-30 22:39:56,724 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 19784 rows
+2025-07-30 22:39:56,724 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:39:57,914 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 19784 rows, 63 features
+2025-07-30 22:39:57,914 - feature_generator - INFO - Replaced existing file: data\final\features_Bank_Nifty_5.csv
+2025-07-30 22:39:57,984 - feature_generator - INFO - Dropped 'volume' column from Nifty_2.csv
+2025-07-30 22:39:58,017 - feature_generator - INFO - Loaded 50093 rows from Nifty_2.csv
+2025-07-30 22:39:58,017 - feature_generator - INFO - Processing in-memory DataFrame with 50093 rows...
+2025-07-30 22:39:58,042 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-07-30 22:40:48,763 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 49894 rows
+2025-07-30 22:40:48,763 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:40:52,296 - feature_generator - INFO - Processed Nifty_2.csv: 49894 rows, 63 features
+2025-07-30 22:40:52,296 - feature_generator - INFO - Replaced existing file: data\final\features_Nifty_2.csv
+2025-07-30 22:40:52,307 - __main__ - INFO - Feature generator completed successfully
+2025-07-30 22:44:07,174 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-30 22:44:07,174 - __main__ - INFO - Running feature generator...
+2025-07-30 22:44:07,579 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-30 22:44:07,627 - feature_generator - INFO - Dropped 'volume' column from Bank_Nifty_5.csv
+2025-07-30 22:44:07,633 - feature_generator - INFO - Loaded 19983 rows from Bank_Nifty_5.csv
+2025-07-30 22:44:07,633 - feature_generator - INFO - Processing in-memory DataFrame with 19983 rows...
+2025-07-30 22:44:07,656 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-07-30 22:44:24,739 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 19784 rows
+2025-07-30 22:44:24,739 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:44:26,651 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 19784 rows, 63 features
+2025-07-30 22:44:26,651 - feature_generator - INFO - Replaced existing file: data\final\features_Bank_Nifty_5.csv
+2025-07-30 22:44:26,714 - feature_generator - INFO - Dropped 'volume' column from Nifty_2.csv
+2025-07-30 22:44:26,761 - feature_generator - INFO - Loaded 50093 rows from Nifty_2.csv
+2025-07-30 22:44:26,761 - feature_generator - INFO - Processing in-memory DataFrame with 50093 rows...
+2025-07-30 22:44:26,776 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-07-30 22:45:13,732 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 49894 rows
+2025-07-30 22:45:13,732 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:45:17,100 - feature_generator - INFO - Processed Nifty_2.csv: 49894 rows, 63 features
+2025-07-30 22:45:17,100 - feature_generator - INFO - Replaced existing file: data\final\features_Nifty_2.csv
+2025-07-30 22:45:17,100 - __main__ - INFO - Feature generator completed successfully
+2025-07-30 22:50:20,394 - __main__ - INFO - DataProcessingPipeline initialized
+2025-07-30 22:50:20,394 - __main__ - INFO - Running feature generator...
+2025-07-30 22:50:20,749 - feature_generator - INFO - Found 2 CSV files to process
+2025-07-30 22:50:20,784 - feature_generator - INFO - Dropped 'volume' column from Bank_Nifty_5.csv
+2025-07-30 22:50:20,794 - feature_generator - INFO - Loaded 19983 rows from Bank_Nifty_5.csv
+2025-07-30 22:50:20,795 - feature_generator - INFO - Processing in-memory DataFrame with 19983 rows...
+2025-07-30 22:50:20,873 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-07-30 22:50:44,649 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 19784 rows
+2025-07-30 22:50:44,649 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:50:47,041 - feature_generator - INFO - Processed Bank_Nifty_5.csv: 19784 rows, 63 features
+2025-07-30 22:50:47,041 - feature_generator - INFO - Replaced existing file: data\final\features_Bank_Nifty_5.csv
+2025-07-30 22:50:47,120 - feature_generator - INFO - Dropped 'volume' column from Nifty_2.csv
+2025-07-30 22:50:47,135 - feature_generator - INFO - Loaded 50093 rows from Nifty_2.csv
+2025-07-30 22:50:47,135 - feature_generator - INFO - Processing in-memory DataFrame with 50093 rows...
+2025-07-30 22:50:47,185 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-07-30 22:51:42,266 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 49894 rows
+2025-07-30 22:51:42,266 - feature_generator - INFO - Generated 58 features for DataFrame
+2025-07-30 22:51:45,323 - feature_generator - INFO - Processed Nifty_2.csv: 49894 rows, 63 features
+2025-07-30 22:51:45,323 - feature_generator - INFO - Replaced existing file: data\final\features_Nifty_2.csv
+2025-07-30 22:51:45,323 - __main__ - INFO - Feature generator completed successfully

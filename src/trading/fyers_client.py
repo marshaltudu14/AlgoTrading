@@ -68,9 +68,10 @@ class FyersClient:
                 return pd.DataFrame()
 
             # Create DataFrame with proper column names
+            # CRITICAL: Keep datetime as epoch timestamps for feature generator processing
             df = pd.DataFrame(response['candles'], columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-            df['datetime'] = pd.to_datetime(df['datetime'], unit='s')
-            df.set_index('datetime', inplace=True)
+            # Do NOT convert to datetime here - let feature generator handle it
+            # This preserves the raw epoch timestamps that the feature generator expects
 
             logger.info(f"Successfully fetched {len(df)} candles for {symbol}")
             return df

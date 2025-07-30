@@ -17,6 +17,40 @@ training_sequence:
       min_profit_factor: 0.8
       max_drawdown: 0.4
 
+# Environment Configuration - Centralized settings
+environment:
+  initial_capital: 100000.0
+  lookback_window: 50  # Increased from 20 to 50 for more historical context
+  episode_length: 500
+  use_streaming: false
+  reward_function: "enhanced_trading_focused"  # New enhanced reward function
+  trailing_stop_percentage: 0.015  # Tighter trailing stop for better risk management
+  smart_action_filtering: true  # Prevent redundant position attempts
+
+# Model Configuration - Moved from src/config/config.py
+model:
+  hidden_dim: 64          # Hidden layer dimension for PPO agent
+  action_dim_discrete: 5  # Number of discrete actions (BUY_LONG, SELL_SHORT, CLOSE_LONG, CLOSE_SHORT, HOLD)
+  action_dim_continuous: 1 # Continuous action dimension (quantity)
+  model_path: "models/universal_final_model.pth"
+  model_type: "ppo"
+
+# Risk Management Configuration - Moved from src/config/config.py
+risk_management:
+  risk_multiplier: 1.5    # SL = 1.5 * ATR (tighter stops)
+  reward_multiplier: 3.0  # TP = 3 * ATR (1:2 Risk-Reward Ratio)
+  use_atr_based_stops: true
+  max_risk_per_trade: 0.015  # Maximum 1.5% risk per trade (tighter)
+  stop_loss_percentage: 0.015  # Tighter stop loss
+  target_profit_percentage: 0.045  # Higher profit target (3:1 risk-reward)
+  win_rate_bonus_threshold: 0.6  # Bonus for high win rate
+  profit_factor_bonus_threshold: 1.5  # Bonus for good profit factor
+
+# Trading Configuration
+trading:
+  brokerage_entry: 25  # Entry brokerage in INR
+  brokerage_exit: 35   # Exit brokerage in INR
+
 # Training Parameters - Optimized for Production Performance
 training_params:
   # PPO specific parameters

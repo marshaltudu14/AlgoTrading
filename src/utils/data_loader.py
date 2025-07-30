@@ -32,7 +32,8 @@ class DataLoader:
             if filename.endswith(".csv"):
                 filepath = os.path.join(self.final_data_dir, filename)
                 try:
-                    df = pd.read_csv(filepath)
+                    # CRITICAL: Set datetime_readable as index when loading processed features
+                    df = pd.read_csv(filepath, index_col=0)
                     all_data.append(df)
                 except Exception as e:
                     logging.warning(f"Could not read {filename}: {e}")
@@ -100,7 +101,8 @@ class DataLoader:
             is_features_file = 'features_' in os.path.basename(filepath)
             require_datetime = not is_features_file
 
-            for chunk in pd.read_csv(filepath, chunksize=self.chunk_size):
+            # CRITICAL: Set datetime_readable as index when loading processed features
+            for chunk in pd.read_csv(filepath, chunksize=self.chunk_size, index_col=0):
                 # Apply basic validation to each chunk
                 if self._validate_chunk(chunk, require_datetime=require_datetime):
                     yield chunk
@@ -266,7 +268,8 @@ class DataLoader:
 
             # Use skiprows and nrows for efficient segment loading
             nrows = end_idx - start_idx
-            df = pd.read_csv(filepath, skiprows=range(1, start_idx + 1), nrows=nrows)
+            # CRITICAL: Set datetime_readable as index when loading processed features
+            df = pd.read_csv(filepath, skiprows=range(1, start_idx + 1), nrows=nrows, index_col=0)
 
             if self._validate_chunk(df, require_datetime=require_datetime):
                 return df
@@ -480,7 +483,8 @@ class DataLoader:
             logging.info(f"Checking file: {filepath}")
             if os.path.exists(filepath):
                 try:
-                    df = pd.read_csv(filepath)
+                    # CRITICAL: Set datetime_readable as index when loading processed features
+                    df = pd.read_csv(filepath, index_col=0)
                     logging.info(f"Loaded final data for {symbol}: {len(df)} rows from {filename}")
                     return df
                 except Exception as e:
@@ -643,7 +647,8 @@ class DataLoader:
         filename = f"{instrument_type}_{timeframe}.csv"
         filepath = os.path.join(self.final_data_dir, filename)
         try:
-            df = pd.read_csv(filepath)
+            # CRITICAL: Set datetime_readable as index when loading processed features
+            df = pd.read_csv(filepath, index_col=0)
             return df
         except FileNotFoundError:
             logging.error(f"Task data file not found: {filename}")
