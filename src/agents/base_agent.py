@@ -4,9 +4,10 @@ from typing import Tuple, List
 
 class BaseAgent(abc.ABC):
     @abc.abstractmethod
-    def select_action(self, observation: np.ndarray) -> int:
+    def select_action(self, observation: np.ndarray) -> Tuple[int, float]:
         """
-        Takes a normalized observation from the environment and returns a discrete action.
+        Takes a normalized observation from the environment and returns a discrete action and quantity.
+        Returns: (action_type, quantity) where action_type is 0-4 and quantity is a float.
         """
         pass
 

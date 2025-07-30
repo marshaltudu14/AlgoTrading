@@ -121,11 +121,10 @@ def main():
     args = parser.parse_args()
 
     if args.testing:
-        logger.info("🧪 TESTING MODE ENABLED")
-        from src.utils.test_data_generator import create_test_data_files
-        create_test_data_files(data_dir='data/test', symbol='RELIANCE_1', num_rows=500, create_multiple_instruments=False)
-        symbols = ["RELIANCE_1"]
-        args.data_dir = 'data/test'
+        logger.info("🧪 TESTING MODE ENABLED - Using in-memory test data")
+        # Test both stock and option instruments to verify environment handling
+        symbols = ["RELIANCE_1", "Bank_Nifty_5"]
+        args.data_dir = 'data/test'  # This will be overridden by in-memory data
     else:
         if args.symbols:
             symbols = args.symbols

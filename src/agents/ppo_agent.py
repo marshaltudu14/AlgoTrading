@@ -11,7 +11,7 @@ from src.utils.hardware_optimizer import get_hardware_optimizer, optimize_for_de
 
 class PPOAgent(BaseAgent):
     def __init__(self, observation_dim: int, action_dim_discrete: int, action_dim_continuous: int, hidden_dim: int,
-                 lr_actor: float, lr_critic: float, gamma: float, epsilon_clip: float, k_epochs: int):
+                 lr_actor: float = 0.001, lr_critic: float = 0.001, gamma: float = 0.99, epsilon_clip: float = 0.2, k_epochs: int = 3):
         super(PPOAgent, self).__init__()
 
         self.gamma = gamma
@@ -32,11 +32,17 @@ class PPOAgent(BaseAgent):
         self.policy_old = ActorTransformerModel(observation_dim, hidden_dim, action_dim_discrete, action_dim_continuous)
         self.policy_old.load_state_dict(self.actor.state_dict())
 
-        # Optimize for hardware
-        self.hardware_optimizer = get_hardware_optimizer()
-        self.actor = optimize_for_device(self.actor)
-        self.critic = optimize_for_device(self.critic)
-        self.policy_old = optimize_for_device(self.policy_old)
+        # Optimize for hardware (temporarily disabled for testing)
+        # self.hardware_optimizer = get_hardware_optimizer()
+        # self.actor = optimize_for_device(self.actor)
+        # self.critic = optimize_for_device(self.critic)
+        # self.policy_old = optimize_for_device(self.policy_old)
+
+        # Use CPU for now
+        self.device = torch.device('cpu')
+        self.actor = self.actor.to(self.device)
+        self.critic = self.critic.to(self.device)
+        self.policy_old = self.policy_old.to(self.device)
 
         self.MseLoss = nn.MSELoss()
 
@@ -47,7 +53,7 @@ class PPOAgent(BaseAgent):
             return 4, 1.0  # Default to HOLD action with quantity 1.0
 
         state = torch.FloatTensor(observation).unsqueeze(0).unsqueeze(0)
-        state = to_device(state)
+        state = state.to(self.device)
 
         try:
             # Get both discrete action probabilities and continuous quantity from the actor
@@ -68,33 +74,27 @@ class PPOAgent(BaseAgent):
             quantity = torch.clamp(quantity_pred, min=0.01, max=10.0)
 
             # Use safe tensor conversion
-            return int(safe_tensor_to_scalar(action_type, default_value=4)), safe_tensor_to_scalar(quantity, default_value=1.0)
+            return int(self.safe_tensor_to_scalar(action_type, default_value=4)), self.safe_tensor_to_scalar(quantity, default_value=1.0)
 
         except Exception as e:
             print(f"Error in select_action: {e}, using default action")
             return 4, 1.0  # Default to HOLD action
 
-def safe_tensor_to_scalar(tensor, default_value=0.0):
-    try:
-        if torch.is_tensor(tensor):
-            return tensor.item()
-        return float(tensor)
-    except Exception:
-        return default_value
+    def safe_tensor_to_scalar(self, tensor, default_value=0.0):
+        try:
+            if torch.is_tensor(tensor):
+                return tensor.item()
+            return float(tensor)
+        except Exception:
+            return default_value
 
-    def learn(self, experiences: List[Tuple[np.ndarray, int, float, np.ndarray, bool]]) -> None:
+    def learn(self, experiences: List[Tuple[np.ndarray, Tuple[int, float], float, np.ndarray, bool]]) -> None:
         """
         Implement PPO learning algorithm.
-        This method processes a batch of experiences to update the agent's policy.
+        This method processes a list of experiences to update the agent's policy.
         """
         if not experiences:
             return
-
-        # Limit buffer size to prevent memory issues
-        max_buffer_size = 500
-        if len(experiences) > max_buffer_size:
-            experiences = experiences[-max_buffer_size:]  # Keep only recent experiences
-            print(f"Limited experience buffer to {max_buffer_size} most recent experiences")
 
 
 
@@ -105,6 +105,13 @@ def safe_tensor_to_scalar(tensor, default_value=0.0):
         rewards = []
         next_states = []
         dones = []
+
+        # Debug: Check experience format
+        if len(experiences) > 0:
+            exp = experiences[0]
+            print(f"Experience format: {len(exp)} elements, types: {[type(x) for x in exp]}")
+            if len(exp) >= 2:
+                print(f"Action element: {exp[1]}, type: {type(exp[1])}")
 
         for state, action_tuple, reward, next_state, done in experiences:
             states.append(state)
@@ -231,14 +238,14 @@ def safe_tensor_to_scalar(tensor, default_value=0.0):
 
 
         # Move to device and ensure gradients are preserved
-        states = to_device(states)
+        states = states.to(self.device)
         if not states.requires_grad:
             states.requires_grad_(True)
-        action_types = to_device(action_types)
-        quantities = to_device(quantities)
-        rewards = to_device(rewards)
-        next_states = to_device(next_states)
-        dones = to_device(dones)
+        action_types = action_types.to(self.device)
+        quantities = quantities.to(self.device)
+        rewards = rewards.to(self.device)
+        next_states = next_states.to(self.device)
+        dones = dones.to(self.device)
 
         # Calculate returns and advantages with numerical stability
         values = self.critic(states).squeeze()
@@ -277,8 +284,8 @@ def safe_tensor_to_scalar(tensor, default_value=0.0):
         advantages = torch.FloatTensor(advantages)
         returns = torch.FloatTensor(returns)
 
-        advantages = to_device(advantages)
-        returns = to_device(returns)
+        advantages = advantages.to(self.device)
+        returns = returns.to(self.device)
 
         # Normalize advantages (only if we have enough samples and non-zero std)
         if len(advantages) > 1 and advantages.std() > 1e-8:
@@ -388,7 +395,7 @@ def safe_tensor_to_scalar(tensor, default_value=0.0):
         # Update old policy
         self.policy_old.load_state_dict(self.actor.state_dict())
 
-    def adapt(self, observation: np.ndarray, action_tuple: Tuple[int, float], reward: float, next_observation: np.ndarray, done: bool, num_gradient_steps: int) -> 'BaseAgent':
+    def adapt(self, observation: np.ndarray, action: int, reward: float, next_observation: np.ndarray, done: bool, num_gradient_steps: int) -> 'BaseAgent':
         # Create a temporary copy of the agent's policy and value network parameters
         adapted_actor = ActorTransformerModel(self.observation_dim, self.hidden_dim, self.action_dim_discrete, self.action_dim_continuous)
         adapted_actor.load_state_dict(self.actor.state_dict())

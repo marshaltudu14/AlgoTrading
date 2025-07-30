@@ -13,32 +13,79 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 class DataLoader:
     def __init__(self, final_data_dir: str = "data/final", raw_data_dir: str = "data/raw",
                  chunk_size: int = 10000, use_parquet: bool = True, testing_mode: bool = False):
+        self.testing_mode = testing_mode
+        self.in_memory_data = {}  # Store in-memory test data
+
         if testing_mode:
             self.final_data_dir = "data/test/final"
             self.raw_data_dir = "data/test/raw"
+            # Generate in-memory test data for both instruments
+            self._generate_in_memory_test_data()
         else:
             self.final_data_dir = final_data_dir
             self.raw_data_dir = raw_data_dir
-        self.chunk_size = chunk_size
-        self.use_parquet = use_parquet
-        if testing_mode:
-            self.final_data_dir = "data/test/final"
-            self.raw_data_dir = "data/test/raw"
-        else:
-            self.final_data_dir = final_data_dir
-            self.raw_data_dir = raw_data_dir
-        self.chunk_size = chunk_size
-        self.use_parquet = use_parquet
-        self.final_data_dir = final_data_dir
-        self.raw_data_dir = raw_data_dir
         self.chunk_size = chunk_size
         self.use_parquet = use_parquet
 
-        # Create parquet directories if they don't exist
-        self.parquet_final_dir = os.path.join(final_data_dir, "parquet")
-        self.parquet_raw_dir = os.path.join(raw_data_dir, "parquet")
-        os.makedirs(self.parquet_final_dir, exist_ok=True)
-        os.makedirs(self.parquet_raw_dir, exist_ok=True)
+        # Create parquet directories if they don't exist (only if not in testing mode)
+        if not testing_mode:
+            self.parquet_final_dir = os.path.join(final_data_dir, "parquet")
+            self.parquet_raw_dir = os.path.join(raw_data_dir, "parquet")
+            os.makedirs(self.parquet_final_dir, exist_ok=True)
+            os.makedirs(self.parquet_raw_dir, exist_ok=True)
+        else:
+            self.parquet_final_dir = None
+            self.parquet_raw_dir = None
+
+    def _generate_in_memory_test_data(self):
+        """Generate in-memory test data for both stock and option instruments."""
+        logging.info("Generating in-memory test data for RELIANCE_1 (stock) and Bank_Nifty_5 (option)")
+
+        try:
+            from src.utils.test_data_generator import generate_multiple_test_instruments
+
+            # Generate test data for both instruments
+            test_data = generate_multiple_test_instruments(num_rows=500)
+
+            # Store the features data (final processed data) in memory
+            for symbol, data in test_data.items():
+                self.in_memory_data[symbol] = data['features']
+                logging.info(f"Generated in-memory test data for {symbol}: {data['features'].shape}")
+
+        except Exception as e:
+            logging.error(f"Error generating in-memory test data: {e}")
+            # Fallback: create minimal test data
+            self._create_minimal_test_data()
+
+    def _create_minimal_test_data(self):
+        """Create minimal test data as fallback."""
+        import numpy as np
+
+        # Create minimal test data for both instruments
+        for symbol, start_price in [("RELIANCE_1", 2800.0), ("Bank_Nifty_5", 46500.0)]:
+            # Generate basic OHLC data
+            num_rows = 500
+            np.random.seed(42)
+            prices = [start_price]
+            for i in range(1, num_rows):
+                change = np.random.normal(0, start_price * 0.02)
+                prices.append(max(prices[-1] + change, start_price * 0.5))
+
+            # Create DataFrame with basic features
+            data = {
+                'open': prices,
+                'high': [p * 1.01 for p in prices],
+                'low': [p * 0.99 for p in prices],
+                'close': prices,
+                'volume': [1000] * num_rows,
+                'sma_5': prices,  # Simplified
+                'ema_5': prices,  # Simplified
+                'rsi_14': [50.0] * num_rows,
+                'atr': [start_price * 0.02] * num_rows
+            }
+
+            self.in_memory_data[symbol] = pd.DataFrame(data)
+            logging.info(f"Created minimal test data for {symbol}: {len(data['open'])} rows")
 
     def load_all_processed_data(self) -> pd.DataFrame:
         all_data = []
@@ -317,6 +364,10 @@ class DataLoader:
 
     def get_data_length(self, symbol: str, data_type: str = "raw") -> int:
         """Get the total number of rows for a symbol."""
+        # If in testing mode and requesting final data, return in-memory data length
+        if self.testing_mode and data_type == "final" and symbol in self.in_memory_data:
+            return len(self.in_memory_data[symbol])
+
         data_dir = self.raw_data_dir if data_type == "raw" else self.final_data_dir
         parquet_dir = self.parquet_raw_dir if data_type == "raw" else self.parquet_final_dir
 
@@ -458,6 +509,11 @@ class DataLoader:
 
     def load_final_data_for_symbol(self, symbol: str) -> pd.DataFrame:
         """Load processed final data for a specific symbol."""
+        # If in testing mode, return in-memory data
+        if self.testing_mode and symbol in self.in_memory_data:
+            logging.info(f"Loading in-memory test data for symbol: {symbol}")
+            return self.in_memory_data[symbol].copy()
+
         logging.info(f"Looking for data for symbol: {symbol} in directory: {self.final_data_dir}")
 
         # Try different possible filename patterns
