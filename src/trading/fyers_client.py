@@ -6,11 +6,21 @@ Fyers API Client
 import pandas as pd
 from fyers_apiv3 import fyersModel
 from fyers_apiv3.FyersWebsocket import data_ws
-from src.auth import fyers_auth
+from src.auth.fyers_auth_service import create_fyers_model
 
 class FyersClient:
-    def __init__(self, config=None):
-        self.fyers = fyers_auth.fyers
+    def __init__(self, access_token=None, app_id=None):
+        """
+        Initialize FyersClient with access token and app ID
+
+        Args:
+            access_token: Valid Fyers access token
+            app_id: Fyers application ID
+        """
+        if access_token and app_id:
+            self.fyers = create_fyers_model(access_token, app_id)
+        else:
+            self.fyers = None
 
         # No hardcoded symbols - let the caller specify exact Fyers symbol
 

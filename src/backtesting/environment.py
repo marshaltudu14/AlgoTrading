@@ -6,12 +6,12 @@ import logging
 import random
 from enum import Enum
 
-from src.utils.data_loader import DataLoader
-from src.backtesting.engine import BacktestingEngine
-from src.config.instrument import Instrument
-from src.utils.instrument_loader import load_instruments
-from src.utils.data_feeding_strategy import DataFeedingStrategyManager, FeedingStrategy
-from src.config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL
+from utils.data_loader import DataLoader
+from backtesting.engine import BacktestingEngine
+from config.instrument import Instrument
+from utils.instrument_loader import load_instruments
+from utils.data_feeding_strategy import DataFeedingStrategyManager, FeedingStrategy
+from config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL
 
 # Configure logger
 logger = logging.getLogger(__name__)
