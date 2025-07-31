@@ -108,12 +108,14 @@ export function AppLayout({ children }: AppLayoutProps) {
           </motion.div>
         </main>
 
-        {/* Bottom Navigation */}
-        <nav className="border-t bg-background">
-          <div className="flex h-16 items-center justify-around px-4">
-            <NavItems mobile />
-          </div>
-        </nav>
+        {/* Bottom Navigation - Conditionally rendered */}
+        {pathname.startsWith("/dashboard") && (
+          <nav className="border-t bg-background">
+            <div className="flex h-16 items-center justify-around px-4">
+              <NavItems mobile />
+            </div>
+          </nav>
+        )}
       </div>
     )
   }
@@ -138,6 +140,14 @@ export function AppLayout({ children }: AppLayoutProps) {
 
       {/* Main Content */}
       <div className="flex flex-1 flex-col">
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="flex h-14 items-center justify-end border-b bg-background px-6"
+        >
+          <ThemeToggle />
+        </motion.header>
         <main className="flex-1 overflow-auto p-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}

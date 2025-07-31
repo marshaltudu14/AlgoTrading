@@ -64,9 +64,6 @@ app.add_middleware(
 security = HTTPBearer()
 JWT_SECRET = "your-secret-key-change-in-production"  # TODO: Use environment variable
 JWT_ALGORITHM = "HS256"
-
-# Global state for active sessions
-active_sessions: Dict[str, Any] = {}
 active_backtests: Dict[str, BacktestService] = {}
 active_live_sessions: Dict[str, LiveTradingService] = {}
 
@@ -91,11 +88,12 @@ class LiveTradingRequest(BaseModel):
     option_strategy: Optional[str] = "ITM"
 
 # Helper functions
-def create_jwt_token(user_id: str, access_token: str) -> str:
+def create_jwt_token(user_id: str, access_token: str, app_id: str) -> str:
     """Create JWT token for session management"""
     payload = {
         "user_id": user_id,
         "access_token": access_token,
+        "app_id": app_id,
         "exp": datetime.utcnow() + timedelta(hours=24)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
@@ -121,11 +119,12 @@ async def get_current_user(request: Request):
     payload = verify_jwt_token(token)
     user_id = payload.get("user_id")
     access_token = payload.get("access_token")
+    app_id = payload.get("app_id")
 
-    if not user_id or not access_token:
+    if not user_id or not access_token or not app_id:
         raise HTTPException(status_code=401, detail="Invalid token payload")
 
-    return {"user_id": user_id, "access_token": access_token}
+    return {"user_id": user_id, "access_token": access_token, "app_id": app_id}
 
 # API Endpoints
 
@@ -139,13 +138,12 @@ async def get_funds(current_user: dict = Depends(get_current_user)):
     """Get funds information, including realized P&L"""
     try:
         user_id = current_user["user_id"]
-        session = active_sessions.get(user_id)
-        if not session:
-            raise HTTPException(status_code=401, detail="Session not found")
+        access_token = current_user["access_token"]
+        app_id = current_user["app_id"]
 
         fyers = fyersModel.FyersModel(
-            client_id=session["app_id"],
-            token=session["access_token"],
+            client_id=app_id,
+            token=access_token,
             is_async=True,
         )
         
@@ -203,15 +201,7 @@ async def login(request: LoginRequest):
         )
         
         # Create JWT session token
-        session_token = create_jwt_token(request.fy_id, access_token)
-        
-        # Store session
-        active_sessions[request.fy_id] = {
-            "access_token": access_token,
-            "login_time": datetime.utcnow(),
-            "app_id": request.app_id,
-            "secret_key": request.secret_key
-        }
+        session_token = create_jwt_token(request.fy_id, access_token, request.app_id)
         
         logger.info(f"Login successful for user: {request.fy_id}")
 
@@ -246,10 +236,6 @@ async def logout(current_user: dict = Depends(get_current_user)):
     try:
         user_id = current_user["user_id"]
 
-        # Remove from active sessions
-        if user_id in active_sessions:
-            del active_sessions[user_id]
-
         # Create response and clear cookie
         response = JSONResponse(content={
             "success": True,
@@ -276,22 +262,17 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
         user_id = current_user["user_id"]
         access_token = current_user["access_token"]
         
-        # Get session info
-        session = active_sessions.get(user_id)
-        if not session:
-            raise HTTPException(status_code=401, detail="Session not found")
-        
         # Get user profile from Fyers API
         profile_data = await get_user_profile(
             access_token=access_token,
-            app_id=session["app_id"]
+            app_id=current_user["app_id"]
         )
         
         return {
             "user_id": user_id,
             "name": profile_data.get("name", "User"),
             "capital": profile_data.get("capital", 0),
-            "login_time": session["login_time"].isoformat()
+            "login_time": datetime.utcnow().isoformat() # Use current time as login time for display
         }
         
     except Exception as e:
@@ -309,11 +290,8 @@ async def start_backtest(
     """Start a new backtest"""
     try:
         user_id = current_user["user_id"]
-        
-        # Get user session for authentication details
-        user_session = active_sessions.get(user_id)
-        if not user_session:
-            raise HTTPException(status_code=401, detail="User session not found")
+        access_token = current_user["access_token"]
+        app_id = current_user["app_id"]
 
         # Create backtest service
         backtest_service = BacktestService(
@@ -322,8 +300,8 @@ async def start_backtest(
             timeframe=request.timeframe,
             duration=request.duration,
             initial_capital=request.initial_capital,
-            access_token=user_session["access_token"],
-            app_id=user_session["app_id"]
+            access_token=access_token,
+            app_id=app_id
         )
         
         # Generate backtest ID
@@ -359,6 +337,7 @@ async def start_live_trading(
     try:
         user_id = current_user["user_id"]
         access_token = current_user["access_token"]
+        app_id = current_user["app_id"]
         
         # Check if user already has an active live session
         if user_id in active_live_sessions:
@@ -367,16 +346,11 @@ async def start_live_trading(
                 detail="Live trading session already active"
             )
         
-        # Get session info
-        session = active_sessions.get(user_id)
-        if not session:
-            raise HTTPException(status_code=401, detail="Session not found")
-        
         # Create live trading service
         live_service = LiveTradingService(
             user_id=user_id,
             access_token=access_token,
-            app_id=session["app_id"],
+            app_id=app_id,
             instrument=request.instrument,
             timeframe=request.timeframe,
             option_strategy=request.option_strategy
