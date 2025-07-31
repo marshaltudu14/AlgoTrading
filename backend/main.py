@@ -1,7 +1,15 @@
 """
 FastAPI Backend for AlgoTrading System
 """
+import multiprocessing
 import os
+
+if __name__ == '__main__':
+    try:
+        multiprocessing.set_start_method('forkserver', force=True)
+    except RuntimeError:
+        pass # Already set
+
 import sys
 from pathlib import Path
 
@@ -20,6 +28,8 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 import logging
+
+from fyers_apiv3 import fyersModel
 
 # Import our refactored auth module
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -44,7 +54,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=["http://localhost:3000", "http://localhost:3001"],  # Frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -123,6 +133,58 @@ async def get_current_user(request: Request):
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/api/funds")
+async def get_funds(current_user: dict = Depends(get_current_user)):
+    """Get funds information, including realized P&L"""
+    try:
+        user_id = current_user["user_id"]
+        session = active_sessions.get(user_id)
+        if not session:
+            raise HTTPException(status_code=401, detail="Session not found")
+
+        fyers = fyersModel.FyersModel(
+            client_id=session["app_id"],
+            token=session["access_token"],
+            is_async=True,
+        )
+        
+        funds_response = await fyers.funds()
+        
+        realized_pnl = 0
+        total_balance = 0
+        if funds_response and funds_response.get("s") == "ok" and "fund_limit" in funds_response:
+            for item in funds_response["fund_limit"]:
+                if item.get("title") == "Realized Profit and Loss":
+                    realized_pnl = item.get("equityAmount", 0)
+                elif item.get("title") == "Total Balance":
+                    total_balance = item.get("equityAmount", 0)
+        
+        return {"todayPnL": realized_pnl, "totalFunds": total_balance}
+
+    except Exception as e:
+        logger.error(f"Failed to get funds for user {current_user['user_id']}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch funds: {str(e)}"
+        )
+
+@app.get("/api/metrics")
+async def get_metrics():
+    """Get trading metrics from metrics.json"""
+    metrics_file_path = Path("metrics.json")
+    if not metrics_file_path.exists():
+        raise HTTPException(status_code=404, detail="metrics.json not found")
+    
+    try:
+        with open(metrics_file_path, "r") as f:
+            metrics_data = json.load(f)
+        return metrics_data
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Error decoding metrics.json")
+    except Exception as e:
+        logger.error(f"Failed to read metrics.json: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to read metrics: {str(e)}")
 
 @app.post("/api/login")
 async def login(request: LoginRequest):

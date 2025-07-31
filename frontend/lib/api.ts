@@ -33,14 +33,34 @@ interface ApiResponse<T = unknown> {
   error?: string
 }
 
+interface FundLimitItem {
+  id: number;
+  title: string;
+  equityAmount: number;
+  commodityAmount: number;
+}
+
+interface FundsResponse {
+  code: number;
+  message: string;
+  s: string;
+  fund_limit: FundLimitItem[];
+  todayPnL: number; // Added for direct access
+  totalFunds: number; // Added for direct access
+}
+
+interface UserProfile {
+  user_id: string
+  name: string
+  capital: number
+  login_time: string
+}
+
 class ApiClient {
   private token: string | null = null
 
   constructor() {
-    // Try to get token from localStorage on client side
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token')
-    }
+    // Token will be managed by HTTP-only cookies
   }
 
   private async request<T>(
@@ -74,7 +94,7 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || `HTTP ${response.status}: ${response.statusText}`)
+        throw new Error(`${response.status}: ${errorData.detail || response.statusText}`)
       }
 
       const data = await response.json()
@@ -97,9 +117,6 @@ class ApiClient {
     // We'll mark as authenticated if login was successful
     if (response.success) {
       this.token = 'authenticated' // Placeholder since we can't access HTTP-only cookie
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', 'authenticated')
-      }
     }
 
     return response
@@ -107,9 +124,6 @@ class ApiClient {
 
   async logout(): Promise<void> {
     this.token = null
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token')
-    }
   }
 
   // Health check
@@ -118,13 +132,18 @@ class ApiClient {
   }
 
   // Profile
-  async getProfile(): Promise<{
-    user_id: string
-    name: string
-    capital: number
-    login_time: string
-  }> {
+  async getProfile(): Promise<UserProfile> {
     return this.request('/api/profile')
+  }
+
+  // Funds
+  async getFunds(): Promise<FundsResponse> {
+    return this.request('/api/funds')
+  }
+
+  // Metrics
+  async getMetrics(): Promise<MetricsResponse> {
+    return this.request('/api/metrics')
   }
 
   // Backtesting
@@ -171,31 +190,26 @@ class ApiClient {
   }
 
   // Utility methods
-  isAuthenticated(): boolean {
-    return !!this.token
-  }
-
-  getToken(): string | null {
-    return this.token
-  }
-
-  setToken(token: string): void {
-    this.token = token
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token)
-    }
-  }
 }
 
 // Create singleton instance
 export const apiClient = new ApiClient()
 
 // Export types
+interface MetricsResponse {
+  totalTrades: number;
+  winRate: number;
+  lastTradeTime: string;
+}
+
 export type {
   LoginRequest,
   BacktestRequest,
   LiveTradingRequest,
   ApiResponse,
+  UserProfile,
+  FundsResponse,
+  MetricsResponse,
 }
 
 // Export utility functions

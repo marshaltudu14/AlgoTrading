@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   // Get the pathname of the request (e.g. /, /dashboard, /backtest)
   const { pathname } = request.nextUrl
 
   // Define protected routes
-  const protectedRoutes = ['/dashboard']
+  const protectedRoutes = ['/dashboard', '/dashboard/backtest']
   
   // Check if the current path is protected
   const isProtectedRoute = protectedRoutes.some(route => 
@@ -15,13 +15,30 @@ export function middleware(request: NextRequest) {
 
   // If it's a protected route, check for authentication
   if (isProtectedRoute) {
-    // Check for auth token in cookies
-    const token = request.cookies.get('auth_token')
-    
-    // If no token, redirect to login
-    if (!token) {
-      const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+    try {
+      // Make an internal API call to validate the session
+      // The 'credentials: "include"' is crucial for sending HTTP-only cookies
+      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile`, {
+        headers: {
+          'Cookie': request.headers.get('Cookie') || ''
+        }
+      });
+
+      if (apiResponse.status === 401) {
+        // If the API returns 401, redirect to login
+        const loginUrl = new URL('/login', request.url);
+        return NextResponse.redirect(loginUrl);
+      } else if (!apiResponse.ok) {
+        // Handle other API errors (e.g., 500)
+        console.error('Middleware API error:', apiResponse.status, apiResponse.statusText);
+        const loginUrl = new URL('/login', request.url); // Redirect to login on any API error for safety
+        return NextResponse.redirect(loginUrl);
+      }
+      // If API response is OK, continue to the requested page
+    } catch (error) {
+      console.error('Middleware fetch error:', error);
+      const loginUrl = new URL('/login', request.url); // Redirect to login on network errors
+      return NextResponse.redirect(loginUrl);
     }
   }
 
