@@ -71,15 +71,15 @@ class PPOAgent(BaseAgent):
             action_type = dist.sample()
 
             # For continuous quantity, use the predicted value directly, ensuring it's positive
-            # No upper limit - let capital-aware system handle quantity adjustment
-            quantity = torch.clamp(quantity_pred, min=1.0, max=float('inf'))
+            # Consistent upper limit of 100000 across codebase
+            quantity = torch.clamp(quantity_pred, min=1.0, max=100000.0)
 
             # Use safe tensor conversion
             return int(self.safe_tensor_to_scalar(action_type, default_value=4)), self.safe_tensor_to_scalar(quantity, default_value=1.0)
 
         except Exception as e:
             print(f"Error in select_action: {e}, using default action")
-            return 4, 1.0  # Default to HOLD action
+            return 4, 1.0  # Default to HOLD action with 1 lot
 
     def safe_tensor_to_scalar(self, tensor, default_value=0.0):
         try:
@@ -331,8 +331,8 @@ class PPOAgent(BaseAgent):
             log_probs_discrete = dist_discrete.log_prob(action_types)
             entropy_discrete = dist_discrete.entropy().mean()
 
-            # Clamp quantity predictions to prevent extreme values (minimum 1, no upper limit)
-            quantity_preds = torch.clamp(quantity_preds, min=1.0, max=float('inf'))
+            # Clamp quantity predictions to prevent extreme values (minimum 1, consistent upper limit)
+            quantity_preds = torch.clamp(quantity_preds, min=1.0, max=100000.0)
             dist_continuous = Normal(quantity_preds, quantity_std)
             log_probs_continuous = dist_continuous.log_prob(quantities)
 

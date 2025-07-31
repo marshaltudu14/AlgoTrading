@@ -6,7 +6,7 @@ training_sequence:
   # Stage 1: PPO Training
   stage_1_ppo:
     algorithm: "PPO"
-    episodes: 50  # PRODUCTION: Sufficient episodes for stable learning
+    episodes: 5  # PRODUCTION: Sufficient episodes for stable learning
     description: "PPO reinforcement learning for trading"
     objectives:
       - "Learn optimal trading patterns"
@@ -29,9 +29,9 @@ environment:
 
 # Model Configuration - Moved from src/config/config.py
 model:
-  hidden_dim: 64          # Hidden layer dimension for PPO agent
+  hidden_dim: 256          # Hidden layer dimension for PPO agent
   action_dim_discrete: 5  # Number of discrete actions (BUY_LONG, SELL_SHORT, CLOSE_LONG, CLOSE_SHORT, HOLD)
-  action_dim_continuous: 1 # Continuous action dimension (quantity)
+  action_dim_continuous: 1 # Continuous action dimension (quantity: 1 to max_affordable)
   model_path: "models/universal_final_model.pth"
   model_type: "ppo"
 

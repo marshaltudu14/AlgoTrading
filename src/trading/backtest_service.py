@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class BacktestService:
     """Service for running backtests and streaming results"""
-    
+
     def __init__(self, user_id: str, instrument: str, timeframe: str, duration: int, initial_capital: float = 100000, access_token: str = None, app_id: str = None):
         self.user_id = user_id
         self.instrument = instrument
@@ -37,10 +37,15 @@ class BacktestService:
         self.progress = 0
         self.websocket_clients = []
 
+        # Disable detailed logging for Next.js backtest service
+        # This will prevent step-by-step trade logging while keeping it enabled for direct training runs
+        os.environ['DETAILED_BACKTEST_LOGGING'] = 'false'
+
         # Load instrument configuration
         self.config = self._load_instrument_config()
 
         logger.info(f"Initialized backtest service for {user_id}: {instrument} {timeframe} {duration}d, capital: ₹{initial_capital:,.0f}")
+        logger.info("Detailed trade logging disabled for Next.js backtest service")
     
     def _load_instrument_config(self) -> Dict[str, Any]:
         """Load instrument configuration from config file"""
@@ -95,20 +100,16 @@ class BacktestService:
         """Get trading symbol for the instrument from config"""
         try:
             instruments = self.config.get('instruments', [])
-            for instrument in instruments:
-                if instrument.get('name', '').replace(' ', '_').upper() == self.instrument.upper():
-                    return instrument.get('symbol', '')
+            for instrument_config in instruments:
+                # Normalize both names for comparison
+                config_name = instrument_config.get('name', '').replace(' ', '_').upper()
+                current_instrument_name = self.instrument.replace(' ', '_').upper()
 
-            # Fallback mapping if not found in config
-            symbol_map = {
-                "BANK_NIFTY": "NSE:NIFTYBANK-INDEX",
-                "NIFTY": "NSE:NIFTY50-INDEX",
-                "RELIANCE": "NSE:RELIANCE-EQ",
-                "TCS": "NSE:TCS-EQ",
-                "HDFC": "NSE:HDFCBANK-EQ"
-            }
+                if config_name == current_instrument_name:
+                    return instrument_config.get('exchange-symbol', '')
 
-            return symbol_map.get(self.instrument.upper(), "")
+            # If no matching instrument found in config
+            return ""
 
         except Exception as e:
             logger.error(f"Failed to get trading symbol: {e}")
@@ -182,7 +183,12 @@ class BacktestService:
             observation_dim = obs.shape[0]
             action_dim_discrete = 5  # TradingEnv action space: [0,1,2,3,4]
             action_dim_continuous = 1
-            hidden_dim = 64  # Default from config
+            # Load training config to get hidden_dim
+            import yaml
+            training_config_path = Path(__file__).parent.parent.parent / "config" / "training_sequence.yaml"
+            with open(training_config_path, 'r') as f:
+                training_config = yaml.safe_load(f)
+            hidden_dim = training_config.get('model', {}).get('hidden_dim', 64)
 
             logger.info(f"Model dimensions: obs={observation_dim}, discrete={action_dim_discrete}, continuous={action_dim_continuous}")
 

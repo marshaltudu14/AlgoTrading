@@ -36,18 +36,18 @@ class TestQuantityPredictionFix:
         output = model(x)
         
         quantity = output['quantity'].item()
-        
-        # Should be one of the discrete values: 1.0, 2.0, 3.0, 4.0, 5.0
-        assert quantity in [1.0, 2.0, 3.0, 4.0, 5.0], f"Expected integer quantity, got {quantity}"
-        
+
+        # Should be >= 1.0 and <= 100000.0 (consistent quantity prediction limit)
+        assert 1.0 <= quantity <= 100000.0, f"Expected quantity between 1.0 and 100000.0, got {quantity}"
+
         # Test batch
         x_batch = torch.randn(3, 1, 20)
         output_batch = model(x_batch)
-        
+
         quantities = output_batch['quantity']
         for i in range(quantities.shape[0]):
             q = quantities[i].item()
-            assert q in [1.0, 2.0, 3.0, 4.0, 5.0], f"Expected integer quantity, got {q}"
+            assert 1.0 <= q <= 100000.0, f"Expected quantity between 1.0 and 100000.0, got {q}"
     
     def test_ppo_agent_integer_quantity_preservation(self):
         """Test that PPOAgent preserves integer quantities."""
@@ -68,9 +68,9 @@ class TestQuantityPredictionFix:
             obs = np.random.rand(20).astype(np.float32)
             action_type, quantity = agent.select_action(obs)
             
-            # Quantity should be an integer (1, 2, 3, 4, or 5)
+            # Quantity should be >= 1.0 and <= 100000.0 (consistent quantity prediction limit)
             assert isinstance(quantity, (int, float))
-            assert quantity in [1.0, 2.0, 3.0, 4.0, 5.0], f"Expected integer quantity, got {quantity}"
+            assert 1.0 <= quantity <= 100000.0, f"Expected quantity between 1.0 and 100000.0, got {quantity}"
     
     # MoE agent test removed - only using PPO for now
 
@@ -280,9 +280,9 @@ class TestIntegratedQuantityPrediction:
                 action_type, quantity = agent.select_action(obs)
                 quantities.append(quantity)
             
-            # All quantities should be integers
+            # All quantities should be within valid range
             for q in quantities:
-                assert q in [1.0, 2.0, 3.0, 4.0, 5.0], f"Expected integer quantity, got {q}"
+                assert 1.0 <= q <= 100000.0, f"Expected quantity between 1.0 and 100000.0, got {q}"
             
             # With higher capital, we should see more variety in quantities
             # (This is a probabilistic test, so we check for reasonable distribution)

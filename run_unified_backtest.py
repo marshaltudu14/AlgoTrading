@@ -400,6 +400,10 @@ class UnifiedBacktester:
 
 def main():
     """Main execution function."""
+    # Enable detailed logging for direct backtest runs
+    os.environ['DETAILED_BACKTEST_LOGGING'] = 'true'
+    logger.info("Detailed trade logging enabled for direct backtest run")
+
     try:
         backtester = UnifiedBacktester()
         results = backtester.run_backtest()

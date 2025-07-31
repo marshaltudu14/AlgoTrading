@@ -27,8 +27,8 @@ class CapitalAwareQuantitySelector:
         self.brokerage_entry = brokerage_entry
     
     def adjust_quantity_for_capital(
-        self, 
-        predicted_quantity: float, 
+        self,
+        predicted_quantity: float,
         available_capital: float,
         current_price: float,
         instrument: Instrument,
@@ -36,20 +36,17 @@ class CapitalAwareQuantitySelector:
     ) -> int:
         """
         Adjust predicted quantity based on available capital.
-        
+
         Args:
-            predicted_quantity: Raw quantity prediction from model (1-5)
+            predicted_quantity: Raw quantity prediction from model (can be any positive value)
             available_capital: Available capital for trading
             current_price: Current market price
             instrument: Instrument specification
             proxy_premium: Premium for options (if applicable)
-            
+
         Returns:
             Adjusted integer quantity that fits within available capital
         """
-        # Ensure predicted quantity is an integer in valid range
-        predicted_quantity = max(1, min(5, int(round(predicted_quantity))))
-        
         # Calculate cost per lot
         if instrument.type == "index":
             # For index instruments, treat as options with premium calculation
@@ -62,30 +59,75 @@ class CapitalAwareQuantitySelector:
         else:
             # For stock instruments, use direct price calculation
             cost_per_lot = current_price * instrument.lot_size
-        
-        # Add brokerage to total cost
-        total_cost_per_lot = cost_per_lot + (self.brokerage_entry / predicted_quantity)
-        
+
         # Calculate maximum affordable quantity
         max_affordable_quantity = int((available_capital - self.brokerage_entry) // cost_per_lot)
         max_affordable_quantity = max(0, max_affordable_quantity)
-        
+
+        # If predicted_quantity is very high (like 100), return max affordable
+        # This is used to find the maximum possible quantity
+        if predicted_quantity >= 50:
+            return max_affordable_quantity
+
+        # For normal predictions, ensure predicted quantity is an integer in valid range
+        predicted_quantity = max(1, int(round(predicted_quantity)))
+
         # Adjust predicted quantity to what's affordable
         adjusted_quantity = min(predicted_quantity, max_affordable_quantity)
-        
+
         # Ensure at least 1 lot if any capital is available
         if adjusted_quantity == 0 and available_capital > (cost_per_lot + self.brokerage_entry):
             adjusted_quantity = 1
-        
-        # Log adjustment if quantity was reduced
-        if adjusted_quantity < predicted_quantity:
+
+        # Log adjustment if quantity was reduced (only for normal predictions, not max queries)
+        if predicted_quantity < 50 and adjusted_quantity < predicted_quantity:
             logger.info(f"💰 Quantity adjusted: {predicted_quantity} → {adjusted_quantity} lots")
             logger.info(f"   Available capital: ₹{available_capital:.2f}")
             logger.info(f"   Cost per lot: ₹{cost_per_lot:.2f}")
             logger.info(f"   Max affordable: {max_affordable_quantity} lots")
-        
+
         return adjusted_quantity
-    
+
+    def get_max_affordable_quantity(
+        self,
+        available_capital: float,
+        current_price: float,
+        instrument: Instrument,
+        proxy_premium: Optional[float] = None
+    ) -> int:
+        """
+        Calculate the maximum quantity that can be afforded with available capital.
+        No artificial limits - purely based on capital constraints.
+
+        Args:
+            available_capital: Available capital for trading
+            current_price: Current market price
+            instrument: Instrument specification
+            proxy_premium: Premium for options (if applicable)
+
+        Returns:
+            Maximum affordable quantity (integer)
+        """
+        # Calculate cost per lot
+        if instrument.type == "index":
+            # For index instruments, treat as options with premium calculation
+            if proxy_premium is None:
+                # Use the configured premium range (default to middle of range)
+                premium_min, premium_max = instrument.option_premium_range
+                premium_rate = (premium_min + premium_max) / 2  # Use middle of range
+                proxy_premium = current_price * premium_rate
+            cost_per_lot = proxy_premium * instrument.lot_size
+        else:
+            # For stock instruments, use direct price calculation
+            cost_per_lot = current_price * instrument.lot_size
+
+        # Calculate maximum affordable quantity (no artificial limits)
+        if cost_per_lot <= 0:
+            return 0
+
+        max_affordable_quantity = int((available_capital - self.brokerage_entry) // cost_per_lot)
+        return max(0, max_affordable_quantity)
+
     def calculate_trade_cost(
         self,
         quantity: int,
