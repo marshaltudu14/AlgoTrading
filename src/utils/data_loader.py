@@ -17,6 +17,8 @@ class DataLoader:
         self.raw_data_dir = raw_data_dir
         self.chunk_size = chunk_size
         self.use_parquet = use_parquet
+        self.testing_mode = False  # Initialize testing mode
+        self.in_memory_data = {}   # Initialize in-memory data storage
 
         # Create parquet directories if they don't exist
         self.parquet_final_dir = os.path.join(self.final_data_dir, "parquet")

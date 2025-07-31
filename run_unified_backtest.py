@@ -72,7 +72,7 @@ class UnifiedBacktester:
         # Hardcoded configuration - Bank Nifty, 2min, 30 days
         self.SYMBOL = 'NSE:NIFTYBANK-INDEX'
         self.TIMEFRAME = '2'  # 2 minutes
-        self.DAYS = 30
+        self.DAYS = 15
 
         # Model parameters from config
         self.LOOKBACK_WINDOW = env_config.get('lookback_window', 50)
@@ -327,11 +327,32 @@ class UnifiedBacktester:
                     current_datetime = f"Step_{env.current_step}"
                     epoch_feature = "N/A"
 
-                # Log EVERY SINGLE STEP as requested by user
+                # Log EVERY SINGLE STEP in training format
                 account_state = env.engine.get_account_state()
                 action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
                 action_name = action_names[action_type] if action_type < len(action_names) else "UNKNOWN"
-                logger.info(f"📊 Step {step_count} | {current_datetime} | Epoch: {epoch_feature} | Action: {action_name} | Capital: ₹{account_state['capital']:.2f} | Position: {account_state['current_position_quantity']} | Reward: {reward:.4f}")
+
+                # Calculate win rate from current trades
+                current_trades = env.engine.get_trade_history()
+                closing_trades = [t for t in current_trades if t.get('trade_type') == 'CLOSE']
+                if closing_trades:
+                    winning_trades = sum(1 for t in closing_trades if t.get('pnl', 0) > 0)
+                    win_rate = winning_trades / len(closing_trades)
+                else:
+                    win_rate = 0.0
+
+                total_trades = len(closing_trades)
+
+                # Get exit reason if available
+                exit_reason = info.get('exit_reason', '')
+                exit_info = f" | Exit: {exit_reason}" if exit_reason else ""
+
+                # Match training log format exactly
+                logger.info(f"📊 Step {step_count} | {current_datetime} | NIFTYBANK | "
+                           f"Action: {action_name} | Capital: ₹{account_state['capital']:.2f} | "
+                           f"Position: {account_state['current_position_quantity']} | "
+                           f"Reward: {reward:.4f} | Win Rate: {win_rate:.1%} | "
+                           f"Trades: {total_trades}{exit_info}")
             
             # Step 5: Get results
             results = env.get_backtest_results()

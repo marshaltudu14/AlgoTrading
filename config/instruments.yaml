@@ -1,22 +1,29 @@
 instruments:
-  # Generic data instruments (no type distinctions - all treated as data)
+  # Index instruments (treated as options with premium calculation)
   - symbol: "Bank_Nifty"
-    lot_size: 25 # Bank Nifty lot size
+    type: "index"
+    lot_size: 35 # Bank Nifty lot size
     tick_size: 0.05
+    option_premium_range: [0.02, 0.03] # 2% to 3% of index price
 
   - symbol: "Nifty"
-    lot_size: 50 # Nifty lot size
+    type: "index"
+    lot_size: 75 # Nifty lot size
     tick_size: 0.05
+    option_premium_range: [0.01, 0.02] # 1% to 2% of index price
 
-  # Additional data instruments for testing
+  # Stock instruments (direct price-based quantity calculation)
   - symbol: "RELIANCE"
+    type: "stock"
     lot_size: 1 # RELIANCE lot size
     tick_size: 0.05
 
   - symbol: "TCS"
+    type: "stock"
     lot_size: 1 # TCS lot size
     tick_size: 0.05
 
   - symbol: "HDFC"
+    type: "stock"
     lot_size: 1 # HDFC lot size
     tick_size: 0.05

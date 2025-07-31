@@ -6,7 +6,7 @@ training_sequence:
   # Stage 1: PPO Training
   stage_1_ppo:
     algorithm: "PPO"
-    episodes: 500  # PRODUCTION: Sufficient episodes for stable learning
+    episodes: 100  # PRODUCTION: Sufficient episodes for stable learning
     description: "PPO reinforcement learning for trading"
     objectives:
       - "Learn optimal trading patterns"

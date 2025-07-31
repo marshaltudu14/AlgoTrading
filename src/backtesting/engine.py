@@ -31,6 +31,10 @@ class BacktestingEngine:
         self._peak_price = 0.0
         self._is_position_open = False
         self.trailing_stop_percentage = trailing_stop_percentage
+
+        # Point-based trailing stop variables
+        self._initial_sl_points = 0.0  # Fixed point gap from initial SL
+        self._use_point_based_trailing = True  # Use point-based instead of percentage-based
         self._premium_paid_per_lot = 0.0 # For options P&L calculation
 
         # Load configuration for brokerage and risk management
@@ -71,8 +75,9 @@ class BacktestingEngine:
         self._position_entry_reason = ""
         self._last_decision_timestamp = None
 
-    def reset(self):
-        logger.info(f"🔄 Engine reset: Position before reset: {self._current_position_quantity}")
+    def reset(self, verbose: bool = False):
+        if verbose:
+            logger.info(f"🔄 Engine reset: Position before reset: {self._current_position_quantity}")
         self._capital = self._initial_capital
         self._current_position_quantity = 0.0
         self._current_position_entry_price = 0.0
@@ -89,17 +94,44 @@ class BacktestingEngine:
         self._total_realized_pnl = 0.0  # Total P&L from all closed trades
         self._trade_count = 0  # Number of completed trades
 
-        logger.info(f"✅ Engine reset complete: Position after reset: {self._current_position_quantity}, Capital: ₹{self._capital:.2f}")
+        if verbose:
+            logger.info(f"✅ Engine reset complete: Position after reset: {self._current_position_quantity}, Capital: ₹{self._capital:.2f}")
 
     def _update_trailing_stop(self, current_price: float):
+        """
+        Update trailing stop using point-based logic that maintains fixed point gaps.
+        Trail moves up/down maintaining the same point gap but doesn't move when price comes closer.
+        """
+        if not self._is_position_open or self._initial_sl_points == 0:
+            return
+
         if self._current_position_quantity > 0:  # Long position
             if current_price > self._peak_price:
+                # Price moved up, update peak and trail
                 self._peak_price = current_price
-                self._trailing_stop_price = self._peak_price * (1 - self.trailing_stop_percentage)
+                new_trailing_stop = self._peak_price - self._initial_sl_points
+
+                # Only move trailing stop up, never down (maintain or improve)
+                if new_trailing_stop > self._trailing_stop_price:
+                    self._trailing_stop_price = new_trailing_stop
+
+                # Ensure trailing stop doesn't go below initial SL
+                if self._trailing_stop_price < self._stop_loss_price:
+                    self._trailing_stop_price = self._stop_loss_price
+
         elif self._current_position_quantity < 0:  # Short position
             if current_price < self._peak_price:
+                # Price moved down, update peak and trail
                 self._peak_price = current_price
-                self._trailing_stop_price = self._peak_price * (1 + self.trailing_stop_percentage)
+                new_trailing_stop = self._peak_price + self._initial_sl_points
+
+                # Only move trailing stop down, never up (maintain or improve)
+                if new_trailing_stop < self._trailing_stop_price:
+                    self._trailing_stop_price = new_trailing_stop
+
+                # Ensure trailing stop doesn't go above initial SL
+                if self._trailing_stop_price > self._stop_loss_price:
+                    self._trailing_stop_price = self._stop_loss_price
 
     def execute_trade(self, action: str, price: float, quantity: float, atr_value: float = 0.0, proxy_premium: float = 0.0) -> Tuple[float, float]:
         """Execute trade with detailed real-time logging."""
@@ -185,7 +217,8 @@ class BacktestingEngine:
 
         if action == "BUY_LONG":
             if self._current_position_quantity != 0:
-                logger.info(f"INFO Step {self._current_step}: Cannot BUY_LONG - already have position ({self._current_position_quantity})")
+                # Suppress detailed logging during training - info will be in step logs
+                pass
                 decision_log['result'] = 'REJECTED_EXISTING_POSITION'
                 decision_log['reason'] = f"Already have position: {self._current_position_quantity}"
                 self._decision_log.append(decision_log)
@@ -209,7 +242,10 @@ class BacktestingEngine:
             self._stop_loss_price = price - (atr_value * risk_multiplier)  # SL = risk_multiplier * ATR below entry for long
             self._target_profit_price = price + (atr_value * reward_multiplier)  # TP = reward_multiplier * ATR above entry for long
             self._peak_price = price # Initialize peak price for trailing stop
-            self._trailing_stop_price = self._peak_price * (1 - self.trailing_stop_percentage)
+
+            # Calculate initial SL points for point-based trailing
+            self._initial_sl_points = price - self._stop_loss_price  # Fixed point gap
+            self._trailing_stop_price = self._stop_loss_price  # Start with initial SL
 
             # Detailed position entry logging (only if detailed logging enabled)
             if detailed_logging:
@@ -233,7 +269,8 @@ class BacktestingEngine:
 
         elif action == "SELL_SHORT":
             if self._current_position_quantity != 0:
-                logging.info(f"Cannot SELL_SHORT. Already have an open position ({self._current_position_quantity}). Trade not executed.")
+                # Suppress detailed logging during training - info will be in step logs
+                pass
                 return 0.0, self._unrealized_pnl
 
             # Deduct entry brokerage for realistic trading costs
@@ -253,7 +290,10 @@ class BacktestingEngine:
             self._stop_loss_price = price + (atr_value * risk_multiplier)  # SL = risk_multiplier * ATR above entry for short
             self._target_profit_price = price - (atr_value * reward_multiplier)  # TP = reward_multiplier * ATR below entry for short
             self._peak_price = price # Initialize peak price for trailing stop
-            self._trailing_stop_price = self._peak_price * (1 + self.trailing_stop_percentage)
+
+            # Calculate initial SL points for point-based trailing
+            self._initial_sl_points = self._stop_loss_price - price  # Fixed point gap
+            self._trailing_stop_price = self._stop_loss_price  # Start with initial SL
             if detailed_logging:
                 logging.info(f"🔴 Step {self._current_step}: SELL_SHORT EXECUTED")
                 logging.info(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Entry Brokerage: ₹{cost:.2f})")

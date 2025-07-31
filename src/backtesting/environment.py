@@ -335,11 +335,20 @@ class TradingEnv(gym.Env):
         # Apply capital-aware quantity adjustment for trading actions (not HOLD)
         if action_type != 4 and quantity > 0:
             available_capital = prev_capital
-            # Use predicted quantity directly for all modes (no capital constraints for index trading)
-            adjusted_quantity = int(round(quantity))
+
+            # Import capital-aware quantity adjustment
+            from src.utils.capital_aware_quantity import adjust_quantity_for_capital
+
+            # Calculate dynamically adjusted quantity based on available capital
+            adjusted_quantity = adjust_quantity_for_capital(
+                predicted_quantity=quantity,
+                available_capital=available_capital,
+                current_price=current_price,
+                instrument=self.instrument
+            )
 
             # Log quantity adjustment if it was changed
-            if adjusted_quantity != quantity:
+            if adjusted_quantity != int(round(quantity)):
                 logger.info(f"💰 Quantity adjusted for capital: {quantity} → {adjusted_quantity} lots")
                 logger.info(f"   Available capital: ₹{available_capital:.2f}")
 
@@ -415,6 +424,11 @@ class TradingEnv(gym.Env):
 
         base_reward = self._calculate_reward(current_capital, prev_capital)
         shaped_reward = self._apply_reward_shaping(base_reward, action_type, current_capital, prev_capital)
+
+        # Add quantity prediction feedback reward
+        quantity_reward = self._calculate_quantity_feedback_reward(action, prev_capital)
+        shaped_reward += quantity_reward
+
         # Apply normalization for universal model training across different instruments
         reward = self._normalize_reward(shaped_reward)
 
@@ -432,7 +446,17 @@ class TradingEnv(gym.Env):
         if done:
             self._force_close_open_positions()
 
-        info = {"termination_reason": termination_reason} if termination_reason else {}
+        # Create info dictionary with termination reason and exit reason
+        info = {}
+        if termination_reason:
+            info["termination_reason"] = termination_reason
+
+        # Get exit reason from the latest decision log entry
+        if self.engine._decision_log:
+            latest_decision = self.engine._decision_log[-1]
+            exit_reason = latest_decision.get('exit_reason')
+            if exit_reason:
+                info["exit_reason"] = exit_reason
 
         # Return 4 values as expected by standard gym environments
         return self._get_observation(), reward, done, info
@@ -737,6 +761,70 @@ class TradingEnv(gym.Env):
 
         return shaped_reward
 
+    def _calculate_quantity_feedback_reward(self, action, available_capital: float) -> float:
+        """
+        Calculate reward feedback for quantity predictions to guide better capital utilization.
+
+        Args:
+            action: The action taken (action_type, quantity)
+            available_capital: Available capital at the time of action
+
+        Returns:
+            Reward component based on quantity prediction quality
+        """
+        if isinstance(action, (list, np.ndarray, tuple)) and len(action) >= 2:
+            action_type = int(action[0])
+            predicted_quantity = float(action[1])
+        else:
+            return 0.0  # No quantity feedback for non-trading actions
+
+        # Only provide feedback for trading actions (not HOLD)
+        if action_type == 4:  # HOLD action
+            return 0.0
+
+        if predicted_quantity <= 0:
+            return 0.0
+
+        # Get current price for cost calculation
+        current_price = self.data.iloc[self.current_step]['close'] if self.current_step < len(self.data) else 0
+        if current_price <= 0:
+            return 0.0
+
+        # Import capital-aware quantity calculation
+        from src.utils.capital_aware_quantity import CapitalAwareQuantitySelector
+        selector = CapitalAwareQuantitySelector()
+
+        # Calculate what the optimal quantity would be
+        max_affordable = selector.adjust_quantity_for_capital(
+            predicted_quantity=5.0,  # Max possible
+            available_capital=available_capital,
+            current_price=current_price,
+            instrument=self.instrument
+        )
+
+        # Calculate capital utilization efficiency
+        if max_affordable > 0:
+            # Reward efficient capital utilization
+            actual_quantity = min(int(predicted_quantity), max_affordable)
+            utilization_ratio = actual_quantity / max_affordable
+
+            # Reward good utilization (0.6-0.9 is optimal, not too conservative, not too aggressive)
+            if 0.6 <= utilization_ratio <= 0.9:
+                quantity_reward = 0.1 * utilization_ratio  # Small positive reward
+            elif utilization_ratio > 0.9:
+                quantity_reward = 0.05  # Slightly less reward for being too aggressive
+            else:
+                quantity_reward = 0.02 * utilization_ratio  # Small reward for conservative approach
+
+            # Penalize predictions that exceed affordable quantity
+            if predicted_quantity > max_affordable:
+                over_prediction_penalty = -0.05 * (predicted_quantity - max_affordable) / max_affordable
+                quantity_reward += over_prediction_penalty
+
+            return quantity_reward
+
+        return 0.0
+
     def _calculate_reward_normalization_factor(self, symbol: str) -> float:
         """Calculate normalization factor based on instrument type and typical price ranges."""
         symbol_lower = symbol.lower()
@@ -844,7 +932,7 @@ class TradingEnv(gym.Env):
         max_drawdown = (self.peak_equity - account_state['capital']) / self.peak_equity if self.peak_equity > 0 else 0
 
         # Get trade history from engine
-        trades = getattr(self.engine, 'trade_history', [])
+        trades = self.engine.get_trade_history()
 
         results = {
             'mode': self.mode.value,
@@ -856,7 +944,7 @@ class TradingEnv(gym.Env):
             'max_drawdown': max_drawdown,
             'max_drawdown_pct': max_drawdown * 100,
             'peak_equity': self.peak_equity,
-            'total_trades': len(trades),
+            'total_trades': self.engine._trade_count,
             'equity_curve': self.equity_history.copy(),
             'trades': trades,
             'current_position': account_state['current_position_quantity'],

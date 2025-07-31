@@ -71,7 +71,8 @@ class PPOAgent(BaseAgent):
             action_type = dist.sample()
 
             # For continuous quantity, use the predicted value directly, ensuring it's positive
-            quantity = torch.clamp(quantity_pred, min=0.01, max=10.0)
+            # No upper limit - let capital-aware system handle quantity adjustment
+            quantity = torch.clamp(quantity_pred, min=1.0, max=float('inf'))
 
             # Use safe tensor conversion
             return int(self.safe_tensor_to_scalar(action_type, default_value=4)), self.safe_tensor_to_scalar(quantity, default_value=1.0)
@@ -330,8 +331,8 @@ class PPOAgent(BaseAgent):
             log_probs_discrete = dist_discrete.log_prob(action_types)
             entropy_discrete = dist_discrete.entropy().mean()
 
-            # Clamp quantity predictions to prevent extreme values
-            quantity_preds = torch.clamp(quantity_preds, min=0.01, max=10.0)
+            # Clamp quantity predictions to prevent extreme values (minimum 1, no upper limit)
+            quantity_preds = torch.clamp(quantity_preds, min=1.0, max=float('inf'))
             dist_continuous = Normal(quantity_preds, quantity_std)
             log_probs_continuous = dist_continuous.log_prob(quantities)
 

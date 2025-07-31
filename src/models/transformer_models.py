@@ -235,27 +235,20 @@ class ActorTransformerModel(MultiHeadTransformerModel):
 
         outputs['action_type'] = action_probs
 
-        # FORCE INTEGER QUANTITIES FOR PRODUCTION USE
-        # Apply sigmoid to quantity and scale to whole lots (1 to 5 lots)
+        # UNLIMITED QUANTITY PREDICTION - LET MODEL CHOOSE
+        # Allow model to predict any quantity >= 1, no upper limit
         quantity_raw = outputs['quantity']
 
         # Check for NaN/Inf in quantity predictions and replace with default
         if torch.isnan(quantity_raw).any() or torch.isinf(quantity_raw).any():
             quantity_raw = torch.ones_like(quantity_raw)  # Default to 1.0
 
-        quantity_raw = torch.clamp(quantity_raw, min=-5, max=5)  # Prevent extreme values
+        # Apply ReLU to ensure positive values, then add 1 to ensure minimum of 1
+        # No upper limit - let the model choose and capital-aware system will adjust
+        final_quantity = torch.relu(quantity_raw) + 1.0
 
-        # Use a more aggressive approach to ensure integer outputs
-        # Map sigmoid output to discrete values: 1, 2, 3, 4, or 5
-        sigmoid_val = torch.sigmoid(quantity_raw)
-
-        # Discretize into 5 bins using torch.where for tensor operations
-        final_quantity = torch.where(sigmoid_val < 0.2, 1.0,
-                         torch.where(sigmoid_val < 0.4, 2.0,
-                         torch.where(sigmoid_val < 0.6, 3.0,
-                         torch.where(sigmoid_val < 0.8, 4.0, 5.0))))
-
-
+        # Round to nearest integer for clean quantities
+        final_quantity = torch.round(final_quantity)
 
         # Return as tensor with same shape as original quantity_raw
         outputs['quantity'] = final_quantity.to(dtype=torch.float32)

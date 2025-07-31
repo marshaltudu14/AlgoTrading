@@ -12,7 +12,16 @@ def load_instruments(file_path: str) -> dict[str, Instrument]:
             symbol = item['symbol']
             lot_size = item['lot_size']
             tick_size = item['tick_size']
-            instruments[symbol] = Instrument(symbol, lot_size, tick_size)
+            instrument_type = item.get('type', 'stock')  # Default to stock if not specified
+            option_premium_range = item.get('option_premium_range', [0.025, 0.05])  # Default range
+
+            instruments[symbol] = Instrument(
+                symbol=symbol,
+                lot_size=lot_size,
+                tick_size=tick_size,
+                instrument_type=instrument_type,
+                option_premium_range=option_premium_range
+            )
     return instruments
 
 if __name__ == '__main__':

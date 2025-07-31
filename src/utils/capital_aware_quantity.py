@@ -51,13 +51,16 @@ class CapitalAwareQuantitySelector:
         predicted_quantity = max(1, min(5, int(round(predicted_quantity))))
         
         # Calculate cost per lot
-        if instrument.type == "OPTION":
+        if instrument.type == "index":
+            # For index instruments, treat as options with premium calculation
             if proxy_premium is None:
-                # Estimate premium as 1.5% of underlying price
-                proxy_premium = current_price * 0.015
+                # Use the configured premium range (default to middle of range)
+                premium_min, premium_max = instrument.option_premium_range
+                premium_rate = (premium_min + premium_max) / 2  # Use middle of range
+                proxy_premium = current_price * premium_rate
             cost_per_lot = proxy_premium * instrument.lot_size
         else:
-            # For stocks
+            # For stock instruments, use direct price calculation
             cost_per_lot = current_price * instrument.lot_size
         
         # Add brokerage to total cost
@@ -97,15 +100,28 @@ class CapitalAwareQuantitySelector:
             quantity: Number of lots to trade
             current_price: Current market price
             instrument: Instrument specification
-            proxy_premium: Not used (kept for compatibility)
+            proxy_premium: Premium for options (if applicable)
 
         Returns:
             Total cost including brokerage
         """
-        # Simple cost calculation for all data types
-        cost = (current_price * quantity * instrument.lot_size) + self.brokerage_entry
+        # Calculate cost per lot based on instrument type
+        if instrument.type == "index":
+            # For index instruments, treat as options with premium calculation
+            if proxy_premium is None:
+                # Use the configured premium range (default to middle of range)
+                premium_min, premium_max = instrument.option_premium_range
+                premium_rate = (premium_min + premium_max) / 2  # Use middle of range
+                proxy_premium = current_price * premium_rate
+            cost_per_lot = proxy_premium * instrument.lot_size
+        else:
+            # For stock instruments, use direct price calculation
+            cost_per_lot = current_price * instrument.lot_size
 
-        return cost
+        # Total cost including brokerage
+        total_cost = (cost_per_lot * quantity) + self.brokerage_entry
+
+        return total_cost
     
     def get_affordable_quantities(
         self,
