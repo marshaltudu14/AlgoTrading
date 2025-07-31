@@ -32,121 +32,10 @@ logger = logging.getLogger(__name__)
 warnings.filterwarnings('ignore')
 
 
-class PandasTAIndicators:
-    """
-    Technical indicators using pandas-ta library for maximum reliability.
-    All indicators use pandas-ta implementations with proper NaN handling.
-    """
-
-    @staticmethod
-    def sma(data: pd.Series, period: int) -> pd.Series:
-        """Simple Moving Average using pandas-ta"""
-        return ta.sma(data, length=period)
-
-    @staticmethod
-    def ema(data: pd.Series, period: int) -> pd.Series:
-        """Exponential Moving Average using pandas-ta"""
-        return ta.ema(data, length=period)
-
-    @staticmethod
-    def rsi(data: pd.Series, period: int = 14) -> pd.Series:
-        """Relative Strength Index using pandas-ta"""
-        return ta.rsi(data, length=period)
-    
-    @staticmethod
-    def macd(data: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> Dict[str, pd.Series]:
-        """Moving Average Convergence Divergence using pandas-ta"""
-        macd_data = ta.macd(data, fast=fast, slow=slow, signal=signal)
-        return {
-            'macd': macd_data[f'MACD_{fast}_{slow}_{signal}'],
-            'signal': macd_data[f'MACDs_{fast}_{slow}_{signal}'],
-            'histogram': macd_data[f'MACDh_{fast}_{slow}_{signal}']
-        }
-
-    @staticmethod
-    def bollinger_bands(data: pd.Series, period: int = 20, std_dev: float = 2.0) -> Dict[str, pd.Series]:
-        """Bollinger Bands using pandas-ta"""
-        bb_data = ta.bbands(data, length=period, std=std_dev)
-        return {
-            'upper': bb_data[f'BBU_{period}_{std_dev}'],
-            'middle': bb_data[f'BBM_{period}_{std_dev}'],
-            'lower': bb_data[f'BBL_{period}_{std_dev}']
-        }
-    
-    @staticmethod
-    def atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
-        """Average True Range using pandas-ta"""
-        return ta.atr(high, low, close, length=period)
-
-    @staticmethod
-    def stochastic(high: pd.Series, low: pd.Series, close: pd.Series,
-                   k_period: int = 14, d_period: int = 3) -> Dict[str, pd.Series]:
-        """Stochastic Oscillator using pandas-ta"""
-        stoch_data = ta.stoch(high, low, close, k=k_period, d=d_period)
-        return {
-            'k': stoch_data[f'STOCHk_{k_period}_{d_period}_{d_period}'],
-            'd': stoch_data[f'STOCHd_{k_period}_{d_period}_{d_period}']
-        }
-
-    @staticmethod
-    def williams_r(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> pd.Series:
-        """Williams %R using pandas-ta"""
-        return ta.willr(high, low, close, length=period)
-
-    @staticmethod
-    def cci(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 20) -> pd.Series:
-        """Commodity Channel Index using pandas-ta"""
-        return ta.cci(high, low, close, length=period)
-
-    @staticmethod
-    def adx(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> Dict[str, pd.Series]:
-        """Average Directional Index using pandas-ta"""
-        adx_data = ta.adx(high, low, close, length=period)
-        return {
-            'adx': adx_data[f'ADX_{period}'],
-            'di_plus': adx_data[f'DMP_{period}'],
-            'di_minus': adx_data[f'DMN_{period}']
-        }
-
-    @staticmethod
-    def momentum(data: pd.Series, period: int = 10) -> pd.Series:
-        """Price Momentum using pandas-ta"""
-        return ta.mom(data, length=period)
-
-    @staticmethod
-    def roc(data: pd.Series, period: int = 10) -> pd.Series:
-        """Rate of Change using pandas-ta"""
-        return ta.roc(data, length=period)
-
-    @staticmethod
-    def trix(data: pd.Series, period: int = 14) -> pd.Series:
-        """TRIX using pandas-ta"""
-        return ta.trix(data, length=period)
-
-
 class MarketStructureAnalyzer:
     """
     Advanced market structure analysis for support/resistance, trends, and price action.
     """
-    
-    @staticmethod
-    def find_support_resistance(high: pd.Series, low: pd.Series, close: pd.Series, 
-                               window: int = 20) -> Dict[str, pd.Series]:
-        """Identify dynamic support and resistance levels"""
-        # Rolling highs and lows for resistance and support
-        resistance = high.rolling(window=window).max()
-        support = low.rolling(window=window).min()
-        
-        # Distance from current price to support/resistance
-        resistance_distance = (resistance - close) / close * 100
-        support_distance = (close - support) / close * 100
-        
-        return {
-            'resistance_level': resistance,
-            'support_level': support,
-            'resistance_distance': resistance_distance,
-            'support_distance': support_distance
-        }
     
     @staticmethod
     def trend_strength(close: pd.Series, period: int = 20) -> Dict[str, pd.Series]:
@@ -182,64 +71,6 @@ class MarketStructureAnalyzer:
             'trend_strength': trend_strength,
             'trend_direction': np.where(trend_slope > 0, 1, -1)
         }
-
-
-class CandlestickPatterns:
-    """
-    Custom candlestick pattern recognition system.
-    """
-
-    @staticmethod
-    def doji(open_prices: pd.Series, high_prices: pd.Series,
-             low_prices: pd.Series, close_prices: pd.Series, threshold: float = 0.1) -> pd.Series:
-        """Doji pattern detection"""
-        body_size = np.abs(close_prices - open_prices) / (high_prices - low_prices)
-        return (body_size <= threshold).astype(int)
-
-    @staticmethod
-    def hammer(open_prices: pd.Series, high_prices: pd.Series,
-               low_prices: pd.Series, close_prices: pd.Series) -> pd.Series:
-        """Hammer pattern detection"""
-        body_size = np.abs(close_prices - open_prices)
-        lower_shadow = np.minimum(open_prices, close_prices) - low_prices
-        upper_shadow = high_prices - np.maximum(open_prices, close_prices)
-
-        # Hammer conditions
-        condition1 = lower_shadow >= 2 * body_size  # Long lower shadow
-        condition2 = upper_shadow <= 0.1 * body_size  # Small upper shadow
-        condition3 = body_size > 0  # Has a body
-
-        return (condition1 & condition2 & condition3).astype(int)
-
-    @staticmethod
-    def engulfing(open_prices: pd.Series, high_prices: pd.Series,
-                  low_prices: pd.Series, close_prices: pd.Series) -> Dict[str, pd.Series]:
-        """Bullish and Bearish Engulfing patterns"""
-        prev_open = open_prices.shift(1)
-        prev_close = close_prices.shift(1)
-
-        # Bullish engulfing
-        bullish_condition1 = prev_close < prev_open  # Previous candle bearish
-        bullish_condition2 = close_prices > open_prices  # Current candle bullish
-        bullish_condition3 = open_prices < prev_close  # Current open below prev close
-        bullish_condition4 = close_prices > prev_open  # Current close above prev open
-
-        bullish_engulfing = (bullish_condition1 & bullish_condition2 &
-                           bullish_condition3 & bullish_condition4).astype(int)
-
-        # Bearish engulfing
-        bearish_condition1 = prev_close > prev_open  # Previous candle bullish
-        bearish_condition2 = close_prices < open_prices  # Current candle bearish
-        bearish_condition3 = open_prices > prev_close  # Current open above prev close
-        bearish_condition4 = close_prices < prev_open  # Current close below prev open
-
-        bearish_engulfing = (bearish_condition1 & bearish_condition2 &
-                           bearish_condition3 & bearish_condition4).astype(int)
-
-        return {
-            'bullish_engulfing': bullish_engulfing,
-            'bearish_engulfing': bearish_engulfing
-        }
         
 
 class DynamicFileProcessor:
@@ -255,11 +86,8 @@ class DynamicFileProcessor:
         self.data_folder = Path(data_folder or self.config['data']['input_folder'])
         self.processed_folder = Path("data/final")
         self.processed_folder.mkdir(exist_ok=True)
-
-        # Initialize analyzers
-        self.indicators = PandasTAIndicators()
+        
         self.market_structure = MarketStructureAnalyzer()
-        self.pattern_analyzer = CandlestickPatterns()
     
     def scan_data_files(self) -> List[Path]:
         """Scan for all CSV files in the data folder"""
@@ -397,28 +225,9 @@ class DynamicFileProcessor:
             })
 
         # === MARKET STRUCTURE ===
-        # Support/Resistance
-        sr_data = self.market_structure.find_support_resistance(high_prices, low_prices, close_prices)
-        features.update(sr_data)
-
         # Trend Analysis
         trend_data = self.market_structure.trend_strength(close_prices)
         features.update(trend_data)
-
-        # === VOLUME INDICATORS REMOVED ===
-        # Volume indicators removed as not all data sources have volume data
-        # Note: No volume-based features are generated
-
-        # === CANDLESTICK PATTERNS ===
-        # Doji
-        features['doji'] = self.pattern_analyzer.doji(open_prices, high_prices, low_prices, close_prices)
-
-        # Hammer
-        features['hammer'] = self.pattern_analyzer.hammer(open_prices, high_prices, low_prices, close_prices)
-
-        # Engulfing patterns
-        engulfing_data = self.pattern_analyzer.engulfing(open_prices, high_prices, low_prices, close_prices)
-        features.update(engulfing_data)
 
         # === PRICE ACTION FEATURES ===
         # Price changes
@@ -432,12 +241,6 @@ class DynamicFileProcessor:
         features['body_size'] = np.abs(close_prices - open_prices) / close_prices * 100
         features['upper_shadow'] = (high_prices - np.maximum(open_prices, close_prices)) / close_prices * 100
         features['lower_shadow'] = (np.minimum(open_prices, close_prices) - low_prices) / close_prices * 100
-
-        # Gap analysis
-        features['gap_up'] = np.where(open_prices > close_prices.shift(1),
-                                    (open_prices - close_prices.shift(1)) / close_prices.shift(1) * 100, 0)
-        features['gap_down'] = np.where(open_prices < close_prices.shift(1),
-                                      (close_prices.shift(1) - open_prices) / close_prices.shift(1) * 100, 0)
 
         # === DERIVED FEATURES ===
         # Moving average crossovers (only if the features exist and are not None)

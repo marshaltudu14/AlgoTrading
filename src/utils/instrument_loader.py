@@ -1,5 +1,5 @@
 import yaml
-from config.instrument import Instrument
+from src.config.instrument import Instrument
 
 def load_instruments(file_path: str) -> dict[str, Instrument]:
     """

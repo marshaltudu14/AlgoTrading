@@ -1,34 +1,63 @@
 instruments:
   # Index instruments (treated as options with premium calculation)
   - name: "Bank Nifty"
-    symbol: "NSE:NIFTYBANK-INDEX"
+    symbol: "Bank_Nifty"
+    exchange-symbol: "NSE:NIFTYBANK-INDEX"
     type: "index"
     lot_size: 35 # Bank Nifty lot size
     tick_size: 0.05
     option_premium_range: [0.02, 0.03] # 2% to 3% of index price
 
   - name: "Nifty 50"
-    symbol: "NSE:NIFTY50-INDEX"
+    symbol: "Nifty"
+    exchange-symbol: "NSE:NIFTY50-INDEX"
     type: "index"
     lot_size: 75 # Nifty lot size
     tick_size: 0.05
     option_premium_range: [0.01, 0.02] # 1% to 2% of index price
 
+  - name: "Bankex"
+    symbol: "Bankex"
+    exchange-symbol: "NSE:BANKEX-INDEX"
+    type: "index"
+    lot_size: 50 # Bankex lot size
+    tick_size: 0.05
+    option_premium_range: [0.02, 0.03] # 2% to 3% of index price
+
+  - name: "Finnifty"
+    symbol: "Finnifty"
+    exchange-symbol: "NSE:FINNIFTY-INDEX"
+    type: "index"
+    lot_size: 50 # Finnifty lot size
+    tick_size: 0.05
+    option_premium_range: [0.02, 0.03] # 2% to 3% of index price
+
+  - name: "Sensex"
+    symbol: "Sensex"
+    exchange-symbol: "BSE:SENSEX-INDEX"
+    type: "index"
+    lot_size: 20 # Sensex lot size
+    tick_size: 0.05
+    option_premium_range: [0.02, 0.03] # 2% to 3% of index price
+
   # Stock instruments (direct price-based quantity calculation)
   - name: "Reliance Industries"
-    symbol: "NSE:RELIANCE-EQ"
+    symbol: "Reliance"
+    exchange-symbol: "NSE:RELIANCE-EQ"
     type: "stock"
     lot_size: 1 # RELIANCE lot size
     tick_size: 0.05
 
   - name: "Tata Consultancy Services"
-    symbol: "NSE:TCS-EQ"
+    symbol: "TCS"
+    exchange-symbol: "NSE:TCS-EQ"
     type: "stock"
     lot_size: 1 # TCS lot size
     tick_size: 0.05
 
   - name: "HDFC Bank"
-    symbol: "NSE:HDFCBANK-EQ"
+    symbol: "HDFC"
+    exchange-symbol: "NSE:HDFCBANK-EQ"
     type: "stock"
     lot_size: 1 # HDFC lot size
     tick_size: 0.05

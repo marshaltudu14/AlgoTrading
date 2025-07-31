@@ -19,6 +19,8 @@ import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
 import { apiClient, UserProfile, FundsResponse, MetricsResponse } from "@/lib/api"
 
+import { formatIndianCurrency } from "@/lib/formatters"
+
 interface DashboardUserData {
   name: string;
   capital: number;
@@ -28,10 +30,11 @@ interface DashboardUserData {
   lastTradeTime: string;
 }
 
-const AnimatedNumber = ({ value, prefix = "", suffix = "" }: { 
+const AnimatedNumber = ({ value, prefix = "", suffix = "", formatter }: { 
   value: number; 
   prefix?: string; 
   suffix?: string; 
+  formatter?: (num: number) => string;
 }) => {
   const numberRef = React.useRef<HTMLSpanElement>(null)
 
@@ -46,16 +49,16 @@ const AnimatedNumber = ({ value, prefix = "", suffix = "" }: {
           snap: { textContent: 1 },
           onUpdate: function() {
             if (numberRef.current) {
-              const currentValue = Math.round(Number(this.targets()[0].textContent))
-              numberRef.current.textContent = `${prefix}${currentValue.toLocaleString()}${suffix}`
+              const currentValue = Number(this.targets()[0].textContent);
+              numberRef.current.textContent = formatter ? formatter(currentValue) : `${prefix}${currentValue.toLocaleString()}${suffix}`;
             }
           }
         }
       )
     }
-  }, [value, prefix, suffix])
+  }, [value, prefix, suffix, formatter])
 
-  return <span ref={numberRef}>{prefix}0{suffix}</span>
+  return <span ref={numberRef}>{formatter ? formatter(0) : `${prefix}0${suffix}`}</span>
 }
 
 export default function DashboardPage() {
@@ -99,7 +102,8 @@ export default function DashboardPage() {
       prefix: "₹",
       icon: DollarSign,
       description: "Total trading capital",
-      color: "text-blue-600"
+      color: "text-blue-600",
+      formatter: formatIndianCurrency
     },
     {
       title: "Today's P&L",
@@ -107,7 +111,8 @@ export default function DashboardPage() {
       prefix: (userData?.todayPnL || 0) >= 0 ? "+₹" : "-₹",
       icon: (userData?.todayPnL || 0) >= 0 ? TrendingUp : TrendingDown,
       description: "Today's profit/loss",
-      color: (userData?.todayPnL || 0) >= 0 ? "text-green-600" : "text-red-600"
+      color: (userData?.todayPnL || 0) >= 0 ? "text-green-600" : "text-red-600",
+      formatter: formatIndianCurrency
     },
     {
       title: "Total Trades",

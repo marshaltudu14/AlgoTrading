@@ -5,7 +5,7 @@ from typing import Dict, Tuple, Optional
 from datetime import datetime
 import time
 
-from config.instrument import Instrument
+from src.config.instrument import Instrument
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

@@ -1,6 +1,50 @@
-2025-07-31 12:45:10,966 - WARNING - Attempted to close 2.0 short, but only 1.0 held. Closing full position.
-ARNINGS LOG
-================================================================================
-Session started: 2025-07-31 12:44:19
-================================================================================
-
+2025-07-31 23:00:14,338 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:14,846 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:15,472 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:16,859 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:17,672 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:18,178 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:18,286 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:18,710 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:19,367 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:19,812 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:29,565 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:32,315 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:35,268 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:35,770 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:36,504 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:36,622 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:39,044 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:40,272 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:40,745 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:45,879 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:45,993 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:48,890 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:49,565 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:49,735 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:49,844 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:49,963 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:50,744 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:51,533 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:00:52,104 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:02,025 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:04,594 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:04,740 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:04,862 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:05,728 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:06,611 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:07,291 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:07,519 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:08,011 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:08,546 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:10,300 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:10,970 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:11,793 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:12,291 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:18,058 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:18,728 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:22,902 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:23,264 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:24,093 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:24,686 - WARNING - No data segments available for curriculum episode, using random episode
+2025-07-31 23:01:24,842 - WARNING - No data segments available for curriculum episode, using random episode
