@@ -429,7 +429,7 @@ class BacktestService:
                     timestamp = int(pd.Timestamp(index).timestamp())
 
                 candlestick_data.append({
-                    'time': timestamp,
+                    'time': timestamp,  # Use epoch timestamp for lightweight-charts
                     'open': float(row['open']),
                     'high': float(row['high']),
                     'low': float(row['low']),
