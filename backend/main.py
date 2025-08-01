@@ -453,7 +453,9 @@ async def websocket_backtest(websocket: WebSocket, backtest_id: str):
                 break
 
     except Exception as e:
-        logger.error(f"WebSocket error for backtest {backtest_id}: {e}")
+        logger.error(f"WebSocket error for backtest {backtest_id}: {str(e)}")
+        import traceback
+        logger.error(f"WebSocket traceback: {traceback.format_exc()}")
     finally:
         # Remove client from backtest service
         if backtest_service:

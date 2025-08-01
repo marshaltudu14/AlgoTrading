@@ -1,8 +1,6 @@
 "use client"
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as React from "react"
 import {
@@ -17,14 +15,10 @@ import { Input } from "@/components/ui/input"
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TradingViewLayout } from "@/components/trading-view-layout"
-import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingChart, createTradeMarker } from "@/components/trading-chart"
 import { apiClient, formatApiError } from "@/lib/api"
 import { useBacktestProgress } from "@/hooks/use-websocket"
 import { generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset, DemoDataStream } from "@/lib/demo-data"
-
-import { generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset, DemoDataStream } from "@/lib/demo-data"
-
 
 // Mock instruments data - replace with actual config/instruments.yaml data
 const instruments = [
@@ -46,7 +40,6 @@ const timeframes = [
 export default function BacktestPage() {
   const [backtestId, setBacktestId] = React.useState<string | null>(null)
   const [_error, setError] = React.useState<string | null>(null)
-  const [_error, setError] = React.useState<string | null>(null)
   const [formData, setFormData] = React.useState({
     instrument: "",
     timeframe: "",
@@ -60,8 +53,6 @@ export default function BacktestPage() {
   const [demoPortfolioData, setDemoPortfolioData] = React.useState<Array<{time: string | number, value: number}>>([])
   const [showDemo, setShowDemo] = React.useState(true)
 
-
-
   // Initialize demo data on component mount
   React.useEffect(() => {
     const demoDataset = getRandomDemoDataset()
@@ -69,6 +60,7 @@ export default function BacktestPage() {
     const tradeMarkers = generateDemoTradeMarkers(candleData, 0.08)
     const portfolioData = generateDemoPortfolioData(candleData, 100000)
 
+    console.log('Demo data loaded:', { candleData: candleData.length, tradeMarkers: tradeMarkers.length, portfolioData: portfolioData.length })
     setDemoData(candleData)
     setDemoTradeMarkers(tradeMarkers)
     setDemoPortfolioData(portfolioData)
@@ -78,13 +70,6 @@ export default function BacktestPage() {
     // Disabled GSAP animations temporarily to avoid ref issues
     // TODO: Re-enable with proper ref checks
   }, []);
-
-  // Demo data state
-  const [demoData, setDemoData] = React.useState<Array<{time: string | number, open: number, high: number, low: number, close: number}>>([])
-  const [demoTradeMarkers, setDemoTradeMarkers] = React.useState<Array<{time: string | number, position: 'aboveBar' | 'belowBar', color: string, shape: 'circle' | 'square' | 'arrowUp' | 'arrowDown', text: string}>>([])
-  const [demoPortfolioData, setDemoPortfolioData] = React.useState<Array<{time: string | number, value: number}>>([])
-  const [showDemo, setShowDemo] = React.useState(true)
-
 
 
   // Initialize demo data on component mount
@@ -149,28 +134,7 @@ export default function BacktestPage() {
   }
 
   const isFormValid = formData.instrument && formData.timeframe && formData.duration && formData.initialCapital
-
-  // Create header controls for TradingView layout
-  const headerControls = (
-    <div className="flex items-center gap-3 text-xs overflow-x-auto scrollbar-hide min-w-0 flex-1">
-      <div className="flex items-center gap-1">
-        <label className="text-muted-foreground font-medium">Symbol:</label>
-        <Select
-          value={formData.instrument}
-          onValueChange={(value) => handleInputChange("instrument", value)}
-        >
-          <SelectTrigger className="w-32 h-8">
-            <SelectValue placeholder="Symbol" />
-          </SelectTrigger>
-          <SelectContent>
-            {instruments.map((instrument) => (
-              <SelectItem key={instrument.symbol} value={instrument.symbol}>
-                {instrument.symbol}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+  
   // Create header controls for TradingView layout
   const headerControls = (
     <div className="flex items-center gap-3 text-xs overflow-x-auto scrollbar-hide min-w-0 flex-1">
@@ -242,32 +206,7 @@ export default function BacktestPage() {
           className="w-16 h-8"
         />
       </div>
-      <div className="flex items-center gap-1">
-        <label className="text-muted-foreground font-medium">Days:</label>
-        <Input
-          type="number"
-          min="1"
-          max="365"
-          value={formData.duration}
-          onChange={(e) => handleInputChange("duration", e.target.value)}
-          placeholder="Days"
-          className="w-16 h-8"
-        />
-      </div>
 
-      <div className="flex items-center gap-1">
-        <label className="text-muted-foreground font-medium">Capital:</label>
-        <Input
-          type="number"
-          min="10000"
-          max="10000000"
-          step="1000"
-          value={formData.initialCapital}
-          onChange={(e) => handleInputChange("initialCapital", e.target.value)}
-          placeholder="Capital"
-          className="w-24 h-8"
-        />
-      </div>
       <div className="flex items-center gap-1">
         <label className="text-muted-foreground font-medium">Capital:</label>
         <Input
@@ -322,15 +261,9 @@ export default function BacktestPage() {
             portfolioValue={demoPortfolioData.length > 0 ? demoPortfolioData[demoPortfolioData.length - 1]?.value : undefined}
           />
         ) : isRunning || results ? (
-          // Show real backtest data
+          // Show real backtest data with real-time candle updates
           <TradingChart
-            candlestickData={candlestickData.length > 0 ? candlestickData : chartData.map(item => ({
-              time: item.timestamp,
-              open: item.price,
-              high: item.price * 1.001,
-              low: item.price * 0.999,
-              close: item.price
-            }))}
+            candlestickData={candlestickData}
             portfolioData={chartData.map(item => ({
               time: item.timestamp,
               value: item.portfolio_value
@@ -350,9 +283,9 @@ export default function BacktestPage() {
             showPortfolio={true}
             fullScreen={true}
             windowSize={100}
-            enableSlidingWindow={candlestickData.length > 0}
-            currentPrice={chartData.length > 0 ? chartData[chartData.length - 1]?.price : undefined}
-            portfolioValue={chartData.length > 0 ? chartData[chartData.length - 1]?.portfolio_value : undefined}
+            enableSlidingWindow={true}
+            currentPrice={currentPrice}
+            portfolioValue={portfolioValue}
           />
         ) : (
           // Empty state

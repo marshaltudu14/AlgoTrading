@@ -8,7 +8,6 @@ import {
   createSeriesMarkers,
   UTCTimestamp,
   CandlestickSeries,
-  HistogramSeries,
   LineSeries
 } from "lightweight-charts"
 import { useTheme } from "next-themes"
@@ -49,10 +48,6 @@ interface TradingChartProps {
   className?: string
   windowSize?: number // For sliding window functionality
   enableSlidingWindow?: boolean // Whether to enable sliding window (only for backtests)
-  fullScreen?: boolean
-  className?: string
-  windowSize?: number // For sliding window functionality
-  enableSlidingWindow?: boolean // Whether to enable sliding window (only for backtests)
 }
 
 export function TradingChart({
@@ -61,13 +56,6 @@ export function TradingChart({
   tradeMarkers = [],
   title = "Trading Chart",
   showPortfolio = false,
-  currentPrice,
-  portfolioValue,
-  fullScreen = false,
-  className = "",
-  windowSize = 100,
-  enableSlidingWindow = false
-  portfolioValue,
   fullScreen = false,
   className = "",
   windowSize = 100,
@@ -79,7 +67,7 @@ export function TradingChart({
   const portfolioSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
   const { theme } = useTheme()
   const [chartHeight, setChartHeight] = React.useState(400)
-  const [visibleData, setVisibleData] = React.useState<CandlestickData[]>([])
+
 
   // Zoom control functions
   const handleZoomIn = React.useCallback(() => {
@@ -119,237 +107,188 @@ export function TradingChart({
 
 
 
-  // Sliding window functionality (only for backtests)
-  React.useEffect(() => {
-    if (candlestickData.length === 0) return
-
-    if (enableSlidingWindow && candlestickData.length > windowSize) {
-      const startIndex = Math.max(0, candlestickData.length - windowSize)
-      setVisibleData(candlestickData.slice(startIndex))
-    } else {
-      setVisibleData(candlestickData)
-    }
-  }, [candlestickData, windowSize, enableSlidingWindow])
-
-  // Update chart height based on container size and mode with ResizeObserver
-  React.useEffect(() => {
-    const updateHeight = () => {
-      if (chartContainerRef.current) {
-        if (fullScreen) {
-          setChartHeight(window.innerHeight - 40) // Subtract header height (2.5rem = 40px)
-        } else {
-          const containerHeight = chartContainerRef.current.parentElement?.clientHeight || 400
-          setChartHeight(Math.max(containerHeight - 100, 300))
-        }
-      }
-    }
-
-    updateHeight()
-
-    // Use ResizeObserver for better responsiveness
-    let resizeObserver: ResizeObserver | null = null
-
-    if (chartContainerRef.current?.parentElement) {
-      resizeObserver = new ResizeObserver(() => {
-        updateHeight()
-      })
-      resizeObserver.observe(chartContainerRef.current.parentElement)
-    }
-
-    // Fallback to window resize for fullscreen mode
-    const handleWindowResize = () => {
-      if (fullScreen) updateHeight()
-    }
-
-    window.addEventListener('resize', handleWindowResize)
-
-    return () => {
-      window.removeEventListener('resize', handleWindowResize)
-      if (resizeObserver) {
-        resizeObserver.disconnect()
-      }
-    }
-  }, [fullScreen])
-
-  // Initialize chart
+  // Initialize chart and handle updates
   React.useEffect(() => {
     if (!chartContainerRef.current) return
 
-    // Use simple theme-based colors instead of parsing CSS variables
-    const isDark = theme === 'dark'
-    const backgroundColor = isDark ? '#000000' : '#ffffff'
-    const textColor = isDark ? '#ffffff' : '#000000'
-    const borderColor = isDark ? '#333333' : '#e5e5e5'
-    const mutedForegroundColor = isDark ? '#888888' : '#666666'
-
-    // Use simple theme-based colors instead of parsing CSS variables
-    const isDark = theme === 'dark'
-    const backgroundColor = isDark ? '#000000' : '#ffffff'
-    const textColor = isDark ? '#ffffff' : '#000000'
-    const borderColor = isDark ? '#333333' : '#e5e5e5'
-    const mutedForegroundColor = isDark ? '#888888' : '#666666'
-
     const chart = createChart(chartContainerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: backgroundColor },
-        textColor: textColor,
-        background: { type: ColorType.Solid, color: backgroundColor },
-        textColor: textColor,
-      },
       width: chartContainerRef.current.clientWidth,
-      height: chartHeight,
-      height: chartHeight,
+      height: chartContainerRef.current.clientHeight,
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: theme === 'dark' ? '#ffffff' : '#000000',
+      },
       grid: {
         vertLines: { visible: false },
         horzLines: { visible: false },
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: mutedForegroundColor, labelBackgroundColor: mutedForegroundColor },
-        horzLine: { color: mutedForegroundColor, labelBackgroundColor: mutedForegroundColor },
-        vertLine: { color: mutedForegroundColor, labelBackgroundColor: mutedForegroundColor },
-        horzLine: { color: mutedForegroundColor, labelBackgroundColor: mutedForegroundColor },
       },
       rightPriceScale: {
-        borderColor: borderColor,
-        textColor: mutedForegroundColor,
+        borderColor: theme === 'dark' ? '#333333' : '#e5e5e5',
+      },
+      timeScale: {
+        borderColor: theme === 'dark' ? '#333333' : '#e5e5e5',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
+      },
+    })
+    chartRef.current = chart
+
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {})
+    candlestickSeriesRef.current = candlestickSeries
+
+    if (showPortfolio) {
+      const portfolioSeries = chart.addSeries(LineSeries, {
+        priceScaleId: 'portfolio',
+        lineWidth: 2,
+      })
+      portfolioSeriesRef.current = portfolioSeries
+      chart.priceScale('portfolio').applyOptions({
+        scaleMargins: { top: 0.1, bottom: 0.1 },
+      })
+    }
+
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.resize(
+          chartContainerRef.current.clientWidth,
+          chartContainerRef.current.clientHeight
+        )
+      }
+    }
+
+    const resizeObserver = new ResizeObserver(handleResize)
+    resizeObserver.observe(chartContainerRef.current)
+
+    return () => {
+      resizeObserver.disconnect()
+      chart.remove()
+      chartRef.current = null
+    }
+  }, [showPortfolio])
+
+  // Update theme
+  React.useEffect(() => {
+    if (!chartRef.current) return
+
+    const isDark = theme === 'dark'
+    const backgroundColor = isDark ? '#000000' : '#ffffff'
+    const textColor = isDark ? '#ffffff' : '#000000'
+    const borderColor = isDark ? '#333333' : '#e5e5e5'
+    const mutedForegroundColor = isDark ? '#888888' : '#666666'
+    const upColor = isDark ? '#10b981' : '#059669'
+    const downColor = isDark ? '#f87171' : '#dc2626'
+    const portfolioColor = isDark ? '#60a5fa' : '#2563eb'
+
+    chartRef.current.applyOptions({
+      layout: {
+        background: { type: ColorType.Solid, color: backgroundColor },
+        textColor: textColor,
+      },
+      crosshair: {
+        vertLine: { color: mutedForegroundColor },
+        horzLine: { color: mutedForegroundColor },
+      },
+      rightPriceScale: {
         borderColor: borderColor,
         textColor: mutedForegroundColor,
       },
       timeScale: {
         borderColor: borderColor,
-        borderColor: borderColor,
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      // Enable chart interactivity
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
-      handleScale: {
-        axisPressedMouseMove: true,
-        mouseWheel: true,
-        pinch: true,
-      },
-      // Enable chart interactivity
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: true,
-        horzTouchDrag: true,
-        vertTouchDrag: true,
-      },
-      handleScale: {
-        axisPressedMouseMove: true,
-        mouseWheel: true,
-        pinch: true,
       },
     })
 
-    chartRef.current = chart
-
-    // Add candlestick series with theme-aware colors
-    const upColor = isDark ? '#10b981' : '#059669'  // Emerald 500/600
-    const downColor = isDark ? '#f87171' : '#dc2626'  // Red 400/600
-
-    // Add candlestick series with theme-aware colors
-    const upColor = isDark ? '#10b981' : '#059669'  // Emerald 500/600
-    const downColor = isDark ? '#f87171' : '#dc2626'  // Red 400/600
-
-    const candlestickSeries = chart.addSeries(CandlestickSeries, {
-      upColor: upColor,
-      downColor: downColor,
-      borderDownColor: downColor,
-      borderUpColor: upColor,
-      wickDownColor: downColor,
-      wickUpColor: upColor,
-      upColor: upColor,
-      downColor: downColor,
-      borderDownColor: downColor,
-      borderUpColor: upColor,
-      wickDownColor: downColor,
-      wickUpColor: upColor,
-    })
-    candlestickSeriesRef.current = candlestickSeries
-
-    // Add portfolio series if enabled
-    if (showPortfolio) {
-      const portfolioColor = isDark ? '#60a5fa' : '#2563eb'  // Blue 400/600
-      const portfolioColor = isDark ? '#60a5fa' : '#2563eb'  // Blue 400/600
-      const portfolioSeries = chart.addSeries(LineSeries, {
+    if (candlestickSeriesRef.current) {
+      candlestickSeriesRef.current.applyOptions({
+        upColor: upColor,
+        downColor: downColor,
+        borderDownColor: downColor,
+        borderUpColor: upColor,
+        wickDownColor: downColor,
+        wickUpColor: upColor,
+      })
+    }
+    if (portfolioSeriesRef.current) {
+      portfolioSeriesRef.current.applyOptions({
         color: portfolioColor,
-        color: portfolioColor,
-        lineWidth: 2,
-        priceScaleId: 'portfolio',
-      })
-      portfolioSeriesRef.current = portfolioSeries
-
-      // Set portfolio scale to left
-      chart.priceScale('portfolio').applyOptions({
-        scaleMargins: {
-          top: 0.1,
-          bottom: 0.1,
-        },
       })
     }
+  }, [theme])
 
-    // Handle resize with ResizeObserver for better responsiveness
-    // Handle resize with ResizeObserver for better responsiveness
-    const handleResize = () => {
-      if (chartContainerRef.current && chartRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartHeight,
-          height: chartHeight,
-        })
-      }
-    }
-
-    // Use ResizeObserver for chart container
-    let chartResizeObserver: ResizeObserver | null = null
-
-    if (chartContainerRef.current) {
-      chartResizeObserver = new ResizeObserver(() => {
-        handleResize()
-      })
-      chartResizeObserver.observe(chartContainerRef.current)
-    }
-    // Use ResizeObserver for chart container
-    let chartResizeObserver: ResizeObserver | null = null
-
-    if (chartContainerRef.current) {
-      chartResizeObserver = new ResizeObserver(() => {
-        handleResize()
-      })
-      chartResizeObserver.observe(chartContainerRef.current)
-    }
-
-    return () => {
-      if (chartResizeObserver) {
-        chartResizeObserver.disconnect()
-      }
-      if (chartResizeObserver) {
-        chartResizeObserver.disconnect()
-      }
-      if (chartRef.current) {
-        chartRef.current.remove()
-        chartRef.current = null
-      }
-    }
-  }, [chartHeight, showPortfolio, theme])
-
-  // Update candlestick data with sliding window
-  // Update candlestick data with sliding window
+  // Update height
   React.useEffect(() => {
-    if (candlestickSeriesRef.current && visibleData.length > 0) {
-      const formattedData = visibleData.map(item => ({
-    if (candlestickSeriesRef.current && visibleData.length > 0) {
-      const formattedData = visibleData.map(item => ({
+    const updateHeight = () => {
+      if (chartContainerRef.current) {
+        if (fullScreen) {
+          chartContainerRef.current.style.height = `${window.innerHeight - 40}px`
+        } else {
+          const parentHeight = chartContainerRef.current.parentElement?.clientHeight || 400
+          chartContainerRef.current.style.height = `${Math.max(parentHeight - 100, 300)}px`
+        }
+        if (chartRef.current) {
+          chartRef.current.resize(
+            chartContainerRef.current.clientWidth,
+            chartContainerRef.current.clientHeight
+          )
+        }
+      }
+    }
+    updateHeight()
+
+    if (fullScreen) {
+      window.addEventListener('resize', updateHeight)
+      return () => window.removeEventListener('resize', updateHeight)
+    }
+  }, [fullScreen])
+
+  // Real-time data updates using TradingView's update() method
+  React.useEffect(() => {
+    if (candlestickSeriesRef.current && candlestickData.length > 0) {
+      const latestCandle = candlestickData[candlestickData.length - 1]
+
+      // Format the candle data for lightweight-charts
+      const formattedCandle = {
+        time: typeof latestCandle.time === 'string' ?
+          latestCandle.time.includes('T') ? latestCandle.time.split('T')[0] : latestCandle.time :
+          (latestCandle.time as UTCTimestamp),
+        open: latestCandle.open,
+        high: latestCandle.high,
+        low: latestCandle.low,
+        close: latestCandle.close,
+      }
+
+      // Use update() method for real-time updates (TradingView approach)
+      candlestickSeriesRef.current.update(formattedCandle)
+
+      // Auto-scroll to show latest data
+      if (enableSlidingWindow) {
+        setTimeout(() => {
+          if (chartRef.current) {
+            chartRef.current.timeScale().scrollToRealTime()
+          }
+        }, 50)
+      }
+    }
+  }, [candlestickData, enableSlidingWindow])
+
+  // Initial data loading for demo/static data
+  React.useEffect(() => {
+    if (candlestickSeriesRef.current && candlestickData.length > 0 && !enableSlidingWindow) {
+      const formattedData = candlestickData.map(item => ({
         time: typeof item.time === 'string' ?
           item.time.includes('T') ? item.time.split('T')[0] : item.time :
-          (Math.floor(item.time as number / 1000) as UTCTimestamp),
+          (item.time as UTCTimestamp),
         open: item.open,
         high: item.high,
         low: item.low,
@@ -363,7 +302,7 @@ export function TradingChart({
         chartRef.current?.timeScale().fitContent()
       }, 100)
     }
-  }, [visibleData])
+  }, [candlestickData, enableSlidingWindow])
 
 
 

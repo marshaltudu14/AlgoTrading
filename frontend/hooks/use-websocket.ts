@@ -196,8 +196,36 @@ export function useBacktestProgress(backtestId: string | null) {
           setCurrentStep(stepMessages[message.step as keyof typeof stepMessages] || message.message || 'Processing...')
           break
         case 'data_loaded':
-          if (message.candlestick_data) {
-            setCandlestickData(message.candlestick_data)
+          // Data loading complete - reset candlestick data for real-time updates
+          console.log(`Data loaded: ${message.total_points} points`)
+          setCandlestickData([])
+          break
+        case 'candle_update':
+          // Real-time candle and action update (TradingView approach)
+          console.log('Received candle update:', message)
+          if (message.candle) {
+            // Add the new candle to the array for real-time updates
+            setCandlestickData(prev => [...prev, message.candle])
+          }
+          if (message.action && message.action.type !== 4) { // Not HOLD action
+            const actionData = {
+              timestamp: message.action.timestamp,
+              price: message.action.price,
+              action: message.action.type,
+              portfolio_value: message.portfolio_value
+            }
+            setChartData(prev => [...prev, actionData])
+          }
+          if (message.portfolio_value) {
+            setPortfolioValue(message.portfolio_value)
+          }
+          if (message.action?.price) {
+            setCurrentPrice(message.action.price)
+          }
+
+          // Update progress if available
+          if (message.progress !== undefined) {
+            setProgress(message.progress)
           }
           break
         case 'chart_update':

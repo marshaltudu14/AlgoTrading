@@ -36,6 +36,7 @@ class BacktestService:
         self.results = {}
         self.progress = 0
         self.websocket_clients = []
+        self._last_timestamp = 0
 
         # Disable detailed logging for Next.js backtest service
         # This will prevent step-by-step trade logging while keeping it enabled for direct training runs
@@ -297,10 +298,31 @@ class BacktestService:
                 current_price = 0
                 try:
                     if hasattr(env, 'data') and env.data is not None and env.current_step < len(env.data):
-                        current_datetime = str(env.data.index[env.current_step])
+                        # Use epoch timestamp instead of datetime string
+                        if 'datetime_epoch' in env.data.columns:
+                            current_datetime = int(env.data['datetime_epoch'].iloc[env.current_step])
+                        else:
+                            # Convert index to epoch timestamp
+                            current_datetime = int(pd.Timestamp(env.data.index[env.current_step]).timestamp())
                         current_price = env.data['close'].iloc[env.current_step] if 'close' in env.data.columns else 0
-                except Exception:
-                    current_datetime = f"Step_{env.current_step}"
+
+                        # Ensure unique timestamps by adding step offset if needed
+                        if step_count > 0 and current_datetime <= getattr(self, '_last_timestamp', 0):
+                            current_datetime = getattr(self, '_last_timestamp', 0) + 1
+                        self._last_timestamp = current_datetime
+
+                except Exception as e:
+                    logger.warning(f"Failed to get current datetime/price: {e}")
+                    current_datetime = int(pd.Timestamp.now().timestamp()) + step_count
+
+                # Get current candle data with proper timestamp
+                current_candle = {
+                    'time': current_datetime,
+                    'open': float(env.data['open'].iloc[env.current_step]),
+                    'high': float(env.data['high'].iloc[env.current_step]),
+                    'low': float(env.data['low'].iloc[env.current_step]),
+                    'close': float(env.data['close'].iloc[env.current_step])
+                }
 
                 # Collect chart data for real-time visualization
                 chart_point = {
@@ -311,19 +333,23 @@ class BacktestService:
                 }
                 chart_data.append(chart_point)
 
-                # Send real-time chart updates every 10 steps for sliding window
-                if step_count % 10 == 0:
-                    await self._broadcast_update({
-                        "type": "chart_update",
-                        "data": [chart_point],
-                        "current_price": current_price,
-                        "portfolio_value": chart_point['portfolio_value'],
-                        "current_step": step_count,
-                        "total_steps": len(data)
-                    })
+                # Send real-time candle and action data
+                await self._broadcast_update({
+                    "type": "candle_update",
+                    "candle": current_candle,
+                    "action": {
+                        "type": action_type,
+                        "price": current_price,
+                        "timestamp": current_datetime
+                    },
+                    "portfolio_value": chart_point['portfolio_value'],
+                    "current_step": step_count,
+                    "total_steps": len(data),
+                    "progress": int((step_count / len(data)) * 100)
+                })
 
-                    # Add small delay to make progress visible and prevent overwhelming the frontend
-                    await asyncio.sleep(0.1)
+                # Wait for frontend to process the candle (sequential processing)
+                await asyncio.sleep(0.1)
 
                 # Collect trade information if available
                 if info.get('trade_executed'):
@@ -354,7 +380,10 @@ class BacktestService:
                 # Log progress every 100 steps
                 if step_count % 100 == 0:
                     logger.info(f"Backtest progress: {step_count}/{len(data)} steps ({progress}%)")
-                    await asyncio.sleep(0.01)
+
+                # Small delay every 50 steps to allow WebSocket messages to be sent
+                if step_count % 50 == 0:
+                    await asyncio.sleep(0.001)  # Very small delay
             
             # Calculate metrics from environment and trades
             total_trades = len(trades)
@@ -362,10 +391,17 @@ class BacktestService:
             win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
 
             # Get final capital from environment
-            final_capital = env.current_capital if hasattr(env, 'current_capital') else 100000
-            initial_capital = env.initial_capital if hasattr(env, 'initial_capital') else 100000
+            final_capital = env.current_capital if hasattr(env, 'current_capital') else self.initial_capital
+            initial_capital = env.initial_capital if hasattr(env, 'initial_capital') else self.initial_capital
             total_pnl = final_capital - initial_capital
             max_drawdown = self._calculate_max_drawdown(portfolio_values)
+
+            logger.info(f"Backtest simulation completed:")
+            logger.info(f"  - Total steps: {step_count}")
+            logger.info(f"  - Total trades: {total_trades}")
+            logger.info(f"  - Win rate: {win_rate:.1f}%")
+            logger.info(f"  - Final capital: {final_capital}")
+            logger.info(f"  - Total PnL: {total_pnl}")
             
             results = {
                 'total_pnl': total_pnl,
@@ -467,6 +503,9 @@ class BacktestService:
                 "message": "Backtest started"
             })
 
+            # Small delay to ensure message is processed
+            await asyncio.sleep(0.5)
+
             # Step 1: Loading data
             await self._broadcast_update({
                 "type": "progress",
@@ -474,6 +513,7 @@ class BacktestService:
                 "message": "Loading data",
                 "step": "loading_data"
             })
+            await asyncio.sleep(0.5)
 
             # Load historical data
             data = await self._load_historical_data()
@@ -485,14 +525,12 @@ class BacktestService:
                 "message": "Processing data",
                 "step": "processing_data"
             })
+            await asyncio.sleep(0.5)
 
-            # Send complete candlestick data after processing
-            candlestick_data = self._format_candlestick_data(data)
-            logger.info(f"Sending {len(candlestick_data)} candlestick data points to frontend")
+            # Send data ready message (we'll send candles one by one during simulation)
             await self._broadcast_update({
                 "type": "data_loaded",
-                "candlestick_data": candlestick_data[:10],  # Send first 10 points for testing
-                "total_points": len(candlestick_data),
+                "total_points": len(data),
                 "message": "Data processing complete"
             })
 
@@ -503,6 +541,7 @@ class BacktestService:
                 "message": "Starting backtest",
                 "step": "starting_backtest"
             })
+            await asyncio.sleep(0.5)
 
             # Step 4: Running backtest
             await self._broadcast_update({
@@ -511,6 +550,7 @@ class BacktestService:
                 "message": "Running backtest",
                 "step": "running_backtest"
             })
+            await asyncio.sleep(0.5)
 
             # Run simulation
             results = await self._run_backtest_simulation(data)
