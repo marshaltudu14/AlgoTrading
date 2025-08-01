@@ -84,15 +84,25 @@ class BacktestService:
             return
 
         try:
-            message_str = json.dumps(message, default=str)  # Handle datetime and other non-serializable objects
+            # Ensure all values are JSON serializable
+            clean_message = {}
+            for key, value in message.items():
+                if isinstance(value, (int, float, str, bool, list, dict)) or value is None:
+                    clean_message[key] = value
+                else:
+                    clean_message[key] = str(value)
+
+            message_str = json.dumps(clean_message)
             disconnected_clients = []
+
+            logger.info(f"Broadcasting message to {len(self.websocket_clients)} clients: {clean_message.get('type', 'unknown')}")
 
             for client in self.websocket_clients:
                 try:
                     await client.send_text(message_str)
-                    logger.debug(f"Sent message to WebSocket client: {message.get('type', 'unknown')}")
+                    logger.info(f"Successfully sent message to WebSocket client: {clean_message.get('type', 'unknown')}")
                 except Exception as e:
-                    logger.warning(f"Failed to send message to WebSocket client: {e}")
+                    logger.error(f"Failed to send message to WebSocket client: {e}")
                     disconnected_clients.append(client)
 
             # Remove disconnected clients
