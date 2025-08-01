@@ -49,6 +49,10 @@ interface TradingChartProps {
   className?: string
   windowSize?: number // For sliding window functionality
   enableSlidingWindow?: boolean // Whether to enable sliding window (only for backtests)
+  fullScreen?: boolean
+  className?: string
+  windowSize?: number // For sliding window functionality
+  enableSlidingWindow?: boolean // Whether to enable sliding window (only for backtests)
 }
 
 export function TradingChart({
@@ -58,6 +62,11 @@ export function TradingChart({
   title = "Trading Chart",
   showPortfolio = false,
   currentPrice,
+  portfolioValue,
+  fullScreen = false,
+  className = "",
+  windowSize = 100,
+  enableSlidingWindow = false
   portfolioValue,
   fullScreen = false,
   className = "",
@@ -173,12 +182,22 @@ export function TradingChart({
     const borderColor = isDark ? '#333333' : '#e5e5e5'
     const mutedForegroundColor = isDark ? '#888888' : '#666666'
 
+    // Use simple theme-based colors instead of parsing CSS variables
+    const isDark = theme === 'dark'
+    const backgroundColor = isDark ? '#000000' : '#ffffff'
+    const textColor = isDark ? '#ffffff' : '#000000'
+    const borderColor = isDark ? '#333333' : '#e5e5e5'
+    const mutedForegroundColor = isDark ? '#888888' : '#666666'
+
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: backgroundColor },
         textColor: textColor,
+        background: { type: ColorType.Solid, color: backgroundColor },
+        textColor: textColor,
       },
       width: chartContainerRef.current.clientWidth,
+      height: chartHeight,
       height: chartHeight,
       grid: {
         vertLines: { visible: false },
@@ -188,15 +207,32 @@ export function TradingChart({
         mode: 1,
         vertLine: { color: mutedForegroundColor, labelBackgroundColor: mutedForegroundColor },
         horzLine: { color: mutedForegroundColor, labelBackgroundColor: mutedForegroundColor },
+        vertLine: { color: mutedForegroundColor, labelBackgroundColor: mutedForegroundColor },
+        horzLine: { color: mutedForegroundColor, labelBackgroundColor: mutedForegroundColor },
       },
       rightPriceScale: {
+        borderColor: borderColor,
+        textColor: mutedForegroundColor,
         borderColor: borderColor,
         textColor: mutedForegroundColor,
       },
       timeScale: {
         borderColor: borderColor,
+        borderColor: borderColor,
         timeVisible: true,
         secondsVisible: false,
+      },
+      // Enable chart interactivity
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: true,
+      },
+      handleScale: {
+        axisPressedMouseMove: true,
+        mouseWheel: true,
+        pinch: true,
       },
       // Enable chart interactivity
       handleScroll: {
@@ -218,7 +254,17 @@ export function TradingChart({
     const upColor = isDark ? '#10b981' : '#059669'  // Emerald 500/600
     const downColor = isDark ? '#f87171' : '#dc2626'  // Red 400/600
 
+    // Add candlestick series with theme-aware colors
+    const upColor = isDark ? '#10b981' : '#059669'  // Emerald 500/600
+    const downColor = isDark ? '#f87171' : '#dc2626'  // Red 400/600
+
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
+      upColor: upColor,
+      downColor: downColor,
+      borderDownColor: downColor,
+      borderUpColor: upColor,
+      wickDownColor: downColor,
+      wickUpColor: upColor,
       upColor: upColor,
       downColor: downColor,
       borderDownColor: downColor,
@@ -231,7 +277,9 @@ export function TradingChart({
     // Add portfolio series if enabled
     if (showPortfolio) {
       const portfolioColor = isDark ? '#60a5fa' : '#2563eb'  // Blue 400/600
+      const portfolioColor = isDark ? '#60a5fa' : '#2563eb'  // Blue 400/600
       const portfolioSeries = chart.addSeries(LineSeries, {
+        color: portfolioColor,
         color: portfolioColor,
         lineWidth: 2,
         priceScaleId: 'portfolio',
@@ -248,10 +296,12 @@ export function TradingChart({
     }
 
     // Handle resize with ResizeObserver for better responsiveness
+    // Handle resize with ResizeObserver for better responsiveness
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
           width: chartContainerRef.current.clientWidth,
+          height: chartHeight,
           height: chartHeight,
         })
       }
@@ -266,8 +316,20 @@ export function TradingChart({
       })
       chartResizeObserver.observe(chartContainerRef.current)
     }
+    // Use ResizeObserver for chart container
+    let chartResizeObserver: ResizeObserver | null = null
+
+    if (chartContainerRef.current) {
+      chartResizeObserver = new ResizeObserver(() => {
+        handleResize()
+      })
+      chartResizeObserver.observe(chartContainerRef.current)
+    }
 
     return () => {
+      if (chartResizeObserver) {
+        chartResizeObserver.disconnect()
+      }
       if (chartResizeObserver) {
         chartResizeObserver.disconnect()
       }
@@ -279,7 +341,10 @@ export function TradingChart({
   }, [chartHeight, showPortfolio, theme])
 
   // Update candlestick data with sliding window
+  // Update candlestick data with sliding window
   React.useEffect(() => {
+    if (candlestickSeriesRef.current && visibleData.length > 0) {
+      const formattedData = visibleData.map(item => ({
     if (candlestickSeriesRef.current && visibleData.length > 0) {
       const formattedData = visibleData.map(item => ({
         time: typeof item.time === 'string' ?

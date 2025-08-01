@@ -1,6 +1,8 @@
 "use client"
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as React from "react"
 import {
@@ -12,11 +14,15 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingChart, createTradeMarker } from "@/components/trading-chart"
 import { apiClient, formatApiError } from "@/lib/api"
 import { useBacktestProgress } from "@/hooks/use-websocket"
+import { generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset, DemoDataStream } from "@/lib/demo-data"
+
 import { generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset, DemoDataStream } from "@/lib/demo-data"
 
 
@@ -40,12 +46,38 @@ const timeframes = [
 export default function BacktestPage() {
   const [backtestId, setBacktestId] = React.useState<string | null>(null)
   const [_error, setError] = React.useState<string | null>(null)
+  const [_error, setError] = React.useState<string | null>(null)
   const [formData, setFormData] = React.useState({
     instrument: "",
     timeframe: "",
     duration: "30",
     initialCapital: "100000"
   })
+
+  // Demo data state
+  const [demoData, setDemoData] = React.useState<Array<{time: string | number, open: number, high: number, low: number, close: number}>>([])
+  const [demoTradeMarkers, setDemoTradeMarkers] = React.useState<Array<{time: string | number, position: 'aboveBar' | 'belowBar', color: string, shape: 'circle' | 'square' | 'arrowUp' | 'arrowDown', text: string}>>([])
+  const [demoPortfolioData, setDemoPortfolioData] = React.useState<Array<{time: string | number, value: number}>>([])
+  const [showDemo, setShowDemo] = React.useState(true)
+
+
+
+  // Initialize demo data on component mount
+  React.useEffect(() => {
+    const demoDataset = getRandomDemoDataset()
+    const candleData = demoDataset.data
+    const tradeMarkers = generateDemoTradeMarkers(candleData, 0.08)
+    const portfolioData = generateDemoPortfolioData(candleData, 100000)
+
+    setDemoData(candleData)
+    setDemoTradeMarkers(tradeMarkers)
+    setDemoPortfolioData(portfolioData)
+  }, [])
+
+  React.useEffect(() => {
+    // Disabled GSAP animations temporarily to avoid ref issues
+    // TODO: Re-enable with proper ref checks
+  }, []);
 
   // Demo data state
   const [demoData, setDemoData] = React.useState<Array<{time: string | number, open: number, high: number, low: number, close: number}>>([])
@@ -139,7 +171,46 @@ export default function BacktestPage() {
           </SelectContent>
         </Select>
       </div>
+  // Create header controls for TradingView layout
+  const headerControls = (
+    <div className="flex items-center gap-3 text-xs overflow-x-auto scrollbar-hide min-w-0 flex-1">
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Symbol:</label>
+        <Select
+          value={formData.instrument}
+          onValueChange={(value) => handleInputChange("instrument", value)}
+        >
+          <SelectTrigger className="w-32 h-8">
+            <SelectValue placeholder="Symbol" />
+          </SelectTrigger>
+          <SelectContent>
+            {instruments.map((instrument) => (
+              <SelectItem key={instrument.symbol} value={instrument.symbol}>
+                {instrument.symbol}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Timeframe:</label>
+        <Select
+          value={formData.timeframe}
+          onValueChange={(value) => handleInputChange("timeframe", value)}
+        >
+          <SelectTrigger className="w-24 h-8">
+            <SelectValue placeholder="TF" />
+          </SelectTrigger>
+          <SelectContent>
+            {timeframes.map((tf) => (
+              <SelectItem key={tf.value} value={tf.value}>
+                {tf.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="flex items-center gap-1">
         <label className="text-muted-foreground font-medium">Timeframe:</label>
         <Select
@@ -171,7 +242,32 @@ export default function BacktestPage() {
           className="w-16 h-8"
         />
       </div>
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Days:</label>
+        <Input
+          type="number"
+          min="1"
+          max="365"
+          value={formData.duration}
+          onChange={(e) => handleInputChange("duration", e.target.value)}
+          placeholder="Days"
+          className="w-16 h-8"
+        />
+      </div>
 
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Capital:</label>
+        <Input
+          type="number"
+          min="10000"
+          max="10000000"
+          step="1000"
+          value={formData.initialCapital}
+          onChange={(e) => handleInputChange("initialCapital", e.target.value)}
+          placeholder="Capital"
+          className="w-24 h-8"
+        />
+      </div>
       <div className="flex items-center gap-1">
         <label className="text-muted-foreground font-medium">Capital:</label>
         <Input
