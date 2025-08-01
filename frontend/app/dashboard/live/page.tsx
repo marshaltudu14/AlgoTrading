@@ -1,4 +1,6 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as React from "react"
 import { motion } from "framer-motion"
@@ -16,14 +18,14 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AppLayout } from "@/components/app-layout"
+import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingChart, createTradeMarker } from "@/components/trading-chart"
 import { apiClient, formatApiError } from "@/lib/api"
 import { useLiveTrading } from "@/hooks/use-websocket"
+import { generateDemoData, generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset } from "@/lib/demo-data"
 
 // Mock instruments data
 const instruments = [
@@ -56,6 +58,21 @@ export default function LiveTradePage() {
     timeframe: "",
     optionStrategy: "ITM"
   })
+
+  // Demo data state
+  const [demoData, setDemoData] = React.useState<any[]>([])
+  const [demoTradeMarkers, setDemoTradeMarkers] = React.useState<any[]>([])
+  const [showDemo, setShowDemo] = React.useState(true)
+
+  // Initialize demo data on component mount
+  React.useEffect(() => {
+    const demoDataset = getRandomDemoDataset()
+    const candleData = demoDataset.data
+    const tradeMarkers = generateDemoTradeMarkers(candleData, 0.05)
+
+    setDemoData(candleData)
+    setDemoTradeMarkers(tradeMarkers)
+  }, [])
 
   // Use WebSocket hook for real-time live trading data
   const {
@@ -109,351 +126,169 @@ export default function LiveTradePage() {
 
   const isFormValid = formData.instrument && formData.timeframe
 
-  return (
-    <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+  // Create header controls for TradingView layout
+  const headerControls = (
+    <div className="flex items-center gap-3 text-xs overflow-x-auto scrollbar-hide min-w-0 flex-1">
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Symbol:</label>
+        <Select
+          value={formData.instrument}
+          onValueChange={(value) => setFormData(prev => ({ ...prev, instrument: value }))}
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                <TrendingUp className="h-8 w-8" />
-                Live Trading
-              </h1>
+          <SelectTrigger className="w-32 h-8">
+            <SelectValue placeholder="Symbol" />
+          </SelectTrigger>
+          <SelectContent>
+            {instruments.map((instrument) => (
+              <SelectItem key={instrument.symbol} value={instrument.symbol}>
+                {instrument.symbol}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Timeframe:</label>
+        <Select
+          value={formData.timeframe}
+          onValueChange={(value) => setFormData(prev => ({ ...prev, timeframe: value }))}
+        >
+          <SelectTrigger className="w-24 h-8">
+            <SelectValue placeholder="TF" />
+          </SelectTrigger>
+          <SelectContent>
+            {timeframes.map((tf) => (
+              <SelectItem key={tf.value} value={tf.value}>
+                {tf.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isIndexInstrument && (
+        <div className="flex items-center gap-1">
+          <label className="text-muted-foreground font-medium">Strategy:</label>
+          <Select
+            value={formData.optionStrategy}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, optionStrategy: value }))}
+          >
+            <SelectTrigger className="w-20 h-8">
+              <SelectValue placeholder="Strategy" />
+            </SelectTrigger>
+            <SelectContent>
+              {optionStrategies.map((strategy) => (
+                <SelectItem key={strategy.value} value={strategy.value}>
+                  {strategy.value}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      <div className="flex items-center gap-1">
+        {isConnected ? (
+          <Wifi className="h-3 w-3 text-green-500" />
+        ) : (
+          <WifiOff className="h-3 w-3 text-red-500" />
+        )}
+        <span className="text-xs text-muted-foreground">
+          {isConnected ? 'Connected' : 'Disconnected'}
+        </span>
+      </div>
+
+      {!isTrading ? (
+        <Button
+          onClick={handleStart}
+          disabled={!isFormValid || !isConnected}
+          size="sm"
+          className="h-8 px-3"
+        >
+          <Play className="h-3 w-3 mr-1" />
+          Start
+        </Button>
+      ) : (
+        <Button
+          onClick={handleStop}
+          variant="destructive"
+          size="sm"
+          className="h-8 px-3"
+        >
+          <Square className="h-3 w-3 mr-1" />
+          Stop
+        </Button>
+      )}
+    </div>
+  )
+
+  return (
+    <TradingViewLayout headerControls={headerControls}>
+      {/* Full-screen chart */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="h-full w-full"
+      >
+        {showDemo && !isTrading ? (
+          // Show demo chart initially
+          <TradingChart
+            candlestickData={demoData}
+            tradeMarkers={demoTradeMarkers}
+            title="Demo Live Trading Chart"
+            showVolume={true}
+            showPortfolio={false}
+            fullScreen={true}
+            windowSize={100}
+            enableSlidingWindow={false}
+            currentPrice={demoData.length > 0 ? demoData[demoData.length - 1]?.close : undefined}
+          />
+        ) : isTrading && trades.length > 0 ? (
+          // Show real live trading data based on trades
+          <TradingChart
+            candlestickData={trades.map((trade: any) => ({
+              time: trade.timestamp,
+              open: trade.price,
+              high: trade.price * 1.001,
+              low: trade.price * 0.999,
+              close: trade.price,
+              volume: 1000
+            }))}
+            tradeMarkers={trades.map((trade: any) =>
+              createTradeMarker(
+                trade.timestamp,
+                trade.action as 'BUY' | 'SELL' | 'CLOSE_LONG' | 'CLOSE_SHORT' | 'HOLD',
+                trade.price
+              )
+            )}
+            title="Live Trading Chart"
+            showVolume={true}
+            showPortfolio={false}
+            fullScreen={true}
+            windowSize={100}
+            enableSlidingWindow={false}
+            currentPrice={stats.currentPrice}
+          />
+        ) : (
+          // Empty state
+          <div className="h-full w-full flex items-center justify-center bg-muted/5">
+            <div className="text-center">
+              <TrendingUp className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium mb-2">Ready for Live Trading</h3>
               <p className="text-muted-foreground">
-                Monitor and control your automated trading bot
+                Configure your parameters in the header and click Start to begin
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {isConnected ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <Wifi className="h-4 w-4" />
-                  <span className="text-sm">Connected</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-red-600">
-                  <WifiOff className="h-4 w-4" />
-                  <span className="text-sm">Disconnected</span>
-                </div>
+              {!isConnected && (
+                <p className="text-red-500 text-sm mt-2">
+                  Waiting for connection...
+                </p>
               )}
             </div>
           </div>
-        </motion.div>
-
-        {/* Error Display */}
-        {(error || wsError) && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {error || wsError}
-              </AlertDescription>
-            </Alert>
-          </motion.div>
         )}
-
-        {/* Status Alert */}
-        {isTrading && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Alert>
-              <Activity className="h-4 w-4" />
-              <AlertDescription>
-                Live trading is active. The bot is monitoring market conditions and executing trades automatically.
-              </AlertDescription>
-            </Alert>
-          </motion.div>
-        )}
-
-        <div className="space-y-6">
-          {/* Configuration Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>Trading Configuration</CardTitle>
-                <CardDescription>
-                  Configure your live trading parameters
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="instrument">Instrument</Label>
-                  <Select
-                    value={formData.instrument}
-                    onValueChange={(value) => handleInputChange("instrument", value)}
-                    disabled={isTrading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select an instrument" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {instruments.map((instrument) => (
-                        <SelectItem key={instrument.symbol} value={instrument.symbol}>
-                          <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 text-xs rounded ${
-                              instrument.type === 'index' 
-                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                                : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                            }`}>
-                              {instrument.type}
-                            </span>
-                            {instrument.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="timeframe">Timeframe</Label>
-                  <Select
-                    value={formData.timeframe}
-                    onValueChange={(value) => handleInputChange("timeframe", value)}
-                    disabled={isTrading}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select timeframe" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeframes.map((tf) => (
-                        <SelectItem key={tf.value} value={tf.value}>
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            {tf.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {isIndexInstrument && (
-                  <div className="space-y-2">
-                    <Label htmlFor="optionStrategy">Option Strategy</Label>
-                    <Select
-                      value={formData.optionStrategy}
-                      onValueChange={(value) => handleInputChange("optionStrategy", value)}
-                      disabled={isTrading}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {optionStrategies.map((strategy) => (
-                          <SelectItem key={strategy.value} value={strategy.value}>
-                            {strategy.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div className="pt-4 space-y-2">
-                  {!isTrading ? (
-                    <Button
-                      onClick={handleStart}
-                      className="w-full"
-                      disabled={!isFormValid || !isConnected}
-                    >
-                      <Play className="mr-2 h-4 w-4" />
-                      Start Trading
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={handleStop}
-                      variant="destructive"
-                      className="w-full"
-                    >
-                      <Square className="mr-2 h-4 w-4" />
-                      Stop Trading
-                    </Button>
-                  )}
-                  
-                  {isTrading && (
-                    <p className="text-xs text-muted-foreground text-center">
-                      Configuration is locked during active trading
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Stats and Chart Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="space-y-6"
-          >
-            {/* Live Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">Current P&L</span>
-                  </div>
-                  <div className={`text-xl font-bold ${stats.currentPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {stats.currentPnL >= 0 ? '+' : ''}₹{stats.currentPnL.toLocaleString()}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-purple-600" />
-                    <span className="text-sm font-medium">Today&apos;s Trades</span>
-                  </div>
-                  <div className="text-xl font-bold">{stats.todayTrades}</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-orange-600" />
-                    <span className="text-sm font-medium">Win Rate</span>
-                  </div>
-                  <div className="text-xl font-bold">{stats.winRate.toFixed(1)}%</div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium">Current Price</span>
-                  </div>
-                  <div className="text-xl font-bold">₹{stats.currentPrice.toLocaleString()}</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Position and Recent Trades */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Current Position</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center p-4">
-                    <div className={`text-2xl font-bold ${stats.position > 0 ? 'text-green-600' : stats.position < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                      {stats.position === 0 ? 'No Position' : stats.position > 0 ? `Long ${stats.position}` : `Short ${Math.abs(stats.position)}`}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Trades</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {trades.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-4">No trades yet</p>
-                    ) : (
-                      trades.slice(-5).reverse().map((trade) => (
-                        <div key={trade.id} className="flex justify-between items-center text-sm p-2 border rounded">
-                          <span className={`font-medium ${trade.action.includes('BUY') ? 'text-green-600' : 'text-red-600'}`}>
-                            {trade.action}
-                          </span>
-                          <span>₹{trade.price}</span>
-                          <span className={trade.pnl >= 0 ? 'text-green-600' : 'text-red-600'}>
-                            {trade.pnl >= 0 ? '+' : ''}₹{trade.pnl}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Chart Area */}
-            {isTrading ? (
-              <TradingChart
-                candlestickData={[]} // Will be populated with real-time data
-                portfolioData={[]} // Will be populated with portfolio updates
-                tradeMarkers={trades.map(trade =>
-                  createTradeMarker(
-                    Date.now(), // Will use actual trade timestamp
-                    trade.action as 'BUY' | 'SELL' | 'CLOSE_LONG' | 'CLOSE_SHORT' | 'HOLD',
-                    trade.price
-                  )
-                )}
-                title="Live Trading Chart"
-                showVolume={true}
-                showPortfolio={false}
-                currentPrice={stats.currentPrice}
-                portfolioValue={undefined}
-                height={400}
-              />
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Live Chart</CardTitle>
-                  <CardDescription>
-                    Real-time price action and trading signals
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-96 border rounded-lg flex items-center justify-center bg-muted/20">
-                    <p className="text-muted-foreground">
-                      Start trading to see live chart
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Activity Log */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Activity Log</CardTitle>
-                <CardDescription>
-                  Real-time trading activity and system events
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-48 border rounded-lg p-4 bg-muted/20 overflow-y-auto">
-                  {isTrading ? (
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <span className="text-xs">12:34:56</span>
-                        <span>System initialized and monitoring market...</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center">
-                      Activity log will appear here when trading is active
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
-      </div>
-    </AppLayout>
+      </motion.div>
+    </TradingViewLayout>
   )
 }

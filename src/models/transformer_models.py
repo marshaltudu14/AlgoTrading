@@ -243,12 +243,14 @@ class ActorTransformerModel(MultiHeadTransformerModel):
         if torch.isnan(quantity_raw).any() or torch.isinf(quantity_raw).any():
             quantity_raw = torch.ones_like(quantity_raw)  # Default to 1.0
 
-        # Apply ReLU to ensure positive values, then add 1 to ensure minimum of 1
-        # No upper limit - let the model choose and capital-aware system will adjust
-        final_quantity = torch.relu(quantity_raw) + 1.0
+        # Use exponential activation to allow for much higher quantity predictions
+        # This allows the model to predict quantities from 1 to potentially hundreds/thousands
+        # exp(0) = 1, exp(1) ≈ 2.7, exp(2) ≈ 7.4, exp(3) ≈ 20, exp(5) ≈ 148, exp(10) ≈ 22026, etc.
+        final_quantity = torch.exp(torch.clamp(quantity_raw, min=-2.0, max=12.0)) + 1.0
 
-        # Round to nearest integer for clean quantities
-        final_quantity = torch.round(final_quantity)
+        # Clamp to consistent range: minimum 1, maximum 100000 (consistent across codebase)
+        # This allows quantities from 1 to 100000 (exp(12) + 1 ≈ 162755, clamped to 100000)
+        final_quantity = torch.clamp(final_quantity, min=1.0, max=100000.0)
 
         # Return as tensor with same shape as original quantity_raw
         outputs['quantity'] = final_quantity.to(dtype=torch.float32)

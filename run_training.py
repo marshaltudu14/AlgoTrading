@@ -224,7 +224,7 @@ def run_universal_ppo_training(
     logger.info(f"Universal PPO training completed for all symbols")
 
 
-def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = False):
+def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = False, config: dict = None):
     """
     Run curriculum PPO training with timeframe progression.
 
@@ -240,6 +240,9 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
 
     # Initialize data loader
     data_loader = DataLoader()
+
+    # Get configuration sections
+    model_config = config.get('model', {})
 
     # Create curriculum trainer first to discover data
     temp_trainer = CurriculumTrainer(None, data_loader, num_episodes=1, config=config)
@@ -267,7 +270,7 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
         observation_dim=observation_dim,
         action_dim_discrete=5,
         action_dim_continuous=1,
-        hidden_dim=256,
+        hidden_dim=model_config.get('hidden_dim', 64),
         lr_actor=0.0003,
         lr_critic=0.001,
         gamma=0.99,
@@ -285,7 +288,7 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
     # Only save model in production mode (not testing)
     if not testing_mode:
         # Use universal model path
-        model_path = "models/universal_curriculum_model.pth"
+        model_path = "models/universal_final_model.pth"
         os.makedirs("models", exist_ok=True)
 
         if hasattr(agent, 'save_model'):
@@ -302,6 +305,10 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
 
 def main():
     """Main entry point for RL training."""
+    # Enable detailed logging for direct training runs
+    os.environ['DETAILED_BACKTEST_LOGGING'] = 'true'
+    logger.info("Detailed trade logging enabled for direct training run")
+
     parser = argparse.ArgumentParser(description="Run PPO training for trading")
     parser.add_argument("--symbols", nargs="+", help="Trading symbols to train on")
     parser.add_argument("--data-dir", default="data/final", help="Data directory")
@@ -370,7 +377,7 @@ def main():
             run_universal_ppo_training(symbols, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing, config=config)
         else:
             logger.info("🎓 Using curriculum training (timeframe progression) - DEFAULT")
-            run_curriculum_ppo_training(num_episodes=episodes, testing_mode=args.testing)
+            run_curriculum_ppo_training(num_episodes=episodes, testing_mode=args.testing, config=config)
     except Exception as e:
         logger.error(f"Failed to run training: {e}", exc_info=True)
 

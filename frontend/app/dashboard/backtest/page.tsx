@@ -1,23 +1,25 @@
 "use client"
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as React from "react"
 import { motion } from "framer-motion"
 import {
   Play,
   BarChart3,
-  Clock,
   Loader2
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { AppLayout } from "@/components/app-layout"
+import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingChart, createTradeMarker } from "@/components/trading-chart"
 import { apiClient, formatApiError } from "@/lib/api"
 import { useBacktestProgress } from "@/hooks/use-websocket"
+import { generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset, DemoDataStream } from "@/lib/demo-data"
+
 
 // Mock instruments data - replace with actual config/instruments.yaml data
 const instruments = [
@@ -38,13 +40,38 @@ const timeframes = [
 
 export default function BacktestPage() {
   const [backtestId, setBacktestId] = React.useState<string | null>(null)
-  const [error, setError] = React.useState<string | null>(null)
+  const [_error, setError] = React.useState<string | null>(null)
   const [formData, setFormData] = React.useState({
     instrument: "",
     timeframe: "",
     duration: "30",
     initialCapital: "100000"
   })
+
+  // Demo data state
+  const [demoData, setDemoData] = React.useState<Array<{time: string | number, open: number, high: number, low: number, close: number}>>([])
+  const [demoTradeMarkers, setDemoTradeMarkers] = React.useState<Array<{time: string | number, position: 'aboveBar' | 'belowBar', color: string, shape: 'circle' | 'square' | 'arrowUp' | 'arrowDown', text: string}>>([])
+  const [demoPortfolioData, setDemoPortfolioData] = React.useState<Array<{time: string | number, value: number}>>([])
+  const [showDemo, setShowDemo] = React.useState(true)
+
+
+
+  // Initialize demo data on component mount
+  React.useEffect(() => {
+    const demoDataset = getRandomDemoDataset()
+    const candleData = demoDataset.data
+    const tradeMarkers = generateDemoTradeMarkers(candleData, 0.08)
+    const portfolioData = generateDemoPortfolioData(candleData, 100000)
+
+    setDemoData(candleData)
+    setDemoTradeMarkers(tradeMarkers)
+    setDemoPortfolioData(portfolioData)
+  }, [])
+
+  React.useEffect(() => {
+    // Disabled GSAP animations temporarily to avoid ref issues
+    // TODO: Re-enable with proper ref checks
+  }, []);
 
   // Use WebSocket hook for real-time progress and chart data
   const {
@@ -89,271 +116,167 @@ export default function BacktestPage() {
 
   const isFormValid = formData.instrument && formData.timeframe && formData.duration && formData.initialCapital
 
-  return (
-    <AppLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+  // Create header controls for TradingView layout
+  const headerControls = (
+    <div className="flex items-center gap-3 text-xs overflow-x-auto scrollbar-hide min-w-0 flex-1">
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Symbol:</label>
+        <Select
+          value={formData.instrument}
+          onValueChange={(value) => handleInputChange("instrument", value)}
         >
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <BarChart3 className="h-8 w-8" />
-            Backtesting
-          </h1>
-          <p className="text-muted-foreground">
-            Test your trading strategies against historical market data
-          </p>
-        </motion.div>
-
-        <div className="space-y-6">
-          {/* Configuration Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>Backtest Configuration</CardTitle>
-                <CardDescription>
-                  Configure your backtest parameters
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="instrument">Instrument</Label>
-                    <Select
-                      value={formData.instrument}
-                      onValueChange={(value) => handleInputChange("instrument", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an instrument" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {instruments.map((instrument) => (
-                          <SelectItem key={instrument.symbol} value={instrument.symbol}>
-                            <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 text-xs rounded ${
-                                instrument.type === 'index' 
-                                  ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
-                                  : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              }`}>
-                                {instrument.type}
-                              </span>
-                              {instrument.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="timeframe">Timeframe</Label>
-                    <Select
-                      value={formData.timeframe}
-                      onValueChange={(value) => handleInputChange("timeframe", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select timeframe" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {timeframes.map((tf) => (
-                          <SelectItem key={tf.value} value={tf.value}>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              {tf.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="duration">Duration (Days)</Label>
-                    <Input
-                      id="duration"
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={formData.duration}
-                      onChange={(e) => handleInputChange("duration", e.target.value)}
-                      placeholder="Enter number of days"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="initialCapital">Initial Capital (₹)</Label>
-                    <Input
-                      id="initialCapital"
-                      type="number"
-                      min="10000"
-                      max="10000000"
-                      step="1000"
-                      value={formData.initialCapital}
-                      onChange={(e) => handleInputChange("initialCapital", e.target.value)}
-                      placeholder="Enter initial capital amount"
-                    />
-                  </div>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={!isFormValid || isRunning}
-                  >
-                    {isRunning ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Running Backtest...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Run Backtest
-                      </>
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Results Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>Results</CardTitle>
-                <CardDescription>
-                  {results ? "Backtest completed successfully" : "Results will appear here after running a backtest"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {(error || wsError) && (
-                  <div className="p-4 border border-red-200 rounded-lg bg-red-50 text-red-700 mb-4">
-                    {error || wsError}
-                  </div>
-                )}
-
-                {isRunning && (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground mb-2">
-                        Running backtest... This may take a few moments.
-                      </p>
-                      {progress > 0 && (
-                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Progress: {progress}%
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Real-time Chart */}
-                {(isRunning || results) && chartData.length > 0 && (
-                  <div className="mb-6">
-                    <TradingChart
-                      candlestickData={chartData.map(item => ({
-                        time: item.timestamp,
-                        open: item.price,
-                        high: item.price * 1.001,
-                        low: item.price * 0.999,
-                        close: item.price,
-                        volume: 1000
-                      }))}
-                      portfolioData={chartData.map(item => ({
-                        time: item.timestamp,
-                        value: item.portfolio_value
-                      }))}
-                      tradeMarkers={chartData
-                        .filter(item => item.action !== 4) // Filter out HOLD actions
-                        .map(item => {
-                          const actionNames = ['BUY', 'SELL', 'CLOSE_LONG', 'CLOSE_SHORT', 'HOLD']
-                          return createTradeMarker(
-                            item.timestamp,
-                            actionNames[item.action] as 'BUY' | 'SELL' | 'CLOSE_LONG' | 'CLOSE_SHORT' | 'HOLD',
-                            item.price
-                          )
-                        })
-                      }
-                      title="Backtest Progress"
-                      showVolume={false}
-                      showPortfolio={true}
-                      currentPrice={currentPrice}
-                      portfolioValue={portfolioValue}
-                      height={300}
-                    />
-                  </div>
-                )}
-
-                {results && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-4 border rounded-lg">
-                        <div className={`text-2xl font-bold ${results.total_pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {results.total_pnl >= 0 ? '+' : ''}₹{results.total_pnl?.toLocaleString() || 0}
-                        </div>
-                        <p className="text-sm text-muted-foreground">Total P&L</p>
-                      </div>
-                      <div className="text-center p-4 border rounded-lg">
-                        <div className="text-2xl font-bold text-blue-600">
-                          {results.win_rate?.toFixed(1) || 0}%
-                        </div>
-                        <p className="text-sm text-muted-foreground">Win Rate</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center p-3 border rounded-lg">
-                        <div className="text-lg font-semibold">{results.total_trades || 0}</div>
-                        <p className="text-xs text-muted-foreground">Total Trades</p>
-                      </div>
-                      <div className="text-center p-3 border rounded-lg">
-                        <div className="text-lg font-semibold text-red-600">{results.max_drawdown?.toFixed(1) || 0}%</div>
-                        <p className="text-xs text-muted-foreground">Max Drawdown</p>
-                      </div>
-                      <div className="text-center p-3 border rounded-lg">
-                        <div className="text-lg font-semibold text-purple-600">{results.sharpe_ratio?.toFixed(2) || 0}</div>
-                        <p className="text-xs text-muted-foreground">Sharpe Ratio</p>
-                      </div>
-                    </div>
-
-                    <div className="h-64 border rounded-lg flex items-center justify-center bg-muted/20">
-                      <p className="text-muted-foreground">Chart visualization will be implemented here</p>
-                    </div>
-                  </div>
-                )}
-
-                {!isRunning && !results && (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-muted-foreground">
-                        Configure and run a backtest to see results
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
+          <SelectTrigger className="w-32 h-8">
+            <SelectValue placeholder="Symbol" />
+          </SelectTrigger>
+          <SelectContent>
+            {instruments.map((instrument) => (
+              <SelectItem key={instrument.symbol} value={instrument.symbol}>
+                {instrument.symbol}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-    </AppLayout>
+
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Timeframe:</label>
+        <Select
+          value={formData.timeframe}
+          onValueChange={(value) => handleInputChange("timeframe", value)}
+        >
+          <SelectTrigger className="w-24 h-8">
+            <SelectValue placeholder="TF" />
+          </SelectTrigger>
+          <SelectContent>
+            {timeframes.map((tf) => (
+              <SelectItem key={tf.value} value={tf.value}>
+                {tf.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Days:</label>
+        <Input
+          type="number"
+          min="1"
+          max="365"
+          value={formData.duration}
+          onChange={(e) => handleInputChange("duration", e.target.value)}
+          placeholder="Days"
+          className="w-16 h-8"
+        />
+      </div>
+
+      <div className="flex items-center gap-1">
+        <label className="text-muted-foreground font-medium">Capital:</label>
+        <Input
+          type="number"
+          min="10000"
+          max="10000000"
+          step="1000"
+          value={formData.initialCapital}
+          onChange={(e) => handleInputChange("initialCapital", e.target.value)}
+          placeholder="Capital"
+          className="w-24 h-8"
+        />
+      </div>
+
+      <Button
+        onClick={handleSubmit}
+        disabled={!isFormValid || isRunning}
+        size="sm"
+        className="h-8 px-3"
+      >
+        {isRunning ? (
+          <>
+            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            Running
+          </>
+        ) : (
+          <>
+            <Play className="h-3 w-3 mr-1" />
+            Run
+          </>
+        )}
+      </Button>
+    </div>
+  )
+
+  return (
+    <TradingViewLayout headerControls={headerControls}>
+      {/* Full-screen chart */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="h-full w-full"
+      >
+        {showDemo && !isRunning && !results ? (
+          // Show demo chart initially
+          <TradingChart
+            candlestickData={demoData}
+            portfolioData={demoPortfolioData}
+            tradeMarkers={demoTradeMarkers}
+            title="Demo Trading Chart"
+            showVolume={true}
+            showPortfolio={true}
+            fullScreen={true}
+            windowSize={100}
+            enableSlidingWindow={false}
+            currentPrice={demoData.length > 0 ? demoData[demoData.length - 1]?.close : undefined}
+            portfolioValue={demoPortfolioData.length > 0 ? demoPortfolioData[demoPortfolioData.length - 1]?.value : undefined}
+          />
+        ) : isRunning || results ? (
+          // Show real backtest data
+          <TradingChart
+            candlestickData={chartData.map(item => ({
+              time: item.timestamp,
+              open: item.price,
+              high: item.price * 1.001,
+              low: item.price * 0.999,
+              close: item.price,
+              volume: 1000
+            }))}
+            portfolioData={chartData.map(item => ({
+              time: item.timestamp,
+              value: item.portfolio_value
+            }))}
+            tradeMarkers={chartData
+              .filter(item => item.action !== 4) // Filter out HOLD actions
+              .map(item => {
+                const actionNames = ['BUY', 'SELL', 'CLOSE_LONG', 'CLOSE_SHORT', 'HOLD']
+                return createTradeMarker(
+                  item.timestamp,
+                  actionNames[item.action] as 'BUY' | 'SELL' | 'CLOSE_LONG' | 'CLOSE_SHORT' | 'HOLD',
+                  item.price
+                )
+              })
+            }
+            title="Live Backtest"
+            showVolume={true}
+            showPortfolio={true}
+            fullScreen={true}
+            windowSize={100}
+            enableSlidingWindow={true}
+            currentPrice={chartData.length > 0 ? chartData[chartData.length - 1]?.price : undefined}
+            portfolioValue={chartData.length > 0 ? chartData[chartData.length - 1]?.portfolio_value : undefined}
+          />
+        ) : (
+          // Empty state
+          <div className="h-full w-full flex items-center justify-center bg-muted/5">
+            <div className="text-center">
+              <BarChart3 className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium mb-2">Ready to Backtest</h3>
+              <p className="text-muted-foreground">
+                Configure your parameters in the header and click Run to start
+              </p>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </TradingViewLayout>
   )
 }

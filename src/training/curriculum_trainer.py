@@ -49,23 +49,35 @@ class CurriculumTrainer:
         self.total_reward = 0.0
         self.cumulative_trade_history = []  # Accumulate trades across all episodes
         self.cumulative_capital_history = []  # Track capital across all episodes
-        
+
         # Real-time win rate tracking
         self.step_win_rates = []
         self.step_trade_counts = []
+
+        # Episode-specific tracking
+        self.episode_metrics = []  # Store metrics for each individual episode
         
-        # Curriculum tracking
+        # Curriculum tracking with individual episode completion
         self.current_batch_index = 0
-        self.episodes_per_batch = num_episodes  # Each timeframe gets FULL episode count
-        self.total_curriculum_episodes = num_episodes * len(self.curriculum_batches) if self.curriculum_batches else num_episodes
+        self.episodes_per_symbol = 5  # Each symbol completes this many individual episodes
+
+        # Calculate total episodes needed for proper curriculum progression
+        total_episodes_needed = 0
+        for batch in self.curriculum_batches:
+            episodes_for_batch = len(batch['symbols']) * self.episodes_per_symbol
+            total_episodes_needed += episodes_for_batch
+
+        # Use provided episodes or calculated minimum
+        self.total_curriculum_episodes = max(num_episodes, total_episodes_needed) if self.curriculum_batches else num_episodes
         self.batch_performance = []
 
         logger.info(f"🎓 Curriculum Trainer initialized")
-        logger.info(f"   Episodes per timeframe: {self.episodes_per_batch}")
+        logger.info(f"   Episodes per symbol: {self.episodes_per_symbol}")
         logger.info(f"   Curriculum batches: {len(self.curriculum_batches)}")
         logger.info(f"   Total curriculum episodes: {self.total_curriculum_episodes}")
         for i, batch in enumerate(self.curriculum_batches):
-            logger.info(f"   Batch {i+1}: Timeframe {batch['timeframe']}min - {len(batch['symbols'])} symbols")
+            episodes_for_batch = len(batch['symbols']) * self.episodes_per_symbol
+            logger.info(f"   Batch {i+1}: Timeframe {batch['timeframe']}min - {len(batch['symbols'])} symbols ({episodes_for_batch} episodes)")
 
     def _discover_curriculum_data(self) -> List[Dict[str, Any]]:
         """Discover available data files and organize into curriculum batches."""
@@ -123,21 +135,49 @@ class CurriculumTrainer:
         if not self.curriculum_batches:
             return {'timeframe': 'unknown', 'symbols': [], 'description': 'No data'}
 
-        # Calculate which batch we should be in (each batch gets full episodes)
-        batch_index = min(episode // self.episodes_per_batch, len(self.curriculum_batches) - 1)
-        return self.curriculum_batches[batch_index]
+        # Calculate which batch we should be in based on completed symbol cycles
+        # Each symbol in a batch must complete individual episodes before moving to next batch
+        current_batch_index = 0
+        remaining_episodes = episode
+
+        for batch_idx, batch in enumerate(self.curriculum_batches):
+            symbols_in_batch = len(batch['symbols'])
+            episodes_needed_for_batch = symbols_in_batch * self.episodes_per_symbol
+
+            if remaining_episodes < episodes_needed_for_batch:
+                current_batch_index = batch_idx
+                break
+            else:
+                remaining_episodes -= episodes_needed_for_batch
+                current_batch_index = batch_idx + 1
+
+        # Ensure we don't exceed available batches
+        current_batch_index = min(current_batch_index, len(self.curriculum_batches) - 1)
+        return self.curriculum_batches[current_batch_index]
 
     def _get_next_symbol(self, episode: int) -> str:
         """Get the next symbol for training using curriculum strategy."""
         current_batch = self._get_current_batch(episode)
         symbols = current_batch['symbols']
-        
+
         if not symbols:
             logger.warning("No symbols available in current batch")
             return "fallback_symbol"
-        
-        # Rotate through symbols within the current batch
-        symbol_index = episode % len(symbols)
+
+        # Calculate position within current batch to ensure each symbol completes individual episodes
+        episodes_before_current_batch = 0
+        for batch_idx, batch in enumerate(self.curriculum_batches):
+            if batch == current_batch:
+                break
+            episodes_before_current_batch += len(batch['symbols']) * self.episodes_per_symbol
+
+        # Position within current batch
+        episode_in_batch = episode - episodes_before_current_batch
+
+        # Each symbol gets consecutive episodes (not interleaved)
+        symbol_index = episode_in_batch // self.episodes_per_symbol
+        symbol_index = min(symbol_index, len(symbols) - 1)  # Ensure we don't exceed available symbols
+
         return symbols[symbol_index]
 
     def _convert_epoch_to_readable(self, epoch_timestamp: float) -> str:
@@ -184,24 +224,26 @@ class CurriculumTrainer:
         logger.info("🎓 Starting Curriculum Training")
         logger.info("=" * 60)
         logger.info(f"📊 Total curriculum episodes: {self.total_curriculum_episodes}")
-        logger.info(f"📊 Episodes per timeframe: {self.episodes_per_batch}")
+        logger.info(f"📊 Episodes per symbol: {self.episodes_per_symbol}")
         logger.info(f"📊 Training across {len(self.curriculum_batches)} timeframe batches")
 
         if not self.curriculum_batches:
             logger.error("No curriculum batches available for training")
             return {"error": "No training data available"}
 
+        previous_batch = None
         for episode in range(self.total_curriculum_episodes):
             # Get current curriculum batch and symbol
             current_batch = self._get_current_batch(episode)
             symbol = self._get_next_symbol(episode)
-            
+
             # Check if we've moved to a new batch
-            new_batch_index = min(episode // self.episodes_per_batch, len(self.curriculum_batches) - 1)
-            if new_batch_index != self.current_batch_index:
-                self.current_batch_index = new_batch_index
-                logger.info(f"🎓 Curriculum Progress: Moving to Batch {new_batch_index + 1}")
+            if previous_batch is None or current_batch['timeframe'] != previous_batch['timeframe']:
+                batch_index = self.curriculum_batches.index(current_batch)
+                logger.info(f"🎓 Curriculum Progress: Moving to Batch {batch_index + 1}")
                 logger.info(f"   {current_batch['description']} - {len(current_batch['symbols'])} symbols")
+                logger.info(f"   Each symbol will complete {self.episodes_per_symbol} individual episodes")
+                previous_batch = current_batch
             
             # Train on the selected symbol
             episode_result = self._train_episode(episode, symbol, current_batch)
@@ -251,11 +293,13 @@ class CurriculumTrainer:
                 current_price = env.data.iloc[env.current_step]['close'] if env.current_step < len(env.data) else 0
                 account_state = env.engine.get_account_state(current_price=current_price)
 
-                # Real-time win rate calculation
-                current_trades = env.engine.get_trade_history()
-                self.cumulative_trade_history.extend(current_trades)
-                real_time_win_rate = self._calculate_real_time_win_rate()
-                total_trades = len([t for t in self.cumulative_trade_history if t.get('trade_type') == 'CLOSE'])
+                # Episode-specific win rate calculation
+                current_episode_trades = env.engine.get_trade_history()
+                episode_win_rate = self._calculate_win_rate_from_trades(current_episode_trades)
+                episode_trade_count = len([t for t in current_episode_trades if t.get('trade_type') == 'CLOSE'])
+
+                # Update cumulative history for final summary (but don't use for step logging)
+                self.cumulative_trade_history.extend(current_episode_trades)
 
                 # Convert epoch timestamp to readable datetime
                 current_datetime = self._convert_epoch_to_readable(env.data.iloc[env.current_step]['datetime_epoch'])
@@ -268,13 +312,13 @@ class CurriculumTrainer:
                 if 'exit_reason' in info:
                     exit_info = f" | Exit: {info['exit_reason']}"
 
-                # Enhanced step logging with curriculum info
+                # Enhanced step logging with episode-specific metrics
                 logger.info(f"🎓 Ep {episode+1} | Step {step_count} | {current_datetime} | {symbol} | "
                            f"Batch: {batch_info['description']} | Action: {action_name} | "
                            f"Capital: ₹{account_state['capital']:.2f} | "
                            f"Position: {account_state['current_position_quantity']} | "
-                           f"Reward: {reward:.4f} | Win Rate: {real_time_win_rate:.1%} | "
-                           f"Trades: {total_trades}{exit_info}")
+                           f"Reward: {reward:.4f} | Win Rate: {episode_win_rate:.1%} | "
+                           f"Trades: {episode_trade_count}{exit_info}")
 
                 obs = next_obs
 
@@ -285,22 +329,41 @@ class CurriculumTrainer:
             if hasattr(self.agent, 'update'):
                 self.agent.update()
 
+            # Calculate episode-specific metrics
+            episode_trades = env.engine.get_trade_history()
+            episode_win_rate = self._calculate_win_rate_from_trades(episode_trades)
+            episode_trade_count = len([t for t in episode_trades if t.get('trade_type') == 'CLOSE'])
+
             # Store episode results
             final_capital = account_state['capital']
             self.capital_history.append(final_capital)
             self.episode_rewards.append(episode_reward)
             self.total_reward += episode_reward
 
-            return {
-                'episode': episode,
+            # Calculate cumulative trades
+            cumulative_trades = len([t for t in self.cumulative_trade_history if t.get('trade_type') == 'CLOSE'])
+
+            # Store episode-specific metrics
+            episode_metrics = {
+                'episode': episode + 1,
                 'symbol': symbol,
                 'batch': batch_info['description'],
                 'final_capital': final_capital,
                 'episode_reward': episode_reward,
                 'steps': step_count,
-                'win_rate': real_time_win_rate,
-                'total_trades': total_trades
+                'episode_win_rate': episode_win_rate,
+                'episode_trades': episode_trade_count,
+                'cumulative_win_rate': self._calculate_real_time_win_rate(),
+                'cumulative_trades': cumulative_trades
             }
+            self.episode_metrics.append(episode_metrics)
+
+            # Log episode-specific metrics only
+            logger.info(f"📈 Episode {episode + 1} Complete | {symbol} | "
+                       f"Episode Win Rate: {episode_win_rate:.1%} ({episode_trade_count} trades) | "
+                       f"Capital: ₹{final_capital:.2f}")
+
+            return episode_metrics
 
         except Exception as e:
             logger.error(f"Error in episode {episode} with symbol {symbol}: {e}")
@@ -323,21 +386,52 @@ class CurriculumTrainer:
         current_win_rate = self._calculate_real_time_win_rate()
         total_trades = len([t for t in self.cumulative_trade_history if t.get('trade_type') == 'CLOSE'])
 
+        # Calculate episode-specific averages for recent episodes
+        recent_episodes = self.episode_metrics[-self.log_interval:] if len(self.episode_metrics) >= self.log_interval else self.episode_metrics
+        if recent_episodes:
+            avg_episode_win_rate = np.mean([ep['episode_win_rate'] for ep in recent_episodes])
+            avg_episode_trades = np.mean([ep['episode_trades'] for ep in recent_episodes])
+        else:
+            avg_episode_win_rate = 0.0
+            avg_episode_trades = 0.0
+
+        # Calculate batch progress based on new logic
+        episodes_before_current_batch = 0
+        for batch_idx, batch in enumerate(self.curriculum_batches):
+            if batch == current_batch:
+                break
+            episodes_before_current_batch += len(batch['symbols']) * self.episodes_per_symbol
+
+        episode_in_batch = episode - episodes_before_current_batch
+        total_episodes_in_batch = len(current_batch['symbols']) * self.episodes_per_symbol
+
         logger.info("🎓 Curriculum Training Progress")
         logger.info("=" * 50)
         logger.info(f"Episodes: {episode + 1}/{self.total_curriculum_episodes}")
         logger.info(f"Current Batch: {current_batch['description']}")
-        logger.info(f"Batch Progress: {(episode % self.episodes_per_batch) + 1}/{self.episodes_per_batch}")
+        logger.info(f"Batch Progress: {episode_in_batch + 1}/{total_episodes_in_batch}")
         logger.info(f"Average Capital (last {self.log_interval}): ₹{avg_capital:,.2f}")
         logger.info(f"Total Return: {total_return:.2f}%")
         logger.info(f"Average Reward: {avg_reward:.4f}")
-        logger.info(f"Win Rate: {current_win_rate:.1%}")
-        logger.info(f"Total Trades: {total_trades}")
+        logger.info(f"Avg Episode Win Rate (last {len(recent_episodes)}): {avg_episode_win_rate:.1%} ({avg_episode_trades:.1f} trades/ep)")
 
     def _generate_training_summary(self) -> Dict[str, Any]:
         """Generate comprehensive training summary."""
         if not self.capital_history:
             return {"error": "No training data available"}
+
+        # Calculate episode-specific statistics
+        episode_win_rates = [ep['episode_win_rate'] for ep in self.episode_metrics if ep['episode_trades'] > 0]
+        episode_trade_counts = [ep['episode_trades'] for ep in self.episode_metrics]
+
+        episode_stats = {
+            'avg_episode_win_rate': np.mean(episode_win_rates) if episode_win_rates else 0.0,
+            'best_episode_win_rate': max(episode_win_rates) if episode_win_rates else 0.0,
+            'worst_episode_win_rate': min(episode_win_rates) if episode_win_rates else 0.0,
+            'avg_trades_per_episode': np.mean(episode_trade_counts) if episode_trade_counts else 0.0,
+            'episodes_with_trades': len([ep for ep in self.episode_metrics if ep['episode_trades'] > 0]),
+            'total_episodes': len(self.episode_metrics)
+        }
 
         # Calculate final metrics
         initial_capital = 100000
@@ -348,9 +442,12 @@ class CurriculumTrainer:
 
         # Batch performance analysis
         batch_summary = []
+        current_episode = 0
         for i, batch in enumerate(self.curriculum_batches):
-            start_ep = i * self.episodes_per_batch
-            end_ep = min((i + 1) * self.episodes_per_batch, len(self.capital_history))
+            # Calculate episodes for this batch based on symbols and episodes_per_symbol
+            episodes_in_batch = len(batch['symbols']) * self.episodes_per_symbol
+            start_ep = current_episode
+            end_ep = min(current_episode + episodes_in_batch, len(self.capital_history))
 
             if start_ep < len(self.capital_history):
                 batch_capitals = self.capital_history[start_ep:end_ep]
@@ -359,8 +456,11 @@ class CurriculumTrainer:
                     'batch': batch['description'],
                     'episodes': f"{start_ep+1}-{end_ep}",
                     'avg_capital': batch_avg,
-                    'symbols': len(batch['symbols'])
+                    'symbols': len(batch['symbols']),
+                    'episodes_per_symbol': self.episodes_per_symbol
                 })
+
+            current_episode += episodes_in_batch
 
         summary = {
             'total_episodes': self.num_episodes,
@@ -370,7 +470,8 @@ class CurriculumTrainer:
             'total_return_pct': total_return,
             'final_win_rate': final_win_rate,
             'total_trades': total_trades,
-            'batch_performance': batch_summary
+            'batch_performance': batch_summary,
+            'episode_statistics': episode_stats
         }
 
         logger.info("🎓 Curriculum Training Summary")
@@ -379,8 +480,15 @@ class CurriculumTrainer:
         logger.info(f"Curriculum Batches: {summary['curriculum_batches']}")
         logger.info(f"Final Capital: ₹{summary['final_capital']:,.2f}")
         logger.info(f"Total Return: {summary['total_return_pct']:.2f}%")
-        logger.info(f"Final Win Rate: {summary['final_win_rate']:.1%}")
-        logger.info(f"Total Trades: {summary['total_trades']}")
+        logger.info(f"Final Cumulative Win Rate: {summary['final_win_rate']:.1%}")
+        logger.info(f"Total Cumulative Trades: {summary['total_trades']}")
+
+        logger.info("\n📊 Episode-Specific Statistics:")
+        logger.info(f"  Average Episode Win Rate: {episode_stats['avg_episode_win_rate']:.1%}")
+        logger.info(f"  Best Episode Win Rate: {episode_stats['best_episode_win_rate']:.1%}")
+        logger.info(f"  Worst Episode Win Rate: {episode_stats['worst_episode_win_rate']:.1%}")
+        logger.info(f"  Average Trades per Episode: {episode_stats['avg_trades_per_episode']:.1f}")
+        logger.info(f"  Episodes with Trades: {episode_stats['episodes_with_trades']}/{episode_stats['total_episodes']}")
 
         logger.info("\nBatch Performance:")
         for batch in batch_summary:

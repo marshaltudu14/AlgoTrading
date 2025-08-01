@@ -75,6 +75,10 @@ class TradingEnv(gym.Env):
         self.peak_equity = initial_capital
         self.max_drawdown_pct = 0.20  # 20% maximum drawdown
 
+        # Track quantity prediction for reward calculation
+        self._last_predicted_quantity = 0.0
+        self._last_max_affordable = 0
+
         # Load instrument details
         self.instruments = load_instruments('config/instruments.yaml')
 
@@ -116,11 +120,12 @@ class TradingEnv(gym.Env):
         # Define action and observation space
         # Action space: [action_type, quantity]
         # action_type: 0=BUY_LONG, 1=SELL_SHORT, 2=CLOSE_LONG, 3=CLOSE_SHORT, 4=HOLD
-        # quantity: continuous value between 0 and max_quantity (e.g., 10 lots)
-        self.max_quantity = 10  # Maximum lots that can be traded
+        # quantity: continuous value representing desired number of lots to trade
+        # Environment will clamp to actual max_affordable based on capital and price
+        self.max_theoretical_quantity = 100000  # Consistent upper bound across codebase
         self.action_space = gym.spaces.Box(
-            low=np.array([0, 0]),
-            high=np.array([4, self.max_quantity]),
+            low=np.array([0, 1]),
+            high=np.array([4, self.max_theoretical_quantity]),
             dtype=np.float32
         )
         
@@ -321,38 +326,59 @@ class TradingEnv(gym.Env):
         # Parse action: [action_type, quantity] or (action_type, quantity)
         if isinstance(action, (list, np.ndarray, tuple)) and len(action) >= 2:
             action_type = int(np.clip(action[0], 0, 4))
-            quantity = max(0, float(action[1]))  # Ensure non-negative quantity
-            # Force quantity to be integer for production use
-            quantity = float(int(round(quantity)))
+            predicted_quantity = max(1.0, float(action[1]))  # Ensure minimum 1 lot
         else:
-            # Backward compatibility: treat as discrete action with quantity 1
+            # Backward compatibility: treat as discrete action with default quantity
             try:
                 action_type = int(action) if isinstance(action, (int, float)) else 4
             except (ValueError, TypeError):
                 action_type = 4  # Default to HOLD if conversion fails
-            quantity = 1.0 if action_type != 4 else 0.0
+            predicted_quantity = 1.0 if action_type != 4 else 0.0  # Default to 1 lot
 
-        # Apply capital-aware quantity adjustment for trading actions (not HOLD)
-        if action_type != 4 and quantity > 0:
+        # Adjust predicted quantity to available capital for trading actions (not HOLD)
+        if action_type != 4 and predicted_quantity > 0:
             available_capital = prev_capital
 
-            # Import capital-aware quantity adjustment
-            from src.utils.capital_aware_quantity import adjust_quantity_for_capital
+            # Import capital-aware quantity calculation
+            from src.utils.capital_aware_quantity import CapitalAwareQuantitySelector
+            selector = CapitalAwareQuantitySelector()
 
-            # Calculate dynamically adjusted quantity based on available capital
-            adjusted_quantity = adjust_quantity_for_capital(
-                predicted_quantity=quantity,
+            # Calculate maximum affordable quantity (no artificial limits)
+            max_affordable_quantity = selector.get_max_affordable_quantity(
                 available_capital=available_capital,
                 current_price=current_price,
                 instrument=self.instrument
             )
 
-            # Log quantity adjustment if it was changed
-            if adjusted_quantity != int(round(quantity)):
-                logger.info(f"💰 Quantity adjusted for capital: {quantity} → {adjusted_quantity} lots")
-                logger.info(f"   Available capital: ₹{available_capital:.2f}")
+            # Clamp predicted quantity to what's actually affordable
+            if max_affordable_quantity > 0:
+                # Use the smaller of predicted quantity or max affordable
+                actual_quantity = min(int(predicted_quantity), max_affordable_quantity)
+                actual_quantity = max(1, actual_quantity)  # Ensure at least 1 lot
 
-            quantity = float(adjusted_quantity)
+                # Store values for reward calculation
+                self._last_predicted_quantity = predicted_quantity
+                self._last_max_affordable = max_affordable_quantity
+
+                # Log quantity adjustment if needed
+                if detailed_logging:
+                    if actual_quantity != int(predicted_quantity):
+                        logger.info(f"💰 Quantity adjusted: {int(predicted_quantity)} → {actual_quantity} lots (capital limit)")
+                    else:
+                        logger.info(f"💰 Quantity: {actual_quantity} lots")
+                    logger.info(f"   Available capital: ₹{available_capital:.2f}")
+                    logger.info(f"   Max affordable: {max_affordable_quantity} lots")
+
+                quantity = float(actual_quantity)
+            else:
+                # No capital available for trading
+                quantity = 0.0
+                self._last_predicted_quantity = predicted_quantity
+                self._last_max_affordable = 0
+        else:
+            quantity = 0.0
+            self._last_predicted_quantity = 0.0
+            self._last_max_affordable = 0
 
         # DEBUG: Log every action to see what the agent is doing (only if detailed logging enabled)
         if detailed_logging:
@@ -763,7 +789,7 @@ class TradingEnv(gym.Env):
 
     def _calculate_quantity_feedback_reward(self, action, available_capital: float) -> float:
         """
-        Calculate reward feedback for quantity predictions to guide better capital utilization.
+        Calculate reward feedback for quantity predictions to guide better quantity selection.
 
         Args:
             action: The action taken (action_type, quantity)
@@ -785,45 +811,29 @@ class TradingEnv(gym.Env):
         if predicted_quantity <= 0:
             return 0.0
 
-        # Get current price for cost calculation
-        current_price = self.data.iloc[self.current_step]['close'] if self.current_step < len(self.data) else 0
-        if current_price <= 0:
-            return 0.0
+        # Use stored values from step calculation
+        max_affordable = getattr(self, '_last_max_affordable', 0)
 
-        # Import capital-aware quantity calculation
-        from src.utils.capital_aware_quantity import CapitalAwareQuantitySelector
-        selector = CapitalAwareQuantitySelector()
+        if max_affordable <= 0:
+            # No capital available - penalize non-zero quantity requests
+            return -0.05 if predicted_quantity > 0 else 0.0
 
-        # Calculate what the optimal quantity would be
-        max_affordable = selector.adjust_quantity_for_capital(
-            predicted_quantity=5.0,  # Max possible
-            available_capital=available_capital,
-            current_price=current_price,
-            instrument=self.instrument
-        )
+        # Reward smart quantity selection based on available capital
+        # Calculate utilization ratio for reward calculation
+        utilization_ratio = min(predicted_quantity / max_affordable, 1.0)
 
-        # Calculate capital utilization efficiency
-        if max_affordable > 0:
-            # Reward efficient capital utilization
-            actual_quantity = min(int(predicted_quantity), max_affordable)
-            utilization_ratio = actual_quantity / max_affordable
+        # Reward efficient quantity selection
+        # Optimal range: 60-90% of available capacity
+        if 0.6 <= utilization_ratio <= 0.9:
+            quantity_reward = 0.1 * utilization_ratio  # Reward efficient utilization
+        elif utilization_ratio > 0.9:
+            quantity_reward = 0.05  # Slightly less reward for being too aggressive
+        elif utilization_ratio >= 0.3:
+            quantity_reward = 0.03 * utilization_ratio  # Small reward for moderate approach
+        else:
+            quantity_reward = 0.01 * utilization_ratio  # Minimal reward for very conservative approach
 
-            # Reward good utilization (0.6-0.9 is optimal, not too conservative, not too aggressive)
-            if 0.6 <= utilization_ratio <= 0.9:
-                quantity_reward = 0.1 * utilization_ratio  # Small positive reward
-            elif utilization_ratio > 0.9:
-                quantity_reward = 0.05  # Slightly less reward for being too aggressive
-            else:
-                quantity_reward = 0.02 * utilization_ratio  # Small reward for conservative approach
-
-            # Penalize predictions that exceed affordable quantity
-            if predicted_quantity > max_affordable:
-                over_prediction_penalty = -0.05 * (predicted_quantity - max_affordable) / max_affordable
-                quantity_reward += over_prediction_penalty
-
-            return quantity_reward
-
-        return 0.0
+        return quantity_reward
 
     def _calculate_reward_normalization_factor(self, symbol: str) -> float:
         """Calculate normalization factor based on instrument type and typical price ranges."""

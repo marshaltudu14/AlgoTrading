@@ -229,7 +229,12 @@ class LiveTradingService:
             observation_dim = obs.shape[0]
             action_dim_discrete = 5  # TradingEnv action space: [0,1,2,3,4]
             action_dim_continuous = 1
-            hidden_dim = 64  # Default from config
+            # Load training config to get hidden_dim
+            import yaml
+            training_config_path = Path(__file__).parent.parent.parent / "config" / "training_sequence.yaml"
+            with open(training_config_path, 'r') as f:
+                training_config = yaml.safe_load(f)
+            hidden_dim = training_config.get('model', {}).get('hidden_dim', 64)
 
             logger.info(f"Model dimensions: obs={observation_dim}, discrete={action_dim_discrete}, continuous={action_dim_continuous}")
 
