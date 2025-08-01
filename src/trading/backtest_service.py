@@ -80,21 +80,28 @@ class BacktestService:
     async def _broadcast_update(self, message: Dict[str, Any]):
         """Broadcast update to all connected WebSocket clients"""
         if not self.websocket_clients:
+            logger.debug(f"No WebSocket clients connected, skipping broadcast: {message.get('type', 'unknown')}")
             return
-        
-        message_str = json.dumps(message)
-        disconnected_clients = []
-        
-        for client in self.websocket_clients:
-            try:
-                await client.send_text(message_str)
-            except Exception as e:
-                logger.warning(f"Failed to send message to WebSocket client: {e}")
-                disconnected_clients.append(client)
-        
-        # Remove disconnected clients
-        for client in disconnected_clients:
-            self.remove_websocket_client(client)
+
+        try:
+            message_str = json.dumps(message, default=str)  # Handle datetime and other non-serializable objects
+            disconnected_clients = []
+
+            for client in self.websocket_clients:
+                try:
+                    await client.send_text(message_str)
+                    logger.debug(f"Sent message to WebSocket client: {message.get('type', 'unknown')}")
+                except Exception as e:
+                    logger.warning(f"Failed to send message to WebSocket client: {e}")
+                    disconnected_clients.append(client)
+
+            # Remove disconnected clients
+            for client in disconnected_clients:
+                self.remove_websocket_client(client)
+
+        except Exception as e:
+            logger.error(f"Failed to serialize message for broadcast: {e}")
+            logger.error(f"Message content: {message}")
     
     def _get_trading_symbol(self) -> str:
         """Get trading symbol for the instrument from config"""
@@ -236,6 +243,7 @@ class BacktestService:
             env.engine._current_position_quantity = 0.0
             env.engine._is_position_open = False
             logger.info(f"Force reset position to: {env.engine._current_position_quantity}")
+            logger.info(f"Environment initialized with {len(data)} data points")
 
             trades = []
             portfolio_values = []
@@ -270,6 +278,10 @@ class BacktestService:
                 obs, reward, done, info = env.step(action)
                 step_count += 1
 
+                # Debug: Check if environment is ending prematurely
+                if done and step_count < 100:
+                    logger.warning(f"Environment ended early at step {step_count}, reason: {info.get('reason', 'unknown')}")
+
                 # Get current datetime from data
                 current_datetime = "N/A"
                 current_price = 0
@@ -281,12 +293,27 @@ class BacktestService:
                     current_datetime = f"Step_{env.current_step}"
 
                 # Collect chart data for real-time visualization
-                chart_data.append({
+                chart_point = {
                     'timestamp': current_datetime,
                     'price': current_price,
                     'action': action_type,
                     'portfolio_value': env.engine.get_account_state().get('total_capital', self.initial_capital)
-                })
+                }
+                chart_data.append(chart_point)
+
+                # Send real-time chart updates every 10 steps for sliding window
+                if step_count % 10 == 0:
+                    await self._broadcast_update({
+                        "type": "chart_update",
+                        "data": [chart_point],
+                        "current_price": current_price,
+                        "portfolio_value": chart_point['portfolio_value'],
+                        "current_step": step_count,
+                        "total_steps": len(data)
+                    })
+
+                    # Add small delay to make progress visible and prevent overwhelming the frontend
+                    await asyncio.sleep(0.1)
 
                 # Collect trade information if available
                 if info.get('trade_executed'):
@@ -314,8 +341,9 @@ class BacktestService:
                         "portfolio_value": portfolio_values[-1]['value']
                     })
 
-                # Small delay to simulate processing time
+                # Log progress every 100 steps
                 if step_count % 100 == 0:
+                    logger.info(f"Backtest progress: {step_count}/{len(data)} steps ({progress}%)")
                     await asyncio.sleep(0.01)
             
             # Calculate metrics from environment and trades
@@ -386,46 +414,116 @@ class BacktestService:
         # Annualized Sharpe ratio (assuming 252 trading days)
         sharpe = (mean_return / std_return) * np.sqrt(252)
         return sharpe
+
+    def _format_candlestick_data(self, data: pd.DataFrame) -> List[Dict[str, Any]]:
+        """Format processed data for candlestick chart"""
+        try:
+            candlestick_data = []
+
+            for index, row in data.iterrows():
+                # Use datetime_epoch if available, otherwise convert index
+                if 'datetime_epoch' in row:
+                    timestamp = int(row['datetime_epoch'])
+                else:
+                    # Convert index to epoch timestamp
+                    timestamp = int(pd.Timestamp(index).timestamp())
+
+                candlestick_data.append({
+                    'time': timestamp,
+                    'open': float(row['open']),
+                    'high': float(row['high']),
+                    'low': float(row['low']),
+                    'close': float(row['close'])
+                })
+
+            logger.info(f"Formatted {len(candlestick_data)} candlestick data points")
+            return candlestick_data
+
+        except Exception as e:
+            logger.error(f"Failed to format candlestick data: {e}")
+            return []
     
     async def run(self):
         """Run the complete backtest process"""
         try:
             self.status = "running"
-            
+
+            # Wait a moment for WebSocket connections to establish
+            await asyncio.sleep(2)
+
             # Broadcast start message
             await self._broadcast_update({
                 "type": "started",
-                "message": "Backtest started",
-                "instrument": self.instrument,
-                "timeframe": self.timeframe,
-                "duration": self.duration
+                "message": "Backtest started"
             })
-            
+
+            # Step 1: Loading data
+            await self._broadcast_update({
+                "type": "progress",
+                "progress": 10,
+                "message": "Loading data",
+                "step": "loading_data"
+            })
+
             # Load historical data
             data = await self._load_historical_data()
-            
+
+            # Step 2: Processing data
+            await self._broadcast_update({
+                "type": "progress",
+                "progress": 30,
+                "message": "Processing data",
+                "step": "processing_data"
+            })
+
+            # Send complete candlestick data after processing
+            candlestick_data = self._format_candlestick_data(data)
+            logger.info(f"Sending {len(candlestick_data)} candlestick data points to frontend")
+            await self._broadcast_update({
+                "type": "data_loaded",
+                "candlestick_data": candlestick_data[:10],  # Send first 10 points for testing
+                "total_points": len(candlestick_data),
+                "message": "Data processing complete"
+            })
+
+            # Step 3: Starting backtest
+            await self._broadcast_update({
+                "type": "progress",
+                "progress": 40,
+                "message": "Starting backtest",
+                "step": "starting_backtest"
+            })
+
+            # Step 4: Running backtest
+            await self._broadcast_update({
+                "type": "progress",
+                "progress": 50,
+                "message": "Running backtest",
+                "step": "running_backtest"
+            })
+
             # Run simulation
             results = await self._run_backtest_simulation(data)
-            
+
             # Store results
             self.results = results
             self.status = "completed"
             self.progress = 100
-            
+
             # Broadcast completion
             await self._broadcast_update({
                 "type": "completed",
                 "results": results,
                 "message": "Backtest completed successfully"
             })
-            
+
             logger.info(f"Backtest completed for user {self.user_id}")
-            
+
         except Exception as e:
             self.status = "failed"
             error_message = f"Backtest failed: {str(e)}"
             logger.error(error_message)
-            
+
             await self._broadcast_update({
                 "type": "error",
                 "message": error_message

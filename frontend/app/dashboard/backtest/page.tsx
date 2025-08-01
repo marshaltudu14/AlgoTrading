@@ -3,7 +3,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as React from "react"
-import { motion } from "framer-motion"
 import {
   Play,
   BarChart3,
@@ -77,9 +76,11 @@ export default function BacktestPage() {
   const {
     progress,
     status,
+    currentStep,
     results,
     error: wsError,
     chartData,
+    candlestickData,
     currentPrice,
     portfolioValue
   } = useBacktestProgress(backtestId)
@@ -101,6 +102,7 @@ export default function BacktestPage() {
       })
 
       if (response.backtest_id) {
+        console.log('Backtest started with ID:', response.backtest_id)
         setBacktestId(response.backtest_id)
       } else {
         setError(response.message || "Failed to start backtest")
@@ -193,7 +195,7 @@ export default function BacktestPage() {
         {isRunning ? (
           <>
             <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            Running
+            {currentStep || 'Running...'}
           </>
         ) : (
           <>
@@ -208,12 +210,7 @@ export default function BacktestPage() {
   return (
     <TradingViewLayout headerControls={headerControls}>
       {/* Full-screen chart */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="h-full w-full"
-      >
+      <div className="h-full w-full">
         {showDemo && !isRunning && !results ? (
           // Show demo chart initially
           <TradingChart
@@ -221,7 +218,6 @@ export default function BacktestPage() {
             portfolioData={demoPortfolioData}
             tradeMarkers={demoTradeMarkers}
             title="Demo Trading Chart"
-            showVolume={true}
             showPortfolio={true}
             fullScreen={true}
             windowSize={100}
@@ -232,13 +228,12 @@ export default function BacktestPage() {
         ) : isRunning || results ? (
           // Show real backtest data
           <TradingChart
-            candlestickData={chartData.map(item => ({
+            candlestickData={candlestickData.length > 0 ? candlestickData : chartData.map(item => ({
               time: item.timestamp,
               open: item.price,
               high: item.price * 1.001,
               low: item.price * 0.999,
-              close: item.price,
-              volume: 1000
+              close: item.price
             }))}
             portfolioData={chartData.map(item => ({
               time: item.timestamp,
@@ -256,11 +251,10 @@ export default function BacktestPage() {
               })
             }
             title="Live Backtest"
-            showVolume={true}
             showPortfolio={true}
             fullScreen={true}
             windowSize={100}
-            enableSlidingWindow={true}
+            enableSlidingWindow={candlestickData.length > 0}
             currentPrice={chartData.length > 0 ? chartData[chartData.length - 1]?.price : undefined}
             portfolioValue={chartData.length > 0 ? chartData[chartData.length - 1]?.portfolio_value : undefined}
           />
@@ -276,7 +270,7 @@ export default function BacktestPage() {
             </div>
           </div>
         )}
-      </motion.div>
+      </div>
     </TradingViewLayout>
   )
 }

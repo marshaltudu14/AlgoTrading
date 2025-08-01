@@ -432,6 +432,13 @@ async def websocket_backtest(websocket: WebSocket, backtest_id: str):
 
         logger.info(f"WebSocket connected for backtest {backtest_id}")
 
+        # Send initial connection confirmation
+        await websocket.send_text(json.dumps({
+            "type": "connected",
+            "message": "WebSocket connected successfully",
+            "backtest_id": backtest_id
+        }))
+
         # Keep connection alive
         while True:
             try:

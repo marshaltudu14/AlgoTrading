@@ -12,7 +12,8 @@ import {
   LineSeries
 } from "lightweight-charts"
 import { useTheme } from "next-themes"
-import { gsap } from "gsap"
+import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface CandlestickData {
   time: string | number | UTCTimestamp
@@ -20,7 +21,6 @@ interface CandlestickData {
   high: number
   low: number
   close: number
-  volume?: number
 }
 
 interface TradeMarker {
@@ -42,7 +42,6 @@ interface TradingChartProps {
   portfolioData?: PortfolioData[]
   tradeMarkers?: TradeMarker[]
   title?: string
-  showVolume?: boolean
   showPortfolio?: boolean
   currentPrice?: number
   portfolioValue?: number
@@ -57,7 +56,6 @@ export function TradingChart({
   portfolioData = [],
   tradeMarkers = [],
   title = "Trading Chart",
-  showVolume = true,
   showPortfolio = false,
   currentPrice,
   portfolioValue,
@@ -69,12 +67,46 @@ export function TradingChart({
   const chartContainerRef = React.useRef<HTMLDivElement>(null)
   const chartRef = React.useRef<IChartApi | null>(null)
   const candlestickSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
-  const volumeSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
   const portfolioSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
   const { theme } = useTheme()
   const [chartHeight, setChartHeight] = React.useState(400)
   const [visibleData, setVisibleData] = React.useState<CandlestickData[]>([])
-  const [dataIndex, setDataIndex] = React.useState(0)
+
+  // Zoom control functions
+  const handleZoomIn = React.useCallback(() => {
+    if (chartRef.current) {
+      const timeScale = chartRef.current.timeScale()
+      const logicalRange = timeScale.getVisibleLogicalRange()
+      if (logicalRange) {
+        const newLogicalRange = {
+          from: logicalRange.from + (logicalRange.to - logicalRange.from) * 0.1,
+          to: logicalRange.to - (logicalRange.to - logicalRange.from) * 0.1,
+        }
+        timeScale.setVisibleLogicalRange(newLogicalRange)
+      }
+    }
+  }, [])
+
+  const handleZoomOut = React.useCallback(() => {
+    if (chartRef.current) {
+      const timeScale = chartRef.current.timeScale()
+      const logicalRange = timeScale.getVisibleLogicalRange()
+      if (logicalRange) {
+        const newLogicalRange = {
+          from: logicalRange.from - (logicalRange.to - logicalRange.from) * 0.1,
+          to: logicalRange.to + (logicalRange.to - logicalRange.from) * 0.1,
+        }
+        timeScale.setVisibleLogicalRange(newLogicalRange)
+      }
+    }
+  }, [])
+
+  const handleResetView = React.useCallback(() => {
+    if (chartRef.current) {
+      chartRef.current.timeScale().resetTimeScale()
+      chartRef.current.timeScale().fitContent()
+    }
+  }, [])
 
 
 
@@ -149,8 +181,8 @@ export function TradingChart({
       width: chartContainerRef.current.clientWidth,
       height: chartHeight,
       grid: {
-        vertLines: { color: borderColor },
-        horzLines: { color: borderColor },
+        vertLines: { visible: false },
+        horzLines: { visible: false },
       },
       crosshair: {
         mode: 1,
@@ -195,27 +227,6 @@ export function TradingChart({
       wickUpColor: upColor,
     })
     candlestickSeriesRef.current = candlestickSeries
-
-    // Add volume series if enabled
-    if (showVolume) {
-      const volumeColor = isDark ? '#14b8a6' : '#0d9488'  // Teal 500/600
-      const volumeSeries = chart.addSeries(HistogramSeries, {
-        color: volumeColor,
-        priceFormat: {
-          type: 'volume',
-        },
-        priceScaleId: 'volume',
-      })
-      volumeSeriesRef.current = volumeSeries
-
-      // Set volume scale to right
-      chart.priceScale('volume').applyOptions({
-        scaleMargins: {
-          top: 0.8,
-          bottom: 0,
-        },
-      })
-    }
 
     // Add portfolio series if enabled
     if (showPortfolio) {
@@ -265,7 +276,7 @@ export function TradingChart({
         chartRef.current = null
       }
     }
-  }, [chartHeight, showVolume, showPortfolio, theme])
+  }, [chartHeight, showPortfolio, theme])
 
   // Update candlestick data with sliding window
   React.useEffect(() => {
@@ -280,41 +291,16 @@ export function TradingChart({
         close: item.close,
       }))
 
-      // Animate chart container for smooth data transitions
-      if (chartContainerRef.current) {
-        gsap.fromTo(chartContainerRef.current,
-          { opacity: 0.8 },
-          { opacity: 1, duration: 0.3, ease: "power2.out" }
-        )
-      }
-
       candlestickSeriesRef.current.setData(formattedData)
 
-      // Auto-fit content with smooth animation
+      // Auto-fit content
       setTimeout(() => {
         chartRef.current?.timeScale().fitContent()
       }, 100)
     }
   }, [visibleData])
 
-  // Update volume data with sliding window
-  React.useEffect(() => {
-    if (volumeSeriesRef.current && visibleData.length > 0 && showVolume) {
-      const volumeData = visibleData
-        .filter(item => item.volume !== undefined)
-        .map(item => ({
-          time: typeof item.time === 'string' ?
-            item.time.includes('T') ? item.time.split('T')[0] : item.time :
-            (Math.floor(item.time as number / 1000) as UTCTimestamp),
-          value: item.volume!,
-          color: item.close >= item.open ? '#22c55e' : '#ef4444',
-        }))
 
-      if (volumeData.length > 0) {
-        volumeSeriesRef.current.setData(volumeData)
-      }
-    }
-  }, [visibleData, showVolume])
 
   // Update portfolio data
   React.useEffect(() => {
@@ -351,7 +337,34 @@ export function TradingChart({
 
   if (fullScreen) {
     return (
-      <div className={`h-full w-full bg-background ${className}`}>
+      <div className={`h-full w-full bg-background relative ${className}`}>
+        {/* Floating zoom controls */}
+        <div className="absolute bottom-10 left-0 right-0 z-10 flex justify-center items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleZoomIn}
+            className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleZoomOut}
+            className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleResetView}
+            className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
 
         <div
           ref={chartContainerRef}
@@ -363,18 +376,44 @@ export function TradingChart({
   }
 
   return (
-    <div className={`bg-background border rounded-lg ${className}`}>
+    <div className={`bg-background border rounded-lg relative ${className}`}>
       {/* Compact header for non-full-screen mode */}
       <div className="flex justify-between items-center p-3 border-b">
         <h3 className="text-sm font-medium">{title}</h3>
-
       </div>
-      <div className="p-3">
+      <div className="p-3 relative">
         <div
           ref={chartContainerRef}
           style={{ height: `${chartHeight}px` }}
           className="w-full"
         />
+        {/* Floating zoom controls for non-fullscreen */}
+        <div className="absolute bottom-10 left-0 right-0 z-10 flex justify-center items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleZoomIn}
+            className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleZoomOut}
+            className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleResetView}
+            className="h-8 w-8 p-0 bg-background/80 backdrop-blur-sm"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   )

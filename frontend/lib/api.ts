@@ -181,6 +181,7 @@ class ApiClient {
   // WebSocket connections
   createBacktestWebSocket(backtestId: string): WebSocket {
     const wsUrl = `${API_BASE_URL.replace('http', 'ws')}/ws/backtest/${backtestId}`
+    console.log('Creating WebSocket connection to:', wsUrl)
     return new WebSocket(wsUrl)
   }
 

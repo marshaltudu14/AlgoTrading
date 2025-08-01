@@ -43,6 +43,7 @@ export function useWebSocket(
       wsRef.current = ws
 
       ws.onopen = () => {
+        console.log('WebSocket connected')
         setIsConnected(true)
         setError(null)
         reconnectAttemptsRef.current = 0
@@ -52,6 +53,7 @@ export function useWebSocket(
       ws.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data)
+          console.log('WebSocket message received:', message)
           setLastMessage(message)
           options.onMessage?.(message)
         } catch (err) {
@@ -60,12 +62,14 @@ export function useWebSocket(
       }
 
       ws.onclose = () => {
+        console.log('WebSocket disconnected')
         setIsConnected(false)
         options.onDisconnect?.()
 
         // Attempt to reconnect
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++
+          console.log(`Attempting to reconnect (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`)
           reconnectTimeoutRef.current = setTimeout(() => {
             connect()
           }, reconnectInterval)
@@ -129,7 +133,13 @@ export function useBacktestWebSocket(
   options: UseWebSocketOptions = {}
 ) {
   return useWebSocket(
-    () => backtestId ? apiClient.createBacktestWebSocket(backtestId) : null,
+    () => {
+      if (backtestId) {
+        console.log('Creating WebSocket for backtest ID:', backtestId)
+        return apiClient.createBacktestWebSocket(backtestId)
+      }
+      return null
+    },
     options
   )
 }
@@ -149,25 +159,46 @@ export function useLiveWebSocket(
 export function useBacktestProgress(backtestId: string | null) {
   const [progress, setProgress] = useState(0)
   const [status, setStatus] = useState<string>('idle')
+  const [currentStep, setCurrentStep] = useState<string>('')
   const [results, setResults] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [chartData, setChartData] = useState<any[]>([])
+  const [candlestickData, setCandlestickData] = useState<any[]>([])
   const [currentPrice, setCurrentPrice] = useState<number | undefined>(undefined)
   const [portfolioValue, setPortfolioValue] = useState<number | undefined>(undefined)
 
   const { isConnected, lastMessage } = useBacktestWebSocket(backtestId, {
     onMessage: (message) => {
+      console.log('Backtest message received:', message)
       switch (message.type) {
+        case 'connected':
+          console.log('WebSocket connection confirmed:', message.message)
+          break
         case 'started':
           setStatus('running')
           setProgress(0)
+          setCurrentStep('Initializing...')
           setError(null)
           setChartData([])
+          setCandlestickData([])
           setCurrentPrice(undefined)
           setPortfolioValue(undefined)
           break
         case 'progress':
           setProgress(message.progress || 0)
+          // Map step names to user-friendly messages
+          const stepMessages = {
+            'loading_data': 'Loading data...',
+            'processing_data': 'Processing data...',
+            'starting_backtest': 'Starting backtest...',
+            'running_backtest': 'Running backtest...'
+          }
+          setCurrentStep(stepMessages[message.step as keyof typeof stepMessages] || message.message || 'Processing...')
+          break
+        case 'data_loaded':
+          if (message.candlestick_data) {
+            setCandlestickData(message.candlestick_data)
+          }
           break
         case 'chart_update':
           if (message.data) {
@@ -183,10 +214,12 @@ export function useBacktestProgress(backtestId: string | null) {
         case 'completed':
           setStatus('completed')
           setProgress(100)
+          setCurrentStep('Completed')
           setResults(message.results)
           break
         case 'error':
           setStatus('error')
+          setCurrentStep('Error')
           setError(message.message || 'Backtest failed')
           break
       }
@@ -200,10 +233,12 @@ export function useBacktestProgress(backtestId: string | null) {
     isConnected,
     progress,
     status,
+    currentStep,
     results,
     error,
     lastMessage,
     chartData,
+    candlestickData,
     currentPrice,
     portfolioValue,
   }
