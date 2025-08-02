@@ -58,7 +58,7 @@ export function TradingChart({
   showPortfolio = false,
   fullScreen = false,
   className = "",
-  windowSize = 100,
+  windowSize: _windowSize = 100, // eslint-disable-line @typescript-eslint/no-unused-vars
   enableSlidingWindow = false
 }: TradingChartProps) {
   const chartContainerRef = React.useRef<HTMLDivElement>(null)
@@ -66,7 +66,7 @@ export function TradingChart({
   const candlestickSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
   const portfolioSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
   const { theme } = useTheme()
-  const [chartHeight, setChartHeight] = React.useState(400)
+  const [chartHeight, setChartHeight] = React.useState(400) // eslint-disable-line @typescript-eslint/no-unused-vars
 
 
   // Zoom control functions

@@ -131,7 +131,7 @@ export const demoDatasets = {
   },
   bearish: {
     name: "Bearish Market", 
-    data: generateDemoData(100, 100, 0.025).map((candle, i, arr) => ({
+    data: generateDemoData(100, 100, 0.025).map((candle, i, _arr) => ({ // eslint-disable-line @typescript-eslint/no-unused-vars
       ...candle,
       close: candle.close * (1 - i * 0.005) // Gradual decline
     })),

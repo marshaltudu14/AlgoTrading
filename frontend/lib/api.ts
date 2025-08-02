@@ -2,7 +2,12 @@
  * API Client for AlgoTrading Backend
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// For Vercel deployment, use relative URLs. For local development, use localhost:8000
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? '' // Use relative URLs in production (Vercel)
+    : 'http://localhost:8000' // Use localhost in development
+  )
 
 interface LoginRequest {
   app_id: string

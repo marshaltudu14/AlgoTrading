@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { gsap } from "gsap"
+
 import {
   Activity,
   Menu,
@@ -61,7 +61,7 @@ const navigationItems = [
 export function TradingViewLayout({
   children,
   headerControls,
-  sidebarContent,
+  sidebarContent: _sidebarContent, // eslint-disable-line @typescript-eslint/no-unused-vars
   showSidebar = true
 }: TradingViewLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)

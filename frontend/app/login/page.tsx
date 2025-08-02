@@ -113,7 +113,7 @@ export default function LoginPage() {
                     <Label htmlFor="fy_id">Fyers ID</Label>
                     <Input
                       id="fy_id"
-                      type="text"
+                      type="password"
                       placeholder="Enter your Fyers ID"
                       value={formData.fy_id}
                       onChange={(e) => handleInputChange("fy_id", e.target.value)}
@@ -183,7 +183,7 @@ export default function LoginPage() {
                     <Label htmlFor="app_id">API Key</Label>
                     <Input
                       id="app_id"
-                      type="text"
+                      type="password"
                       placeholder="Enter your API Key"
                       value={formData.app_id}
                       onChange={(e) => handleInputChange("app_id", e.target.value)}
@@ -217,7 +217,7 @@ export default function LoginPage() {
                     <Label htmlFor="redirect_uri">Redirect URI</Label>
                     <Input
                       id="redirect_uri"
-                      type="url"
+                      type="password"
                       placeholder="Enter your Redirect URI"
                       value={formData.redirect_uri}
                       onChange={(e) => handleInputChange("redirect_uri", e.target.value)}

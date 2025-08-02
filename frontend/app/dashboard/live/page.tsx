@@ -238,7 +238,7 @@ export default function LiveTradePage() {
             candlestickData={demoData}
             tradeMarkers={demoTradeMarkers}
             title="Demo Live Trading Chart"
-            showVolume={true}
+
             showPortfolio={false}
             fullScreen={true}
             windowSize={100}
@@ -264,7 +264,7 @@ export default function LiveTradePage() {
               )
             )}
             title="Live Trading Chart"
-            showVolume={true}
+
             showPortfolio={false}
             fullScreen={true}
             windowSize={100}

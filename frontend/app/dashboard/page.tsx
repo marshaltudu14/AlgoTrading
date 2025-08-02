@@ -17,7 +17,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
-import { apiClient, UserProfile, FundsResponse, MetricsResponse } from "@/lib/api"
+import { apiClient } from "@/lib/api"
 
 import { formatIndianCurrency } from "@/lib/formatters"
 
@@ -93,7 +93,7 @@ export default function DashboardPage() {
       }
     }
     fetchUserProfile()
-  }, [])
+  }, [router])
 
   const stats = [
     {
