@@ -2,7 +2,7 @@
 
 ### **Story 2.4.1: Implement Trade Entry Logic**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement the trade entry logic within the `LiveTradingService`, so that the system can automatically place orders based on the model's signals and the calculated quantity.

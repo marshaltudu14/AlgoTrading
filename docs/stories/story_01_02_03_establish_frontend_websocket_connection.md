@@ -2,7 +2,7 @@
 
 ### **Story 1.2.3: Establish Frontend WebSocket Connection**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to establish a persistent WebSocket connection from the frontend to the backend, so that the application can receive real-time tick and position updates.

@@ -134,27 +134,127 @@ class LiveTradingService:
             logger.info(f"Subscribed to {symbol}")
     
     def _on_websocket_message(self, message):
-        """WebSocket message callback"""
+        """WebSocket message callback - handles tick data from FyersClient"""
         try:
-            # Parse market data
+            # Parse market data and immediately relay as tick data
             if isinstance(message, dict):
                 symbol = message.get('symbol', '')
                 ltp = message.get('ltp', 0)
+                volume = message.get('volume', 0)
                 
                 if ltp > 0:
+                    # Store previous price for position PnL updates
+                    previous_price = self.current_price
                     self.current_price = ltp
                     self.market_data = message
                     
-                    # Broadcast price update
-                    asyncio.create_task(self._broadcast_update({
-                        "type": "price_update",
+                    # Create tick data structure for frontend chart
+                    tick_data = {
                         "symbol": symbol,
-                        "price": ltp,
-                        "timestamp": datetime.now().isoformat()
-                    }))
+                        "price": float(ltp),
+                        "volume": float(volume) if volume else 0.0,
+                        "timestamp": datetime.now().isoformat(),
+                        # Include additional tick data that might be useful for charts
+                        "bid": float(message.get('bid', 0)),
+                        "ask": float(message.get('ask', 0)),
+                        "high": float(message.get('high', 0)),
+                        "low": float(message.get('low', 0)),
+                        "open": float(message.get('open', 0))
+                    }
+                    
+                    # Immediately relay tick data to WebSocket manager
+                    asyncio.create_task(self._broadcast_tick_data(tick_data))
+                    
+                    # Check if we have an open position and price changed significantly
+                    # This will trigger position updates for real-time PnL tracking
+                    if (hasattr(self, 'trading_env') and 
+                        self.trading_env and 
+                        hasattr(self.trading_env, 'engine') and
+                        getattr(self.trading_env.engine, '_is_position_open', False) and
+                        abs(ltp - previous_price) > 0):
+                        # Broadcast position update for real-time PnL
+                        asyncio.create_task(self._broadcast_position_update())
                     
         except Exception as e:
             logger.error(f"Error processing WebSocket message: {e}")
+    
+    async def _broadcast_tick_data(self, tick_data: Dict[str, Any]):
+        """Broadcast raw tick data to all connected WebSocket clients"""
+        try:
+            # Structure the tick message according to requirements
+            tick_message = {
+                "type": "tick",
+                "data": tick_data
+            }
+            
+            # Use existing broadcast mechanism
+            await self._broadcast_update(tick_message)
+            
+        except Exception as e:
+            logger.error(f"Error broadcasting tick data: {e}")
+    
+    async def _broadcast_position_update(self):
+        """Broadcast position update to all connected WebSocket clients"""
+        try:
+            if not hasattr(self, 'trading_env') or self.trading_env is None:
+                return
+                
+            engine = self.trading_env.engine
+            
+            # Get position data according to the Position data model
+            position_quantity = getattr(engine, '_current_position_quantity', 0)
+            is_position_open = getattr(engine, '_is_position_open', False)
+            entry_price = getattr(engine, '_current_position_entry_price', 0)
+            stop_loss = getattr(engine, '_stop_loss_price', 0)
+            target_price = getattr(engine, '_target_profit_price', 0)
+            
+            # Calculate current unrealized PnL
+            current_pnl = 0.0
+            if is_position_open and position_quantity != 0 and entry_price > 0 and self.current_price > 0:
+                if position_quantity > 0:  # Long position
+                    current_pnl = (self.current_price - entry_price) * position_quantity
+                else:  # Short position
+                    current_pnl = (entry_price - self.current_price) * abs(position_quantity)
+            
+            # Determine direction
+            direction = ""
+            if position_quantity > 0:
+                direction = "Long"
+            elif position_quantity < 0:
+                direction = "Short"
+            
+            # Create position update message according to Position data model
+            position_data = {
+                "instrument": self.instrument,
+                "direction": direction,
+                "entryPrice": float(entry_price) if entry_price else 0.0,
+                "quantity": int(abs(position_quantity)) if position_quantity else 0,
+                "stopLoss": float(stop_loss) if stop_loss else 0.0,
+                "targetPrice": float(target_price) if target_price else 0.0,
+                "currentPnl": float(current_pnl),
+                "tradeType": "Automated",  # LiveTradingService generates automated trades
+                "isOpen": bool(is_position_open)
+            }
+            
+            # Add exit price and final PnL for closed positions
+            if not is_position_open and position_quantity == 0:
+                # Position was closed, include exit information
+                position_data["exitPrice"] = float(self.current_price)
+                # For closed positions, currentPnL becomes the final PnL
+                position_data["pnl"] = position_data["currentPnl"]
+            
+            position_message = {
+                "type": "position_update",
+                "data": position_data
+            }
+            
+            logger.info(f"Broadcasting position update: {direction} position, quantity: {position_quantity}, PnL: {current_pnl:.2f}")
+            
+            # Use existing broadcast mechanism
+            await self._broadcast_update(position_message)
+            
+        except Exception as e:
+            logger.error(f"Error broadcasting position update: {e}")
     
     def _on_websocket_error(self, error):
         """WebSocket error callback"""
@@ -283,6 +383,11 @@ class LiveTradingService:
                 logger.error("Trading environment not initialized")
                 return
 
+            # Store previous position state for change detection
+            previous_position_quantity = getattr(self.trading_env.engine, '_current_position_quantity', 0)
+            previous_position_open = getattr(self.trading_env.engine, '_is_position_open', False)
+            previous_entry_price = getattr(self.trading_env.engine, '_current_position_entry_price', 0)
+
             # Take step in trading environment
             obs, reward, done, info = self.trading_env.step(action)
             self.current_obs = obs
@@ -290,6 +395,22 @@ class LiveTradingService:
             # Update current price from environment if available
             if hasattr(self.trading_env, 'current_price'):
                 self.current_price = self.trading_env.current_price
+
+            # Check for position state changes and broadcast position updates
+            current_position_quantity = getattr(self.trading_env.engine, '_current_position_quantity', 0)
+            current_position_open = getattr(self.trading_env.engine, '_is_position_open', False)
+            current_entry_price = getattr(self.trading_env.engine, '_current_position_entry_price', 0)
+            
+            # Detect position changes
+            position_changed = (
+                previous_position_quantity != current_position_quantity or
+                previous_position_open != current_position_open or
+                previous_entry_price != current_entry_price
+            )
+            
+            if position_changed:
+                # Broadcast position update
+                asyncio.create_task(self._broadcast_position_update())
 
             # Check if trade was executed
             if info.get('trade_executed', False):

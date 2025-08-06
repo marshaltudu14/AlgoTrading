@@ -23,26 +23,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingChart, createTradeMarker } from "@/components/trading-chart"
-import { apiClient, formatApiError } from "@/lib/api"
+import { apiClient, formatApiError, type Instrument } from "@/lib/api"
 import { useLiveTrading } from "@/hooks/use-websocket"
+import { toast } from "sonner"
 import { generateDemoData, generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset } from "@/lib/demo-data"
 
-// Mock instruments data
-const instruments = [
-  { symbol: "Bank_Nifty", type: "index", name: "Bank Nifty" },
-  { symbol: "Nifty", type: "index", name: "Nifty 50" },
-  { symbol: "RELIANCE", type: "stock", name: "Reliance Industries" },
-  { symbol: "TCS", type: "stock", name: "Tata Consultancy Services" },
-  { symbol: "HDFC", type: "stock", name: "HDFC Bank" }
-]
-
-const timeframes = [
-  { value: "1", label: "1 Minute" },
-  { value: "5", label: "5 Minutes" },
-  { value: "15", label: "15 Minutes" },
-  { value: "30", label: "30 Minutes" },
-  { value: "60", label: "1 Hour" }
-]
+// Helper function to format timeframe labels
+const getTimeframeLabel = (timeframe: string): string => {
+  if (timeframe === 'D') return 'Daily'
+  const minutes = parseInt(timeframe)
+  if (minutes >= 60) {
+    const hours = minutes / 60
+    return `${hours} Hour${hours > 1 ? 's' : ''}`
+  }
+  return `${minutes} Minute${minutes > 1 ? 's' : ''}`
+}
 
 const optionStrategies = [
   { value: "ITM", label: "In The Money (ITM)" },
@@ -59,10 +54,35 @@ export default function LiveTradePage() {
     optionStrategy: "ITM"
   })
 
+  // Configuration state
+  const [instruments, setInstruments] = React.useState<Instrument[]>([])
+  const [timeframes, setTimeframes] = React.useState<string[]>([])
+  const [isLoadingConfig, setIsLoadingConfig] = React.useState(true)
+
   // Demo data state
   const [demoData, setDemoData] = React.useState<any[]>([])
   const [demoTradeMarkers, setDemoTradeMarkers] = React.useState<any[]>([])
   const [showDemo, setShowDemo] = React.useState(true)
+
+  // Load configuration data
+  React.useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        setIsLoadingConfig(true)
+        const config = await apiClient.getConfig()
+        setInstruments(config.instruments)
+        setTimeframes(config.timeframes)
+      } catch (err) {
+        console.error('Failed to fetch configuration:', err)
+        toast.error('Failed to load configuration', {
+          description: formatApiError(err)
+        })
+      } finally {
+        setIsLoadingConfig(false)
+      }
+    }
+    fetchConfig()
+  }, [])
 
   // Initialize demo data on component mount
   React.useEffect(() => {
@@ -134,9 +154,10 @@ export default function LiveTradePage() {
         <Select
           value={formData.instrument}
           onValueChange={(value) => setFormData(prev => ({ ...prev, instrument: value }))}
+          disabled={isLoadingConfig}
         >
           <SelectTrigger className="w-32 h-8">
-            <SelectValue placeholder="Symbol" />
+            <SelectValue placeholder={isLoadingConfig ? "Loading..." : "Symbol"} />
           </SelectTrigger>
           <SelectContent>
             {instruments.map((instrument) => (
@@ -153,14 +174,15 @@ export default function LiveTradePage() {
         <Select
           value={formData.timeframe}
           onValueChange={(value) => setFormData(prev => ({ ...prev, timeframe: value }))}
+          disabled={isLoadingConfig}
         >
           <SelectTrigger className="w-24 h-8">
-            <SelectValue placeholder="TF" />
+            <SelectValue placeholder={isLoadingConfig ? "Loading..." : "TF"} />
           </SelectTrigger>
           <SelectContent>
-            {timeframes.map((tf) => (
-              <SelectItem key={tf.value} value={tf.value}>
-                {tf.label}
+            {timeframes.map((timeframe) => (
+              <SelectItem key={timeframe} value={timeframe}>
+                {getTimeframeLabel(timeframe)}
               </SelectItem>
             ))}
           </SelectContent>

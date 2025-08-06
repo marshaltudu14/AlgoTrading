@@ -7,7 +7,13 @@
       "Bash(timeout 5 npm run dev)",
       "Bash(mkdir:*)",
       "Bash(npm run dev:*)",
-      "Bash(timeout 3 npm run dev)"
+      "Bash(timeout 3 npm run dev)",
+      "Bash(python -m pytest tests/test_api/test_config_endpoint.py -v)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(rm:*)",
+      "Bash(npm test)",
+      "Bash(npm test:*)"
     ],
     "deny": []
   }

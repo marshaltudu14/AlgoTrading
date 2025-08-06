@@ -2,7 +2,7 @@
 
 ### **Story 3.1.1: Display SL/TP Zones on Chart**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a user, I want to see the calculated stop-loss and target levels for my active trades displayed directly on the candlestick chart, so that I can visually track the position's progress and potential outcomes.

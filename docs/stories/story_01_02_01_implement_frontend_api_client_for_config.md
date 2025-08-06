@@ -2,7 +2,7 @@
 
 ### **Story 1.2.1: Implement Frontend API Client for Configuration**
 
-**Status:** `Ready for Dev`
+**Status:** `Ready for Review`
 
 **Story:**
 As a developer, I need to implement the client-side logic to fetch the system configuration from the backend, so that the instrument and timeframe dropdowns can be populated with data from the server.

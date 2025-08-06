@@ -15,9 +15,12 @@ import {
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
-import { apiClient } from "@/lib/api"
+import { TradingChart } from "@/components/trading-chart"
+import { apiClient, type Instrument, type ConfigResponse, type CandlestickData, formatApiError } from "@/lib/api"
+import { toast } from "sonner"
 
 import { formatIndianCurrency } from "@/lib/formatters"
 
@@ -64,6 +67,15 @@ const AnimatedNumber = ({ value, prefix = "", suffix = "", formatter }: {
 export default function DashboardPage() {
   const [userData, setUserData] = React.useState<DashboardUserData | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
+  const [instruments, setInstruments] = React.useState<Instrument[]>([])
+  const [timeframes, setTimeframes] = React.useState<string[]>([])
+  const [isLoadingConfig, setIsLoadingConfig] = React.useState(true)
+  const [configError, setConfigError] = React.useState<string | null>(null)
+  const [selectedInstrument, setSelectedInstrument] = React.useState<string>("")
+  const [selectedTimeframe, setSelectedTimeframe] = React.useState<string>("")
+  const [historicalData, setHistoricalData] = React.useState<CandlestickData[]>([])
+  const [isChartLoading, setIsChartLoading] = React.useState(false)
+  const [chartError, setChartError] = React.useState<string | null>(null)
   const router = useRouter()
 
   React.useEffect(() => {
@@ -94,6 +106,78 @@ export default function DashboardPage() {
     }
     fetchUserProfile()
   }, [router])
+
+  React.useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        setIsLoadingConfig(true)
+        setConfigError(null)
+        
+        const config = await apiClient.getConfig()
+        
+        setInstruments(config.instruments)
+        setTimeframes(config.timeframes)
+      } catch (err) {
+        const errorMessage = formatApiError(err)
+        console.error('Failed to fetch configuration:', err)
+        setConfigError(errorMessage)
+        toast.error('Failed to load configuration', {
+          description: errorMessage
+        })
+      } finally {
+        setIsLoadingConfig(false)
+      }
+    }
+    fetchConfig()
+  }, [])
+
+  const handleSelectionChange = React.useCallback(async (instrument?: string, timeframe?: string) => {
+    // Use the current values or the provided ones
+    const currentInstrument = instrument || selectedInstrument
+    const currentTimeframe = timeframe || selectedTimeframe
+    
+    // Only fetch data if both selections are made
+    if (!currentInstrument || !currentTimeframe) {
+      return
+    }
+
+    try {
+      setIsChartLoading(true)
+      setChartError(null)
+      
+      console.log(`Fetching historical data for ${currentInstrument} with timeframe ${currentTimeframe}`)
+      
+      const data = await apiClient.getHistoricalData(currentInstrument, currentTimeframe)
+      
+      if (data && data.length > 0) {
+        setHistoricalData(data)
+        console.log(`Successfully loaded ${data.length} candles for ${currentInstrument}`)
+      } else {
+        setHistoricalData([])
+        console.warn(`No historical data available for ${currentInstrument}`)
+      }
+    } catch (err) {
+      const errorMessage = formatApiError(err)
+      console.error('Failed to fetch historical data:', err)
+      setChartError(errorMessage)
+      setHistoricalData([])
+      toast.error('Failed to load historical data', {
+        description: errorMessage
+      })
+    } finally {
+      setIsChartLoading(false)
+    }
+  }, [selectedInstrument, selectedTimeframe])
+
+  const handleInstrumentChange = React.useCallback((value: string) => {
+    setSelectedInstrument(value)
+    handleSelectionChange(value, selectedTimeframe)
+  }, [selectedTimeframe, handleSelectionChange])
+
+  const handleTimeframeChange = React.useCallback((value: string) => {
+    setSelectedTimeframe(value)
+    handleSelectionChange(selectedInstrument, value)
+  }, [selectedInstrument, handleSelectionChange])
 
   const stats = [
     {
@@ -237,11 +321,135 @@ export default function DashboardPage() {
             </Card>
           </motion.div>
 
-          {/* Quick Actions */}
+          {/* System Configuration */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>System Configuration</CardTitle>
+                <CardDescription>
+                  Available trading instruments and timeframes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingConfig ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                    <span className="text-muted-foreground">Loading configuration...</span>
+                  </div>
+                ) : configError ? (
+                  <div className="text-center py-8 text-destructive">
+                    <p>Failed to load configuration</p>
+                    <p className="text-sm text-muted-foreground mt-1">{configError}</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Available Instruments</label>
+                      <Select value={selectedInstrument} onValueChange={handleInstrumentChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an instrument" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {instruments.map((instrument) => (
+                            <SelectItem key={instrument.symbol} value={instrument.symbol}>
+                              {instrument.name} ({instrument.symbol})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {instruments.length} instruments available
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Available Timeframes</label>
+                      <Select value={selectedTimeframe} onValueChange={handleTimeframeChange}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a timeframe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {timeframes.map((timeframe) => (
+                            <SelectItem key={timeframe} value={timeframe}>
+                              {timeframe === 'D' ? 'Daily' : `${timeframe} minute${parseInt(timeframe) > 1 ? 's' : ''}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {timeframes.length} timeframes available
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Trading Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Trading Chart</CardTitle>
+                <CardDescription>
+                  {selectedInstrument && selectedTimeframe 
+                    ? `${selectedInstrument} - ${selectedTimeframe === 'D' ? 'Daily' : `${selectedTimeframe} minute${parseInt(selectedTimeframe) > 1 ? 's' : ''}`} chart`
+                    : 'Select an instrument and timeframe to view the chart'
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!selectedInstrument || !selectedTimeframe ? (
+                  <div className="h-96 flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                    <div className="text-center">
+                      <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Select an instrument and timeframe to load the trading chart
+                      </p>
+                    </div>
+                  </div>
+                ) : isChartLoading ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="text-center">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Loading historical data for {selectedInstrument}...
+                      </p>
+                    </div>
+                  </div>
+                ) : chartError ? (
+                  <div className="h-96 flex items-center justify-center">
+                    <div className="text-center text-destructive">
+                      <p className="font-medium">Failed to load chart data</p>
+                      <p className="text-sm text-muted-foreground mt-1">{chartError}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-96">
+                    <TradingChart
+                      candlestickData={historicalData}
+                      title={`${selectedInstrument} - ${selectedTimeframe === 'D' ? 'Daily' : `${selectedTimeframe}m`}`}
+                      className="h-full"
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Quick Actions */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
           >
             <Card>
               <CardHeader>

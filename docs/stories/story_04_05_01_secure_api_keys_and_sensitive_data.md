@@ -2,7 +2,7 @@
 
 ### **Story 4.5.1: Secure API Keys and Sensitive Data**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to ensure that all API keys and sensitive user data are securely handled and encrypted, so that the system adheres to security best practices and protects user information.

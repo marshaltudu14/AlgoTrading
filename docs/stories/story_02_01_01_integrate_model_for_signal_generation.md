@@ -2,7 +2,7 @@
 
 ### **Story 2.1.1: Integrate Model for Signal Generation**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to integrate the pre-trained PyTorch model (`universal_final_model.pth`) into the `LiveTradingService` to generate trading signals from the processed market data.

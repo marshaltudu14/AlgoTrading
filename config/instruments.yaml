@@ -61,3 +61,14 @@ instruments:
     type: "stock"
     lot_size: 1 # HDFC lot size
     tick_size: 0.05
+
+timeframes:
+  - "1"   # 1 minute
+  - "3"   # 3 minutes
+  - "5"   # 5 minutes
+  - "15"  # 15 minutes
+  - "30"  # 30 minutes
+  - "60"  # 1 hour
+  - "120" # 2 hours
+  - "240" # 4 hours
+  - "D"   # Daily

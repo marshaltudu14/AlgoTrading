@@ -2,7 +2,7 @@
 
 ### **Story 1.3.1: Integrate Real-time Data into Trading Chart**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to connect the `TradingChart` component to the real-time data stream from the WebSocket, so that the chart updates live with new tick data.

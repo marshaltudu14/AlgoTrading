@@ -2,7 +2,7 @@
 
 ### **Story 2.4.3: Implement Trade Exit Logic**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement the trade exit logic within the `LiveTradingService`, so that the system can close an active position either due to an SL/TP trigger or an explicit "close" signal from the model.

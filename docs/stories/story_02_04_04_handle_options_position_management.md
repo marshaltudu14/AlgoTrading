@@ -2,7 +2,7 @@
 
 ### **Story 2.4.4: Handle Options Position Management**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to ensure that when trading options, the position management logic correctly maps underlying index/stock movements to the options contract, and that closing the underlying position correctly triggers the options position closure.

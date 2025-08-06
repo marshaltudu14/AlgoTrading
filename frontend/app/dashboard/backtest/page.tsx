@@ -15,26 +15,21 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingChart, createTradeMarker } from "@/components/trading-chart"
-import { apiClient, formatApiError } from "@/lib/api"
+import { apiClient, formatApiError, type Instrument } from "@/lib/api"
 import { useBacktestProgress } from "@/hooks/use-websocket"
+import { toast } from "sonner"
 import { generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset, DemoDataStream } from "@/lib/demo-data"
 
-// Mock instruments data - replace with actual config/instruments.yaml data
-const instruments = [
-  { symbol: "Bank_Nifty", type: "index", name: "Bank Nifty" },
-  { symbol: "Nifty", type: "index", name: "Nifty 50" },
-  { symbol: "RELIANCE", type: "stock", name: "Reliance Industries" },
-  { symbol: "TCS", type: "stock", name: "Tata Consultancy Services" },
-  { symbol: "HDFC", type: "stock", name: "HDFC Bank" }
-]
-
-const timeframes = [
-  { value: "1", label: "1 Minute" },
-  { value: "5", label: "5 Minutes" },
-  { value: "15", label: "15 Minutes" },
-  { value: "30", label: "30 Minutes" },
-  { value: "60", label: "1 Hour" }
-]
+// Helper function to format timeframe labels
+const getTimeframeLabel = (timeframe: string): string => {
+  if (timeframe === 'D') return 'Daily'
+  const minutes = parseInt(timeframe)
+  if (minutes >= 60) {
+    const hours = minutes / 60
+    return `${hours} Hour${hours > 1 ? 's' : ''}`
+  }
+  return `${minutes} Minute${minutes > 1 ? 's' : ''}`
+}
 
 export default function BacktestPage() {
   const [backtestId, setBacktestId] = React.useState<string | null>(null)
@@ -45,6 +40,11 @@ export default function BacktestPage() {
     duration: "30",
     initialCapital: "100000"
   })
+
+  // Configuration state
+  const [instruments, setInstruments] = React.useState<Instrument[]>([])
+  const [timeframes, setTimeframes] = React.useState<string[]>([])
+  const [isLoadingConfig, setIsLoadingConfig] = React.useState(true)
 
   // Demo data state
   const [demoData, setDemoData] = React.useState<Array<{time: string | number, open: number, high: number, low: number, close: number}>>([])
@@ -63,6 +63,26 @@ export default function BacktestPage() {
     setDemoData(candleData)
     setDemoTradeMarkers(tradeMarkers)
     setDemoPortfolioData(portfolioData)
+  }, [])
+
+  // Load configuration data
+  React.useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        setIsLoadingConfig(true)
+        const config = await apiClient.getConfig()
+        setInstruments(config.instruments)
+        setTimeframes(config.timeframes)
+      } catch (err) {
+        console.error('Failed to fetch configuration:', err)
+        toast.error('Failed to load configuration', {
+          description: formatApiError(err)
+        })
+      } finally {
+        setIsLoadingConfig(false)
+      }
+    }
+    fetchConfig()
   }, [])
 
   React.useEffect(() => {
@@ -142,9 +162,10 @@ export default function BacktestPage() {
         <Select
           value={formData.instrument}
           onValueChange={(value) => handleInputChange("instrument", value)}
+          disabled={isLoadingConfig}
         >
           <SelectTrigger className="w-32 h-8">
-            <SelectValue placeholder="Symbol" />
+            <SelectValue placeholder={isLoadingConfig ? "Loading..." : "Symbol"} />
           </SelectTrigger>
           <SelectContent>
             {instruments.map((instrument) => (
@@ -161,32 +182,15 @@ export default function BacktestPage() {
         <Select
           value={formData.timeframe}
           onValueChange={(value) => handleInputChange("timeframe", value)}
+          disabled={isLoadingConfig}
         >
           <SelectTrigger className="w-24 h-8">
-            <SelectValue placeholder="TF" />
+            <SelectValue placeholder={isLoadingConfig ? "Loading..." : "TF"} />
           </SelectTrigger>
           <SelectContent>
-            {timeframes.map((tf) => (
-              <SelectItem key={tf.value} value={tf.value}>
-                {tf.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex items-center gap-1">
-        <label className="text-muted-foreground font-medium">Timeframe:</label>
-        <Select
-          value={formData.timeframe}
-          onValueChange={(value) => handleInputChange("timeframe", value)}
-        >
-          <SelectTrigger className="w-24 h-8">
-            <SelectValue placeholder="TF" />
-          </SelectTrigger>
-          <SelectContent>
-            {timeframes.map((tf) => (
-              <SelectItem key={tf.value} value={tf.value}>
-                {tf.label}
+            {timeframes.map((timeframe) => (
+              <SelectItem key={timeframe} value={timeframe}>
+                {getTimeframeLabel(timeframe)}
               </SelectItem>
             ))}
           </SelectContent>

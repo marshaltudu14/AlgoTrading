@@ -2,7 +2,7 @@
 
 ### **Story 2.2.1: Implement ATR Calculation**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement the logic to calculate the Average True Range (ATR) for the current instrument, so that this value can be used to set dynamic stop-loss and target price levels.

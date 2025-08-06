@@ -2,7 +2,7 @@
 
 ### **Story 1.1.3: Refactor WebSocket for Tick Streaming**
 
-**Status:** `Ready for Dev`
+**Status:** `Ready for Review`
 
 **Story:**
 As a developer, I need to refactor the existing WebSocket endpoint to primarily stream raw tick data to the frontend, so that the UI's candlestick chart can be updated in real-time for visualization purposes.

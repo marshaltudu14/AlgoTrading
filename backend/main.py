@@ -28,6 +28,7 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 import logging
+import yaml
 
 from fyers_apiv3 import fyersModel
 
@@ -40,6 +41,7 @@ from trading.live_trading_service import LiveTradingService
 # Import existing trading components
 from backtesting.environment import TradingEnv, TradingMode
 from utils.data_loader import DataLoader
+from utils.realtime_data_loader import RealtimeDataLoader
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -110,7 +112,7 @@ def verify_jwt_token(token: str) -> Dict[str, Any]:
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.JWTError:
+    except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 async def get_current_user(request: Request):
@@ -137,6 +139,54 @@ async def get_current_user(request: Request):
 async def health_check():
     """Health check endpoint"""
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/api/config")
+async def get_config():
+    """Get configuration data including instruments and timeframes"""
+    try:
+        # Get the path to the config file (relative to project root)
+        config_path = Path(__file__).parent.parent / "config" / "instruments.yaml"
+        
+        # Read and parse the YAML file
+        with open(config_path, 'r', encoding='utf-8') as file:
+            config_data = yaml.safe_load(file)
+        
+        # Validate that required keys exist
+        if 'instruments' not in config_data:
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid configuration: 'instruments' key missing from config file"
+            )
+        
+        if 'timeframes' not in config_data:
+            raise HTTPException(
+                status_code=500,
+                detail="Invalid configuration: 'timeframes' key missing from config file"
+            )
+        
+        return {
+            "instruments": config_data["instruments"],
+            "timeframes": config_data["timeframes"]
+        }
+        
+    except FileNotFoundError:
+        logger.error("Configuration file not found: config/instruments.yaml")
+        raise HTTPException(
+            status_code=500,
+            detail="Configuration file not found"
+        )
+    except yaml.YAMLError as e:
+        logger.error(f"Failed to parse configuration file: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Invalid YAML configuration: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error reading configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read configuration: {str(e)}"
+        )
 
 @app.get("/api/funds")
 async def get_funds(current_user: dict = Depends(get_current_user)):
@@ -415,6 +465,90 @@ async def stop_live_trading(current_user: dict = Depends(get_current_user)):
             detail=f"Failed to stop live trading: {str(e)}"
         )
 
+@app.get("/api/historical-data")
+async def get_historical_data(
+    instrument: str,
+    timeframe: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Get historical candlestick data for a specified instrument and timeframe.
+    Requires JWT authentication.
+    """
+    try:
+        # Validate required parameters
+        if not instrument:
+            raise HTTPException(
+                status_code=422,
+                detail="Instrument parameter is required"
+            )
+        
+        if not timeframe:
+            raise HTTPException(
+                status_code=422,
+                detail="Timeframe parameter is required"
+            )
+        
+        logger.info(f"Fetching historical data for user {current_user['user_id']}: {instrument}, {timeframe}")
+        
+        # Initialize RealtimeDataLoader
+        data_loader = RealtimeDataLoader()
+        
+        # Fetch and process data using the instrument and timeframe parameters
+        historical_data = data_loader.fetch_and_process_data(
+            symbol=instrument,
+            timeframe=timeframe
+        )
+        
+        if historical_data is None or historical_data.empty:
+            logger.error(f"No historical data found for {instrument} with timeframe {timeframe}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to fetch historical data for {instrument}"
+            )
+        
+        # Convert DataFrame to JSON format expected by frontend
+        # Reset index to include datetime as a column for conversion
+        historical_data_reset = historical_data.reset_index()
+        
+        # Ensure we have the required OHLCV columns
+        required_columns = ['open', 'high', 'low', 'close', 'volume']
+        available_columns = [col for col in required_columns if col in historical_data_reset.columns]
+        
+        if not available_columns:
+            logger.error(f"No OHLCV columns found in data for {instrument}")
+            raise HTTPException(
+                status_code=500,
+                detail="Historical data missing required OHLCV columns"
+            )
+        
+        # Create response data with time, open, high, low, close, volume
+        response_data = []
+        for _, row in historical_data_reset.iterrows():
+            candle = {
+                "time": row.get('datetime', row.name).isoformat() if hasattr(row.get('datetime', row.name), 'isoformat') else str(row.get('datetime', row.name)),
+                "open": float(row.get('open', 0)),
+                "high": float(row.get('high', 0)),
+                "low": float(row.get('low', 0)),
+                "close": float(row.get('close', 0)),
+                "volume": float(row.get('volume', 0))
+            }
+            response_data.append(candle)
+        
+        logger.info(f"Successfully fetched {len(response_data)} candles for {instrument}")
+        
+        return response_data
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        logger.error(f"Failed to fetch historical data for {instrument}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error while fetching historical data: {str(e)}"
+        )
+
 # WebSocket endpoints
 
 @app.websocket("/ws/backtest/{backtest_id}")
@@ -469,8 +603,20 @@ async def websocket_backtest(websocket: WebSocket, backtest_id: str):
 
 @app.websocket("/ws/live/{user_id}")
 async def websocket_live_trading(websocket: WebSocket, user_id: str):
-    """WebSocket endpoint for live trading updates"""
+    """
+    WebSocket endpoint for live trading updates and tick data streaming.
+    
+    Handles different message types:
+    - "tick": Raw market tick data for frontend charting
+    - "position_update": Position state changes (open, close, SL/TP updates)
+    - "trade_executed": Trade execution notifications
+    - "stats_update": Trading statistics updates
+    - "ping"/"pong": Keep-alive mechanism
+    """
     await websocket.accept()
+    
+    # WebSocket manager for this connection
+    last_ping_time = asyncio.get_event_loop().time()
 
     try:
         # Get live trading service
@@ -482,10 +628,17 @@ async def websocket_live_trading(websocket: WebSocket, user_id: str):
             }))
             return
 
-        # Add client to live service
+        # Add client to live service for tick data broadcasting
         live_service.add_websocket_client(websocket)
 
         logger.info(f"WebSocket connected for live trading {user_id}")
+
+        # Send initial connection confirmation
+        await websocket.send_text(json.dumps({
+            "type": "connected",
+            "message": "WebSocket connected successfully",
+            "user_id": user_id
+        }))
 
         # Send current status
         status = live_service.get_status()
@@ -494,24 +647,75 @@ async def websocket_live_trading(websocket: WebSocket, user_id: str):
             "data": status
         }))
 
-        # Keep connection alive
+        # Create keep-alive task
+        async def keep_alive():
+            """Send periodic pings to keep connection alive"""
+            while True:
+                try:
+                    await asyncio.sleep(30)  # Send ping every 30 seconds
+                    await websocket.send_text(json.dumps({
+                        "type": "ping",
+                        "timestamp": datetime.utcnow().isoformat()
+                    }))
+                except Exception as e:
+                    logger.warning(f"Keep-alive ping failed for {user_id}: {e}")
+                    break
+
+        # Start keep-alive task
+        keep_alive_task = asyncio.create_task(keep_alive())
+
+        # Keep connection alive and handle client messages
         while True:
             try:
-                # Wait for messages from client
-                message = await websocket.receive_text()
+                # Set timeout for receiving messages (60 seconds)
+                message = await asyncio.wait_for(websocket.receive_text(), timeout=60.0)
+                
+                # Update last ping time
+                last_ping_time = asyncio.get_event_loop().time()
 
-                # Handle ping/pong or other client messages
+                # Handle different message types
                 if message == "ping":
                     await websocket.send_text("pong")
+                elif message == "pong":
+                    # Client responded to our ping
+                    logger.debug(f"Received pong from {user_id}")
+                else:
+                    try:
+                        # Try to parse as JSON for structured messages
+                        msg_data = json.loads(message)
+                        msg_type = msg_data.get("type", "unknown")
+                        
+                        if msg_type == "pong":
+                            logger.debug(f"Received structured pong from {user_id}")
+                        else:
+                            logger.debug(f"Received message type '{msg_type}' from {user_id}")
+                    except json.JSONDecodeError:
+                        # Handle non-JSON messages
+                        logger.debug(f"Received non-JSON message from {user_id}: {message}")
 
+            except asyncio.TimeoutError:
+                # Check if connection is still alive
+                current_time = asyncio.get_event_loop().time()
+                if current_time - last_ping_time > 90:  # 90 seconds timeout
+                    logger.warning(f"WebSocket timeout for {user_id}")
+                    break
+                continue
+                
             except WebSocketDisconnect:
+                break
+            except Exception as e:
+                logger.error(f"Error handling WebSocket message for {user_id}: {e}")
                 break
 
     except Exception as e:
         logger.error(f"WebSocket error for live trading {user_id}: {e}")
     finally:
+        # Cancel keep-alive task
+        if 'keep_alive_task' in locals():
+            keep_alive_task.cancel()
+            
         # Remove client from live service
-        if live_service:
+        if 'live_service' in locals() and live_service:
             live_service.remove_websocket_client(websocket)
         logger.info(f"WebSocket disconnected for live trading {user_id}")
 

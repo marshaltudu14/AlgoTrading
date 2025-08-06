@@ -2,7 +2,7 @@
 
 ### **Story 2.1.2: Implement Capital-Aware Quantity Validation**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to validate the quantity predicted by the model against the user's available capital, so that the system does not attempt to place trades that would be rejected due to insufficient funds.

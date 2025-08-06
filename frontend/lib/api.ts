@@ -151,6 +151,25 @@ class ApiClient {
     return this.request('/api/metrics')
   }
 
+  // Configuration
+  async getConfig(): Promise<ConfigResponse> {
+    return this.request('/api/config')
+  }
+
+  // Historical Data
+  async getHistoricalData(instrument: string, timeframe: string): Promise<CandlestickData[]> {
+    if (!instrument || !timeframe) {
+      throw new Error('Instrument and timeframe parameters are required')
+    }
+    
+    const params = new URLSearchParams({
+      instrument,
+      timeframe
+    })
+    
+    return this.request(`/api/historical-data?${params}`)
+  }
+
   // Backtesting
   async startBacktest(request: BacktestRequest): Promise<{
     backtest_id: string
@@ -208,6 +227,30 @@ interface MetricsResponse {
   lastTradeTime: string;
 }
 
+interface Instrument {
+  name: string;
+  symbol: string;
+  'exchange-symbol': string;
+  type: string;
+  lot_size: number;
+  tick_size: number;
+  option_premium_range?: [number, number];
+}
+
+interface ConfigResponse {
+  instruments: Instrument[];
+  timeframes: string[];
+}
+
+interface CandlestickData {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 export type {
   LoginRequest,
   BacktestRequest,
@@ -216,6 +259,9 @@ export type {
   UserProfile,
   FundsResponse,
   MetricsResponse,
+  Instrument,
+  ConfigResponse,
+  CandlestickData,
 }
 
 // Export utility functions

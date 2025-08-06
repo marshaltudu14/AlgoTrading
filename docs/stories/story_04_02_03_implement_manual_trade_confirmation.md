@@ -2,7 +2,7 @@
 
 ### **Story 4.2.3: Implement Manual Trade Confirmation**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a user, I want a confirmation step before a manual trade is executed, so that I can review the details and prevent accidental trades.

@@ -2,7 +2,7 @@
 
 ### **Story 1.1.2: Create Historical Data API Endpoint**
 
-**Status:** `Ready for Dev`
+**Status:** `Ready for Review`
 
 **Story:**
 As a developer, I need to create a new, secure API endpoint that provides historical candlestick data to the frontend, so that the chart can be populated with the initial data set for a selected instrument and timeframe.

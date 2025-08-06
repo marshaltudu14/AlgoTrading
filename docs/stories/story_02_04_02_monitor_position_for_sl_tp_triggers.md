@@ -2,7 +2,7 @@
 
 ### **Story 2.4.2: Monitor Position for SL/TP Triggers**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement continuous monitoring of the active position against its calculated stop-loss (SL) and target price (TP) levels, so that the system can automatically exit the trade when either level is hit.

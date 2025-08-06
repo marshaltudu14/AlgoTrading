@@ -2,7 +2,7 @@
 
 ### **Story 2.2.2: Calculate ATR-based Stop-Loss and Target**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to integrate the ATR calculation into the `TradingEnv` to automatically determine stop-loss (SL) and target price (TP) levels for new positions based on a configurable risk-reward ratio.

@@ -2,7 +2,7 @@
 
 ### **Story 4.1.1: Implement Manual Trade Entry Form UI**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a user, I want a form on the frontend to manually enter trades when no automated position is active, so that I have full control over my trading when needed.

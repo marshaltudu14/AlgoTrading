@@ -2,7 +2,7 @@
 
 ### **Story 1.1.1: Verify Instrument Config Endpoint**
 
-**Status:** `Ready for Dev`
+**Status:** `Ready for Review`
 
 **Story:**
 As a developer, I need to verify that the existing FastAPI endpoint for configuration correctly serves the instrument and timeframe data from the `config/instruments.yaml` file, so that the frontend has a reliable source for populating its selection dropdowns.

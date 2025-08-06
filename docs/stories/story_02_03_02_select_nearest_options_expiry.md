@@ -2,7 +2,7 @@
 
 ### **Story 2.3.2: Select Nearest Options Expiry**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement a function that selects the nearest expiry date for an options contract, prioritizing weekly expiries, so that the system can automatically choose the most liquid and relevant options series.

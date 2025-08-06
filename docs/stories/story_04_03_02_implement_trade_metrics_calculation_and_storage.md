@@ -2,7 +2,7 @@
 
 ### **Story 4.3.2: Implement Trade Metrics Calculation and Storage**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement the calculation of key trading metrics (win rate, total trades, P&L) and store them in `metrics.json`, so that the frontend dashboard can display real-time performance.

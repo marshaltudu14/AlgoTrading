@@ -2,7 +2,7 @@
 
 ### **Story 4.2.1: Create Manual Trade API Endpoint**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to create a new API endpoint in the backend to receive and process manual trade requests from the frontend, so that users can initiate trades directly.

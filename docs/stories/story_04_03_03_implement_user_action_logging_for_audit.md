@@ -2,7 +2,7 @@
 
 ### **Story 4.3.3: Implement User Action Logging for Audit**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement a system for logging all significant user actions (e.g., login, logout, manual trade initiation, start/stop live trading) for audit purposes and to enhance security.

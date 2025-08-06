@@ -2,7 +2,7 @@
 
 ### **Story 4.3.1: Implement Trade Logging Service**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement a dedicated service for logging all trades (both automated and manual) to a local JSON file, so that a comprehensive record is maintained for analysis and auditing.

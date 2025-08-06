@@ -2,7 +2,7 @@
 
 ### **Story 2.3.1: Select Nearest ITM Strike Price**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a developer, I need to implement a function that, given an underlying spot price, can identify and select the nearest In-the-Money (ITM) strike price for options trading, so that the system can correctly choose the appropriate option contract.

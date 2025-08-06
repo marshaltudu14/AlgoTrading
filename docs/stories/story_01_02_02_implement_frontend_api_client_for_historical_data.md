@@ -2,7 +2,7 @@
 
 ### **Story 1.2.2: Implement Frontend API Client for Historical Data**
 
-**Status:** `Draft`
+**Status:** `Ready for review`
 
 **Story:**
 As a developer, I need to implement the client-side logic to fetch historical data from the backend when a user selects an instrument and timeframe, so that the trading chart can be populated with the initial data set.

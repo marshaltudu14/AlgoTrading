@@ -2,7 +2,7 @@
 
 ### **Story 3.2.1: Visualize Trade Entry and Exit Markers**
 
-**Status:** `Draft`
+**Status:** `Ready for dev`
 
 **Story:**
 As a user, I want to see clear visual markers on the candlestick chart indicating where a trade was entered and exited, so that I can easily review the historical performance of each trade.
