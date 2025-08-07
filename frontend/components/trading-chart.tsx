@@ -304,15 +304,34 @@ export function TradingChart({
   // Initial data loading for demo/static data
   React.useEffect(() => {
     if (candlestickSeriesRef.current && candlestickData.length > 0 && !enableSlidingWindow) {
-      const formattedData = candlestickData.map(item => ({
-        time: typeof item.time === 'string' ?
-          item.time.includes('T') ? item.time.split('T')[0] : item.time :
-          (item.time as UTCTimestamp),
-        open: item.open,
-        high: item.high,
-        low: item.low,
-        close: item.close,
-      }))
+      console.log('Raw candlestick data:', JSON.stringify(candlestickData.slice(0, 3), null, 2)); // Debug log
+
+      const formattedData = candlestickData.map((item, index) => {
+        let time: string | UTCTimestamp;
+
+        if (typeof item.time === 'string') {
+          // Handle string dates
+          time = item.time.includes('T') ? item.time.split('T')[0] : item.time;
+        } else if (typeof item.time === 'number' && item.time > 0) {
+          // Handle epoch timestamps - convert to UTCTimestamp (seconds)
+          time = (item.time > 1000000000000 ? Math.floor(item.time / 1000) : item.time) as UTCTimestamp;
+        } else {
+          // Fallback for invalid times - use current date + index
+          console.warn(`Invalid time value at index ${index}:`, item.time);
+          const fallbackTime = Math.floor(Date.now() / 1000) + index * 300; // 5-minute intervals
+          time = fallbackTime as UTCTimestamp;
+        }
+
+        return {
+          time,
+          open: Number(item.open) || 0,
+          high: Number(item.high) || 0,
+          low: Number(item.low) || 0,
+          close: Number(item.close) || 0,
+        };
+      }).filter(item => item.time && item.open && item.high && item.low && item.close); // Filter out invalid data
+
+      console.log('Formatted candlestick data:', JSON.stringify(formattedData.slice(0, 3), null, 2)); // Debug log
 
       candlestickSeriesRef.current.setData(formattedData)
 
@@ -328,12 +347,23 @@ export function TradingChart({
   // Update portfolio data
   React.useEffect(() => {
     if (portfolioSeriesRef.current && portfolioData.length > 0 && showPortfolio) {
-      const formattedData = portfolioData.map(item => ({
-        time: typeof item.time === 'string' ?
-          item.time.includes('T') ? item.time.split('T')[0] : item.time :
-          (Math.floor(item.time as number / 1000) as UTCTimestamp),
-        value: item.value,
-      }))
+      const formattedData = portfolioData.map(item => {
+        let time: string | UTCTimestamp;
+
+        if (typeof item.time === 'string') {
+          time = item.time.includes('T') ? item.time.split('T')[0] : item.time;
+        } else if (typeof item.time === 'number') {
+          // Handle epoch timestamps - convert to UTCTimestamp (seconds)
+          time = (item.time > 1000000000000 ? Math.floor(item.time / 1000) : item.time) as UTCTimestamp;
+        } else {
+          time = item.time as UTCTimestamp;
+        }
+
+        return {
+          time,
+          value: item.value,
+        };
+      })
       portfolioSeriesRef.current.setData(formattedData)
     }
   }, [portfolioData, showPortfolio])

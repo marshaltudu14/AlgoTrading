@@ -29,6 +29,7 @@ import json
 from datetime import datetime, timedelta
 import logging
 import yaml
+import pandas as pd
 
 from fyers_apiv3 import fyersModel
 
@@ -504,10 +505,13 @@ async def get_historical_data(
             )
         
         logger.info(f"Fetching historical data for user {current_user['user_id']}: {instrument}, {timeframe}")
-        
-        # Initialize RealtimeDataLoader
-        data_loader = RealtimeDataLoader()
-        
+
+        # Initialize RealtimeDataLoader with authentication
+        data_loader = RealtimeDataLoader(
+            access_token=current_user["access_token"],
+            app_id=current_user["app_id"]
+        )
+
         # Fetch and process data using the instrument and timeframe parameters
         historical_data = data_loader.fetch_and_process_data(
             symbol=instrument,
@@ -539,8 +543,35 @@ async def get_historical_data(
         # Create response data with time, open, high, low, close, volume
         response_data = []
         for _, row in historical_data_reset.iterrows():
+            # Use datetime_epoch if available (preferred for charts), otherwise datetime_readable, then fallback
+            time_value = None
+            if 'datetime_epoch' in row and pd.notna(row['datetime_epoch']):
+                time_value = int(row['datetime_epoch'])  # Use epoch timestamp for lightweight-charts
+            elif 'datetime_readable' in row and pd.notna(row['datetime_readable']):
+                # Convert datetime_readable to epoch timestamp
+                try:
+                    dt = pd.to_datetime(row['datetime_readable'])
+                    time_value = int(dt.timestamp())
+                except:
+                    time_value = None
+            elif 'datetime' in row and pd.notna(row['datetime']):
+                # Fallback to datetime column
+                try:
+                    if hasattr(row['datetime'], 'timestamp'):
+                        time_value = int(row['datetime'].timestamp())
+                    else:
+                        dt = pd.to_datetime(row['datetime'])
+                        time_value = int(dt.timestamp())
+                except:
+                    time_value = None
+
+            # Skip rows with invalid timestamps
+            if time_value is None or time_value <= 0:
+                logger.warning(f"Skipping row with invalid timestamp: {row.get('datetime_epoch', row.get('datetime_readable', 'unknown'))}")
+                continue
+
             candle = {
-                "time": row.get('datetime', row.name).isoformat() if hasattr(row.get('datetime', row.name), 'isoformat') else str(row.get('datetime', row.name)),
+                "time": time_value,  # Use epoch timestamp
                 "open": float(row.get('open', 0)),
                 "high": float(row.get('high', 0)),
                 "low": float(row.get('low', 0)),

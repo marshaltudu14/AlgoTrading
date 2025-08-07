@@ -179,7 +179,7 @@ class BacktestingConfigLoader:
         return {
             'data_source': {
                 'provider': 'fyers',
-                'default_symbol': 'banknifty',
+                'default_symbol': 'Nifty',
                 'default_timeframe': '5',
                 'default_days': 30,
                 'min_data_points': 100
@@ -199,9 +199,9 @@ class BacktestingConfigLoader:
                 }
             },
             'symbols': {
-                'banknifty': {
-                    'fyers_symbol': 'NSE:BANKNIFTY-INDEX',
-                    'lot_size': 25,
+                'Nifty': {
+                    'fyers_symbol': 'NSE:NIFTY50-INDEX',
+                    'lot_size': 75,
                     'tick_size': 0.05,
                     'timeframe': '5',
                     'days': 30

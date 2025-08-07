@@ -31,7 +31,7 @@ import { useLiveTrading } from "@/hooks/use-websocket"
 import WebSocketService from "@/lib/websocket"
 import { useLiveDataStore } from "@/store/live-data"
 import { toast } from "sonner"
-import { generateDemoData, generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset } from "@/lib/demo-data"
+// Removed demo data imports - using real data only
 
 // Helper function to format timeframe labels
 const getTimeframeLabel = (timeframe: string): string => {
@@ -69,10 +69,7 @@ export default function LiveTradePage() {
   const [isChartLoading, setIsChartLoading] = React.useState(false)
   const [chartError, setChartError] = React.useState<string | null>(null)
 
-  // Demo data state
-  const [demoData, setDemoData] = React.useState<any[]>([])
-  const [demoTradeMarkers, setDemoTradeMarkers] = React.useState<any[]>([])
-  const [showDemo, setShowDemo] = React.useState(true)
+  // Removed demo data state - using real data only
 
   // Live data store
   const { isConnected: wsConnected, lastTick, activePosition, setActivePosition } = useLiveDataStore()
@@ -88,6 +85,24 @@ export default function LiveTradePage() {
         const config = await apiClient.getConfig()
         setInstruments(config.instruments)
         setTimeframes(config.timeframes)
+
+        // Set default values: Nifty instrument and 5-minute timeframe
+        if (config.instruments.length > 0 && !formData.instrument) {
+          const niftyInstrument = config.instruments.find(i => i.symbol === 'Nifty')
+          const defaultInstrument = niftyInstrument || config.instruments[0]
+          setFormData(prev => ({
+            ...prev,
+            instrument: defaultInstrument.symbol
+          }))
+        }
+
+        if (config.timeframes.length > 0 && !formData.timeframe) {
+          const defaultTimeframe = config.timeframes.includes('5') ? '5' : config.timeframes[0]
+          setFormData(prev => ({
+            ...prev,
+            timeframe: defaultTimeframe
+          }))
+        }
       } catch (err) {
         console.error('Failed to fetch configuration:', err)
         toast.error('Failed to load configuration', {
@@ -100,15 +115,7 @@ export default function LiveTradePage() {
     fetchConfig()
   }, [])
 
-  // Initialize demo data on component mount
-  React.useEffect(() => {
-    const demoDataset = getRandomDemoDataset()
-    const candleData = demoDataset.data
-    const tradeMarkers = generateDemoTradeMarkers(candleData, 0.05)
-
-    setDemoData(candleData)
-    setDemoTradeMarkers(tradeMarkers)
-  }, [])
+  // Removed demo data initialization - using real data only
 
   // WebSocket connection for real-time data
   React.useEffect(() => {
@@ -147,17 +154,14 @@ export default function LiveTradePage() {
         
         if (data && data.length > 0) {
           setHistoricalData(data)
-          setShowDemo(false) // Switch from demo to real data
         } else {
           setHistoricalData([])
-          setShowDemo(true) // Fall back to demo
         }
       } catch (err) {
         const errorMessage = formatApiError(err)
         console.error('Failed to fetch historical data:', err)
         setChartError(errorMessage)
         setHistoricalData([])
-        setShowDemo(true) // Fall back to demo on error
         toast.error('Failed to load historical data', {
           description: errorMessage
         })
@@ -378,10 +382,10 @@ export default function LiveTradePage() {
               <AlertCircle className="h-16 w-16 mx-auto mb-4 text-destructive" />
               <h3 className="text-lg font-medium mb-2">Failed to Load Chart</h3>
               <p className="text-muted-foreground mb-4">{chartError}</p>
-              <p className="text-sm text-muted-foreground">Showing demo data instead</p>
+              <p className="text-sm text-muted-foreground">Please check your connection and try again</p>
             </div>
           </div>
-        ) : historicalData.length > 0 && !showDemo ? (
+        ) : historicalData.length > 0 ? (
           // Real historical data with live updates
           <TradingChart
             candlestickData={historicalData}
@@ -402,18 +406,6 @@ export default function LiveTradePage() {
             activePosition={activePosition}
             stopLoss={activePosition?.stopLoss}
             targetPrice={activePosition?.targetPrice}
-          />
-        ) : showDemo || demoData.length > 0 ? (
-          // Show demo chart as fallback
-          <TradingChart
-            candlestickData={demoData}
-            tradeMarkers={demoTradeMarkers}
-            title="Demo Live Trading Chart"
-            showPortfolio={false}
-            fullScreen={true}
-            windowSize={100}
-            enableSlidingWindow={false}
-            currentPrice={demoData.length > 0 ? demoData[demoData.length - 1]?.close : undefined}
           />
         ) : (
           // Empty state

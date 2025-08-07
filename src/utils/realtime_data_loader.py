@@ -27,21 +27,23 @@ class RealtimeDataLoader:
     Integrates with existing feature engineering pipeline.
     """
     
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: Optional[Dict[str, Any]] = None, access_token: Optional[str] = None, app_id: Optional[str] = None):
         """
         Initialize the real-time data loader.
-        
+
         Args:
             config (dict): Configuration dictionary with backtesting parameters
+            access_token (str): Fyers access token for authentication
+            app_id (str): Fyers app ID for authentication
         """
         self.config = config or {}
-        self.fyers_client = FyersClient()
+        self.fyers_client = FyersClient(access_token=access_token, app_id=app_id)
         self.feature_processor = DynamicFileProcessor()
         self.instruments = load_instruments('config/instruments.yaml')
         
         # Default configuration
         self.default_config = {
-            'symbol': 'banknifty',
+            'symbol': 'Nifty',
             'timeframe': '5',  # 5 minutes
             'days': 30,
             'min_data_points': 100,  # Minimum data points required
@@ -108,9 +110,17 @@ class RealtimeDataLoader:
         """Fetch raw OHLCV data from Fyers API."""
         try:
             logger.info(f"📡 Fetching raw data from Fyers API...")
-            
+
+            # Map frontend symbol to Fyers symbol format
+            fyers_symbol = self._get_fyers_symbol(symbol)
+            if not fyers_symbol:
+                logger.error(f"No Fyers symbol mapping found for {symbol}")
+                return None
+
+            logger.info(f"Using Fyers symbol: {fyers_symbol}")
+
             raw_data = self.fyers_client.get_backtesting_data(
-                symbol=symbol,
+                symbol=fyers_symbol,
                 timeframe=timeframe,
                 days=days
             )
@@ -125,6 +135,41 @@ class RealtimeDataLoader:
         except Exception as e:
             logger.error(f"Error fetching raw data: {e}")
             return None
+
+    def _get_fyers_symbol(self, symbol: str) -> Optional[str]:
+        """Map frontend symbol to Fyers symbol format."""
+        try:
+            # Load instruments config directly to get exchange-symbol
+            import yaml
+            from pathlib import Path
+
+            config_path = Path(__file__).parent.parent.parent / "config" / "instruments.yaml"
+            if config_path.exists():
+                with open(config_path, 'r') as file:
+                    config_data = yaml.safe_load(file)
+
+                # Find instrument by symbol
+                for instrument in config_data.get('instruments', []):
+                    if instrument.get('symbol') == symbol:
+                        return instrument.get('exchange-symbol', symbol)
+
+            # Fallback mapping for common symbols
+            symbol_map = {
+                "Bank_Nifty": "NSE:NIFTYBANK-INDEX",
+                "Nifty": "NSE:NIFTY50-INDEX",
+                "Bankex": "NSE:BANKEX-INDEX",
+                "Finnifty": "NSE:FINNIFTY-INDEX",
+                "Sensex": "BSE:SENSEX-INDEX",
+                "Reliance": "NSE:RELIANCE-EQ",
+                "TCS": "NSE:TCS-EQ",
+                "HDFC": "NSE:HDFCBANK-EQ"
+            }
+
+            return symbol_map.get(symbol, symbol)
+
+        except Exception as e:
+            logger.error(f"Error mapping symbol {symbol}: {e}")
+            return symbol
     
     def _validate_raw_data(self, data: pd.DataFrame) -> bool:
         """Validate raw OHLCV data."""

@@ -18,7 +18,7 @@ class FyersClient:
             app_id: Fyers application ID
         """
         if access_token and app_id:
-            self.fyers = create_fyers_model(access_token, app_id)
+            self.fyers = fyersModel.FyersModel(client_id=app_id, token=access_token)
         else:
             self.fyers = None
 
