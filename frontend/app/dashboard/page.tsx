@@ -18,14 +18,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
-import { TradingChart } from "@/components/trading-chart"
-import { ManualTradeForm } from "@/components/manual-trade-form"
-import ConnectionStatus from "@/components/connection-status"
-import WebSocketService from "@/lib/websocket";
-import { useLiveDataStore } from "@/store/live-data";
+import ConnectionStatus from "@/components/connection-status";
 import { toast } from "sonner"
 
 import { formatIndianCurrency } from "@/lib/formatters"
+import { apiClient, formatApiError, Instrument, CandlestickData, Metrics } from "@/lib/api"
 
 interface DashboardUserData {
   name: string;
@@ -66,66 +63,38 @@ const AnimatedNumber = ({ value, prefix = "", suffix = "", formatter }: {
 export default function DashboardPage() {
   const [userData, setUserData] = React.useState<DashboardUserData | null>(null)
   const [isLoading, setIsLoading] = React.useState(true)
-  const [instruments, setInstruments] = React.useState<Instrument[]>([])
-  const [timeframes, setTimeframes] = React.useState<string[]>([])
-  const [isLoadingConfig, setIsLoadingConfig] = React.useState(true)
-  const [configError, setConfigError] = React.useState<string | null>(null)
-  const [selectedInstrument, setSelectedInstrument] = React.useState<string>("")
-  const [selectedTimeframe, setSelectedTimeframe] = React.useState<string>("")
-  const [historicalData, setHistoricalData] = React.useState<CandlestickData[]>([])
-  const [isChartLoading, setIsChartLoading] = React.useState(false)
-  const [chartError, setChartError] = React.useState<string | null>(null)
   const [metrics, setMetrics] = React.useState<Metrics | null>(null)
   const [isMetricsLoading, setIsMetricsLoading] = React.useState(true)
   const [metricsError, setMetricsError] = React.useState<string | null>(null)
-  const [countdown, setCountdown] = React.useState("00:00")
-  const [fetchStatus, setFetchStatus] = React.useState("Idle")
   const router = useRouter()
 
-  const { isConnected, lastTick, activePosition, setActivePosition } = useLiveDataStore();
 
   React.useEffect(() => {
-    const webSocketService = new WebSocketService(`ws://localhost:8000/ws/live/${userData.userId}`);
-    webSocketService.onMessage((event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === 'tick') {
-        useLiveDataStore.getState().setLastTick(message.data);
-      } else if (message.type === 'position_update') {
-        setActivePosition(message.data);
-      } else if (message.type === 'status') {
-        useLiveDataStore.getState().setStatus(message.data);
-      }
-    });
-    webSocketService.connect();
-
-    return () => {
-      webSocketService.disconnect();
-    };
-  }, [router, setActivePosition, userData?.userId]);
-
-  React.useEffect(() => {
-    const fetchConfig = async () => {
+    const fetchUserProfile = async () => {
       try {
-        setIsLoadingConfig(true)
-        setConfigError(null)
-        
-        const config = await apiClient.getConfig()
-        
-        setInstruments(config.instruments)
-        setTimeframes(config.timeframes)
-      } catch (err) {
-        const errorMessage = formatApiError(err)
-        console.error('Failed to fetch configuration:', err)
-        setConfigError(errorMessage)
-        toast.error('Failed to load configuration', {
-          description: errorMessage
+        setIsLoading(true)
+        const response = await fetch('http://localhost:8000/api/profile', {
+          method: 'GET',
+          credentials: 'include'
         })
+        
+        if (response.ok) {
+          const profileData = await response.json()
+          setUserData({
+            name: profileData.name,
+            capital: profileData.capital
+          })
+        }
+      } catch (err) {
+        console.error('Failed to fetch user profile:', err)
       } finally {
-        setIsLoadingConfig(false)
+        setIsLoading(false)
       }
     }
-    fetchConfig()
+    
+    fetchUserProfile()
   }, [])
+
 
   React.useEffect(() => {
     const fetchMetrics = async () => {
@@ -152,108 +121,7 @@ export default function DashboardPage() {
     return () => clearInterval(interval)
   }, [])
 
-  React.useEffect(() => {
-    let timer: NodeJS.Timeout;
 
-    const updateCountdown = () => {
-      const status = useLiveDataStore.getState().status;
-      if (status && status.nextFetchTimestamp) {
-        const now = new Date().getTime();
-        const nextFetch = new Date(status.nextFetchTimestamp).getTime();
-        const difference = nextFetch - now;
-
-        if (difference > 0) {
-          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-          const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-          setCountdown(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
-          setFetchStatus("Waiting");
-        } else {
-          setCountdown("00:00");
-          setFetchStatus("Fetching...");
-        }
-      }
-    };
-
-    const unsubscribe = useLiveDataStore.subscribe((state) => {
-      if (state.status?.fetchError) {
-        setFetchStatus(`Error: ${state.status.fetchError}`);
-      }
-    });
-
-    timer = setInterval(updateCountdown, 1000);
-
-    return () => {
-      clearInterval(timer);
-      unsubscribe();
-    };
-  }, []);
-
-  const handleSelectionChange = React.useCallback(async (instrument?: string, timeframe?: string) => {
-    // Use the current values or the provided ones
-    const currentInstrument = instrument || selectedInstrument
-    const currentTimeframe = timeframe || selectedTimeframe
-    
-    // Only fetch data if both selections are made
-    if (!currentInstrument || !currentTimeframe) {
-      return
-    }
-
-    try {
-      setIsChartLoading(true)
-      setChartError(null)
-      
-      console.log(`Fetching historical data for ${currentInstrument} with timeframe ${currentTimeframe}`)
-      
-      const data = await apiClient.getHistoricalData(currentInstrument, currentTimeframe)
-      
-      if (data && data.length > 0) {
-        setHistoricalData(data)
-        console.log(`Successfully loaded ${data.length} candles for ${currentInstrument}`)
-      } else {
-        setHistoricalData([])
-        console.warn(`No historical data available for ${currentInstrument}`)
-      }
-    } catch (err) {
-      const errorMessage = formatApiError(err)
-      console.error('Failed to fetch historical data:', err)
-      setChartError(errorMessage)
-      setHistoricalData([])
-      toast.error('Failed to load historical data', {
-        description: errorMessage
-      })
-    } finally {
-      setIsChartLoading(false)
-    }
-  }, [selectedInstrument, selectedTimeframe])
-
-  const handleInstrumentChange = React.useCallback((value: string) => {
-    setSelectedInstrument(value)
-    handleSelectionChange(value, selectedTimeframe)
-  }, [selectedTimeframe, handleSelectionChange])
-
-  const handleManualTradeSubmit = async (values: {
-    instrument: string;
-    direction: string;
-    quantity: number;
-    stopLoss?: number;
-    target?: number;
-  }) => {
-    try {
-      await apiClient.manualTrade(values);
-      toast.success("Manual trade submitted successfully");
-    } catch (err) {
-      const errorMessage = formatApiError(err);
-      console.error("Failed to submit manual trade:", err);
-      toast.error("Failed to submit manual trade", {
-        description: errorMessage,
-      });
-    }
-  };
-
-  const handleTimeframeChange = React.useCallback((value: string) => {
-    setSelectedTimeframe(value)
-    handleSelectionChange(selectedInstrument, value)
-  }, [selectedInstrument, handleSelectionChange])
 
   const stats = [
     {
@@ -401,184 +269,11 @@ export default function DashboardPage() {
 
                   <ConnectionStatus />
 
-                  <div className="flex items-center gap-4 p-4 border rounded-lg">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
-                      <Clock className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">Next Data Fetch</p>
-                      <p className="text-sm text-muted-foreground">
-                        {fetchStatus}
-                      </p>
-                    </div>
-                    <div className="text-2xl font-bold text-blue-600">
-                      {countdown}
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* System Configuration */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.6 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>System Configuration</CardTitle>
-                <CardDescription>
-                  Available trading instruments and timeframes
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoadingConfig ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                    <span className="text-muted-foreground">Loading configuration...</span>
-                  </div>
-                ) : configError ? (
-                  <div className="text-center py-8 text-destructive">
-                    <p>Failed to load configuration</p>
-                    <p className="text-sm text-muted-foreground mt-1">{configError}</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Available Instruments</label>
-                      <Select value={selectedInstrument} onValueChange={handleInstrumentChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an instrument" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {instruments.map((instrument) => (
-                            <SelectItem key={instrument.symbol} value={instrument.symbol}>
-                              {instrument.name} ({instrument.symbol})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        {instruments.length} instruments available
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Available Timeframes</label>
-                      <Select value={selectedTimeframe} onValueChange={handleTimeframeChange}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a timeframe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {timeframes.map((timeframe) => (
-                            <SelectItem key={timeframe} value={timeframe}>
-                              {timeframe === 'D' ? 'Daily' : `${timeframe} minute${parseInt(timeframe) > 1 ? 's' : ''}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        {timeframes.length} timeframes available
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Trading Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>Trading Chart</CardTitle>
-                <CardDescription>
-                  {selectedInstrument && selectedTimeframe 
-                    ? `${selectedInstrument} - ${selectedTimeframe === 'D' ? 'Daily' : `${selectedTimeframe} minute${parseInt(selectedTimeframe) > 1 ? 's' : ''}`} chart`
-                    : 'Select an instrument and timeframe to view the chart'
-                  }
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!selectedInstrument || !selectedTimeframe ? (
-                  <div className="h-96 flex items-center justify-center border-2 border-dashed border-muted-foreground/25 rounded-lg">
-                    <div className="text-center">
-                      <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        Select an instrument and timeframe to load the trading chart
-                      </p>
-                    </div>
-                  </div>
-                ) : isChartLoading ? (
-                  <div className="h-96 flex items-center justify-center">
-                    <div className="text-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        Loading historical data for {selectedInstrument}...
-                      </p>
-                    </div>
-                  </div>
-                ) : chartError ? (
-                  <div className="h-96 flex items-center justify-center">
-                    <div className="text-center text-destructive">
-                      <p className="font-medium">Failed to load chart data</p>
-                      <p className="text-sm text-muted-foreground mt-1">{chartError}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-96">
-                    <TradingChart
-                      candlestickData={historicalData}
-                      title={`${selectedInstrument} - ${selectedTimeframe === 'D' ? 'Daily' : `${selectedTimeframe}m`}`}
-                      className="h-full"
-                      activePosition={activePosition}
-                      stopLoss={activePosition?.stopLoss}
-                      targetPrice={activePosition?.targetPrice}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Quick Actions */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.8 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>
-                  Common trading actions and tools
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Quick actions content can be added here */}
-                <p className="text-sm text-muted-foreground">Quick actions coming soon...</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Manual Trade Form */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.9 }}
-          >
-            <ManualTradeForm 
-              instruments={instruments}
-              isDisabled={!!activePosition}
-              onSubmit={handleManualTradeSubmit}
-            />
-          </motion.div>
         </div>
       )}
     </AppLayout>

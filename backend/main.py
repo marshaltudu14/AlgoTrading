@@ -78,9 +78,12 @@ user_action_logger = UserActionLogger()
 
 # Pydantic models
 class LoginRequest(BaseModel):
+    app_id: str
+    secret_key: str
     redirect_uri: str
     fy_id: str
     pin: str
+    totp_secret: str
 
 class BacktestRequest(BaseModel):
     instrument: str
@@ -253,12 +256,12 @@ async def login(request: LoginRequest):
         
         # Call the refactored authentication function
         access_token = await authenticate_fyers_user(
-            app_id=os.getenv("FYERS_APP_ID"),
-            secret_key=os.getenv("FYERS_SECRET_KEY"),
+            app_id=request.app_id,
+            secret_key=request.secret_key,
             redirect_uri=request.redirect_uri,
             fy_id=request.fy_id,
             pin=request.pin,
-            totp_secret=os.getenv("FYERS_TOTP_SECRET")
+            totp_secret=request.totp_secret
         )
         
         # Create JWT session token
@@ -324,10 +327,12 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
     try:
         user_id = current_user["user_id"]
         access_token = current_user["access_token"]
+        app_id = current_user["app_id"]
         
         # Get user profile from Fyers API
         profile_data = await get_user_profile(
-            access_token=access_token
+            access_token=access_token,
+            app_id=app_id
         )
         
         return {

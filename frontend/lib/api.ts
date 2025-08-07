@@ -2,7 +2,7 @@ import { formatApiError } from './utils';
 
 export { formatApiError };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = 'http://localhost:8000/api';
 
 export interface Instrument {
   symbol: string;
@@ -50,6 +50,13 @@ async function fetcher(url: string, options: RequestInit = {}) {
 }
 
 export const apiClient = {
+  login: async (data: any): Promise<any> => {
+    return fetcher(`${API_BASE_URL}/login`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   getConfig: async (): Promise<Config> => {
     return fetcher(`${API_BASE_URL}/config`);
   },
@@ -70,5 +77,23 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+
+  startLiveTrading: async (data: any): Promise<any> => {
+    return fetcher(`${API_BASE_URL}/live/start`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  stopLiveTrading: async (): Promise<any> => {
+    return fetcher(`${API_BASE_URL}/live/stop`, {
+      method: 'POST',
+    });
+  },
+
+  createLiveWebSocket: (userId: string): WebSocket => {
+    const wsUrl = `ws://localhost:8000/ws/live/${userId}`;
+    return new WebSocket(wsUrl);
   },
 };

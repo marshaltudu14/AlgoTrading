@@ -7,6 +7,7 @@ import requests
 import pyotp
 import time
 import asyncio
+import os
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from fyers_apiv3 import fyersModel
@@ -28,9 +29,12 @@ def getEncodedString(string: str) -> str:
     return base64_bytes.decode("ascii")
 
 async def authenticate_fyers_user(
+    app_id: str,
+    secret_key: str,
     redirect_uri: str,
     fy_id: str,
-    pin: str
+    pin: str,
+    totp_secret: str
 ) -> str:
     """
     Authenticate user with Fyers API and return access token
@@ -51,13 +55,9 @@ async def authenticate_fyers_user(
     """
     try:
         logger.info(f"Starting authentication for user: {fy_id}")
-        
-        app_id = os.getenv("FYERS_APP_ID")
-        secret_key = os.getenv("FYERS_SECRET_KEY")
-        totp_secret = os.getenv("FYERS_TOTP_SECRET")
 
         if not all([app_id, secret_key, totp_secret]):
-            raise FyersAuthenticationError("Fyers API credentials (APP_ID, SECRET_KEY, TOTP_SECRET) must be set as environment variables.")
+            raise FyersAuthenticationError("Fyers API credentials (app_id, secret_key, totp_secret) must be provided.")
 
         # Create session model
         session = fyersModel.SessionModel(
@@ -172,7 +172,7 @@ async def authenticate_fyers_user(
         else:
             raise FyersAuthenticationError(f"Unexpected error during authentication: {str(e)}")
 
-async def get_user_profile(access_token: str) -> Dict[str, Any]:
+async def get_user_profile(access_token: str, app_id: str) -> Dict[str, Any]:
     """
     Get user profile information from Fyers API
     
@@ -189,9 +189,8 @@ async def get_user_profile(access_token: str) -> Dict[str, Any]:
     try:
         logger.info("Fetching user profile...")
         
-        app_id = os.getenv("FYERS_APP_ID")
         if not app_id:
-            raise FyersAuthenticationError("Fyers APP_ID must be set as an environment variable.")
+            raise FyersAuthenticationError("Fyers app_id must be provided.")
 
         # Create Fyers model instance
         fyers = fyersModel.FyersModel(client_id=app_id, token=access_token)

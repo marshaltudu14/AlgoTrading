@@ -14,7 +14,9 @@ import {
   Target,
   AlertCircle,
   Wifi,
-  WifiOff
+  WifiOff,
+  Loader2,
+  X
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -23,8 +25,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingChart, createTradeMarker } from "@/components/trading-chart"
-import { apiClient, formatApiError, type Instrument } from "@/lib/api"
+import { ManualTradeForm } from "@/components/manual-trade-form"
+import { apiClient, formatApiError, type Instrument, type CandlestickData } from "@/lib/api"
 import { useLiveTrading } from "@/hooks/use-websocket"
+import WebSocketService from "@/lib/websocket"
+import { useLiveDataStore } from "@/store/live-data"
 import { toast } from "sonner"
 import { generateDemoData, generateDemoTradeMarkers, generateDemoPortfolioData, getRandomDemoDataset } from "@/lib/demo-data"
 
@@ -59,10 +64,21 @@ export default function LiveTradePage() {
   const [timeframes, setTimeframes] = React.useState<string[]>([])
   const [isLoadingConfig, setIsLoadingConfig] = React.useState(true)
 
+  // Real-time data state
+  const [historicalData, setHistoricalData] = React.useState<CandlestickData[]>([])
+  const [isChartLoading, setIsChartLoading] = React.useState(false)
+  const [chartError, setChartError] = React.useState<string | null>(null)
+
   // Demo data state
   const [demoData, setDemoData] = React.useState<any[]>([])
   const [demoTradeMarkers, setDemoTradeMarkers] = React.useState<any[]>([])
   const [showDemo, setShowDemo] = React.useState(true)
+
+  // Live data store
+  const { isConnected: wsConnected, lastTick, activePosition, setActivePosition } = useLiveDataStore()
+
+  // State for manual trade panel
+  const [showManualTrade, setShowManualTrade] = React.useState(false)
 
   // Load configuration data
   React.useEffect(() => {
@@ -93,6 +109,65 @@ export default function LiveTradePage() {
     setDemoData(candleData)
     setDemoTradeMarkers(tradeMarkers)
   }, [])
+
+  // WebSocket connection for real-time data
+  React.useEffect(() => {
+    if (!userId) return;
+    
+    const webSocketService = new WebSocketService(`ws://localhost:8000/ws/live/${userId}`);
+    webSocketService.onMessage((event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === 'tick') {
+        useLiveDataStore.getState().setLastTick(message.data);
+      } else if (message.type === 'position_update') {
+        setActivePosition(message.data);
+      } else if (message.type === 'status') {
+        useLiveDataStore.getState().setStatus(message.data);
+      }
+    });
+    webSocketService.connect();
+
+    return () => {
+      webSocketService.disconnect();
+    };
+  }, [userId, setActivePosition])
+
+  // Fetch historical data when instrument and timeframe are selected
+  React.useEffect(() => {
+    const fetchHistoricalData = async () => {
+      if (!formData.instrument || !formData.timeframe) {
+        return
+      }
+
+      try {
+        setIsChartLoading(true)
+        setChartError(null)
+        
+        const data = await apiClient.getHistoricalData(formData.instrument, formData.timeframe)
+        
+        if (data && data.length > 0) {
+          setHistoricalData(data)
+          setShowDemo(false) // Switch from demo to real data
+        } else {
+          setHistoricalData([])
+          setShowDemo(true) // Fall back to demo
+        }
+      } catch (err) {
+        const errorMessage = formatApiError(err)
+        console.error('Failed to fetch historical data:', err)
+        setChartError(errorMessage)
+        setHistoricalData([])
+        setShowDemo(true) // Fall back to demo on error
+        toast.error('Failed to load historical data', {
+          description: errorMessage
+        })
+      } finally {
+        setIsChartLoading(false)
+      }
+    }
+
+    fetchHistoricalData()
+  }, [formData.instrument, formData.timeframe])
 
   // Use WebSocket hook for real-time live trading data
   const {
@@ -143,6 +218,26 @@ export default function LiveTradePage() {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
+
+  // Manual trade submit handler
+  const handleManualTradeSubmit = async (values: {
+    instrument: string;
+    direction: string;
+    quantity: number;
+    stopLoss?: number;
+    target?: number;
+  }) => {
+    try {
+      await apiClient.manualTrade(values);
+      toast.success("Manual trade submitted successfully");
+    } catch (err) {
+      const errorMessage = formatApiError(err);
+      console.error("Failed to submit manual trade:", err);
+      toast.error("Failed to submit manual trade", {
+        description: errorMessage,
+      });
+    }
+  };
 
   const isFormValid = formData.instrument && formData.timeframe
 
@@ -242,6 +337,17 @@ export default function LiveTradePage() {
           Stop
         </Button>
       )}
+
+      <div className="border-l pl-2 ml-2">
+        <Button
+          onClick={() => setShowManualTrade(!showManualTrade)}
+          variant={showManualTrade ? "default" : "outline"}
+          size="sm"
+          className="h-8 px-3"
+        >
+          Manual Trade
+        </Button>
+      </div>
     </div>
   )
 
@@ -254,44 +360,60 @@ export default function LiveTradePage() {
         transition={{ duration: 0.5 }}
         className="h-full w-full"
       >
-        {showDemo && !isTrading ? (
-          // Show demo chart initially
+        {isChartLoading ? (
+          // Loading state
+          <div className="h-full w-full flex items-center justify-center bg-muted/5">
+            <div className="text-center">
+              <Loader2 className="h-16 w-16 mx-auto mb-4 text-primary animate-spin" />
+              <h3 className="text-lg font-medium mb-2">Loading Chart Data</h3>
+              <p className="text-muted-foreground">
+                Fetching historical data for {formData.instrument}...
+              </p>
+            </div>
+          </div>
+        ) : chartError ? (
+          // Error state
+          <div className="h-full w-full flex items-center justify-center bg-muted/5">
+            <div className="text-center">
+              <AlertCircle className="h-16 w-16 mx-auto mb-4 text-destructive" />
+              <h3 className="text-lg font-medium mb-2">Failed to Load Chart</h3>
+              <p className="text-muted-foreground mb-4">{chartError}</p>
+              <p className="text-sm text-muted-foreground">Showing demo data instead</p>
+            </div>
+          </div>
+        ) : historicalData.length > 0 && !showDemo ? (
+          // Real historical data with live updates
+          <TradingChart
+            candlestickData={historicalData}
+            tradeMarkers={trades?.map((trade: any) =>
+              createTradeMarker(
+                trade.timestamp,
+                trade.action as 'BUY' | 'SELL' | 'CLOSE_LONG' | 'CLOSE_SHORT' | 'HOLD',
+                trade.price,
+                isTrading ? 'Manual' : 'Automated'
+              )
+            ) || []}
+            title={`${formData.instrument} - ${getTimeframeLabel(formData.timeframe)} (Live)`}
+            showPortfolio={false}
+            fullScreen={true}
+            windowSize={100}
+            enableSlidingWindow={false}
+            currentPrice={lastTick?.price || stats?.currentPrice}
+            activePosition={activePosition}
+            stopLoss={activePosition?.stopLoss}
+            targetPrice={activePosition?.targetPrice}
+          />
+        ) : showDemo || demoData.length > 0 ? (
+          // Show demo chart as fallback
           <TradingChart
             candlestickData={demoData}
             tradeMarkers={demoTradeMarkers}
             title="Demo Live Trading Chart"
-
             showPortfolio={false}
             fullScreen={true}
             windowSize={100}
             enableSlidingWindow={false}
             currentPrice={demoData.length > 0 ? demoData[demoData.length - 1]?.close : undefined}
-          />
-        ) : isTrading && trades.length > 0 ? (
-          // Show real live trading data based on trades
-          <TradingChart
-            candlestickData={trades.map((trade: any) => ({
-              time: trade.timestamp,
-              open: trade.price,
-              high: trade.price * 1.001,
-              low: trade.price * 0.999,
-              close: trade.price,
-              volume: 1000
-            }))}
-            tradeMarkers={trades.map((trade: any) =>
-              createTradeMarker(
-                trade.timestamp,
-                trade.action as 'BUY' | 'SELL' | 'CLOSE_LONG' | 'CLOSE_SHORT' | 'HOLD',
-                trade.price
-              )
-            )}
-            title="Live Trading Chart"
-
-            showPortfolio={false}
-            fullScreen={true}
-            windowSize={100}
-            enableSlidingWindow={false}
-            currentPrice={stats.currentPrice}
           />
         ) : (
           // Empty state
@@ -311,6 +433,34 @@ export default function LiveTradePage() {
           </div>
         )}
       </motion.div>
+
+      {/* Manual Trade Panel Overlay */}
+      {showManualTrade && (
+        <motion.div
+          initial={{ opacity: 0, x: 300 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 300 }}
+          className="fixed right-4 top-16 bottom-4 w-80 bg-background border rounded-lg shadow-lg p-4 z-50 overflow-y-auto"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Manual Trade</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowManualTrade(false)}
+              className="h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <ManualTradeForm 
+            instruments={instruments}
+            isDisabled={!!activePosition}
+            onSubmit={handleManualTradeSubmit}
+          />
+        </motion.div>
+      )}
     </TradingViewLayout>
   )
 }

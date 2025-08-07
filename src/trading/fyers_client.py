@@ -92,6 +92,22 @@ class FyersClient:
 
     # Removed unnecessary helper methods - caller should provide exact Fyers symbol
 
+    def get_backtesting_data(self, symbol, timeframe, days=30, from_date=None, to_date=None):
+        """
+        Alias for get_historical_data for backwards compatibility with realtime_data_loader.
+        
+        Args:
+            symbol (str): Trading symbol
+            timeframe (str): Timeframe for candles
+            days (int): Number of days to fetch
+            from_date (str): Start date in YYYY-MM-DD format
+            to_date (str): End date in YYYY-MM-DD format
+            
+        Returns:
+            pd.DataFrame: Historical data with OHLCV columns
+        """
+        return self.get_historical_data(symbol, timeframe, days, from_date, to_date)
+
     def place_order(self, symbol, side, qty, productType="INTRADAY"):
         data = {
             "symbol": symbol,
