@@ -16,7 +16,7 @@ As a user, I want a form on the frontend to manually enter trades when no automa
     *   Stop-Loss (optional number input)
     *   Target (optional number input)
 3.  The form has a submit button.
-4.  The `ManualTradeForm` component is integrated into the `DashboardPage` (`app/dashboard/page.tsx`), ideally within a new `Card` component.
+4.  The `ManualTradeForm` component is integrated into the `DashboardPage` (`app/dashboard/live/page.tsx`), ideally within a new `Card` component.
 5.  The entire `ManualTradeForm` is disabled (e.g., using a `disabled` prop on the form elements) when an active automated position is detected (via WebSocket updates).
 6.  A clear message or tooltip is displayed to the user explaining why the form is disabled when an automated trade is active.
 
@@ -25,7 +25,7 @@ As a user, I want a form on the frontend to manually enter trades when no automa
 -   `[ ]` **Frontend:** Design the form layout using existing UI components (e.g., Radix UI `Select`, `RadioGroup`, `Input`, `Button`).
 -   `[ ]` **Frontend:** Implement state management within `ManualTradeForm` for each input field.
 -   `[ ]` **Frontend:** Pass the `instruments` list from `DashboardPage` to `ManualTradeForm` to populate the instrument dropdown.
--   `[ ]` **Frontend:** In `app/dashboard/page.tsx`, import `ManualTradeForm` and render it within a `Card` component.
+-   `[ ]` **Frontend:** In `app/dashboard/live/page.tsx`, import `ManualTradeForm` and render it within a `Card` component.
 -   `[ ]` **Frontend:** Implement logic in `DashboardPage` to determine if an automated trade is active (by checking the `Position` object from the WebSocket state).
 -   `[ ]` **Frontend:** Pass a `isDisabled` prop to `ManualTradeForm` based on the active trade status.
 -   `[ ]` **Frontend:** In `ManualTradeForm`, apply the `disabled` attribute to form elements and display a tooltip or message when disabled.

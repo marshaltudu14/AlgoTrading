@@ -24,7 +24,7 @@ As a developer, I need to establish a persistent WebSocket connection from the f
 -   `[x]` **Frontend:** Create a new state management store (e.g., `frontend/store/live-data.ts`) using Zustand or React Context.
 -   `[x]` **Frontend:** The store should hold the latest tick data and the current position information.
 -   `[x]` **Frontend:** In the `WebSocketService`, the `onMessage` handler should parse the incoming JSON and call the appropriate actions on the state management store.
--   `[x]` **Frontend:** In `frontend/app/dashboard/page.tsx`, import and initialize the `WebSocketService` in a `useEffect` hook.
+-   `[x]` **Frontend:** In `frontend/app/dashboard/live/page.tsx`, import and initialize the `WebSocketService` in a `useEffect` hook.
 -   `[x]` **Frontend:** Create a `ConnectionStatus` component that subscribes to the WebSocket connection state and displays an appropriate indicator.
 -   `[ ]` **Testing:** Write unit tests for the `WebSocketService`, mocking the native WebSocket object.
 -   `[ ]` **Testing:** Write tests for the state management store to ensure it updates correctly based on dispatched actions.

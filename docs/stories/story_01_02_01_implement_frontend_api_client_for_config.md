@@ -11,7 +11,7 @@ As a developer, I need to implement the client-side logic to fetch the system co
 1.  A new function is created in `frontend/lib/api.ts` (or a similar API client file) to handle the GET request to the `/api/config` endpoint.
 2.  This function is asynchronous and handles the JSON response.
 3.  The function returns a typed object, e.g., `{ instruments: string[], timeframes: string[] }`.
-4.  The `DashboardPage` component in `frontend/app/dashboard/page.tsx` calls this new function within a `useEffect` hook on component mount.
+4.  The `Dashboard Live Page` component in `frontend/app/dashboard/live/page.tsx` calls this new function within a `useEffect` hook on component mount.
 5.  The fetched instruments and timeframes are stored in the component's state.
 6.  The instrument and timeframe `Select` components (from Radix UI) are correctly populated with the data from the state.
 7.  The UI displays a loading state while the configuration is being fetched.
@@ -21,7 +21,7 @@ As a developer, I need to implement the client-side logic to fetch the system co
 -   `[x]` **Frontend:** In `frontend/lib/api.ts`, add a new `getConfig` async function.
 -   `[x]` **Frontend:** Use the `fetch` API or a library like `axios` to make the GET request to `/api/config`.
 -   `[x]` **Frontend:** Define a TypeScript interface for the configuration data.
--   `[x]` **Frontend:** In `frontend/app/dashboard/page.tsx`, add state variables for `instruments`, `timeframes`, `isLoadingConfig`, and `configError`.
+-   `[x]` **Frontend:** In `frontend/app/dashboard/live/page.tsx`, add state variables for `instruments`, `timeframes`, `isLoadingConfig`, and `configError`.
 -   `[x]` **Frontend:** Implement the `useEffect` hook to call `getConfig` and update the state.
 -   `[x]` **Frontend:** Map over the `instruments` and `timeframes` state variables to render the `SelectItem` components within the dropdowns.
 -   `[x]` **Frontend:** Use conditional rendering to show a loading spinner when `isLoadingConfig` is true.

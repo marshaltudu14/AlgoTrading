@@ -70,6 +70,7 @@ interface TradingChartProps {
 }
 
 import { useLiveDataStore } from "@/store/live-data";
+import { TrendlinePrimitive } from "./trendline-primitive";
 
 export function TradingChart({
   candlestickData = [],
@@ -93,6 +94,7 @@ export function TradingChart({
   const tpPriceLineRef = React.useRef<any>(null)
   const positionAreaSeriesRefs = React.useRef<{ top: any; bottom: any; } | null>(null)
   const positionAreaSeriesRef = React.useRef<any>(null)
+  const trendlinePrimitiveRef = React.useRef<TrendlinePrimitive | null>(null)
   const { theme } = useTheme()
   const [chartHeight, setChartHeight] = React.useState(400) // eslint-disable-line @typescript-eslint/no-unused-vars
 
@@ -175,6 +177,18 @@ export function TradingChart({
 
     const candlestickSeries = chart.addSeries(CandlestickSeries, {})
     candlestickSeriesRef.current = candlestickSeries
+
+    // Initialize trendline primitive
+    const trendlinePrimitive = new TrendlinePrimitive({
+      recentPeriod: 25,
+      historicalPeriod: 150,
+      breakoutThreshold: 0.001,
+      updateFrequency: 5
+    })
+    trendlinePrimitiveRef.current = trendlinePrimitive
+
+    // Attach trendline primitive to candlestick series
+    candlestickSeries.attachPrimitive(trendlinePrimitive)
 
     if (showPortfolio) {
       const portfolioSeries = chart.addSeries(LineSeries, {
@@ -295,6 +309,21 @@ export function TradingChart({
 
       candlestickSeriesRef.current.update(formattedCandle);
 
+      // Update trendline primitive with new real-time data
+      if (trendlinePrimitiveRef.current && data.length > 0) {
+        // Maintain the full dataset for trendline calculations
+        const updatedData = [...data, candle]
+        const trendlineData = updatedData.map(item => ({
+          time: item.time,
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
+          volume: undefined
+        }))
+        trendlinePrimitiveRef.current.updateData(trendlineData)
+      }
+
       if (chartRef.current) {
         chartRef.current.timeScale().scrollToRealTime();
       }
@@ -334,6 +363,24 @@ export function TradingChart({
       console.log('Formatted candlestick data:', JSON.stringify(formattedData.slice(0, 3), null, 2)); // Debug log
 
       candlestickSeriesRef.current.setData(formattedData)
+
+      // Update trendline primitive with new data
+      if (trendlinePrimitiveRef.current && formattedData.length > 0) {
+        // Convert to the format expected by trendline primitive
+        const trendlineData = formattedData.map(item => ({
+          time: item.time,
+          open: item.open,
+          high: item.high,
+          low: item.low,
+          close: item.close,
+          volume: undefined // Volume data not available in current format
+        }))
+        trendlinePrimitiveRef.current.updateData(trendlineData)
+
+        // Debug trendline information
+        const debugInfo = trendlinePrimitiveRef.current.getDebugInfo()
+        console.log('Trendline Debug Info:', debugInfo)
+      }
 
       // Auto-fit content
       setTimeout(() => {

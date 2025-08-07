@@ -18,7 +18,7 @@ export async function middleware(request: NextRequest) {
     try {
       // Make an internal API call to validate the session
       // The 'credentials: "include"' is crucial for sending HTTP-only cookies
-      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/profile`, {
+      const apiResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/profile`, {
         headers: {
           'Cookie': request.headers.get('Cookie') || ''
         }

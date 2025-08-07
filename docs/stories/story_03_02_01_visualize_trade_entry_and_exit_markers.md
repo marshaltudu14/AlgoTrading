@@ -21,7 +21,7 @@ As a user, I want to see clear visual markers on the candlestick chart indicatin
 **Tasks / Subtasks:**
 -   `[x]` **Backend:** In `src/trading/live_trading_service.py`, when a trade is entered, include the `entryTime`, `entryPrice`, and `direction` in the WebSocket `position_update` message.
 -   `[x]` **Backend:** When a trade is exited, include the `exitTime` and `exitPrice` in the WebSocket `position_update` message.
--   `[x]` **Frontend:** In `app/dashboard/page.tsx`, maintain a state variable (e.g., `tradeMarkers`) that is an array of `TradeMarker` objects.
+-   `[x]` **Frontend:** In `app/dashboard/live/page.tsx`, maintain a state variable (e.g., `tradeMarkers`) that is an array of `TradeMarker` objects.
 -   `[x]` **Frontend:** When a `position_update` message is received indicating a new trade, use the `createTradeMarker` helper function to generate an entry marker and add it to the `tradeMarkers` state.
 -   `[x]` **Frontend:** When a `position_update` message indicates a trade closure, generate an exit marker and add it to the `tradeMarkers` state.
 -   `[x]` **Frontend:** Pass the `tradeMarkers` state to the `TradingChart` component.

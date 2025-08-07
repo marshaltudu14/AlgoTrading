@@ -25,7 +25,7 @@ As a user, I want to see a visual representation of my active trade on the chart
 -   `[ ]` **Frontend:** Implement logic to calculate the color of the rectangle based on `entryPrice`, `currentPrice`, and `direction`.
 -   `[ ]` **Frontend:** Ensure the rectangle updates with each new tick.
 -   `[ ]` **Frontend:** Implement logic to clear the rectangle when `activePosition` prop is `null`.
--   `[ ]` **Frontend:** In `app/dashboard/page.tsx`, pass the active position data (from WebSocket updates) to the `TradingChart` component.
+-   `[ ]` **Frontend:** In `app/dashboard/live/page.tsx`, pass the active position data (from WebSocket updates) to the `TradingChart` component.
 -   `[ ]` **Testing:** Write a component test for `TradingChart` that mounts the component with `activePosition` props and asserts that the colored rectangle is rendered and updates correctly with new data.
 -   `[ ]` **Testing:** Test both long and short positions, and profitable/losing scenarios.
 

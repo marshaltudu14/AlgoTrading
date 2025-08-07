@@ -11,7 +11,7 @@ As a developer, I need to implement the client-side logic to fetch historical da
 1.  A new function is created in `frontend/lib/api.ts` to handle the GET request to the `/api/historical-data` endpoint.
 2.  This function accepts `instrument` and `timeframe` as arguments and passes them as query parameters.
 3.  The function is asynchronous and returns a typed array of candlestick data objects.
-4.  In `frontend/app/dashboard/page.tsx`, an event handler is created for the instrument and timeframe `Select` components.
+4.  In `frontend/app/dashboard/live/page.tsx`, an event handler is created for the instrument and timeframe `Select` components.
 5.  When the user makes a selection, this event handler calls the new API function.
 6.  The fetched historical data is stored in the component's state and passed as a prop to the `TradingChart` component.
 7.  A loading state is displayed on the `TradingChart` component while the data is being fetched.
@@ -21,7 +21,7 @@ As a developer, I need to implement the client-side logic to fetch historical da
 -   `[x]` **Frontend:** In `frontend/lib/api.ts`, add a new `getHistoricalData` async function that takes `instrument` and `timeframe` as parameters.
 -   `[x]` **Frontend:** Use the `fetch` API to make the GET request to `/api/historical-data` with the correct query parameters.
 -   `[x]` **Frontend:** Define a TypeScript interface for the candlestick data that matches the `CandlestickData` interface in `TradingChart.tsx`.
--   `[x]` **Frontend:** In `frontend/app/dashboard/page.tsx`, add state variables for `historicalData`, `isChartLoading`, and `chartError`.
+-   `[x]` **Frontend:** In `frontend/app/dashboard/live/page.tsx`, add state variables for `historicalData`, `isChartLoading`, and `chartError`.
 -   `[x]` **Frontend:** Create a function (e.g., `handleSelectionChange`) that is triggered by the `onValueChange` event of the `Select` components.
 -   `[x]` **Frontend:** Inside `handleSelectionChange`, set `isChartLoading` to true and call `getHistoricalData`.
 -   `[x]` **Frontend:** On a successful response, update the `historicalData` state and set `isChartLoading` to false.

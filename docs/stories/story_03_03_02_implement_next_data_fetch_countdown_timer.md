@@ -17,7 +17,7 @@ As a user, I want to see a countdown timer on the frontend indicating when the n
 **Tasks / Subtasks:**
 -   `[ ]` **Backend:** In `src/trading/live_trading_service.py`, ensure the configured `timeframe` (which dictates the fetch interval) is accessible and can be sent to the frontend.
 -   `[ ]` **Backend:** Modify the WebSocket `position_update` message or create a new WebSocket message type (e.g., `"system_status"`) to include the `fetchIntervalSeconds` and `nextFetchTimestamp`.
--   `[ ]` **Frontend:** In `app/dashboard/page.tsx`, add state variables to manage the countdown timer's value and status (e.g., `countdown`, `fetchStatus`).
+-   `[ ]` **Frontend:** In `app/dashboard/live/page.tsx`, add state variables to manage the countdown timer's value and status (e.g., `countdown`, `fetchStatus`).
 -   `[ ]` **Frontend:** Implement a `useEffect` hook that sets up an interval timer to update the countdown every second.
 -   `[ ]` **Frontend:** The timer should calculate the remaining time until the `nextFetchTimestamp` based on the `fetchIntervalSeconds`.
 -   `[ ]` **Frontend:** Implement logic to display "Fetching..." when a data fetch is in progress (e.g., based on a WebSocket message from the backend).
