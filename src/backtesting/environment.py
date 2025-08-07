@@ -11,7 +11,7 @@ from src.backtesting.engine import BacktestingEngine
 from src.config.instrument import Instrument
 from src.utils.instrument_loader import load_instruments
 from src.utils.data_feeding_strategy import DataFeedingStrategyManager, FeedingStrategy
-from src.config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL
+from src.config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL, FEATURE_CONFIG
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -289,202 +289,207 @@ class TradingEnv(gym.Env):
         return info
 
     def step(self, action) -> Tuple[np.ndarray, float, bool, Dict]:
-        self.current_step += 1
+        try:
+            self.current_step += 1
 
-        # Check if detailed logging is enabled
-        import os
-        detailed_logging = os.environ.get('DETAILED_BACKTEST_LOGGING', 'false').lower() == 'true'
+            # Check if detailed logging is enabled
+            import os
+            detailed_logging = os.environ.get('DETAILED_BACKTEST_LOGGING', 'false').lower() == 'true'
 
-        if self.current_step >= len(self.data):
-            # Force close any open positions before episode ends
-            self._force_close_open_positions()
-            done = True
-            reward = 0.0 # No more data to process
-            info = {"message": "End of data"}
-            return self._get_observation(), reward, done, info
+            if self.current_step >= len(self.data):
+                # Force close any open positions before episode ends
+                self._force_close_open_positions()
+                done = True
+                reward = 0.0 # No more data to process
+                info = {"message": "End of data"}
+                return self._get_observation(), reward, done, info
 
-        # Use bounds checking to prevent indexing errors
-        safe_step = min(self.current_step, len(self.data) - 1)
-        current_price = self.data['close'].iloc[safe_step]
+            # Use bounds checking to prevent indexing errors
+            safe_step = min(self.current_step, len(self.data) - 1)
+            current_price = self.data['close'].iloc[safe_step]
 
-        # Get ATR if available, otherwise use a default volatility estimate
-        if 'atr' in self.data.columns:
-            current_atr = self.data['atr'].iloc[safe_step]
-        else:
-            # Fallback: estimate volatility from recent price range
-            lookback = min(14, safe_step + 1)
-            recent_highs = self.data['high'].iloc[max(0, safe_step - lookback + 1):safe_step + 1]
-            recent_lows = self.data['low'].iloc[max(0, safe_step - lookback + 1):safe_step + 1]
-            current_atr = (recent_highs.max() - recent_lows.min()) / lookback
-
-        prev_capital = self.engine.get_account_state()['capital']
-
-        # Use point-based calculation for all modes (no proxy premium)
-        # Direct price for index trading - no option premium complexity
-        proxy_premium = current_price
-
-        # Parse action: [action_type, quantity] or (action_type, quantity)
-        if isinstance(action, (list, np.ndarray, tuple)) and len(action) >= 2:
-            action_type = int(np.clip(action[0], 0, 4))
-            predicted_quantity = max(1.0, float(action[1]))  # Ensure minimum 1 lot
-        else:
-            # Backward compatibility: treat as discrete action with default quantity
-            try:
-                action_type = int(action) if isinstance(action, (int, float)) else 4
-            except (ValueError, TypeError):
-                action_type = 4  # Default to HOLD if conversion fails
-            predicted_quantity = 1.0 if action_type != 4 else 0.0  # Default to 1 lot
-
-        # Adjust predicted quantity to available capital for trading actions (not HOLD)
-        if action_type != 4 and predicted_quantity > 0:
-            available_capital = prev_capital
-
-            # Import capital-aware quantity calculation
-            from src.utils.capital_aware_quantity import CapitalAwareQuantitySelector
-            selector = CapitalAwareQuantitySelector()
-
-            # Calculate maximum affordable quantity (no artificial limits)
-            max_affordable_quantity = selector.get_max_affordable_quantity(
-                available_capital=available_capital,
-                current_price=current_price,
-                instrument=self.instrument
-            )
-
-            # Clamp predicted quantity to what's actually affordable
-            if max_affordable_quantity > 0:
-                # Use the smaller of predicted quantity or max affordable
-                actual_quantity = min(int(predicted_quantity), max_affordable_quantity)
-                actual_quantity = max(1, actual_quantity)  # Ensure at least 1 lot
-
-                # Store values for reward calculation
-                self._last_predicted_quantity = predicted_quantity
-                self._last_max_affordable = max_affordable_quantity
-
-                # Log quantity adjustment if needed
-                if detailed_logging:
-                    if actual_quantity != int(predicted_quantity):
-                        logger.info(f"💰 Quantity adjusted: {int(predicted_quantity)} → {actual_quantity} lots (capital limit)")
-                    else:
-                        logger.info(f"💰 Quantity: {actual_quantity} lots")
-                    logger.info(f"   Available capital: ₹{available_capital:.2f}")
-                    logger.info(f"   Max affordable: {max_affordable_quantity} lots")
-
-                quantity = float(actual_quantity)
+            # Get ATR if available, otherwise use a default volatility estimate
+            if 'atr' in self.data.columns:
+                current_atr = self.data['atr'].iloc[safe_step]
             else:
-                # No capital available for trading
+                # Fallback: estimate volatility from recent price range
+                lookback = min(14, safe_step + 1)
+                recent_highs = self.data['high'].iloc[max(0, safe_step - lookback + 1):safe_step + 1]
+                recent_lows = self.data['low'].iloc[max(0, safe_step - lookback + 1):safe_step + 1]
+                current_atr = (recent_highs.max() - recent_lows.min()) / lookback
+
+            prev_capital = self.engine.get_account_state()['capital']
+
+            # Use point-based calculation for all modes (no proxy premium)
+            # Direct price for index trading - no option premium complexity
+            proxy_premium = current_price
+
+            # Parse action: [action_type, quantity] or (action_type, quantity)
+            if isinstance(action, (list, np.ndarray, tuple)) and len(action) >= 2:
+                action_type = int(np.clip(action[0], 0, 4))
+                predicted_quantity = max(1.0, float(action[1]))  # Ensure minimum 1 lot
+            else:
+                # Backward compatibility: treat as discrete action with default quantity
+                try:
+                    action_type = int(action) if isinstance(action, (int, float)) else 4
+                except (ValueError, TypeError):
+                    action_type = 4  # Default to HOLD if conversion fails
+                predicted_quantity = 1.0 if action_type != 4 else 0.0  # Default to 1 lot
+
+            # Adjust predicted quantity to available capital for trading actions (not HOLD)
+            if action_type != 4 and predicted_quantity > 0:
+                available_capital = prev_capital
+
+                # Import capital-aware quantity calculation
+                from src.utils.capital_aware_quantity import CapitalAwareQuantitySelector
+                selector = CapitalAwareQuantitySelector()
+
+                # Calculate maximum affordable quantity (no artificial limits)
+                max_affordable_quantity = selector.get_max_affordable_quantity(
+                    available_capital=available_capital,
+                    current_price=current_price,
+                    instrument=self.instrument
+                )
+
+                # Clamp predicted quantity to what's actually affordable
+                if max_affordable_quantity > 0:
+                    # Use the smaller of predicted quantity or max affordable
+                    actual_quantity = min(int(predicted_quantity), max_affordable_quantity)
+                    actual_quantity = max(1, actual_quantity)  # Ensure at least 1 lot
+
+                    # Store values for reward calculation
+                    self._last_predicted_quantity = predicted_quantity
+                    self._last_max_affordable = max_affordable_quantity
+
+                    # Log quantity adjustment if needed
+                    if detailed_logging:
+                        if actual_quantity != int(predicted_quantity):
+                            logger.info(f"💰 Quantity adjusted: {int(predicted_quantity)} → {actual_quantity} lots (capital limit)")
+                        else:
+                            logger.info(f"💰 Quantity: {actual_quantity} lots")
+                        logger.info(f"   Available capital: ₹{available_capital:.2f}")
+                        logger.info(f"   Max affordable: {max_affordable_quantity} lots")
+
+                    quantity = float(actual_quantity)
+                else:
+                    # No capital available for trading
+                    quantity = 0.0
+                    self._last_predicted_quantity = predicted_quantity
+                    self._last_max_affordable = 0
+            else:
                 quantity = 0.0
-                self._last_predicted_quantity = predicted_quantity
+                self._last_predicted_quantity = 0.0
                 self._last_max_affordable = 0
-        else:
-            quantity = 0.0
-            self._last_predicted_quantity = 0.0
-            self._last_max_affordable = 0
 
-        # DEBUG: Log every action to see what the agent is doing (only if detailed logging enabled)
-        if detailed_logging:
-            action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
-            action_name = action_names[action_type]
+            # DEBUG: Log every action to see what the agent is doing (only if detailed logging enabled)
+            if detailed_logging:
+                action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
+                action_name = action_names[action_type]
 
-            if self.current_step % 10 == 0 or action_type != 4:  # Log every 10 steps or non-HOLD actions
-                logger.info(f"🎯 Step {self.current_step}: Agent action: {action} -> {action_name} (qty: {quantity})")
-                logger.info(f"   Current price: ₹{current_price:.2f}, Capital: ₹{prev_capital:.2f}")
+                if self.current_step % 10 == 0 or action_type != 4:  # Log every 10 steps or non-HOLD actions
+                    logger.info(f"🎯 Step {self.current_step}: Agent action: {action} -> {action_name} (qty: {quantity})")
+                    logger.info(f"   Current price: ₹{current_price:.2f}, Capital: ₹{prev_capital:.2f}")
 
-        # Get current position state to validate actions
-        account_state = self.engine.get_account_state()
-        current_position = account_state['current_position_quantity']
+            # Get current position state to validate actions
+            account_state = self.engine.get_account_state()
+            current_position = account_state['current_position_quantity']
 
-        # Smart action filtering to prevent redundant position attempts
-        if self.smart_action_filtering:
-            if action_type == 0 and current_position != 0:  # BUY_LONG when already have position
-                action_type = 4  # Convert to HOLD
-            elif action_type == 1 and current_position != 0:  # SELL_SHORT when already have position
-                action_type = 4  # Convert to HOLD
+            # Smart action filtering to prevent redundant position attempts
+            if self.smart_action_filtering:
+                if action_type == 0 and current_position != 0:  # BUY_LONG when already have position
+                    action_type = 4  # Convert to HOLD
+                elif action_type == 1 and current_position != 0:  # SELL_SHORT when already have position
+                    action_type = 4  # Convert to HOLD
 
-        if action_type == 0: # BUY_LONG
-            self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)
-        elif action_type == 1: # SELL_SHORT
-            self.engine.execute_trade("SELL_SHORT", current_price, quantity, current_atr, proxy_premium)
-        elif action_type == 2: # CLOSE_LONG
-            # Only execute if we have a long position to close
-            if current_position > 0:
-                self.engine.execute_trade("CLOSE_LONG", current_price, quantity, current_atr, proxy_premium)
-            else:
-                # Convert invalid action to HOLD to reduce warnings
+            if action_type == 0: # BUY_LONG
+                self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)
+            elif action_type == 1: # SELL_SHORT
+                self.engine.execute_trade("SELL_SHORT", current_price, quantity, current_atr, proxy_premium)
+            elif action_type == 2: # CLOSE_LONG
+                # Only execute if we have a long position to close
+                if current_position > 0:
+                    self.engine.execute_trade("CLOSE_LONG", current_price, quantity, current_atr, proxy_premium)
+                else:
+                    # Convert invalid action to HOLD to reduce warnings
+                    self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
+            elif action_type == 3: # CLOSE_SHORT
+                # Only execute if we have a short position to close
+                if current_position < 0:
+                    self.engine.execute_trade("CLOSE_SHORT", current_price, quantity, current_atr, proxy_premium)
+                else:
+                    # Convert invalid action to HOLD to reduce warnings
+                    self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
+            elif action_type == 4: # HOLD
                 self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
-        elif action_type == 3: # CLOSE_SHORT
-            # Only execute if we have a short position to close
-            if current_position < 0:
-                self.engine.execute_trade("CLOSE_SHORT", current_price, quantity, current_atr, proxy_premium)
+
+            # Log significant trading actions (not HOLD) every 50 steps or for trades (only if detailed logging enabled)
+            if detailed_logging and (action_type != 4 or self.current_step % 50 == 0):
+                action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
+                action_name = action_names[action_type]
+                account_state = self.engine.get_account_state(current_price=current_price)
+                if action_type != 4:  # Actual trade
+                    logger.info(f"🎯 Step {self.current_step}: {action_name} @ ₹{current_price:.2f} (Qty: {quantity})")
+                    logger.info(f"   Position: {account_state['current_position_quantity']}, Capital: ₹{account_state['capital']:.2f}")
+                else:  # Periodic status update
+                    logger.info(f"📊 Step {self.current_step}: Capital: ₹{account_state['capital']:.2f}, Position: {account_state['current_position_quantity']}")
+
+            # Calculate reward using selected reward function
+            current_capital = self.engine.get_account_state(current_price=current_price)['capital']
+            self.equity_history.append(current_capital)
+
+            # Calculate return for this step
+            if len(self.equity_history) > 1:
+                step_return = (current_capital - self.equity_history[-2]) / self.equity_history[-2]
+                self.returns_history.append(step_return)
+
+            # Track action for reward shaping
+            if action_type == 4:  # HOLD
+                self.idle_steps += 1
             else:
-                # Convert invalid action to HOLD to reduce warnings
-                self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
-        elif action_type == 4: # HOLD
-            self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
+                self.idle_steps = 0
+                self.trade_count += 1
 
-        # Log significant trading actions (not HOLD) every 50 steps or for trades (only if detailed logging enabled)
-        if detailed_logging and (action_type != 4 or self.current_step % 50 == 0):
-            action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
-            action_name = action_names[action_type]
-            account_state = self.engine.get_account_state(current_price=current_price)
-            if action_type != 4:  # Actual trade
-                logger.info(f"🎯 Step {self.current_step}: {action_name} @ ₹{current_price:.2f} (Qty: {quantity})")
-                logger.info(f"   Position: {account_state['current_position_quantity']}, Capital: ₹{account_state['capital']:.2f}")
-            else:  # Periodic status update
-                logger.info(f"📊 Step {self.current_step}: Capital: ₹{account_state['capital']:.2f}, Position: {account_state['current_position_quantity']}")
+            base_reward = self._calculate_reward(current_capital, prev_capital)
+            shaped_reward = self._apply_reward_shaping(base_reward, action_type, current_capital, prev_capital)
 
-        # Calculate reward using selected reward function
-        current_capital = self.engine.get_account_state(current_price=current_price)['capital']
-        self.equity_history.append(current_capital)
+            # Add quantity prediction feedback reward
+            quantity_reward = self._calculate_quantity_feedback_reward(action, prev_capital)
+            shaped_reward += quantity_reward
 
-        # Calculate return for this step
-        if len(self.equity_history) > 1:
-            step_return = (current_capital - self.equity_history[-2]) / self.equity_history[-2]
-            self.returns_history.append(step_return)
+            # Apply normalization for universal model training across different instruments
+            reward = self._normalize_reward(shaped_reward)
 
-        # Track action for reward shaping
-        if action_type == 4:  # HOLD
-            self.idle_steps += 1
-        else:
-            self.idle_steps = 0
-            self.trade_count += 1
+            # DEBUG: Log reward calculation (only if detailed logging enabled)
+            if detailed_logging and (self.current_step % 20 == 0 or abs(reward) > 0.1):
+                logger.info(f"💰 Step {self.current_step}: Reward = {reward:.4f} (base: {base_reward:.4f}, shaped: {shaped_reward:.4f})")
+                logger.info(f"   Capital: {prev_capital:.2f} -> {current_capital:.2f} (change: {current_capital - prev_capital:.2f})")
 
-        base_reward = self._calculate_reward(current_capital, prev_capital)
-        shaped_reward = self._apply_reward_shaping(base_reward, action_type, current_capital, prev_capital)
+            self.last_action_type = action_type
 
-        # Add quantity prediction feedback reward
-        quantity_reward = self._calculate_quantity_feedback_reward(action, prev_capital)
-        shaped_reward += quantity_reward
+            # Check termination conditions
+            done, termination_reason = self._check_termination_conditions(current_capital)
 
-        # Apply normalization for universal model training across different instruments
-        reward = self._normalize_reward(shaped_reward)
+            # Force close any open positions if episode is ending
+            if done:
+                self._force_close_open_positions()
 
-        # DEBUG: Log reward calculation (only if detailed logging enabled)
-        if detailed_logging and (self.current_step % 20 == 0 or abs(reward) > 0.1):
-            logger.info(f"💰 Step {self.current_step}: Reward = {reward:.4f} (base: {base_reward:.4f}, shaped: {shaped_reward:.4f})")
-            logger.info(f"   Capital: {prev_capital:.2f} -> {current_capital:.2f} (change: {current_capital - prev_capital:.2f})")
+            # Create info dictionary with termination reason and exit reason
+            info = {}
+            if termination_reason:
+                info["termination_reason"] = termination_reason
 
-        self.last_action_type = action_type
+            # Get exit reason from the latest decision log entry
+            if self.engine._decision_log:
+                latest_decision = self.engine._decision_log[-1]
+                exit_reason = latest_decision.get('exit_reason')
+                if exit_reason:
+                    info["exit_reason"] = exit_reason
 
-        # Check termination conditions
-        done, termination_reason = self._check_termination_conditions(current_capital)
-
-        # Force close any open positions if episode is ending
-        if done:
-            self._force_close_open_positions()
-
-        # Create info dictionary with termination reason and exit reason
-        info = {}
-        if termination_reason:
-            info["termination_reason"] = termination_reason
-
-        # Get exit reason from the latest decision log entry
-        if self.engine._decision_log:
-            latest_decision = self.engine._decision_log[-1]
-            exit_reason = latest_decision.get('exit_reason')
-            if exit_reason:
-                info["exit_reason"] = exit_reason
-
-        # Return 4 values as expected by standard gym environments
+            # Return 4 values as expected by standard gym environments
+            return self._get_observation(), reward, done, info
+        except Exception as e:
+            logger.error(f"Error in step: {e}")
+            return self._get_observation(), 0.0, True, {"error": str(e)}
         return self._get_observation(), reward, done, info
 
     def _force_close_open_positions(self):

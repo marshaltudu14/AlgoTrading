@@ -23,6 +23,13 @@ from auth.fyers_auth_service import create_fyers_model, create_fyers_websocket
 from backtesting.environment import TradingEnv, TradingMode
 from utils.data_loader import DataLoader
 
+from utils.capital_aware_quantity import CapitalAwareQuantitySelector
+from src.trading.position import Position
+from src.utils.option_utils import get_nearest_itm_strike, get_nearest_expiry, map_underlying_to_option_price
+from agents.ppo_agent import PPOAgent
+
+
+
 logger = logging.getLogger(__name__)
 
 class LiveTradingService:
@@ -48,6 +55,7 @@ class LiveTradingService:
         self.is_running = False
         self.websocket_clients = []
         self.trading_thread = None
+        self.active_position: Optional[Position] = None
         
         # Trading state
         self.current_position = 0
@@ -316,9 +324,6 @@ class LiveTradingService:
                 self.agent = None
                 return
 
-            # Import PPOAgent
-            from agents.ppo_agent import PPOAgent
-
             # Get observation dimensions from environment
             if not hasattr(self, 'trading_env') or self.trading_env is None:
                 logger.error("Trading environment must be initialized before loading model")
@@ -376,11 +381,33 @@ class LiveTradingService:
             logger.error(f"Error generating trading signal: {e}")
             return 2  # Default to HOLD on error
     
-    def _execute_trade(self, action: int):
+    async def _execute_trade(self, action: int):
         """Execute trade based on action using TradingEnv"""
         try:
             if not hasattr(self, 'trading_env') or self.trading_env is None:
                 logger.error("Trading environment not initialized")
+                return
+
+            # Get predicted quantity from model
+            _, predicted_quantity = self.agent.act(self.current_obs)
+
+            # Get available capital
+            funds = self.fyers_model.funds()
+            available_capital = funds['fund_limit'][10]['equityAmount']
+
+            # Adjust quantity for capital
+            capital_aware_quantity = CapitalAwareQuantitySelector()
+            adjusted_quantity = capital_aware_quantity.adjust_quantity_for_capital(
+                predicted_quantity=predicted_quantity,
+                available_capital=available_capital,
+                current_price=self.current_price,
+                instrument=self.trading_env.instrument
+            )
+
+            logger.info(f"Predicted quantity: {predicted_quantity}, Adjusted quantity: {adjusted_quantity}")
+
+            if adjusted_quantity == 0:
+                logger.info("Skipping trade due to insufficient capital or zero adjusted quantity.")
                 return
 
             # Store previous position state for change detection
@@ -430,6 +457,78 @@ class LiveTradingService:
                 action_names = {0: "STRONG_SELL", 1: "SELL", 2: "HOLD", 3: "BUY", 4: "STRONG_BUY"}
                 action_name = action_names.get(action, "UNKNOWN")
 
+                # Check for trade entry signals
+                if action_name in ["BUY", "SELL"] and adjusted_quantity > 0 and not self.active_position:
+                    # Options trading logic
+                    if self.option_strategy != "None":
+                        # 1. Get available strikes and expiries (mocked for now)
+                        # In a real scenario, this would come from the Fyers API
+                        available_strikes = [self.current_price - 200, self.current_price - 100, self.current_price, self.current_price + 100, self.current_price + 200]
+                        available_expiries = [(datetime.now() + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(1, 15)]
+
+                        # 2. Determine option type
+                        option_type = 'CE' if action_name == "BUY" else 'PE'
+
+                        # 3. Select strike and expiry
+                        strike_price = get_nearest_itm_strike(self.current_price, available_strikes, option_type)
+                        expiry_date = get_nearest_expiry(available_expiries)
+
+                        if not strike_price or not expiry_date:
+                            logger.error("Could not determine valid strike or expiry for options trade.")
+                            return
+
+                        # 4. Construct the Fyers symbol for the option
+                        # This is a simplified example. The actual symbol format might be more complex.
+                        option_symbol = f"NSE:{self.instrument.split('-')[0].replace('NIFTY','NFO')}{expiry_date.replace('-','')}{strike_price}{option_type}"
+                        
+                        # 5. Map underlying SL/TP to option prices
+                        # This requires fetching the current option price, which we will mock for now
+                        mock_option_price = 150 
+                        option_sl = map_underlying_to_option_price(self.trading_env.engine._stop_loss_price, self.current_price, mock_option_price, option_type)
+                        option_tp = map_underlying_to_option_price(self.trading_env.engine._target_profit_price, self.current_price, mock_option_price, option_type)
+
+                        trade_symbol = option_symbol
+                        stop_loss_price = option_sl
+                        target_price = option_tp
+                        
+                    else: # Futures/Equity trading logic
+                        trade_symbol = self._get_fyers_symbol()
+                        stop_loss_price = self.trading_env.engine._stop_loss_price
+                        target_price = self.trading_env.engine._target_profit_price
+
+                    product_type = "CNC" if "-EQ" in self.instrument.upper() else "INTRADAY"
+                    side = 1 if action_name == "BUY" else -1
+                    
+                    try:
+                        order_response = self.fyers_model.place_order(
+                            symbol=trade_symbol,
+                            qty=adjusted_quantity,
+                            side=side,
+                            productType=product_type
+                        )
+
+                        if order_response.get("s") == "ok":
+                            order_id = order_response.get("id")
+                            logger.info(f"Order placed successfully for {trade_symbol}. Order ID: {order_id}")
+                            
+                            self.active_position = Position(
+                                instrument=trade_symbol, # Store the actual traded symbol
+                                direction="Long" if action_name == "BUY" else "Short",
+                                entry_price=self.current_price,
+                                quantity=adjusted_quantity,
+                                stop_loss=stop_loss_price,
+                                target_price=target_price,
+                                entry_time=datetime.now(),
+                                trade_type="Automated"
+                            )
+                            logger.info(f"New position created: {self.active_position}")
+                            await self._broadcast_position_update()
+                        else:
+                            logger.error(f"Failed to place order for {trade_symbol}: {order_response.get('message')}")
+
+                    except Exception as e:
+                        logger.error(f"Exception placing order for {trade_symbol}: {e}")
+
                 logger.info(f"Trade executed: {action_name} at {self.current_price}, PnL: {trade_pnl}")
 
                 # Broadcast trade execution
@@ -449,18 +548,87 @@ class LiveTradingService:
 
         except Exception as e:
             logger.error(f"Error executing trade: {e}")
+            return
+
+    def _check_sl_tp_triggers(self):
+        """Check for stop-loss or target-profit triggers."""
+        if not self.active_position:
+            return
+
+        # For options, the SL/TP is based on the underlying's price movement.
+        # The self.active_position.stop_loss and target_price will hold the mapped option prices,
+        # but the trigger is the underlying's price hitting the original SL/TP.
+        
+        underlying_sl = self.trading_env.engine._stop_loss_price
+        underlying_tp = self.trading_env.engine._target_profit_price
+
+        if self.active_position.direction == "Long":
+            if self.current_price <= underlying_sl:
+                logger.info(f"Stop-loss triggered for long position on underlying at {self.current_price}")
+                asyncio.create_task(self._close_position("SL Hit"))
+            elif self.current_price >= underlying_tp:
+                logger.info(f"Target-profit triggered for long position on underlying at {self.current_price}")
+                asyncio.create_task(self._close_position("TP Hit"))
+        elif self.active_position.direction == "Short":
+            if self.current_price >= underlying_sl:
+                logger.info(f"Stop-loss triggered for short position on underlying at {self.current_price}")
+                asyncio.create_task(self._close_position("SL Hit"))
+            elif self.current_price <= underlying_tp:
+                logger.info(f"Target-profit triggered for short position on underlying at {self.current_price}")
+                asyncio.create_task(self._close_position("TP Hit"))
+
+    async def _close_position(self, reason: str):
+        """Close the active position."""
+        if not self.active_position:
+            return
+
+        logger.info(f"Closing position for reason: {reason}")
+
+        for i in range(3):
+            try:
+                exit_response = self.fyers_model.exit_positions(id=self.active_position.instrument)
+                if exit_response.get("s") == "ok":
+                    logger.info("Position exited successfully.")
+                    self.active_position = None
+                    await self._broadcast_position_update()
+                    return
+                else:
+                    logger.error(f"Failed to exit position: {exit_response.get('message')}")
+            except Exception as e:
+                logger.error(f"Exception exiting position: {e}")
+            
+            logger.info(f"Retrying to exit position... ({i+1}/3)")
+            await asyncio.sleep(1)
+
+        logger.error("Failed to exit position after 3 attempts.")
+        await self._broadcast_update({
+            "type": "error",
+            "message": f"Failed to close position for {self.active_position.instrument}. Please check manually."
+        })
     
-    def _trading_loop(self):
+    async def _trading_loop(self):
         """Main trading loop running in separate thread"""
         logger.info("Starting trading loop")
         
         try:
             while self.is_running:
+                # Get the latest observation which includes features
+                self.current_obs = self.trading_env._get_observation()
+                
+                # Get feature columns to find the index of ATR
+                feature_columns = [col for col in self.trading_env.data.columns if col.lower() not in ['datetime', 'date', 'time', 'timestamp', 'open', 'high', 'low', 'close', 'volume']]
+                atr_index = feature_columns.index('atr')
+                self.atr = self.current_obs[atr_index]
+
+                # Check for SL/TP triggers
+                if self.active_position:
+                    self._check_sl_tp_triggers()
+
                 # Generate trading action
                 action = self._generate_trading_signal()
 
                 # Execute trade action
-                self._execute_trade(action)
+                await self._execute_trade(action)
                 
                 # Broadcast current stats
                 win_rate = (self.win_count / self.total_trades * 100) if self.total_trades > 0 else 0
@@ -511,7 +679,7 @@ class LiveTradingService:
                 self.fyers_socket.connect()
             
             # Start trading loop in separate thread
-            self.trading_thread = threading.Thread(target=self._trading_loop)
+            self.trading_thread = threading.Thread(target=lambda: asyncio.run(self._trading_loop()))
             self.trading_thread.daemon = True
             self.trading_thread.start()
             

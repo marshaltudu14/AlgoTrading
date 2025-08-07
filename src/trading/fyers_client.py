@@ -92,13 +92,13 @@ class FyersClient:
 
     # Removed unnecessary helper methods - caller should provide exact Fyers symbol
 
-    def place_order(self, symbol, side, qty):
+    def place_order(self, symbol, side, qty, productType="INTRADAY"):
         data = {
             "symbol": symbol,
             "qty": qty,
             "type": 2,  # Market order
             "side": side, # 1 for Buy, -1 for Sell
-            "productType": "INTRADAY",
+            "productType": productType,
             "limitPrice": 0,
             "stopPrice": 0,
             "validity": "DAY",

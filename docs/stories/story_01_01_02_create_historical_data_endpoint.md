@@ -18,17 +18,17 @@ As a developer, I need to create a new, secure API endpoint that provides histor
 8.  If the `RealtimeDataLoader` fails to fetch data, the endpoint returns a `500 Internal Server Error` with a descriptive message.
 
 **Tasks / Subtasks:**
--   `[ ]` **Backend:** In `backend/main.py`, define a new Pydantic model or use `Depends` for the `instrument` and `timeframe` query parameters.
--   `[ ]` **Backend:** Create a new `async def` function for the `/api/historical-data` route, decorated with `@app.get("/api/historical-data")`.
--   `[ ]` **Backend:** Add `current_user: dict = Depends(get_current_user)` to the function signature to enforce authentication.
--   `[ ]` **Backend:** Inside the function, instantiate `RealtimeDataLoader`.
--   `[ ]` **Backend:** Call `loader.fetch_and_process_data(instrument=instrument, timeframe=timeframe)`.
--   `[ ]` **Backend:** Convert the resulting pandas DataFrame to JSON using `df.to_json(orient='records')`.
--   `[ ]` **Backend:** Implement a try-except block to catch potential exceptions from the data loader and return appropriate `HTTPException`s.
--   `[ ]` **Testing:** In `tests/test_api/`, create `test_historical_data_endpoint.py`.
--   `[ ]` **Testing:** Write a test that mocks the `RealtimeDataLoader` and asserts that the endpoint returns a `200` status and correctly formatted JSON data.
--   `[ ]` **Testing:** Write a test for the authentication, asserting a `401 Unauthorized` error is returned without a valid token.
--   `[ ]` **Testing:** Write a test to check for the `422` error when query parameters are missing.
--   `[ ]` **Testing:** Write a test that simulates a failure in the `RealtimeDataLoader` and asserts a `500` error is returned.
+-   `[x]` **Backend:** In `backend/main.py`, define a new Pydantic model or use `Depends` for the `instrument` and `timeframe` query parameters.
+-   `[x]` **Backend:** Create a new `async def` function for the `/api/historical-data` route, decorated with `@app.get("/api/historical-data")`.
+-   `[x]` **Backend:** Add `current_user: dict = Depends(get_current_user)` to the function signature to enforce authentication.
+-   `[x]` **Backend:** Inside the function, instantiate `RealtimeDataLoader`.
+-   `[x]` **Backend:** Call `loader.fetch_and_process_data(instrument=instrument, timeframe=timeframe)`.
+-   `[x]` **Backend:** Convert the resulting pandas DataFrame to JSON using `df.to_json(orient='records')`.
+-   `[x]` **Backend:** Implement a try-except block to catch potential exceptions from the data loader and return appropriate `HTTPException`s.
+-   `[x]` **Testing:** In `tests/test_api/`, create `test_historical_data_endpoint.py`.
+-   `[x]` **Testing:** Write a test that mocks the `RealtimeDataLoader` and asserts that the endpoint returns a `200` status and correctly formatted JSON data.
+-   `[x]` **Testing:** Write a test for the authentication, asserting a `401 Unauthorized` error is returned without a valid token.
+-   `[x]` **Testing:** Write a test to check for the `422` error when query parameters are missing.
+-   `[x]` **Testing:** Write a test that simulates a failure in the `RealtimeDataLoader` and asserts a `500` error is returned.
 
 ---

@@ -18,15 +18,15 @@ As a developer, I need to implement the client-side logic to fetch the system co
 8.  If the API call fails, a user-friendly error message is displayed using the `Sonner` toast notification component.
 
 **Tasks / Subtasks:**
--   `[ ]` **Frontend:** In `frontend/lib/api.ts`, add a new `getConfig` async function.
--   `[ ]` **Frontend:** Use the `fetch` API or a library like `axios` to make the GET request to `/api/config`.
--   `[ ]` **Frontend:** Define a TypeScript interface for the configuration data.
--   `[ ]` **Frontend:** In `frontend/app/dashboard/page.tsx`, add state variables for `instruments`, `timeframes`, `isLoadingConfig`, and `configError`.
--   `[ ]` **Frontend:** Implement the `useEffect` hook to call `getConfig` and update the state.
--   `[ ]` **Frontend:** Map over the `instruments` and `timeframes` state variables to render the `SelectItem` components within the dropdowns.
--   `[ ]` **Frontend:** Use conditional rendering to show a loading spinner when `isLoadingConfig` is true.
--   `[ ]` **Frontend:** In the `catch` block of the `useEffect` hook, call `toast.error()` from the `Sonner` library to display any errors.
--   `[ ]` **Testing:** Write a unit test for the `getConfig` API client function, mocking the `fetch` call.
--   `[ ]` **Testing:** Write a component test for the `DashboardPage` to verify that the dropdowns are populated correctly after the API call.
+-   `[x]` **Frontend:** In `frontend/lib/api.ts`, add a new `getConfig` async function.
+-   `[x]` **Frontend:** Use the `fetch` API or a library like `axios` to make the GET request to `/api/config`.
+-   `[x]` **Frontend:** Define a TypeScript interface for the configuration data.
+-   `[x]` **Frontend:** In `frontend/app/dashboard/page.tsx`, add state variables for `instruments`, `timeframes`, `isLoadingConfig`, and `configError`.
+-   `[x]` **Frontend:** Implement the `useEffect` hook to call `getConfig` and update the state.
+-   `[x]` **Frontend:** Map over the `instruments` and `timeframes` state variables to render the `SelectItem` components within the dropdowns.
+-   `[x]` **Frontend:** Use conditional rendering to show a loading spinner when `isLoadingConfig` is true.
+-   `[x]` **Frontend:** In the `catch` block of the `useEffect` hook, call `toast.error()` from the `Sonner` library to display any errors.
+-   `[x]` **Testing:** Write a unit test for the `getConfig` API client function, mocking the `fetch` call.
+-   `[x]` **Testing:** Write a component test for the `DashboardPage` to verify that the dropdowns are populated correctly after the API call.
 
 ---

@@ -2,7 +2,7 @@
 
 ### **Story 2.1.2: Implement Capital-Aware Quantity Validation**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a developer, I need to validate the quantity predicted by the model against the user's available capital, so that the system does not attempt to place trades that would be rejected due to insufficient funds.
@@ -16,12 +16,12 @@ As a developer, I need to validate the quantity predicted by the model against t
 6.  The system logs both the original predicted quantity and the final, adjusted quantity.
 
 **Tasks / Subtasks:**
--   `[ ]` **Backend:** In `src/trading/live_trading_service.py`, after the model generates a signal and quantity, add a call to fetch the user's current funds using the `FyersClient`.
--   `[ ]` **Backend:** Instantiate the `CapitalAwareQuantity` class.
--   `[ ]` **Backend:** Call the `adjust_quantity_for_capital` method, passing the necessary parameters.
--   `[ ]` **Backend:** Implement the logic to compare the predicted quantity with the adjusted quantity and use the smaller value.
--   `[ ]` **Backend:** Add a condition to prevent placing a trade if the final quantity is zero.
--   `[ ]` **Backend:** Add detailed logging for this validation step.
+-   `[x]` **Backend:** In `src/trading/live_trading_service.py`, after the model generates a signal and quantity, add a call to fetch the user's current funds using the `FyersClient`.
+-   `[x]` **Backend:** Instantiate the `CapitalAwareQuantity` class.
+-   `[x]` **Backend:** Call the `adjust_quantity_for_capital` method, passing the necessary parameters.
+-   `[x]` **Backend:** Implement the logic to compare the predicted quantity with the adjusted quantity and use the smaller value.
+-   `[x]` **Backend:** Add a condition to prevent placing a trade if the final quantity is zero.
+-   `[x]` **Backend:** Add detailed logging for this validation step.
 -   `[ ]` **Testing:** In `tests/test_trading/`, add a new test file `test_capital_aware_integration.py`.
 -   `[ ]` **Testing:** Write a unit test that simulates a model prediction and verifies that the `adjust_quantity_for_capital` method is called with the correct parameters.
 -   `[ ]` **Testing:** Write a test where the predicted quantity is higher than the allowable quantity and assert that the final quantity is correctly adjusted downwards.

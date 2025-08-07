@@ -19,7 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
 import { TradingChart } from "@/components/trading-chart"
-import { apiClient, type Instrument, type ConfigResponse, type CandlestickData, formatApiError } from "@/lib/api"
+import WebSocketService from "@/lib/websocket";
+import { useLiveDataStore } from "@/store/live-data";
 import { toast } from "sonner"
 
 import { formatIndianCurrency } from "@/lib/formatters"
@@ -78,34 +79,24 @@ export default function DashboardPage() {
   const [chartError, setChartError] = React.useState<string | null>(null)
   const router = useRouter()
 
-  React.useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const [profile, funds, metrics] = await Promise.all([
-          apiClient.getProfile(),
-          apiClient.getFunds(),
-          apiClient.getMetrics()
-        ])
+  const { isConnected, lastTick, position, setActivePosition } = useLiveDataStore();
 
-        setUserData({
-          name: profile.name,
-          capital: funds.totalFunds,
-          todayPnL: funds.todayPnL, 
-          totalTrades: metrics.totalTrades, 
-          winRate: metrics.winRate, 
-          lastTradeTime: metrics.lastTradeTime
-        })
-      } catch (err) {
-        console.error('Failed to fetch profile:', err)
-        if (err instanceof Error && err.message.includes('401')) {
-          router.push('/login')
-        }
-      } finally {
-        setIsLoading(false)
+  React.useEffect(() => {
+    const webSocketService = new WebSocketService(`ws://localhost:8000/ws/live/${userData.userId}`);
+    webSocketService.onMessage((event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === 'tick') {
+        useLiveDataStore.getState().setLastTick(message.data);
+      } else if (message.type === 'position_update') {
+        setActivePosition(message.data);
       }
-    }
-    fetchUserProfile()
-  }, [router])
+    });
+    webSocketService.connect();
+
+    return () => {
+      webSocketService.disconnect();
+    };
+  }, [router, setActivePosition, userData.userId]);
 
   React.useEffect(() => {
     const fetchConfig = async () => {
@@ -304,18 +295,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 p-4 border rounded-lg">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
-                      <Activity className="h-4 w-4 text-blue-600" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">System Status</p>
-                      <p className="text-sm text-muted-foreground">
-                        All systems operational - API connected
-                      </p>
-                    </div>
-                    <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                  </div>
+                  <ConnectionStatus />
                 </div>
               </CardContent>
             </Card>
@@ -438,6 +418,8 @@ export default function DashboardPage() {
                       candlestickData={historicalData}
                       title={`${selectedInstrument} - ${selectedTimeframe === 'D' ? 'Daily' : `${selectedTimeframe}m`}`}
                       className="h-full"
+                      stopLoss={position?.stopLoss}
+                      targetPrice={position?.targetPrice}
                     />
                   </div>
                 )}

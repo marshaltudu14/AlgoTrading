@@ -2,7 +2,7 @@
 
 ### **Story 1.3.1: Integrate Real-time Data into Trading Chart**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a developer, I need to connect the `TradingChart` component to the real-time data stream from the WebSocket, so that the chart updates live with new tick data.
@@ -16,12 +16,12 @@ As a developer, I need to connect the `TradingChart` component to the real-time 
 6.  The component's performance is optimized to handle a high frequency of tick updates without causing UI lag.
 
 **Tasks / Subtasks:**
--   `[ ]` **Frontend:** In `components/trading-chart.tsx`, import and use the state management store (e.g., `useLiveDataStore`).
--   `[ ]` **Frontend:** Create a `useEffect` hook that listens for changes to the `latestTick` in the store.
--   `[ ]` **Frontend:** Inside this `useEffect` hook, call the `candlestickSeriesRef.current.update()` method with the data from the new tick.
--   `[ ]` **Frontend:** Ensure the `time` property of the tick data is correctly formatted as a `UTCTimestamp` before being passed to the chart.
--   `[ ]` **Frontend:** Use the `chartRef.current.timeScale().scrollToRealTime()` method to ensure the chart stays focused on the latest data.
--   `[ ]` **Frontend:** Profile the component's performance using React DevTools to ensure there are no unnecessary re-renders.
+-   `[x]` **Frontend:** In `components/trading-chart.tsx`, import and use the state management store (e.g., `useLiveDataStore`).
+-   `[x]` **Frontend:** Create a `useEffect` hook that listens for changes to the `latestTick` in the store.
+-   `[x]` **Frontend:** Inside this `useEffect` hook, call the `candlestickSeriesRef.current.update()` method with the data from the new tick.
+-   `[x]` **Frontend:** Ensure the `time` property of the tick data is correctly formatted as a `UTCTimestamp` before being passed to the chart.
+-   `[x]` **Frontend:** Use the `chartRef.current.timeScale().scrollToRealTime()` method to ensure the chart stays focused on the latest data.
+-   `[x]` **Frontend:** Profile the component's performance using React DevTools to ensure there are no unnecessary re-renders.
 -   `[ ]` **Testing:** Write a component test for `TradingChart` that simulates receiving new tick data from the store and asserts that the chart's `update` method is called with the correct data.
 
 ---

@@ -2,7 +2,7 @@
 
 ### **Story 2.2.2: Calculate ATR-based Stop-Loss and Target**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a developer, I need to integrate the ATR calculation into the `TradingEnv` to automatically determine stop-loss (SL) and target price (TP) levels for new positions based on a configurable risk-reward ratio.
@@ -18,12 +18,12 @@ As a developer, I need to integrate the ATR calculation into the `TradingEnv` to
 5.  The system logs the calculated SL and TP values when a new position is opened.
 
 **Tasks / Subtasks:**
--   `[ ]` **Backend:** In `src/config/config.py`, add a new configuration variable for `RISK_REWARD_RATIO` (e.g., `RISK_REWARD_RATIO = {"risk_units": 1, "reward_units": 2}`).
--   `[ ]` **Backend:** In `src/backtesting/environment.py` (or wherever `TradingEnv` is defined), modify the `enter_trade` or equivalent method to accept `current_atr` and `entry_price` as parameters.
--   `[ ]` **Backend:** Implement the logic within `TradingEnv` to calculate `SL_Factor` and `TP_Factor` based on `RISK_REWARD_RATIO`.
--   `[ ]` **Backend:** Implement the SL and TP calculation formulas based on the `direction` of the trade.
--   `[ ]` **Backend:** Update the `Position` object (or internal state representing the position) to store the calculated `stopLoss` and `targetPrice`.
--   `[ ]` **Backend:** Add logging to output the calculated SL and TP values.
+-   `[x]` **Backend:** In `src/config/config.py`, add a new configuration variable for `RISK_REWARD_RATIO` (e.g., `RISK_REWARD_RATIO = {"risk_units": 1, "reward_units": 2}`).
+-   `[x]` **Backend:** In `src/backtesting/environment.py` (or wherever `TradingEnv` is defined), modify the `enter_trade` or equivalent method to accept `current_atr` and `entry_price` as parameters.
+-   `[x]` **Backend:** Implement the logic within `TradingEnv` to calculate `SL_Factor` and `TP_Factor` based on `RISK_REWARD_RATIO`.
+-   `[x]` **Backend:** Implement the SL and TP calculation formulas based on the `direction` of the trade.
+-   `[x]` **Backend:** Update the `Position` object (or internal state representing the position) to store the calculated `stopLoss` and `targetPrice`.
+-   `[x]` **Backend:** Add logging to output the calculated SL and TP values.
 -   `[ ]` **Testing:** In `tests/test_backtesting/`, create `test_trading_env_sl_tp.py`.
 -   `[ ]` **Testing:** Write a unit test that initializes `TradingEnv` with a mock `current_atr` and `entry_price`.
 -   `[ ]` **Testing:** Assert that for both long and short positions, the calculated `stopLoss` and `targetPrice` are correct based on the `RISK_REWARD_RATIO`.

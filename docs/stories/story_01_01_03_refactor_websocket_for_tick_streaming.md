@@ -16,13 +16,13 @@ As a developer, I need to refactor the existing WebSocket endpoint to primarily 
 6.  The WebSocket connection includes a keep-alive mechanism (ping/pong) to ensure a stable connection.
 
 **Tasks / Subtasks:**
--   `[ ]` **Backend:** In `LiveTradingService`, create a callback function to handle incoming tick data from the `FyersClient` WebSocket.
--   `[ ]` **Backend:** This callback should not perform any processing; it should simply pass the tick data to the WebSocket manager in `backend/main.py`.
--   `[ ]` **Backend:** In `backend/main.py`, modify the `/ws/live/{user_id}` endpoint to handle the incoming tick data from the `LiveTradingService`.
--   `[ ]` **Backend:** Implement a broadcast mechanism to send the tick data to all connected clients for that `user_id`.
--   `[ ]` **Backend:** Define the exact JSON structure for the `"tick"` message type.
--   `[ ]` **Testing:** In `tests/test_api/`, create `test_websocket_tick_streaming.py`.
--   `[ ]` **Testing:** Write a test that simulates a `LiveTradingService` sending tick data and asserts that the WebSocket client receives the correctly formatted JSON message.
--   `[ ]` **Testing:** Write a test to verify the ping/pong mechanism maintains the connection.
+-   `[x]` **Backend:** In `LiveTradingService`, create a callback function to handle incoming tick data from the `FyersClient` WebSocket.
+-   `[x]` **Backend:** This callback should not perform any processing; it should simply pass the tick data to the WebSocket manager in `backend/main.py`.
+-   `[x]` **Backend:** In `backend/main.py`, modify the `/ws/live/{user_id}` endpoint to handle the incoming tick data from the `LiveTradingService`.
+-   `[x]` **Backend:** Implement a broadcast mechanism to send the tick data to all connected clients for that `user_id`.
+-   `[x]` **Backend:** Define the exact JSON structure for the `"tick"` message type.
+-   `[x]` **Testing:** In `tests/test_api/`, create `test_websocket_tick_streaming.py`.
+-   `[x]` **Testing:** Write a test that simulates a `LiveTradingService` sending tick data and asserts that the WebSocket client receives the correctly formatted JSON message.
+-   `[x]` **Testing:** Write a test to verify the ping/pong mechanism maintains the connection.
 
 ---

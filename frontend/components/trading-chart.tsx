@@ -48,7 +48,11 @@ interface TradingChartProps {
   className?: string
   windowSize?: number // For sliding window functionality
   enableSlidingWindow?: boolean // Whether to enable sliding window (only for backtests)
+  stopLoss?: number
+  targetPrice?: number
 }
+
+import { useLiveDataStore } from "@/store/live-data";
 
 export function TradingChart({
   candlestickData = [],
@@ -59,12 +63,16 @@ export function TradingChart({
   fullScreen = false,
   className = "",
   windowSize: _windowSize = 100, // eslint-disable-line @typescript-eslint/no-unused-vars
-  enableSlidingWindow = false
+  enableSlidingWindow = false,
+  stopLoss,
+  targetPrice,
 }: TradingChartProps) {
   const chartContainerRef = React.useRef<HTMLDivElement>(null)
   const chartRef = React.useRef<IChartApi | null>(null)
   const candlestickSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
   const portfolioSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
+  const slPriceLineRef = React.useRef<any>(null)
+  const tpPriceLineRef = React.useRef<any>(null)
   const { theme } = useTheme()
   const [chartHeight, setChartHeight] = React.useState(400) // eslint-disable-line @typescript-eslint/no-unused-vars
 
@@ -252,35 +260,26 @@ export function TradingChart({
     }
   }, [fullScreen])
 
+  const { lastTick } = useLiveDataStore();
+
   // Real-time data updates using TradingView's update() method
   React.useEffect(() => {
-    if (candlestickSeriesRef.current && candlestickData.length > 0) {
-      const latestCandle = candlestickData[candlestickData.length - 1]
-
-      // Format the candle data for lightweight-charts
+    if (candlestickSeriesRef.current && lastTick) {
       const formattedCandle = {
-        time: typeof latestCandle.time === 'string' ?
-          latestCandle.time.includes('T') ? latestCandle.time.split('T')[0] : latestCandle.time :
-          (latestCandle.time as UTCTimestamp),
-        open: latestCandle.open,
-        high: latestCandle.high,
-        low: latestCandle.low,
-        close: latestCandle.close,
-      }
+        time: lastTick.timestamp as UTCTimestamp,
+        open: lastTick.open,
+        high: lastTick.high,
+        low: lastTick.low,
+        close: lastTick.price,
+      };
 
-      // Use update() method for real-time updates (TradingView approach)
-      candlestickSeriesRef.current.update(formattedCandle)
+      candlestickSeriesRef.current.update(formattedCandle);
 
-      // Auto-scroll to show latest data
-      if (enableSlidingWindow) {
-        setTimeout(() => {
-          if (chartRef.current) {
-            chartRef.current.timeScale().scrollToRealTime()
-          }
-        }, 50)
+      if (chartRef.current) {
+        chartRef.current.timeScale().scrollToRealTime();
       }
     }
-  }, [candlestickData, enableSlidingWindow])
+  }, [lastTick]);
 
   // Initial data loading for demo/static data
   React.useEffect(() => {
@@ -336,6 +335,43 @@ export function TradingChart({
       createSeriesMarkers(candlestickSeriesRef.current, formattedMarkers)
     }
   }, [tradeMarkers])
+
+  // Update SL/TP lines
+  React.useEffect(() => {
+    if (!candlestickSeriesRef.current) return;
+
+    // Remove existing lines before adding new ones
+    if (slPriceLineRef.current) {
+      candlestickSeriesRef.current.removePriceLine(slPriceLineRef.current);
+      slPriceLineRef.current = null;
+    }
+    if (tpPriceLineRef.current) {
+      candlestickSeriesRef.current.removePriceLine(tpPriceLineRef.current);
+      tpPriceLineRef.current = null;
+    }
+
+    if (stopLoss) {
+      slPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
+        price: stopLoss,
+        color: '#ef4444',
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: 'SL',
+      });
+    }
+
+    if (targetPrice) {
+      tpPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
+        price: targetPrice,
+        color: '#22c55e',
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: 'TP',
+      });
+    }
+  }, [stopLoss, targetPrice]);
 
 
 

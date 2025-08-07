@@ -18,16 +18,16 @@ As a developer, I need to implement the client-side logic to fetch historical da
 8.  If the API call fails, a `Sonner` toast notification is displayed with a user-friendly error message.
 
 **Tasks / Subtasks:**
--   `[ ]` **Frontend:** In `frontend/lib/api.ts`, add a new `getHistoricalData` async function that takes `instrument` and `timeframe` as parameters.
--   `[ ]` **Frontend:** Use the `fetch` API to make the GET request to `/api/historical-data` with the correct query parameters.
--   `[ ]` **Frontend:** Define a TypeScript interface for the candlestick data that matches the `CandlestickData` interface in `TradingChart.tsx`.
--   `[ ]` **Frontend:** In `frontend/app/dashboard/page.tsx`, add state variables for `historicalData`, `isChartLoading`, and `chartError`.
--   `[ ]` **Frontend:** Create a function (e.g., `handleSelectionChange`) that is triggered by the `onValueChange` event of the `Select` components.
--   `[ ]` **Frontend:** Inside `handleSelectionChange`, set `isChartLoading` to true and call `getHistoricalData`.
--   `[ ]` **Frontend:** On a successful response, update the `historicalData` state and set `isChartLoading` to false.
--   `[ ]` **Frontend:** Pass the `historicalData` and `isChartLoading` state variables as props to the `TradingChart` component.
--   `[ ]` **Frontend:** In the `catch` block, call `toast.error()` to display any errors.
--   `[ ]` **Testing:** Write a unit test for the `getHistoricalData` API client function.
--   `[ ]` **Testing:** Write a component test for the `DashboardPage` to verify that the `TradingChart` is updated when the user selects a new instrument or timeframe.
+-   `[x]` **Frontend:** In `frontend/lib/api.ts`, add a new `getHistoricalData` async function that takes `instrument` and `timeframe` as parameters.
+-   `[x]` **Frontend:** Use the `fetch` API to make the GET request to `/api/historical-data` with the correct query parameters.
+-   `[x]` **Frontend:** Define a TypeScript interface for the candlestick data that matches the `CandlestickData` interface in `TradingChart.tsx`.
+-   `[x]` **Frontend:** In `frontend/app/dashboard/page.tsx`, add state variables for `historicalData`, `isChartLoading`, and `chartError`.
+-   `[x]` **Frontend:** Create a function (e.g., `handleSelectionChange`) that is triggered by the `onValueChange` event of the `Select` components.
+-   `[x]` **Frontend:** Inside `handleSelectionChange`, set `isChartLoading` to true and call `getHistoricalData`.
+-   `[x]` **Frontend:** On a successful response, update the `historicalData` state and set `isChartLoading` to false.
+-   `[x]` **Frontend:** Pass the `historicalData` and `isChartLoading` state variables as props to the `TradingChart` component.
+-   `[x]` **Frontend:** In the `catch` block, call `toast.error()` to display any errors.
+-   `[x]` **Testing:** Write a unit test for the `getHistoricalData` API client function.
+-   `[x]` **Testing:** Write a component test for the `DashboardPage` to verify that the `TradingChart` is updated when the user selects a new instrument or timeframe.
 
 ---

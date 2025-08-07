@@ -2,7 +2,7 @@
 
 ### **Story 2.3.3: Map Index SL/TP to Option Prices**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a developer, I need to implement a function that translates the stop-loss (SL) and target price (TP) levels of an underlying index/stock to the corresponding option contract's price, so that options positions can be managed effectively based on the underlying's movement.
