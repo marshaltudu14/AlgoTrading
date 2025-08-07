@@ -2,7 +2,7 @@
 
 ### **Story 4.4.1: Distinguish Manual vs. Automated Trades in UI**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a user, I want the user interface to clearly distinguish between manual and automated trades on the chart, so that I can easily identify the origin of each position and analyze their performance separately.

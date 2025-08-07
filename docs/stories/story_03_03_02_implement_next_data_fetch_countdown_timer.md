@@ -2,7 +2,7 @@
 
 ### **Story 3.3.2: Implement Next Data Fetch Countdown Timer**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a user, I want to see a countdown timer on the frontend indicating when the next data fetch for the model will occur, so that I am aware of the system's operational rhythm.

@@ -31,6 +31,22 @@ interface TradeMarker {
   size?: number
 }
 
+interface Position {
+  instrument: string;
+  direction: 'Long' | 'Short';
+  entryPrice: number;
+  quantity: number;
+  stopLoss?: number;
+  targetPrice?: number;
+  currentPnl: number;
+  tradeType: 'Automated' | 'Manual';
+  isOpen: boolean;
+  entryTime: string;
+  exitPrice?: number;
+  exitTime?: string;
+  pnl?: number;
+}
+
 interface PortfolioData {
   time: string | number | UTCTimestamp
   value: number
@@ -50,6 +66,7 @@ interface TradingChartProps {
   enableSlidingWindow?: boolean // Whether to enable sliding window (only for backtests)
   stopLoss?: number
   targetPrice?: number
+  activePosition?: Position | null;
 }
 
 import { useLiveDataStore } from "@/store/live-data";
@@ -66,6 +83,7 @@ export function TradingChart({
   enableSlidingWindow = false,
   stopLoss,
   targetPrice,
+  activePosition,
 }: TradingChartProps) {
   const chartContainerRef = React.useRef<HTMLDivElement>(null)
   const chartRef = React.useRef<IChartApi | null>(null)
@@ -73,6 +91,8 @@ export function TradingChart({
   const portfolioSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
   const slPriceLineRef = React.useRef<any>(null)
   const tpPriceLineRef = React.useRef<any>(null)
+  const positionAreaSeriesRefs = React.useRef<{ top: any; bottom: any; } | null>(null)
+  const positionAreaSeriesRef = React.useRef<any>(null)
   const { theme } = useTheme()
   const [chartHeight, setChartHeight] = React.useState(400) // eslint-disable-line @typescript-eslint/no-unused-vars
 
@@ -320,21 +340,40 @@ export function TradingChart({
 
   // Update trade markers
   React.useEffect(() => {
-    if (candlestickSeriesRef.current && tradeMarkers.length > 0) {
-      const formattedMarkers = tradeMarkers.map(marker => ({
-        time: typeof marker.time === 'string' ?
-          marker.time.includes('T') ? marker.time.split('T')[0] : marker.time :
-          (Math.floor(marker.time as number / 1000) as UTCTimestamp),
-        position: marker.position,
-        color: marker.color,
-        shape: marker.shape,
-        text: marker.text,
-      }))
+    if (candlestickSeriesRef.current) {
+      const markers: TradeMarker[] = [];
 
-      // Use the new v5 markers API
-      createSeriesMarkers(candlestickSeriesRef.current, formattedMarkers)
+      // Add markers from tradeMarkers prop (for historical trades)
+      if (tradeMarkers.length > 0) {
+        const formattedMarkers = tradeMarkers.map(marker => ({
+          time: typeof marker.time === 'string' ?
+            marker.time.includes('T') ? marker.time.split('T')[0] : marker.time :
+            (Math.floor(marker.time as number / 1000) as UTCTimestamp),
+          position: marker.position,
+          color: marker.color,
+          shape: marker.shape,
+          text: marker.text,
+        }));
+        markers.push(...formattedMarkers);
+      }
+
+      // Add markers for active position (entry/exit)
+      if (activePosition) {
+        // Entry marker
+        if (activePosition.entryTime && activePosition.entryPrice) {
+          const entryAction = activePosition.direction === 'Long' ? 'BUY' : 'SELL';
+          markers.push(createTradeMarker(activePosition.entryTime, entryAction, activePosition.entryPrice, activePosition.tradeType));
+        }
+        // Exit marker
+        if (!activePosition.isOpen && activePosition.exitTime && activePosition.exitPrice) {
+          const exitAction = activePosition.direction === 'Long' ? 'CLOSE_LONG' : 'CLOSE_SHORT';
+          markers.push(createTradeMarker(activePosition.exitTime, exitAction, activePosition.exitPrice, activePosition.tradeType));
+        }
+      }
+
+      createSeriesMarkers(candlestickSeriesRef.current, markers);
     }
-  }, [tradeMarkers])
+  }, [tradeMarkers, activePosition]);
 
   // Update SL/TP lines
   React.useEffect(() => {
@@ -372,6 +411,54 @@ export function TradingChart({
       });
     }
   }, [stopLoss, targetPrice]);
+
+  React.useEffect(() => {
+    if (!chartRef.current || !candlestickSeriesRef.current) return;
+
+    // Cleanup previous series
+    if (positionAreaSeriesRefs.current) {
+      chartRef.current.removeSeries(positionAreaSeriesRefs.current.top);
+      chartRef.current.removeSeries(positionAreaSeriesRefs.current.bottom);
+      positionAreaSeriesRefs.current = null;
+    }
+
+    if (activePosition && activePosition.isOpen && lastTick) {
+      const topSeries = chartRef.current.addAreaSeries({
+        priceScaleId: 'right',
+        lineWidth: 0,
+      });
+      const bottomSeries = chartRef.current.addAreaSeries({
+        priceScaleId: 'right',
+        lineWidth: 0,
+      });
+
+      positionAreaSeriesRefs.current = { top: topSeries, bottom: bottomSeries };
+
+      const isLong = activePosition.direction === 'Long';
+      const isProfitable = isLong ? lastTick.price > activePosition.entryPrice : lastTick.price < activePosition.entryPrice;
+
+      let profitableColor = 'rgba(34, 197, 94, 0.2)'; // Green for automated profitable
+      let losingColor = 'rgba(239, 68, 68, 0.2)'; // Red for automated losing
+
+      if (activePosition.tradeType === 'Manual') {
+        profitableColor = 'rgba(59, 130, 246, 0.2)'; // Blue for manual profitable
+        losingColor = 'rgba(251, 191, 36, 0.2)'; // Amber for manual losing
+      }
+
+      const color = isProfitable ? profitableColor : losingColor;
+
+      topSeries.applyOptions({ topColor: color, bottomColor: color });
+      bottomSeries.applyOptions({ topColor: color, bottomColor: color });
+
+      const seriesData = [
+        { time: activePosition.entryTime as UTCTimestamp, value: activePosition.entryPrice },
+        { time: lastTick.timestamp as UTCTimestamp, value: lastTick.price },
+      ];
+
+      topSeries.setData(seriesData.map(d => ({ time: d.time, value: Math.max(d.value, activePosition.entryPrice) })));
+      bottomSeries.setData(seriesData.map(d => ({ time: d.time, value: Math.min(d.value, activePosition.entryPrice) })));
+    }
+  }, [activePosition, lastTick]);
 
 
 
@@ -463,30 +550,31 @@ export function TradingChart({
 export function createTradeMarker(
   time: string | number | UTCTimestamp,
   action: 'BUY' | 'SELL' | 'CLOSE_LONG' | 'CLOSE_SHORT' | 'HOLD',
-  price?: number
+  price?: number,
+  tradeType?: 'Automated' | 'Manual'
 ): TradeMarker {
   const markerConfig = {
     BUY: {
       position: 'belowBar' as const,
-      color: '#22c55e',
+      color: tradeType === 'Manual' ? '#3b82f6' : '#22c55e',
       shape: 'arrowUp' as const,
       text: 'B',
     },
     SELL: {
       position: 'aboveBar' as const,
-      color: '#ef4444',
+      color: tradeType === 'Manual' ? '#f59e0b' : '#ef4444',
       shape: 'arrowDown' as const,
       text: 'S',
     },
     CLOSE_LONG: {
       position: 'aboveBar' as const,
-      color: '#3b82f6',
+      color: tradeType === 'Manual' ? '#60a5fa' : '#3b82f6',
       shape: 'circle' as const,
       text: 'CL',
     },
     CLOSE_SHORT: {
       position: 'belowBar' as const,
-      color: '#f59e0b',
+      color: tradeType === 'Manual' ? '#fbbf24' : '#f59e0b',
       shape: 'circle' as const,
       text: 'CS',
     },

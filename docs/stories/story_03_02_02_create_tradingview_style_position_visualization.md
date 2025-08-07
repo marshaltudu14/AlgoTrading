@@ -2,7 +2,7 @@
 
 ### **Story 3.2.2: Create TradingView-Style Position Visualization**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a user, I want to see a visual representation of my active trade on the chart, similar to TradingView's long/short position tool, so that I can easily understand the current state and potential profit/loss of the position.

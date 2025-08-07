@@ -30,6 +30,9 @@ from agents.ppo_agent import PPOAgent
 
 
 
+from utils.metrics_calculator import MetricsCalculator
+from utils.trade_logger import TradeLogger
+
 logger = logging.getLogger(__name__)
 
 class LiveTradingService:
@@ -114,10 +117,10 @@ class LiveTradingService:
             logger.info("Initializing Fyers API connection")
             
             # Create Fyers model for API calls
-            self.fyers_model = create_fyers_model(self.access_token, self.app_id)
+            self.fyers_model = create_fyers_model(self.access_token)
             
             # Create WebSocket for real-time data
-            self.fyers_socket = create_fyers_websocket(self.access_token, self.app_id)
+            self.fyers_socket = create_fyers_websocket(self.access_token)
             
             # Set up WebSocket callbacks
             self.fyers_socket.on_connect = self._on_websocket_connect
@@ -240,14 +243,16 @@ class LiveTradingService:
                 "stopLoss": float(stop_loss) if stop_loss else 0.0,
                 "targetPrice": float(target_price) if target_price else 0.0,
                 "currentPnl": float(current_pnl),
-                "tradeType": "Automated",  # LiveTradingService generates automated trades
-                "isOpen": bool(is_position_open)
+                "tradeType": self.active_position.trade_type, # Use the actual trade_type from the active_position
+                "isOpen": bool(is_position_open),
+                "entryTime": self.active_position.entry_time.isoformat() if self.active_position else None
             }
             
             # Add exit price and final PnL for closed positions
             if not is_position_open and position_quantity == 0:
                 # Position was closed, include exit information
                 position_data["exitPrice"] = float(self.current_price)
+                position_data["exitTime"] = datetime.now().isoformat()
                 # For closed positions, currentPnL becomes the final PnL
                 position_data["pnl"] = position_data["currentPnl"]
             
@@ -584,6 +589,28 @@ class LiveTradingService:
 
         logger.info(f"Closing position for reason: {reason}")
 
+        trade_data = {
+            "trade_id": f"{self.user_id}_{datetime.now().timestamp()}`,
+            "instrument": self.active_position.instrument,
+            "timeframe": self.timeframe,
+            "direction": self.active_position.direction,
+            "entry_price": self.active_position.entry_price,
+            "exit_price": self.current_price,
+            "quantity": self.active_position.quantity,
+            "pnl": (self.current_price - self.active_position.entry_price) * self.active_position.quantity if self.active_position.direction == "Long" else (self.active_position.entry_price - self.current_price) * self.active_position.quantity,
+            "entry_time": self.active_position.entry_time.isoformat(),
+            "exit_time": datetime.now().isoformat(),
+            "trade_type": self.active_position.trade_type,
+            "status": "Closed",
+            "reason": reason
+        }
+
+        trade_logger = TradeLogger()
+        trade_logger.log_trade(trade_data)
+
+        metrics_calculator = MetricsCalculator()
+        metrics_calculator.update_metrics(trade_data)
+
         for i in range(3):
             try:
                 exit_response = self.fyers_model.exit_positions(id=self.active_position.instrument)
@@ -660,6 +687,65 @@ class LiveTradingService:
             "1h": 3600
         }
         return timeframe_map.get(self.timeframe, 300)  # Default 5 minutes
+
+    async def initiate_manual_trade(self, instrument: str, direction: str, quantity: int, sl: Optional[float], tp: Optional[float], user_id: str):
+        """Initiate a manual trade"""
+        if self.active_position and self.active_position.trade_type == "Automated":
+            raise Exception("Cannot initiate manual trade while an automated trade is active.")
+
+        # Pause the automated trading loop
+        self.is_running = False
+
+        try:
+            # Perform margin and risk validation
+            funds = self.fyers_model.funds()
+            available_capital = funds['fund_limit'][10]['equityAmount']
+
+            capital_aware_quantity = CapitalAwareQuantitySelector()
+            adjusted_quantity = capital_aware_quantity.adjust_quantity_for_capital(
+                predicted_quantity=quantity,
+                available_capital=available_capital,
+                current_price=self.current_price,
+                instrument=instrument
+            )
+
+            if adjusted_quantity < quantity:
+                raise Exception(f"Insufficient capital for the requested quantity. Maximum allowable quantity is {adjusted_quantity}.")
+
+            # Place the manual trade
+            product_type = "CNC" if "-EQ" in instrument.upper() else "INTRADAY"
+            side = 1 if direction.lower() == "buy" else -1
+
+            order_response = self.fyers_model.place_order(
+                symbol=instrument,
+                qty=quantity,
+                side=side,
+                productType=product_type
+            )
+
+            if order_response.get("s") == "ok":
+                order_id = order_response.get("id")
+                logger.info(f"Manual order placed successfully for {instrument}. Order ID: {order_id}")
+
+                self.active_position = Position(
+                    instrument=instrument,
+                    direction="Long" if direction.lower() == "buy" else "Short",
+                    entry_price=self.current_price,
+                    quantity=quantity,
+                    stop_loss=sl,
+                    target_price=tp,
+                    entry_time=datetime.now(),
+                    trade_type="Manual"
+                )
+                logger.info(f"New manual position created: {self.active_position}")
+                await self._broadcast_position_update()
+            else:
+                raise Exception(f"Failed to place manual order: {order_response.get('message')}")
+
+        except Exception as e:
+            # Resume the automated trading loop if the manual trade fails
+            self.is_running = True
+            raise e
     
     async def run(self):
         """Start live trading"""
@@ -745,6 +831,9 @@ class LiveTradingService:
         """Get current trading status"""
         win_rate = (self.win_count / self.total_trades * 100) if self.total_trades > 0 else 0
         
+        fetch_interval_seconds = self._get_sleep_duration()
+        next_fetch_timestamp = (datetime.now() + timedelta(seconds=fetch_interval_seconds)).isoformat()
+
         return {
             "status": self.status,
             "is_running": self.is_running,
@@ -755,5 +844,7 @@ class LiveTradingService:
             "position": self.current_position,
             "instrument": self.instrument,
             "timeframe": self.timeframe,
-            "option_strategy": self.option_strategy
+            "option_strategy": self.option_strategy,
+            "fetchIntervalSeconds": fetch_interval_seconds,
+            "nextFetchTimestamp": next_fetch_timestamp
         }

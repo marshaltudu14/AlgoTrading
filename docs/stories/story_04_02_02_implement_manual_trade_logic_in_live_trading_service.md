@@ -2,7 +2,7 @@
 
 ### **Story 4.2.2: Implement Manual Trade Logic in LiveTradingService**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a developer, I need to implement the core logic for handling manual trades within the `LiveTradingService`, including validation, execution, and pausing the automated model.

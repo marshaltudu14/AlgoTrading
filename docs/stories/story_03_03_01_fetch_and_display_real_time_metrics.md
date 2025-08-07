@@ -2,7 +2,7 @@
 
 ### **Story 3.3.1: Fetch and Display Real-time Metrics**
 
-**Status:** `Ready for dev`
+**Status:** `Completed`
 
 **Story:**
 As a user, I want to see real-time trading performance metrics on the dashboard, so that I can monitor my profitability and other key indicators at a glance.

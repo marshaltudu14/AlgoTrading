@@ -41,6 +41,7 @@ from trading.live_trading_service import LiveTradingService
 # Import existing trading components
 from backtesting.environment import TradingEnv, TradingMode
 from utils.data_loader import DataLoader
+from utils.user_action_logger import UserActionLogger
 from utils.realtime_data_loader import RealtimeDataLoader
 
 # Configure logging
@@ -69,19 +70,17 @@ app.add_middleware(
 
 # Security
 security = HTTPBearer()
-JWT_SECRET = "your-secret-key-change-in-production"  # TODO: Use environment variable
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
 JWT_ALGORITHM = "HS256"
 active_backtests: Dict[str, BacktestService] = {}
 active_live_sessions: Dict[str, LiveTradingService] = {}
+user_action_logger = UserActionLogger()
 
 # Pydantic models
 class LoginRequest(BaseModel):
-    app_id: str
-    secret_key: str
     redirect_uri: str
     fy_id: str
     pin: str
-    totp_secret: str
 
 class BacktestRequest(BaseModel):
     instrument: str
@@ -93,6 +92,13 @@ class LiveTradingRequest(BaseModel):
     instrument: str
     timeframe: str
     option_strategy: Optional[str] = "ITM"
+
+class ManualTradeRequest(BaseModel):
+    instrument: str
+    direction: str
+    quantity: int
+    stopLoss: Optional[float] = None
+    target: Optional[float] = None
 
 # Helper functions
 def create_jwt_token(user_id: str, access_token: str, app_id: str) -> str:
@@ -247,17 +253,18 @@ async def login(request: LoginRequest):
         
         # Call the refactored authentication function
         access_token = await authenticate_fyers_user(
-            app_id=request.app_id,
-            secret_key=request.secret_key,
+            app_id=os.getenv("FYERS_APP_ID"),
+            secret_key=os.getenv("FYERS_SECRET_KEY"),
             redirect_uri=request.redirect_uri,
             fy_id=request.fy_id,
             pin=request.pin,
-            totp_secret=request.totp_secret
+            totp_secret=os.getenv("FYERS_TOTP_SECRET")
         )
         
         # Create JWT session token
         session_token = create_jwt_token(request.fy_id, access_token, request.app_id)
         
+        user_action_logger.log_action(request.fy_id, "LOGIN", {"status": "success"})
         logger.info(f"Login successful for user: {request.fy_id}")
 
         # Create response with HTTP-only cookie
@@ -300,6 +307,7 @@ async def logout(current_user: dict = Depends(get_current_user)):
         # Clear the auth cookie
         response.delete_cookie(key="auth_token")
 
+        user_action_logger.log_action(user_id, "LOGOUT", {"status": "success"})
         logger.info(f"User {user_id} logged out successfully")
         return response
 
@@ -319,8 +327,7 @@ async def get_profile(current_user: dict = Depends(get_current_user)):
         
         # Get user profile from Fyers API
         profile_data = await get_user_profile(
-            access_token=access_token,
-            app_id=current_user["app_id"]
+            access_token=access_token
         )
         
         return {
@@ -417,6 +424,7 @@ async def start_live_trading(
         # Start live trading in background
         asyncio.create_task(live_service.run())
         
+        user_action_logger.log_action(user_id, "LIVE_TRADING_STARTED", {"instrument": request.instrument, "timeframe": request.timeframe})
         logger.info(f"Started live trading for user {user_id}")
         
         return {
@@ -451,6 +459,7 @@ async def stop_live_trading(current_user: dict = Depends(get_current_user)):
         # Remove from active sessions
         del active_live_sessions[user_id]
         
+        user_action_logger.log_action(user_id, "LIVE_TRADING_STOPPED", {"status": "success"})
         logger.info(f"Stopped live trading for user {user_id}")
         
         return {
@@ -600,6 +609,41 @@ async def websocket_backtest(websocket: WebSocket, backtest_id: str):
         if backtest_service:
             backtest_service.remove_websocket_client(websocket)
         logger.info(f"WebSocket disconnected for backtest {backtest_id}")
+
+@app.post("/api/manual-trade")
+async def manual_trade(
+    request: ManualTradeRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Initiate a manual trade"""
+    try:
+        user_id = current_user["user_id"]
+        live_service = active_live_sessions.get(user_id)
+
+        if not live_service:
+            raise HTTPException(
+                status_code=400,
+                detail="Live trading session not active"
+            )
+
+        await live_service.initiate_manual_trade(
+            instrument=request.instrument,
+            direction=request.direction,
+            quantity=request.quantity,
+            sl=request.stopLoss,
+            tp=request.target,
+            user_id=user_id
+        )
+
+        user_action_logger.log_action(user_id, "MANUAL_TRADE_INITIATED", {"instrument": request.instrument, "direction": request.direction, "quantity": request.quantity})
+        return {"status": "success", "message": "Manual trade initiated"}
+
+    except Exception as e:
+        logger.error(f"Failed to initiate manual trade: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to initiate manual trade: {str(e)}"
+        )
 
 @app.websocket("/ws/live/{user_id}")
 async def websocket_live_trading(websocket: WebSocket, user_id: str):

@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
 import { TradingChart } from "@/components/trading-chart"
+import { ManualTradeForm } from "@/components/manual-trade-form"
 import WebSocketService from "@/lib/websocket";
 import { useLiveDataStore } from "@/store/live-data";
 import { toast } from "sonner"
@@ -28,10 +29,6 @@ import { formatIndianCurrency } from "@/lib/formatters"
 interface DashboardUserData {
   name: string;
   capital: number;
-  todayPnL: number;
-  totalTrades: number;
-  winRate: number;
-  lastTradeTime: string;
 }
 
 const AnimatedNumber = ({ value, prefix = "", suffix = "", formatter }: { 
@@ -77,9 +74,14 @@ export default function DashboardPage() {
   const [historicalData, setHistoricalData] = React.useState<CandlestickData[]>([])
   const [isChartLoading, setIsChartLoading] = React.useState(false)
   const [chartError, setChartError] = React.useState<string | null>(null)
+  const [metrics, setMetrics] = React.useState<Metrics | null>(null)
+  const [isMetricsLoading, setIsMetricsLoading] = React.useState(true)
+  const [metricsError, setMetricsError] = React.useState<string | null>(null)
+  const [countdown, setCountdown] = React.useState("00:00")
+  const [fetchStatus, setFetchStatus] = React.useState("Idle")
   const router = useRouter()
 
-  const { isConnected, lastTick, position, setActivePosition } = useLiveDataStore();
+  const { isConnected, lastTick, activePosition, setActivePosition } = useLiveDataStore();
 
   React.useEffect(() => {
     const webSocketService = new WebSocketService(`ws://localhost:8000/ws/live/${userData.userId}`);
@@ -89,6 +91,8 @@ export default function DashboardPage() {
         useLiveDataStore.getState().setLastTick(message.data);
       } else if (message.type === 'position_update') {
         setActivePosition(message.data);
+      } else if (message.type === 'status') {
+        useLiveDataStore.getState().setStatus(message.data);
       }
     });
     webSocketService.connect();
@@ -121,6 +125,67 @@ export default function DashboardPage() {
     }
     fetchConfig()
   }, [])
+
+  React.useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        setIsMetricsLoading(true)
+        setMetricsError(null)
+        const data = await apiClient.getMetrics()
+        setMetrics(data)
+      } catch (err) {
+        const errorMessage = formatApiError(err)
+        console.error('Failed to fetch metrics:', err)
+        setMetricsError(errorMessage)
+        toast.error('Failed to load metrics', {
+          description: errorMessage
+        })
+      } finally {
+        setIsMetricsLoading(false)
+      }
+    }
+
+    fetchMetrics()
+    const interval = setInterval(fetchMetrics, 10000) // Fetch every 10 seconds
+
+    return () => clearInterval(interval)
+  }, [])
+
+  React.useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    const updateCountdown = () => {
+      const status = useLiveDataStore.getState().status;
+      if (status && status.nextFetchTimestamp) {
+        const now = new Date().getTime();
+        const nextFetch = new Date(status.nextFetchTimestamp).getTime();
+        const difference = nextFetch - now;
+
+        if (difference > 0) {
+          const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+          const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+          setCountdown(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+          setFetchStatus("Waiting");
+        } else {
+          setCountdown("00:00");
+          setFetchStatus("Fetching...");
+        }
+      }
+    };
+
+    const unsubscribe = useLiveDataStore.subscribe((state) => {
+      if (state.status?.fetchError) {
+        setFetchStatus(`Error: ${state.status.fetchError}`);
+      }
+    });
+
+    timer = setInterval(updateCountdown, 1000);
+
+    return () => {
+      clearInterval(timer);
+      unsubscribe();
+    };
+  }, []);
 
   const handleSelectionChange = React.useCallback(async (instrument?: string, timeframe?: string) => {
     // Use the current values or the provided ones
@@ -165,7 +230,18 @@ export default function DashboardPage() {
     handleSelectionChange(value, selectedTimeframe)
   }, [selectedTimeframe, handleSelectionChange])
 
-  const handleTimeframeChange = React.useCallback((value: string) => {
+  const handleManualTradeSubmit = async (values: any) => {
+    try {
+      await apiClient.manualTrade(values);
+      toast.success("Manual trade submitted successfully");
+    } catch (err) {
+      const errorMessage = formatApiError(err);
+      console.error("Failed to submit manual trade:", err);
+      toast.error("Failed to submit manual trade", {
+        description: errorMessage,
+      });
+    }
+  };
     setSelectedTimeframe(value)
     handleSelectionChange(selectedInstrument, value)
   }, [selectedInstrument, handleSelectionChange])
@@ -182,23 +258,23 @@ export default function DashboardPage() {
     },
     {
       title: "Today's P&L",
-      value: userData?.todayPnL || 0,
-      prefix: (userData?.todayPnL || 0) >= 0 ? "+₹" : "-₹",
-      icon: (userData?.todayPnL || 0) >= 0 ? TrendingUp : TrendingDown,
+      value: metrics?.todayPnL || 0,
+      prefix: (metrics?.todayPnL || 0) >= 0 ? "+₹" : "-₹",
+      icon: (metrics?.todayPnL || 0) >= 0 ? TrendingUp : TrendingDown,
       description: "Today's profit/loss",
-      color: (userData?.todayPnL || 0) >= 0 ? "text-green-600" : "text-red-600",
+      color: (metrics?.todayPnL || 0) >= 0 ? "text-green-600" : "text-red-600",
       formatter: formatIndianCurrency
     },
     {
       title: "Total Trades",
-      value: userData?.totalTrades || 0,
+      value: metrics?.totalTrades || 0,
       icon: BarChart3,
       description: "Trades executed",
       color: "text-purple-600"
     },
     {
       title: "Win Rate",
-      value: userData?.winRate || 0,
+      value: metrics?.winRate || 0,
       suffix: "%",
       icon: Target,
       description: "Success percentage",
@@ -230,35 +306,54 @@ export default function DashboardPage() {
 
           {/* Stats Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat, index) => (
-              <motion.div
-                key={stat.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
-                <Card>
+            {isMetricsLoading ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <Card key={index}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      {stat.title}
-                    </CardTitle>
-                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                    <CardTitle className="text-sm font-medium">Loading...</CardTitle>
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <div className={`text-2xl font-bold ${stat.color}`}>
-                      <AnimatedNumber 
-                        value={Math.abs(stat.value)} 
-                        prefix={stat.prefix} 
-                        suffix={stat.suffix} 
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {stat.description}
-                    </p>
+                    <div className="text-2xl font-bold text-muted-foreground">-</div>
+                    <p className="text-xs text-muted-foreground">Loading data...</p>
                   </CardContent>
                 </Card>
-              </motion.div>
-            ))}
+              ))
+            ) : metricsError ? (
+              <div className="col-span-4 text-center text-destructive">
+                <p>Failed to load metrics: {metricsError}</p>
+              </div>
+            ) : (
+              stats.map((stat, index) => (
+                <motion.div
+                  key={stat.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                >
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        {stat.title}
+                      </CardTitle>
+                      <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                    </CardHeader>
+                    <CardContent>
+                      <div className={`text-2xl font-bold ${stat.color}`}>
+                        <AnimatedNumber 
+                          value={Math.abs(stat.value)} 
+                          prefix={stat.prefix} 
+                          suffix={stat.suffix} 
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {stat.description}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))
+            )}
           </div>
 
           {/* Recent Activity */}
@@ -296,6 +391,21 @@ export default function DashboardPage() {
                   </div>
 
                   <ConnectionStatus />
+
+                  <div className="flex items-center gap-4 p-4 border rounded-lg">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
+                      <Clock className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium">Next Data Fetch</p>
+                      <p className="text-sm text-muted-foreground">
+                        {fetchStatus}
+                      </p>
+                    </div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {countdown}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -418,8 +528,9 @@ export default function DashboardPage() {
                       candlestickData={historicalData}
                       title={`${selectedInstrument} - ${selectedTimeframe === 'D' ? 'Daily' : `${selectedTimeframe}m`}`}
                       className="h-full"
-                      stopLoss={position?.stopLoss}
-                      targetPrice={position?.targetPrice}
+                      activePosition={activePosition}
+                      stopLoss={activePosition?.stopLoss}
+                      targetPrice={activePosition?.targetPrice}
                     />
                   </div>
                 )}
@@ -433,49 +544,20 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.8 }}
           >
-            <Card>
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>
-                  Jump to your most used features
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="p-4 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <BarChart3 className="h-8 w-8 text-blue-600" />
-                      <div>
-                        <h3 className="font-medium">Run Backtest</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Test strategies on historical data
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="p-4 border rounded-lg cursor-pointer hover:bg-accent transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <TrendingUp className="h-8 w-8 text-green-600" />
-                      <div>
-                        <h3 className="font-medium">Start Live Trading</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Begin automated trading session
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                </div>
-              </CardContent>
             </Card>
+          </motion.div>
+
+          {/* Manual Trade Form */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.9 }}
+          >
+            <ManualTradeForm 
+              instruments={instruments}
+              isDisabled={!!activePosition}
+              onSubmit={handleManualTradeSubmit}
+            />
           </motion.div>
         </div>
       )}
