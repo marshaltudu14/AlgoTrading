@@ -28,7 +28,8 @@ def live_trading_service():
                             access_token="test_token",
                             app_id="test_app_id",
                             instrument="NIFTY50",
-                            timeframe="5m"
+                            timeframe="5m",
+                            option_strategy="None"  # Disable options trading for tests
                         )
                         service.fyers_model = mock_fyers_model
                         service.agent = mock_ppo_agent
@@ -57,10 +58,12 @@ def live_trading_service():
                         service.total_trades = 0
                         service.current_pnl = 0.0
                         service.win_count = 0
+                        service.current_price = 100.0  # Set a numeric value for current_price
                         
                         yield service
 
-def test_trade_entry_buy_success(live_trading_service):
+@pytest.mark.asyncio
+async def test_trade_entry_buy_success(live_trading_service):
     """Test successful buy trade entry."""
     live_trading_service.agent.act.return_value = (3, 1)  # BUY signal, quantity 1
     live_trading_service.fyers_model.funds.return_value = {'fund_limit': [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {'equityAmount': 100000}]}
@@ -68,14 +71,15 @@ def test_trade_entry_buy_success(live_trading_service):
     live_trading_service.trading_env.engine._stop_loss_price = 95
     live_trading_service.trading_env.engine._target_profit_price = 105
 
-    live_trading_service._execute_trade(3)
+    await live_trading_service._execute_trade(3)
 
     assert live_trading_service.active_position is not None
     assert isinstance(live_trading_service.active_position, Position)
     assert live_trading_service.active_position.direction == "Long"
     assert live_trading_service.active_position.quantity == 1
 
-def test_trade_entry_sell_success(live_trading_service):
+@pytest.mark.asyncio
+async def test_trade_entry_sell_success(live_trading_service):
     """Test successful sell trade entry."""
     live_trading_service.agent.act.return_value = (1, 1)  # SELL signal, quantity 1
     live_trading_service.fyers_model.funds.return_value = {'fund_limit': [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {'equityAmount': 100000}]}
@@ -83,27 +87,29 @@ def test_trade_entry_sell_success(live_trading_service):
     live_trading_service.trading_env.engine._stop_loss_price = 105
     live_trading_service.trading_env.engine._target_profit_price = 95
 
-    live_trading_service._execute_trade(1)
+    await live_trading_service._execute_trade(1)
 
     assert live_trading_service.active_position is not None
     assert isinstance(live_trading_service.active_position, Position)
     assert live_trading_service.active_position.direction == "Short"
 
-def test_trade_entry_order_failure(live_trading_service):
+@pytest.mark.asyncio
+async def test_trade_entry_order_failure(live_trading_service):
     """Test trade entry when order placement fails."""
     live_trading_service.agent.act.return_value = (3, 1)  # BUY signal, quantity 1
     live_trading_service.fyers_model.funds.return_value = {'fund_limit': [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {'equityAmount': 100000}]}
     live_trading_service.fyers_model.place_order.return_value = {"s": "error", "message": "Insufficient funds"}
 
-    live_trading_service._execute_trade(3)
+    await live_trading_service._execute_trade(3)
 
     assert live_trading_service.active_position is None
 
-def test_trade_entry_insufficient_capital(live_trading_service):
+@pytest.mark.asyncio
+async def test_trade_entry_insufficient_capital(live_trading_service):
     """Test trade entry with insufficient capital."""
     live_trading_service.agent.act.return_value = (3, 1)  # BUY signal, quantity 1
     live_trading_service.fyers_model.funds.return_value = {'fund_limit': [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {'equityAmount': 100}]}
 
-    live_trading_service._execute_trade(3)
+    await live_trading_service._execute_trade(3)
 
     assert live_trading_service.active_position is None

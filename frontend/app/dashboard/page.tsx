@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
 import { TradingChart } from "@/components/trading-chart"
 import { ManualTradeForm } from "@/components/manual-trade-form"
+import ConnectionStatus from "@/components/connection-status"
 import WebSocketService from "@/lib/websocket";
 import { useLiveDataStore } from "@/store/live-data";
 import { toast } from "sonner"
@@ -100,7 +101,7 @@ export default function DashboardPage() {
     return () => {
       webSocketService.disconnect();
     };
-  }, [router, setActivePosition, userData.userId]);
+  }, [router, setActivePosition, userData?.userId]);
 
   React.useEffect(() => {
     const fetchConfig = async () => {
@@ -230,7 +231,13 @@ export default function DashboardPage() {
     handleSelectionChange(value, selectedTimeframe)
   }, [selectedTimeframe, handleSelectionChange])
 
-  const handleManualTradeSubmit = async (values: any) => {
+  const handleManualTradeSubmit = async (values: {
+    instrument: string;
+    direction: string;
+    quantity: number;
+    stopLoss?: number;
+    target?: number;
+  }) => {
     try {
       await apiClient.manualTrade(values);
       toast.success("Manual trade submitted successfully");
@@ -242,6 +249,8 @@ export default function DashboardPage() {
       });
     }
   };
+
+  const handleTimeframeChange = React.useCallback((value: string) => {
     setSelectedTimeframe(value)
     handleSelectionChange(selectedInstrument, value)
   }, [selectedInstrument, handleSelectionChange])
@@ -544,6 +553,17 @@ export default function DashboardPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.8 }}
           >
+            <Card>
+              <CardHeader>
+                <CardTitle>Quick Actions</CardTitle>
+                <CardDescription>
+                  Common trading actions and tools
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Quick actions content can be added here */}
+                <p className="text-sm text-muted-foreground">Quick actions coming soon...</p>
+              </CardContent>
             </Card>
           </motion.div>
 

@@ -1,5 +1,7 @@
 import { formatApiError } from './utils';
 
+export { formatApiError };
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
 
 export interface Instrument {
@@ -32,6 +34,7 @@ export interface Metrics {
 async function fetcher(url: string, options: RequestInit = {}) {
   const response = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -40,7 +43,7 @@ async function fetcher(url: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(errorData.detail || 'An unknown error occurred');
+    throw new Error(`${response.status}: ${errorData.detail || 'An unknown error occurred'}`);
   }
 
   return response.json();
@@ -52,6 +55,9 @@ export const apiClient = {
   },
 
   getHistoricalData: async (instrument: string, timeframe: string): Promise<CandlestickData[]> => {
+    if (!instrument || !timeframe) {
+      throw new Error('Instrument and timeframe parameters are required');
+    }
     return fetcher(`${API_BASE_URL}/historical-data?instrument=${instrument}&timeframe=${timeframe}`);
   },
 

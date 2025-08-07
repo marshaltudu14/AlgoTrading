@@ -590,7 +590,7 @@ class LiveTradingService:
         logger.info(f"Closing position for reason: {reason}")
 
         trade_data = {
-            "trade_id": f"{self.user_id}_{datetime.now().timestamp()}`,
+            "trade_id": f"{self.user_id}_{datetime.now().timestamp()}",
             "instrument": self.active_position.instrument,
             "timeframe": self.timeframe,
             "direction": self.active_position.direction,

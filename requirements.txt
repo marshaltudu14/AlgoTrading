@@ -1,3 +1,4 @@
+# Core Data Science & ML Libraries
 pandas
 numpy
 scikit-learn
@@ -5,16 +6,43 @@ transformers
 torch
 joblib
 sentence-transformers
-pyotp
-fyers_apiv3
-requests
 gymnasium
 ray[rllib]
+
+# Trading & API Libraries
+fyers_apiv3
+pyotp
+requests
 pytz
+
+# Visualization Libraries
 matplotlib
 seaborn
 plotly
 ipywidgets
-tqdm
+
+# Web Framework & API Libraries
+fastapi
+uvicorn[standard]
+pydantic
+python-jose[cryptography]
+python-multipart
+websockets
+pyjwt
+python-dotenv
+aiofiles
+
+# Testing & Development Libraries
 pytest
+pytest-asyncio
+httpx
 psutil
+tqdm
+
+# Utility Libraries
+anyio
+certifi
+idna
+h11
+sniffio
+typing_extensions

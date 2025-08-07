@@ -1,7 +1,7 @@
 
 import { toast } from 'sonner';
 
-import useLiveDataStore from '../store/live-data';
+import { useLiveDataStore } from '../store/live-data';
 
 class WebSocketService {
   private socket: WebSocket | null = null;
