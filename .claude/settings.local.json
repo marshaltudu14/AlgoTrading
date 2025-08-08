@@ -19,7 +19,20 @@
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_click",
       "mcp__playwright__browser_network_requests",
-      "mcp__playwright__browser_console_messages"
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_press_key",
+      "Bash(npm run lint)",
+      "Bash(npx eslint:*)",
+      "Bash(npm ls:*)",
+      "Bash(timeout 60 npm run build)",
+      "mcp__playwright__browser_close",
+      "mcp__playwright__browser_evaluate",
+      "Bash(uvicorn:*)",
+      "mcp__playwright__browser_drag",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs"
     ],
     "deny": []
   }

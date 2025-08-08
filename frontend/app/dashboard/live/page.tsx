@@ -16,7 +16,10 @@ import {
   Wifi,
   WifiOff,
   Loader2,
-  X
+  X,
+  BarChart3,
+  FileText,
+  Smartphone
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -26,9 +29,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { TradingViewLayout } from "@/components/trading-view-layout"
 import { TradingChart, createTradeMarker } from "@/components/trading-chart"
 import { ManualTradeForm } from "@/components/manual-trade-form"
+import { SymbolSelectorDialog } from "@/components/symbol-selector-dialog"
+import { TimeframeSelectorDialog } from "@/components/timeframe-selector-dialog"
+import { StrategySelectorDialog } from "@/components/strategy-selector-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { apiClient, formatApiError, type Instrument, type CandlestickData } from "@/lib/api"
 import { useLiveTrading } from "@/hooks/use-websocket"
-import WebSocketService from "@/lib/websocket"
+import { useAuth } from "@/hooks/use-auth"
 import { useLiveDataStore } from "@/store/live-data"
 import { toast } from "sonner"
 // Removed demo data imports - using real data only
@@ -51,13 +58,17 @@ const optionStrategies = [
 ]
 
 export default function LiveTradePage() {
-  const [userId] = React.useState("user123") // TODO: Get from auth context
+  const { userId, user, isLoading: authLoading, error: authError } = useAuth()
   const [error, setError] = React.useState<string | null>(null)
   const [formData, setFormData] = React.useState({
     instrument: "",
     timeframe: "",
     optionStrategy: "ITM"
   })
+  
+  // Trading mode state
+  const [tradingMode, setTradingMode] = React.useState<'paper' | 'real'>('paper')
+  const [autoStartError, setAutoStartError] = React.useState<string | null>(null)
 
   // Configuration state
   const [instruments, setInstruments] = React.useState<Instrument[]>([])
@@ -72,7 +83,7 @@ export default function LiveTradePage() {
   // Removed demo data state - using real data only
 
   // Live data store
-  const { isConnected: wsConnected, lastTick, activePosition, setActivePosition } = useLiveDataStore()
+  const { isConnected: wsConnected, lastTick, activePosition, setActivePosition, setIsConnected } = useLiveDataStore()
 
   // State for manual trade panel
   const [showManualTrade, setShowManualTrade] = React.useState(false)
@@ -113,31 +124,20 @@ export default function LiveTradePage() {
       }
     }
     fetchConfig()
-  }, [])
+  }, [formData.instrument, formData.timeframe])
 
   // Removed demo data initialization - using real data only
 
-  // WebSocket connection for real-time data
-  React.useEffect(() => {
-    if (!userId) return;
-    
-    const webSocketService = new WebSocketService(`ws://localhost:8000/ws/live/${userId}`);
-    webSocketService.onMessage((event) => {
-      const message = JSON.parse(event.data);
-      if (message.type === 'tick') {
-        useLiveDataStore.getState().setLastTick(message.data);
-      } else if (message.type === 'position_update') {
-        setActivePosition(message.data);
-      } else if (message.type === 'status') {
-        useLiveDataStore.getState().setStatus(message.data);
-      }
-    });
-    webSocketService.connect();
+  // WebSocket connection handled by useLiveTrading hook
 
-    return () => {
-      webSocketService.disconnect();
-    };
-  }, [userId, setActivePosition])
+  // Use WebSocket hook for real-time live trading data
+  const {
+    isConnected,
+    isTrading,
+    stats,
+    trades,
+    error: wsError
+  } = useLiveTrading(userId)
 
   // Fetch historical data when instrument and timeframe are selected
   React.useEffect(() => {
@@ -173,36 +173,36 @@ export default function LiveTradePage() {
     fetchHistoricalData()
   }, [formData.instrument, formData.timeframe])
 
-  // Use WebSocket hook for real-time live trading data
-  const {
-    isConnected,
-    isTrading,
-    stats,
-    trades,
-    error: wsError
-  } = useLiveTrading(userId)
-
   const selectedInstrument = instruments.find(i => i.symbol === formData.instrument)
-  const isIndexInstrument = selectedInstrument?.type === "index"
+  const isIndexInstrument = selectedInstrument?.instrument_type === "index"
 
-  const handleStart = async () => {
+  const handleStart = React.useCallback(async (mode?: 'paper' | 'real') => {
     try {
       setError(null)
+      setAutoStartError(null)
+
+      // Use provided mode or current trading mode
+      const currentMode = mode || tradingMode
 
       // Start live trading using API client
       const response = await apiClient.startLiveTrading({
         instrument: formData.instrument,
         timeframe: formData.timeframe,
-        option_strategy: isIndexInstrument ? formData.optionStrategy : undefined
+        option_strategy: isIndexInstrument ? formData.optionStrategy : undefined,
+        trading_mode: currentMode
       })
 
       if (response.status !== "started") {
-        setError(response.message || "Failed to start live trading")
+        const errorMsg = response.message || "Failed to start live trading"
+        setError(errorMsg)
+        setAutoStartError(errorMsg)
       }
     } catch (err) {
-      setError(formatApiError(err))
+      const errorMsg = formatApiError(err)
+      setError(errorMsg)
+      setAutoStartError(errorMsg)
     }
-  }
+  }, [formData.instrument, formData.timeframe, formData.optionStrategy, isIndexInstrument, tradingMode])
 
   const handleStop = async () => {
     try {
@@ -218,6 +218,41 @@ export default function LiveTradePage() {
       setError(formatApiError(err))
     }
   }
+
+  // Auto-start trading when conditions are met
+  React.useEffect(() => {
+    const shouldAutoStart = () => {
+      return (
+        formData.instrument &&
+        formData.timeframe &&
+        wsConnected &&
+        !isTrading &&
+        !isLoadingConfig &&
+        tradingMode
+      )
+    }
+
+    if (shouldAutoStart()) {
+      // Small delay to ensure all connections are stable
+      const timer = setTimeout(() => {
+        console.log('Auto-starting trading with conditions:', {
+          instrument: formData.instrument,
+          timeframe: formData.timeframe,
+          wsConnected,
+          isTrading,
+          tradingMode
+        })
+        
+        toast.info(`Auto-starting ${tradingMode} trading`, {
+          description: `${formData.instrument} - ${getTimeframeLabel(formData.timeframe)}`
+        })
+        
+        handleStart(tradingMode)
+      }, 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [formData.instrument, formData.timeframe, wsConnected, isTrading, isLoadingConfig, tradingMode, handleStart])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -247,113 +282,148 @@ export default function LiveTradePage() {
 
   // Create header controls for TradingView layout
   const headerControls = (
-    <div className="flex items-center gap-3 text-xs overflow-x-auto scrollbar-hide min-w-0 flex-1">
-      <div className="flex items-center gap-1">
-        <label className="text-muted-foreground font-medium">Symbol:</label>
-        <Select
-          value={formData.instrument}
-          onValueChange={(value) => setFormData(prev => ({ ...prev, instrument: value }))}
-          disabled={isLoadingConfig}
-        >
-          <SelectTrigger className="w-32 h-8">
-            <SelectValue placeholder={isLoadingConfig ? "Loading..." : "Symbol"} />
-          </SelectTrigger>
-          <SelectContent>
-            {instruments.map((instrument) => (
-              <SelectItem key={instrument.symbol} value={instrument.symbol}>
-                {instrument.symbol}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    <TooltipProvider>
+      <div className="flex items-center gap-2 text-xs overflow-x-auto scrollbar-hide min-w-0 flex-1">
+        {/* Symbol Selector */}
+        <SymbolSelectorDialog
+          instruments={instruments}
+          selectedSymbol={formData.instrument}
+          onSymbolChange={(value) => setFormData(prev => ({ ...prev, instrument: value }))}
+          isLoading={isLoadingConfig}
+        />
 
-      <div className="flex items-center gap-1">
-        <label className="text-muted-foreground font-medium">Timeframe:</label>
-        <Select
-          value={formData.timeframe}
-          onValueChange={(value) => setFormData(prev => ({ ...prev, timeframe: value }))}
-          disabled={isLoadingConfig}
-        >
-          <SelectTrigger className="w-24 h-8">
-            <SelectValue placeholder={isLoadingConfig ? "Loading..." : "TF"} />
-          </SelectTrigger>
-          <SelectContent>
-            {timeframes.map((timeframe) => (
-              <SelectItem key={timeframe} value={timeframe}>
-                {getTimeframeLabel(timeframe)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+        {/* Timeframe Selector */}
+        <TimeframeSelectorDialog
+          timeframes={timeframes}
+          selectedTimeframe={formData.timeframe}
+          onTimeframeChange={(value) => setFormData(prev => ({ ...prev, timeframe: value }))}
+          isLoading={isLoadingConfig}
+        />
 
-      {isIndexInstrument && (
-        <div className="flex items-center gap-1">
-          <label className="text-muted-foreground font-medium">Strategy:</label>
-          <Select
-            value={formData.optionStrategy}
-            onValueChange={(value) => setFormData(prev => ({ ...prev, optionStrategy: value }))}
-          >
-            <SelectTrigger className="w-20 h-8">
-              <SelectValue placeholder="Strategy" />
-            </SelectTrigger>
-            <SelectContent>
-              {optionStrategies.map((strategy) => (
-                <SelectItem key={strategy.value} value={strategy.value}>
-                  {strategy.value}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+        {/* Strategy Selector - Only for Index Instruments */}
+        <StrategySelectorDialog
+          selectedStrategy={formData.optionStrategy}
+          onStrategyChange={(value) => setFormData(prev => ({ ...prev, optionStrategy: value }))}
+          isVisible={isIndexInstrument}
+        />
 
-      <div className="flex items-center gap-1">
-        {isConnected ? (
-          <Wifi className="h-3 w-3 text-green-500" />
-        ) : (
-          <WifiOff className="h-3 w-3 text-red-500" />
+        {/* Connection Status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center justify-center h-8 w-8">
+              {wsConnected ? (
+                <Wifi className="h-4 w-4 text-green-500" />
+              ) : (
+                <WifiOff className="h-4 w-4 text-red-500" />
+              )}
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>{wsConnected ? 'Connected' : 'Disconnected'}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Trading Mode Toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-accent/50"
+              onClick={() => setTradingMode(prev => prev === 'paper' ? 'real' : 'paper')}
+              disabled={isTrading}
+              aria-label={`Switch to ${tradingMode === 'paper' ? 'real' : 'paper'} trading`}
+            >
+              {tradingMode === 'paper' ? (
+                <FileText className="h-4 w-4 text-blue-500" />
+              ) : (
+                <DollarSign className="h-4 w-4 text-green-500" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>Mode: {tradingMode === 'paper' ? 'Paper Trading' : 'Real Trading'}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Trading Status Indicator */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center justify-center h-8 w-8">
+              <div className={`h-3 w-3 rounded-full ${isTrading ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            <p>{isTrading ? `Trading Active (${tradingMode})` : 'Trading Inactive'}</p>
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Stop Trading Button - Only shown when trading */}
+        {isTrading && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={handleStop}
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-red-500/10 text-red-500"
+                aria-label="Stop trading"
+              >
+                <Square className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Stop Trading</p>
+            </TooltipContent>
+          </Tooltip>
         )}
-        <span className="text-xs text-muted-foreground">
-          {isConnected ? 'Connected' : 'Disconnected'}
-        </span>
-      </div>
 
-      {!isTrading ? (
-        <Button
-          onClick={handleStart}
-          disabled={!isFormValid || !isConnected}
-          size="sm"
-          className="h-8 px-3"
-        >
-          <Play className="h-3 w-3 mr-1" />
-          Start
-        </Button>
-      ) : (
-        <Button
-          onClick={handleStop}
-          variant="destructive"
-          size="sm"
-          className="h-8 px-3"
-        >
-          <Square className="h-3 w-3 mr-1" />
-          Stop
-        </Button>
-      )}
-
-      <div className="border-l pl-2 ml-2">
-        <Button
-          onClick={() => setShowManualTrade(!showManualTrade)}
-          variant={showManualTrade ? "default" : "outline"}
-          size="sm"
-          className="h-8 px-3"
-        >
-          Manual Trade
-        </Button>
+        {/* Manual Trade Button */}
+        <div className="border-l border-border/50 pl-2 ml-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={() => setShowManualTrade(!showManualTrade)}
+                variant="ghost"
+                size="sm"
+                className={`h-8 w-8 p-0 hover:bg-accent/50 ${showManualTrade ? 'bg-accent text-accent-foreground' : ''}`}
+                aria-label="Toggle manual trade panel"
+              >
+                <Smartphone className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>Manual Trade</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
+
+  // Show loading state while authenticating
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading user profile...</span>
+      </div>
+    )
+  }
+
+  // Show error if authentication failed
+  if (authError || !userId) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Alert className="max-w-md">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {authError || 'Failed to load user profile. Please try refreshing the page.'}
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <TradingViewLayout headerControls={headerControls}>
@@ -414,12 +484,18 @@ export default function LiveTradePage() {
               <TrendingUp className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-medium mb-2">Ready for Live Trading</h3>
               <p className="text-muted-foreground">
-                Configure your parameters in the header and click Start to begin
+                Trading will start automatically when all conditions are met
               </p>
               {!isConnected && (
                 <p className="text-red-500 text-sm mt-2">
                   Waiting for connection...
                 </p>
+              )}
+              {autoStartError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg max-w-md mx-auto">
+                  <p className="text-red-700 text-sm font-medium">Auto-start failed:</p>
+                  <p className="text-red-600 text-xs mt-1">{autoStartError}</p>
+                </div>
               )}
             </div>
           </div>
@@ -449,6 +525,7 @@ export default function LiveTradePage() {
           <ManualTradeForm 
             instruments={instruments}
             isDisabled={!!activePosition}
+            defaultInstrument={formData.instrument}
             onSubmit={handleManualTradeSubmit}
           />
         </motion.div>

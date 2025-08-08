@@ -31,6 +31,45 @@ export interface Metrics {
   lastTradeTime: string;
 }
 
+export interface LoginRequest {
+  app_id: string;
+  secret_key: string;
+  redirect_uri: string;
+  fy_id: string;
+  pin: string;
+  totp_secret: string;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface ManualTradeRequest {
+  instrument: string;
+  direction: string;
+  quantity: number;
+  stopLoss?: number;
+  target?: number;
+}
+
+export interface ManualTradeResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface BacktestRequest {
+  instrument: string;
+  timeframe: string;
+  duration: number;
+  initial_capital: number;
+}
+
+export interface BacktestResponse {
+  backtest_id: string;
+  message: string;
+}
+
 async function fetcher(url: string, options: RequestInit = {}) {
   const response = await fetch(url, {
     ...options,
@@ -50,11 +89,15 @@ async function fetcher(url: string, options: RequestInit = {}) {
 }
 
 export const apiClient = {
-  login: async (data: any): Promise<any> => {
+  login: async (data: LoginRequest): Promise<LoginResponse> => {
     return fetcher(`${API_BASE_URL}/login`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+
+  getProfile: async (): Promise<{ user_id: string; name: string; capital: number }> => {
+    return fetcher(`${API_BASE_URL}/profile`);
   },
 
   getConfig: async (): Promise<Config> => {
@@ -72,24 +115,41 @@ export const apiClient = {
     return fetcher(`${API_BASE_URL}/metrics`);
   },
 
-  manualTrade: async (data: any): Promise<any> => {
+  manualTrade: async (data: ManualTradeRequest): Promise<ManualTradeResponse> => {
     return fetcher(`${API_BASE_URL}/manual-trade`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  startLiveTrading: async (data: any): Promise<any> => {
+  startLiveTrading: async (data: {
+    instrument: string;
+    timeframe: string;
+    option_strategy?: string;
+    trading_mode: 'paper' | 'real';
+  }): Promise<{ message: string; status: string }> => {
     return fetcher(`${API_BASE_URL}/live/start`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  stopLiveTrading: async (): Promise<any> => {
+  stopLiveTrading: async (): Promise<{ message: string; status: string }> => {
     return fetcher(`${API_BASE_URL}/live/stop`, {
       method: 'POST',
     });
+  },
+
+  startBacktest: async (data: BacktestRequest): Promise<BacktestResponse> => {
+    return fetcher(`${API_BASE_URL}/backtest/start`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  createBacktestWebSocket: (backtestId: string): WebSocket => {
+    const wsUrl = `ws://localhost:8000/ws/backtest/${backtestId}`;
+    return new WebSocket(wsUrl);
   },
 
   createLiveWebSocket: (userId: string): WebSocket => {

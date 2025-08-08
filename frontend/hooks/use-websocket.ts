@@ -32,18 +32,33 @@ export function useWebSocket(
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptsRef = useRef(0)
+  const isConnectingRef = useRef(false)
   const maxReconnectAttempts = options.reconnectAttempts || 5
   const reconnectInterval = options.reconnectInterval || 3000
 
   const connect = useCallback(() => {
     try {
+      // Prevent multiple simultaneous connections
+      if (isConnectingRef.current || (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING)) {
+        return
+      }
+      
+      // Close existing connection if any
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close()
+      }
+      
+      isConnectingRef.current = true
       const ws = createWebSocket()
-      if (!ws) return
+      if (!ws) {
+        isConnectingRef.current = false
+        return
+      }
 
       wsRef.current = ws
 
       ws.onopen = () => {
-        console.log('WebSocket connected')
+        isConnectingRef.current = false
         setIsConnected(true)
         setError(null)
         reconnectAttemptsRef.current = 0
@@ -53,7 +68,13 @@ export function useWebSocket(
       ws.onmessage = (event) => {
         try {
           const message: WebSocketMessage = JSON.parse(event.data)
-          console.log('WebSocket message received:', message)
+          
+          // Handle ping/pong to keep connection alive
+          if (message.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }))
+            return
+          }
+          
           setLastMessage(message)
           options.onMessage?.(message)
         } catch (err) {
@@ -62,32 +83,33 @@ export function useWebSocket(
       }
 
       ws.onclose = () => {
-        console.log('WebSocket disconnected')
+        isConnectingRef.current = false
         setIsConnected(false)
         options.onDisconnect?.()
 
         // Attempt to reconnect
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++
-          console.log(`Attempting to reconnect (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`)
           reconnectTimeoutRef.current = setTimeout(() => {
             connect()
-          }, reconnectInterval)
+          }, reconnectInterval * Math.pow(1.5, reconnectAttemptsRef.current)) // Exponential backoff
         } else {
           setError('Maximum reconnection attempts reached')
         }
       }
 
       ws.onerror = (error) => {
+        isConnectingRef.current = false
         setError('WebSocket connection error')
         options.onError?.(error)
       }
 
     } catch (err) {
+      isConnectingRef.current = false
       setError('Failed to create WebSocket connection')
       console.error('WebSocket connection error:', err)
     }
-  }, [createWebSocket, options, maxReconnectAttempts, reconnectInterval])
+  }, [createWebSocket, maxReconnectAttempts, reconnectInterval]) // Removed options from dependencies to prevent reconnections
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -100,6 +122,7 @@ export function useWebSocket(
       wsRef.current = null
     }
 
+    isConnectingRef.current = false
     setIsConnected(false)
   }, [])
 
@@ -110,9 +133,13 @@ export function useWebSocket(
   }, [isConnected])
 
   useEffect(() => {
-    connect()
+    // Add a small delay to prevent rapid reconnections during React renders
+    const timer = setTimeout(() => {
+      connect()
+    }, 100)
 
     return () => {
+      clearTimeout(timer)
       disconnect()
     }
   }, [connect, disconnect])
@@ -132,16 +159,17 @@ export function useBacktestWebSocket(
   backtestId: string | null,
   options: UseWebSocketOptions = {}
 ) {
-  return useWebSocket(
+  const createWebSocket = useCallback(
     () => {
       if (backtestId) {
-        console.log('Creating WebSocket for backtest ID:', backtestId)
         return apiClient.createBacktestWebSocket(backtestId)
       }
       return null
     },
-    options
+    [backtestId]
   )
+  
+  return useWebSocket(createWebSocket, options)
 }
 
 // Specific hook for live trading WebSocket
@@ -149,10 +177,12 @@ export function useLiveWebSocket(
   userId: string | null,
   options: UseWebSocketOptions = {}
 ) {
-  return useWebSocket(
+  const createWebSocket = useCallback(
     () => userId ? apiClient.createLiveWebSocket(userId) : null,
-    options
+    [userId]
   )
+  
+  return useWebSocket(createWebSocket, options)
 }
 
 // Hook for managing backtest progress
@@ -167,94 +197,94 @@ export function useBacktestProgress(backtestId: string | null) {
   const [currentPrice, setCurrentPrice] = useState<number | undefined>(undefined)
   const [portfolioValue, setPortfolioValue] = useState<number | undefined>(undefined)
 
-  const { isConnected, lastMessage } = useBacktestWebSocket(backtestId, {
-    onMessage: (message) => {
-      console.log('Backtest message received:', message)
-      switch (message.type) {
-        case 'connected':
-          console.log('WebSocket connection confirmed:', message.message)
-          break
-        case 'started':
-          setStatus('running')
-          setProgress(0)
-          setCurrentStep('Initializing...')
-          setError(null)
-          setChartData([])
-          setCandlestickData([])
-          setCurrentPrice(undefined)
-          setPortfolioValue(undefined)
-          break
-        case 'progress':
-          setProgress(message.progress || 0)
-          // Map step names to user-friendly messages
-          const stepMessages = {
-            'loading_data': 'Loading data...',
-            'processing_data': 'Processing data...',
-            'starting_backtest': 'Starting backtest...',
-            'running_backtest': 'Running backtest...'
+  const onMessage = useCallback((message: WebSocketMessage) => {
+    switch (message.type) {
+      case 'connected':
+        break
+      case 'started':
+        setStatus('running')
+        setProgress(0)
+        setCurrentStep('Initializing...')
+        setError(null)
+        setChartData([])
+        setCandlestickData([])
+        setCurrentPrice(undefined)
+        setPortfolioValue(undefined)
+        break
+      case 'progress':
+        setProgress(message.progress || 0)
+        // Map step names to user-friendly messages
+        const stepMessages = {
+          'loading_data': 'Loading data...',
+          'processing_data': 'Processing data...',
+          'starting_backtest': 'Starting backtest...',
+          'running_backtest': 'Running backtest...'
+        }
+        setCurrentStep(stepMessages[message.step as keyof typeof stepMessages] || message.message || 'Processing...')
+        break
+      case 'data_loaded':
+        // Data loading complete - reset candlestick data for real-time updates
+        setCandlestickData([])
+        break
+      case 'candle_update':
+        // Real-time candle and action update (TradingView approach)
+        if (message.candle) {
+          // Add the new candle to the array for real-time updates
+          setCandlestickData(prev => [...prev, message.candle])
+        }
+        if (message.action && message.action.type !== 4) { // Not HOLD action
+          const actionData = {
+            timestamp: message.action.timestamp,
+            price: message.action.price,
+            action: message.action.type,
+            portfolio_value: message.portfolio_value
           }
-          setCurrentStep(stepMessages[message.step as keyof typeof stepMessages] || message.message || 'Processing...')
-          break
-        case 'data_loaded':
-          // Data loading complete - reset candlestick data for real-time updates
-          console.log(`Data loaded: ${message.total_points} points`)
-          setCandlestickData([])
-          break
-        case 'candle_update':
-          // Real-time candle and action update (TradingView approach)
-          console.log('Received candle update:', message)
-          if (message.candle) {
-            // Add the new candle to the array for real-time updates
-            setCandlestickData(prev => [...prev, message.candle])
-          }
-          if (message.action && message.action.type !== 4) { // Not HOLD action
-            const actionData = {
-              timestamp: message.action.timestamp,
-              price: message.action.price,
-              action: message.action.type,
-              portfolio_value: message.portfolio_value
-            }
-            setChartData(prev => [...prev, actionData])
-          }
-          if (message.portfolio_value) {
-            setPortfolioValue(message.portfolio_value)
-          }
-          if (message.action?.price) {
-            setCurrentPrice(message.action.price)
-          }
+          setChartData(prev => [...prev, actionData])
+        }
+        if (message.portfolio_value) {
+          setPortfolioValue(message.portfolio_value)
+        }
+        if (message.action?.price) {
+          setCurrentPrice(message.action.price)
+        }
 
-          // Update progress if available
-          if (message.progress !== undefined) {
-            setProgress(message.progress)
-          }
-          break
-        case 'chart_update':
-          if (message.data) {
-            setChartData(prev => [...prev, ...message.data])
-          }
-          if (message.current_price) {
-            setCurrentPrice(message.current_price)
-          }
-          if (message.portfolio_value) {
-            setPortfolioValue(message.portfolio_value)
-          }
-          break
-        case 'completed':
-          setStatus('completed')
-          setProgress(100)
-          setCurrentStep('Completed')
-          setResults(message.results)
-          break
-        case 'error':
-          setStatus('error')
-          setCurrentStep('Error')
-          setError(message.message || 'Backtest failed')
-          break
-      }
-    },
-    onError: () => {
-      setError('WebSocket connection error')
+        // Update progress if available
+        if (message.progress !== undefined) {
+          setProgress(message.progress)
+        }
+        break
+      case 'chart_update':
+        if (message.data) {
+          setChartData(prev => [...prev, ...message.data])
+        }
+        if (message.current_price) {
+          setCurrentPrice(message.current_price)
+        }
+        if (message.portfolio_value) {
+          setPortfolioValue(message.portfolio_value)
+        }
+        break
+      case 'completed':
+        setStatus('completed')
+        setProgress(100)
+        setCurrentStep('Completed')
+        setResults(message.results)
+        break
+      case 'error':
+        setStatus('error')
+        setCurrentStep('Error')
+        setError(message.message || 'Backtest failed')
+        break
     }
+  }, [])
+
+  const onError = useCallback(() => {
+    setError('WebSocket connection error')
+  }, [])
+
+  const { isConnected, lastMessage } = useBacktestWebSocket(backtestId, {
+    onMessage,
+    onError
   })
 
   return {
@@ -285,48 +315,72 @@ export function useLiveTrading(userId: string | null) {
   const [trades, setTrades] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  const { isConnected, lastMessage } = useLiveWebSocket(userId, {
-    onMessage: (message) => {
-      switch (message.type) {
-        case 'started':
-          setIsTrading(true)
-          setError(null)
-          break
-        case 'stopped':
-          setIsTrading(false)
-          break
-        case 'stats_update':
-          setStats({
-            currentPnL: message.current_pnl || 0,
-            todayTrades: message.today_trades || 0,
-            winRate: message.win_rate || 0,
-            currentPrice: message.current_price || 0,
-            position: message.position || 0,
-          })
-          break
-        case 'trade_executed':
-          setTrades(prev => [...prev, {
-            timestamp: message.timestamp,
-            action: message.action,
-            price: message.price,
-            pnl: message.pnl,
-            id: Date.now() + Math.random(),
-          }])
-          break
-        case 'price_update':
-          setStats(prev => ({
-            ...prev,
-            currentPrice: message.price || prev.currentPrice,
-          }))
-          break
-        case 'error':
-          setError(message.message || 'Live trading error')
-          break
-      }
-    },
-    onError: () => {
-      setError('WebSocket connection error')
+  const onMessage = useCallback((message: WebSocketMessage) => {
+    switch (message.type) {
+      case 'started':
+        setIsTrading(true)
+        setError(null)
+        break
+      case 'stopped':
+        setIsTrading(false)
+        break
+      case 'stats_update':
+        setStats({
+          currentPnL: message.current_pnl || 0,
+          todayTrades: message.today_trades || 0,
+          winRate: message.win_rate || 0,
+          currentPrice: message.current_price || 0,
+          position: message.position || 0,
+        })
+        break
+      case 'trade_executed':
+        setTrades(prev => [...prev, {
+          timestamp: message.timestamp,
+          action: message.action,
+          price: message.price,
+          pnl: message.pnl,
+          id: Date.now() + Math.random(),
+        }])
+        break
+      case 'price_update':
+      case 'tick':
+        // Handle both price updates and tick data
+        if (message.data) {
+          // Import and use the store for tick data
+          import('@/store/live-data').then(({ useLiveDataStore }) => {
+            useLiveDataStore.getState().setLastTick(message.data);
+          });
+        }
+        setStats(prev => ({
+          ...prev,
+          currentPrice: message.price || message.data?.close || prev.currentPrice,
+        }))
+        break
+      case 'position_update':
+        // Handle position updates - you may need to add position state to this hook
+        // or emit to a global store
+        break
+      case 'status':
+        // Handle status updates
+        if (message.data) {
+          import('@/store/live-data').then(({ useLiveDataStore }) => {
+            useLiveDataStore.getState().setStatus(message.data);
+          });
+        }
+        break
+      case 'error':
+        setError(message.message || 'Live trading error')
+        break
     }
+  }, [])
+
+  const onError = useCallback(() => {
+    setError('WebSocket connection error')
+  }, [])
+
+  const { isConnected, lastMessage } = useLiveWebSocket(userId, {
+    onMessage,
+    onError
   })
 
   return {

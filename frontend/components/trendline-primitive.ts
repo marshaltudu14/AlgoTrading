@@ -4,8 +4,7 @@ import {
 } from 'lightweight-charts'
 import {
   TrendlineCalculator,
-  Trendline as CalculatedTrendline,
-  defaultTrendlineCalculator
+  Trendline as CalculatedTrendline
 } from '../utils/trendline-calculator'
 import { CandlestickData as PeakCandlestickData } from '../utils/peak-detection'
 import { BreakoutDetector, BreakoutSignal } from '../utils/breakout-detector'
@@ -43,13 +42,15 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
   private _lastUpdateTime: Time | null = null
   private _updateCounter: number = 0
   private _breakoutSignals: BreakoutSignal[] = []
+  private _chart: any = null
+  private _series: any = null
 
   constructor(config: Partial<TrendlineConfig> = {}) {
     this._config = {
       recentPeriod: 25,
       historicalPeriod: 150,
       breakoutThreshold: 0.001,
-      updateFrequency: 1, // Calculate trendlines on every update - FORCE REBUILD
+      updateFrequency: 1, // Calculate trendlines on every update
       ...config
     }
 
@@ -70,37 +71,37 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
     })
   }
 
-  // Update data and recalculate trendlines
+  // Series primitive lifecycle methods
+  attached(param: any): void {
+    this._chart = param.chart
+    this._series = param.series
+  }
+
+  detached(): void {
+    this._chart = null
+    this._series = null
+  }
+
+  // Update data and recalculate trendlines - focus on latest data
   updateData(data: PeakCandlestickData[]): void {
     this._data = [...data]
     this._updateCounter++
 
-    console.log('TrendlinePrimitive updateData:', {
-      dataLength: this._data.length,
-      historicalPeriod: this._config.historicalPeriod,
-      updateCounter: this._updateCounter,
-      updateFrequency: this._config.updateFrequency,
-      hasEnoughData: this._data.length >= this._config.historicalPeriod
-    })
-
-    // Only recalculate if we have enough data - ALWAYS UPDATE FOR TESTING
-    if (this._data.length >= 50) {
+    // Recalculate trendlines more frequently for latest data
+    if (this._data.length >= 20) {
       const latestTime = this._data[this._data.length - 1]?.time
-      const shouldUpdate = true // Force update every time for testing
-
-      console.log('TrendlinePrimitive update check:', {
-        latestTime,
-        lastUpdateTime: this._lastUpdateTime,
-        shouldUpdate,
-        forceUpdate: true
+      
+      // Always recalculate to get the latest trendlines
+      this._calculateTrendlines()
+      this._detectBreakouts()
+      this._lastUpdateTime = latestTime
+      
+      // Log update for debugging
+      console.log('🔄 Trendlines recalculated for latest data:', {
+        totalCandles: this._data.length,
+        latestPrice: this._data[this._data.length - 1]?.close,
+        updateCounter: this._updateCounter
       })
-
-      if (shouldUpdate) {
-        console.log('TrendlinePrimitive calling _calculateTrendlines')
-        this._calculateTrendlines()
-        this._detectBreakouts()
-        this._lastUpdateTime = latestTime
-      }
     }
   }
 
@@ -124,10 +125,8 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
 
   // Get debug information
   getDebugInfo(): object {
-    // Get peak detection info for debugging
-    const allPeaks = this._data.length > 0 ? this._calculator.peakDetector.findPeaksAndLows(this._data) : []
-    const peaks = allPeaks.filter(p => p.type === 'peak')
-    const lows = allPeaks.filter(p => p.type === 'low')
+    const peaks = this._findSignificantPeaks()
+    const valleys = this._findSignificantValleys()
 
     return {
       dataLength: this._data.length,
@@ -135,114 +134,138 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
       hasLowerTrendline: !!this._lowerTrendline,
       upperTrendlineScore: this._upperTrendline?.score || 0,
       lowerTrendlineScore: this._lowerTrendline?.score || 0,
-      breakoutSignalsCount: this._breakoutSignals.length,
-      lastUpdateTime: this._lastUpdateTime,
       peaksDetected: peaks.length,
-      lowsDetected: lows.length,
-      totalPointsDetected: allPeaks.length,
-      samplePeaks: peaks.slice(0, 3).map(p => ({ time: p.time, price: p.price, significance: p.significance })),
-      sampleLows: lows.slice(0, 3).map(p => ({ time: p.time, price: p.price, significance: p.significance }))
+      valleysDetected: valleys.length
     }
   }
 
   // ISeriesPrimitive interface implementation
   paneViews() {
-    return [new TrendlinePaneView(this._upperTrendline, this._lowerTrendline, this._data)]
+    return [new TrendlinePaneView(this._upperTrendline, this._lowerTrendline, this._data, this._chart, this._series)]
   }
 
-  // Calculate trendlines based on current data
+  // Calculate trendlines based on current data - focus on recent price action
   private _calculateTrendlines(): void {
-    if (this._data.length < 50) return // Need sufficient data
+    if (this._data.length < 20) return // Need minimum data
 
-    console.log('_calculateTrendlines called with data length:', this._data.length)
+    // Focus on recent price action for more relevant trendlines
+    this._upperTrendline = this._findLatestResistanceLine()
+    this._lowerTrendline = this._findLatestSupportLine()
 
-    // Find significant peaks and valleys for proper trendlines
-    const peaks = this._findPeaks()
-    const valleys = this._findValleys()
-
-    console.log('Found peaks:', peaks.length, 'valleys:', valleys.length)
-
-    // Create resistance line from recent peaks
-    if (peaks.length >= 2) {
-      const recentPeaks = peaks.slice(-3) // Use last 3 peaks
-      const firstPeak = recentPeaks[0]
-      const lastPeak = recentPeaks[recentPeaks.length - 1]
-
-      this._upperTrendline = {
-        point1: {
-          time: firstPeak.time,
-          price: firstPeak.price,
-          significance: 1.0,
-          index: firstPeak.index
-        },
-        point2: {
-          time: lastPeak.time,
-          price: lastPeak.price,
-          significance: 1.0,
-          index: lastPeak.index
-        },
-        slope: (lastPeak.price - firstPeak.price) / (lastPeak.index - firstPeak.index),
-        strength: 1.0,
-        score: 1.0,
-        touchingPoints: recentPeaks.length,
-        type: 'resistance'
-      }
+    // Only log if we actually have trendlines
+    if (this._upperTrendline || this._lowerTrendline) {
+      console.log('📊 Latest Trendlines Updated:', {
+        resistance: this._upperTrendline ? '✅' : '❌',
+        support: this._lowerTrendline ? '✅' : '❌',
+        resistanceSlope: this._upperTrendline?.slope.toFixed(6),
+        supportSlope: this._lowerTrendline?.slope.toFixed(6),
+        dataLength: this._data.length
+      })
     }
-
-    // Create support line from recent valleys
-    if (valleys.length >= 2) {
-      const recentValleys = valleys.slice(-3) // Use last 3 valleys
-      const firstValley = recentValleys[0]
-      const lastValley = recentValleys[recentValleys.length - 1]
-
-      this._lowerTrendline = {
-        point1: {
-          time: firstValley.time,
-          price: firstValley.price,
-          significance: 1.0,
-          index: firstValley.index
-        },
-        point2: {
-          time: lastValley.time,
-          price: lastValley.price,
-          significance: 1.0,
-          index: lastValley.index
-        },
-        slope: (lastValley.price - firstValley.price) / (lastValley.index - firstValley.index),
-        strength: 1.0,
-        score: 1.0,
-        touchingPoints: recentValleys.length,
-        type: 'support'
-      }
-    }
-
-    console.log('Trendlines created:', {
-      hasUpper: !!this._upperTrendline,
-      hasLower: !!this._lowerTrendline,
-      upperPoints: this._upperTrendline ? [this._upperTrendline.point1.price, this._upperTrendline.point2.price] : null,
-      lowerPoints: this._lowerTrendline ? [this._lowerTrendline.point1.price, this._lowerTrendline.point2.price] : null
-    })
   }
 
   /**
-   * Find significant peaks in the data
+   * Find latest resistance line by connecting the most recent significant high with a previous high
    */
-  private _findPeaks(): Array<{time: Time, price: number, index: number}> {
+  private _findLatestResistanceLine(): CalculatedTrendline | null {
+    if (this._data.length < 20) return null
+
+    // Get recent peaks with a more aggressive detection for current price action
+    const recentPeaks = this._findRecentPeaks()
+    if (recentPeaks.length < 2) return null
+
+    // Sort peaks by time (most recent first)
+    const sortedPeaks = recentPeaks.sort((a, b) => b.index - a.index)
+    
+    // Find the most recent significant high
+    const mostRecentPeak = sortedPeaks[0]
+    
+    // Find the best historical peak to connect to
+    let bestTrendline: CalculatedTrendline | null = null
+    let minTimeDiff = Infinity
+    
+    // Look for peaks that are at least 10 candles away from the most recent
+    for (let i = 1; i < sortedPeaks.length; i++) {
+      const historicalPeak = sortedPeaks[i]
+      const timeDiff = mostRecentPeak.index - historicalPeak.index
+      
+      // Ensure minimum separation and prioritize closer-in-time peaks for relevance
+      if (timeDiff >= 10 && timeDiff < minTimeDiff) {
+        const trendline = this._createTrendlineFromPoints(
+          mostRecentPeak, historicalPeak, 'resistance'
+        )
+        
+        if (trendline && this._isRecentTrendlineValid(trendline)) {
+          minTimeDiff = timeDiff
+          bestTrendline = trendline
+        }
+      }
+    }
+
+    return bestTrendline
+  }
+
+  /**
+   * Find latest support line by connecting the most recent significant low with a previous low
+   */
+  private _findLatestSupportLine(): CalculatedTrendline | null {
+    if (this._data.length < 20) return null
+
+    // Get recent valleys with a more aggressive detection for current price action
+    const recentValleys = this._findRecentValleys()
+    if (recentValleys.length < 2) return null
+
+    // Sort valleys by time (most recent first)
+    const sortedValleys = recentValleys.sort((a, b) => b.index - a.index)
+    
+    // Find the most recent significant low
+    const mostRecentValley = sortedValleys[0]
+    
+    // Find the best historical valley to connect to
+    let bestTrendline: CalculatedTrendline | null = null
+    let minTimeDiff = Infinity
+    
+    // Look for valleys that are at least 10 candles away from the most recent
+    for (let i = 1; i < sortedValleys.length; i++) {
+      const historicalValley = sortedValleys[i]
+      const timeDiff = mostRecentValley.index - historicalValley.index
+      
+      // Ensure minimum separation and prioritize closer-in-time valleys for relevance
+      if (timeDiff >= 10 && timeDiff < minTimeDiff) {
+        const trendline = this._createTrendlineFromPoints(
+          mostRecentValley, historicalValley, 'support'
+        )
+        
+        if (trendline && this._isRecentTrendlineValid(trendline)) {
+          minTimeDiff = timeDiff
+          bestTrendline = trendline
+        }
+      }
+    }
+
+    return bestTrendline
+  }
+
+  /**
+   * Find recent peaks focusing on the latest price action (last 100 candles)
+   */
+  private _findRecentPeaks(): Array<{time: Time, price: number, index: number}> {
     const peaks: Array<{time: Time, price: number, index: number}> = []
     const lookback = 5 // Look 5 candles back and forward
-
-    for (let i = lookback; i < this._data.length - lookback; i++) {
+    const recentDataStart = Math.max(0, this._data.length - 100) // Focus on last 100 candles
+    
+    for (let i = recentDataStart + lookback; i < this._data.length - lookback; i++) {
       const current = this._data[i]
       let isPeak = true
-
-      // Check if current candle high is higher than surrounding candles
+      
+      // Check if current candle HIGH is higher than surrounding candles
       for (let j = i - lookback; j <= i + lookback; j++) {
         if (j !== i && this._data[j].high >= current.high) {
           isPeak = false
           break
         }
       }
-
+      
       if (isPeak) {
         peaks.push({
           time: current.time,
@@ -251,29 +274,32 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
         })
       }
     }
-
-    return peaks
+    
+    // Filter out peaks that are too close to each other - keep the highest one in each group
+    const filteredPeaks = this._filterClosePeaks(peaks)
+    return filteredPeaks.sort((a, b) => timeToNumber(a.time) - timeToNumber(b.time))
   }
 
   /**
-   * Find significant valleys in the data
+   * Find recent valleys focusing on the latest price action (last 100 candles)
    */
-  private _findValleys(): Array<{time: Time, price: number, index: number}> {
+  private _findRecentValleys(): Array<{time: Time, price: number, index: number}> {
     const valleys: Array<{time: Time, price: number, index: number}> = []
     const lookback = 5 // Look 5 candles back and forward
-
-    for (let i = lookback; i < this._data.length - lookback; i++) {
+    const recentDataStart = Math.max(0, this._data.length - 100) // Focus on last 100 candles
+    
+    for (let i = recentDataStart + lookback; i < this._data.length - lookback; i++) {
       const current = this._data[i]
       let isValley = true
-
-      // Check if current candle low is lower than surrounding candles
+      
+      // Check if current candle LOW is lower than surrounding candles
       for (let j = i - lookback; j <= i + lookback; j++) {
         if (j !== i && this._data[j].low <= current.low) {
           isValley = false
           break
         }
       }
-
+      
       if (isValley) {
         valleys.push({
           time: current.time,
@@ -282,8 +308,289 @@ export class TrendlinePrimitive implements ISeriesPrimitive {
         })
       }
     }
+    
+    // Filter out valleys that are too close to each other - keep the lowest one in each group
+    const filteredValleys = this._filterCloseValleys(valleys)
+    return filteredValleys.sort((a, b) => timeToNumber(a.time) - timeToNumber(b.time))
+  }
 
-    return valleys
+  /**
+   * Filter out peaks that are too close together, keeping the highest
+   */
+  private _filterClosePeaks(peaks: Array<{time: Time, price: number, index: number}>): Array<{time: Time, price: number, index: number}> {
+    if (peaks.length <= 1) return peaks
+    
+    const filtered: Array<{time: Time, price: number, index: number}> = []
+    const minDistance = 8 // Minimum 8 candles apart
+    
+    for (let i = 0; i < peaks.length; i++) {
+      const current = peaks[i]
+      let shouldAdd = true
+      
+      // Check if there's a higher peak within minDistance
+      for (let j = 0; j < peaks.length; j++) {
+        if (i !== j) {
+          const other = peaks[j]
+          const distance = Math.abs(current.index - other.index)
+          
+          if (distance < minDistance && other.price > current.price) {
+            shouldAdd = false
+            break
+          }
+        }
+      }
+      
+      if (shouldAdd) {
+        filtered.push(current)
+      }
+    }
+    
+    return filtered
+  }
+
+  /**
+   * Filter out valleys that are too close together, keeping the lowest
+   */
+  private _filterCloseValleys(valleys: Array<{time: Time, price: number, index: number}>): Array<{time: Time, price: number, index: number}> {
+    if (valleys.length <= 1) return valleys
+    
+    const filtered: Array<{time: Time, price: number, index: number}> = []
+    const minDistance = 8 // Minimum 8 candles apart
+    
+    for (let i = 0; i < valleys.length; i++) {
+      const current = valleys[i]
+      let shouldAdd = true
+      
+      // Check if there's a lower valley within minDistance
+      for (let j = 0; j < valleys.length; j++) {
+        if (i !== j) {
+          const other = valleys[j]
+          const distance = Math.abs(current.index - other.index)
+          
+          if (distance < minDistance && other.price < current.price) {
+            shouldAdd = false
+            break
+          }
+        }
+      }
+      
+      if (shouldAdd) {
+        filtered.push(current)
+      }
+    }
+    
+    return filtered
+  }
+
+  /**
+   * Validate trendlines for recent price action
+   */
+  private _isRecentTrendlineValid(trendline: CalculatedTrendline): boolean {
+    // More lenient validation for recent trendlines
+    const absSlope = Math.abs(trendline.slope)
+    return absSlope >= 0.000001 && absSlope <= 0.05 // Allow steeper slopes for recent action
+  }
+
+  /**
+   * Find significant peaks using high prices with better filtering (legacy method)
+   */
+  private _findSignificantPeaks(): Array<{time: Time, price: number, index: number}> {
+    const peaks: Array<{time: Time, price: number, index: number}> = []
+    const lookback = 8 // Look 8 candles back and forward for more significance
+    const minHeightThreshold = 0.0005 // Minimum relative height (0.05%) for peak significance
+
+    for (let i = lookback; i < this._data.length - lookback; i++) {
+      const current = this._data[i]
+      let isPeak = true
+      let maxSurroundingHigh = 0
+
+      // Check if current candle HIGH is higher than surrounding candles
+      for (let j = i - lookback; j <= i + lookback; j++) {
+        if (j !== i) {
+          if (this._data[j].high >= current.high) {
+            isPeak = false
+            break
+          }
+          maxSurroundingHigh = Math.max(maxSurroundingHigh, this._data[j].high)
+        }
+      }
+
+      // Additional check for peak significance - must be higher than surrounding by threshold
+      if (isPeak && maxSurroundingHigh > 0) {
+        const relativeHeight = (current.high - maxSurroundingHigh) / maxSurroundingHigh
+        if (relativeHeight < minHeightThreshold) {
+          isPeak = false
+        }
+      }
+
+      if (isPeak) {
+        peaks.push({
+          time: current.time,
+          price: current.high, // Use HIGH for resistance - snaps to actual high price
+          index: i
+        })
+      }
+    }
+
+    // Sort by time to ensure proper ordering
+    return peaks.sort((a, b) => timeToNumber(a.time) - timeToNumber(b.time))
+  }
+
+  /**
+   * Find significant valleys using low prices with better filtering
+   */
+  private _findSignificantValleys(): Array<{time: Time, price: number, index: number}> {
+    const valleys: Array<{time: Time, price: number, index: number}> = []
+    const lookback = 8 // Look 8 candles back and forward for more significance
+    const minDepthThreshold = 0.0005 // Minimum relative depth (0.05%) for valley significance
+
+    for (let i = lookback; i < this._data.length - lookback; i++) {
+      const current = this._data[i]
+      let isValley = true
+      let minSurroundingLow = Infinity
+
+      // Check if current candle LOW is lower than surrounding candles
+      for (let j = i - lookback; j <= i + lookback; j++) {
+        if (j !== i) {
+          if (this._data[j].low <= current.low) {
+            isValley = false
+            break
+          }
+          minSurroundingLow = Math.min(minSurroundingLow, this._data[j].low)
+        }
+      }
+
+      // Additional check for valley significance - must be lower than surrounding by threshold
+      if (isValley && minSurroundingLow < Infinity) {
+        const relativeDepth = (minSurroundingLow - current.low) / current.low
+        if (relativeDepth < minDepthThreshold) {
+          isValley = false
+        }
+      }
+
+      if (isValley) {
+        valleys.push({
+          time: current.time,
+          price: current.low, // Use LOW for support - snaps to actual low price
+          index: i
+        })
+      }
+    }
+
+    // Sort by time to ensure proper ordering
+    return valleys.sort((a, b) => timeToNumber(a.time) - timeToNumber(b.time))
+  }
+
+  /**
+   * Find best trendline from a set of peaks/valleys
+   */
+  private _findBestTrendlineFromPeaks(
+    points: Array<{time: Time, price: number, index: number}>, 
+    type: 'resistance' | 'support'
+  ): CalculatedTrendline | null {
+    let bestTrendline: CalculatedTrendline | null = null
+    let bestScore = 0
+
+    // Try all combinations of points to find the best trendline
+    for (let i = 0; i < points.length; i++) {
+      for (let j = i + 1; j < points.length; j++) {
+        const trendline = this._createTrendlineFromPoints(points[i], points[j], type)
+        
+        if (trendline && this._isValidTrendline(trendline)) {
+          const score = this._scoreTrendline(trendline)
+          if (score > bestScore) {
+            bestScore = score
+            bestTrendline = trendline
+          }
+        }
+      }
+    }
+
+    return bestTrendline
+  }
+
+  /**
+   * Create trendline from two points
+   */
+  private _createTrendlineFromPoints(
+    point1: {time: Time, price: number, index: number},
+    point2: {time: Time, price: number, index: number},
+    type: 'resistance' | 'support'
+  ): CalculatedTrendline | null {
+    const time1 = timeToNumber(point1.time)
+    const time2 = timeToNumber(point2.time)
+    const timeSpan = Math.abs(time1 - time2)
+    
+    if (timeSpan <= 0) return null
+
+    const slope = (point1.price - point2.price) / timeSpan
+    
+    // Ensure point1 is the more recent point (larger time)
+    const [recentPoint, historicalPoint] = time1 > time2 ? [point1, point2] : [point2, point1]
+    
+    return {
+      point1: {
+        time: recentPoint.time,
+        price: recentPoint.price,
+        significance: 1.0,
+        index: recentPoint.index
+      },
+      point2: {
+        time: historicalPoint.time,
+        price: historicalPoint.price,
+        significance: 1.0,
+        index: historicalPoint.index
+      },
+      slope,
+      strength: 1.0,
+      score: 0,
+      touchingPoints: 0,
+      type
+    }
+  }
+
+  /**
+   * Validate trendline
+   */
+  private _isValidTrendline(trendline: CalculatedTrendline): boolean {
+    const absSlope = Math.abs(trendline.slope)
+    return absSlope >= 0.000001 && absSlope <= 0.01 // Reasonable slope constraints
+  }
+
+  /**
+   * Get trendline price at specific time
+   */
+  private _getTrendlinePrice(trendline: CalculatedTrendline, time: number): number | null {
+    const time1 = timeToNumber(trendline.point1.time)
+    const timeDiff = time - time1
+    return trendline.point1.price + (trendline.slope * timeDiff)
+  }
+
+  /**
+   * Score a trendline based on how well it fits the data
+   */
+  private _scoreTrendline(trendline: CalculatedTrendline): number {
+    let touchingPoints = 0
+    const tolerance = 0.015 // 1.5% tolerance
+    
+    const startIndex = Math.min(trendline.point1.index, trendline.point2.index)
+    const endIndex = Math.max(trendline.point1.index, trendline.point2.index)
+    
+    for (let i = startIndex; i <= endIndex; i++) {
+      const expectedPrice = this._getTrendlinePrice(trendline, timeToNumber(this._data[i].time))
+      if (expectedPrice === null) continue
+      
+      const actualPrice = trendline.type === 'resistance' ? this._data[i].high : this._data[i].low
+      const diff = Math.abs(actualPrice - expectedPrice) / expectedPrice
+      
+      if (diff <= tolerance) {
+        touchingPoints++
+      }
+    }
+    
+    // Score based on touching points and time span
+    const timeSpan = Math.abs(trendline.point1.index - trendline.point2.index)
+    return touchingPoints * 10 + timeSpan * 0.1
   }
 
   /**
@@ -413,15 +720,17 @@ class TrendlinePaneView {
   constructor(
     private _upperTrendline: CalculatedTrendline | null,
     private _lowerTrendline: CalculatedTrendline | null,
-    private _data: PeakCandlestickData[]
+    private _data: PeakCandlestickData[],
+    private _chart: any,
+    private _series: any
   ) {}
 
-  zOrder(): any {
+  zOrder(): 'bottom' | 'normal' | 'top' {
     return 'top' // Draw on top of other elements
   }
 
   renderer() {
-    return new TrendlineRenderer(this._upperTrendline, this._lowerTrendline, this._data)
+    return new TrendlineRenderer(this._upperTrendline, this._lowerTrendline, this._data, this._chart, this._series)
   }
 }
 
@@ -430,11 +739,24 @@ class TrendlineRenderer {
   constructor(
     private _upperTrendline: CalculatedTrendline | null,
     private _lowerTrendline: CalculatedTrendline | null,
-    private _data: PeakCandlestickData[]
+    private _data: PeakCandlestickData[],
+    private _chart: any,
+    private _series: any
   ) {}
 
+  // Helper method to calculate trendline price at specific time
+  private _getTrendlinePrice(trendline: CalculatedTrendline, time: number): number | null {
+    const time1 = timeToNumber(trendline.point1.time)
+    const timeDiff = time - time1
+    return trendline.point1.price + (trendline.slope * timeDiff)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   draw(target: any): void {
-    // Use media coordinate space for simpler drawing
+    if (!this._series || !this._chart) return
+
+    // Use the media coordinate space with proper chart integration
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     target.useMediaCoordinateSpace((scope: any) => {
       const ctx = scope.context
 
@@ -442,14 +764,14 @@ class TrendlineRenderer {
       ctx.save()
 
       try {
-        // Draw upper trendline (resistance)
+        // Draw upper trendline (resistance) - Red for resistance
         if (this._upperTrendline) {
-          this._drawTrendlineInMediaSpace(ctx, this._upperTrendline, '#ff4444', 2, scope)
+          this._drawTrendlineWithCoordinateSystem(ctx, this._upperTrendline, '#ff6b6b', 2)
         }
 
-        // Draw lower trendline (support)
+        // Draw lower trendline (support) - Teal for support
         if (this._lowerTrendline) {
-          this._drawTrendlineInMediaSpace(ctx, this._lowerTrendline, '#44ff44', 2, scope)
+          this._drawTrendlineWithCoordinateSystem(ctx, this._lowerTrendline, '#4ecdc4', 2)
         }
       } finally {
         // Restore context state
@@ -458,55 +780,55 @@ class TrendlineRenderer {
     })
   }
 
-  private _drawTrendlineInMediaSpace(
+  private _drawTrendlineWithCoordinateSystem(
     ctx: CanvasRenderingContext2D,
     trendline: CalculatedTrendline,
     color: string,
-    width: number,
-    scope: { mediaSize: { width: number; height: number } }
+    width: number
   ): void {
-    if (this._data.length === 0) return
+    try {
+      // Convert time and price to coordinates using the chart's coordinate system
+      const point1Time = timeToNumber(trendline.point1.time)
+      const point2Time = timeToNumber(trendline.point2.time)
 
-    ctx.strokeStyle = color
-    ctx.lineWidth = width
-    ctx.setLineDash([5, 5]) // Dashed line
+      // Use the series methods to convert to pixel coordinates
+      const x1 = this._chart.timeScale().timeToCoordinate(point1Time)
+      const x2 = this._chart.timeScale().timeToCoordinate(point2Time)
+      const y1 = this._series.priceToCoordinate(trendline.point1.price)
+      const y2 = this._series.priceToCoordinate(trendline.point2.price)
 
-    // Get the time range of visible data
-    const firstTime = timeToNumber(this._data[0].time)
-    const lastTime = timeToNumber(this._data[this._data.length - 1].time)
+      // Only draw if coordinates are valid
+      if (x1 !== null && x2 !== null && y1 !== null && y2 !== null) {
+        ctx.strokeStyle = color
+        ctx.lineWidth = width
+        ctx.setLineDash([])
 
-    // Calculate trendline prices at start and end
-    const startPrice = this._getTrendlinePrice(trendline, firstTime)
-    const endPrice = this._getTrendlinePrice(trendline, lastTime)
+        // Draw line connecting the two detected peaks/valleys
+        ctx.beginPath()
+        ctx.moveTo(x1, y1)
+        ctx.lineTo(x2, y2)
+        ctx.stroke()
 
-    if (startPrice !== null && endPrice !== null) {
-      // Use media coordinate space for drawing
-      const mediaWidth = scope.mediaSize.width
-      const mediaHeight = scope.mediaSize.height
+        // Draw small circles at the exact peak/valley points to show detection
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(x1, y1, 3, 0, 2 * Math.PI)
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(x2, y2, 3, 0, 2 * Math.PI)
+        ctx.fill()
 
-      // Simple linear mapping across the full width
-      const x1 = 0
-      const x2 = mediaWidth
-
-      // Map prices to canvas Y coordinates (inverted because canvas Y increases downward)
-      const priceRange = Math.max(...this._data.map(d => d.high)) - Math.min(...this._data.map(d => d.low))
-      const minPrice = Math.min(...this._data.map(d => d.low))
-
-      const y1 = mediaHeight - ((startPrice - minPrice) / priceRange) * mediaHeight
-      const y2 = mediaHeight - ((endPrice - minPrice) / priceRange) * mediaHeight
-
-      ctx.beginPath()
-      ctx.moveTo(x1, y1)
-      ctx.lineTo(x2, y2)
-      ctx.stroke()
+        // Optional: Add text labels to show what type of trendline this is
+        ctx.fillStyle = color
+        ctx.font = '10px Arial'
+        const label = trendline.type === 'resistance' ? 'R' : 'S'
+        const labelX = (x1 + x2) / 2
+        const labelY = (y1 + y2) / 2 - 10
+        ctx.fillText(label, labelX, labelY)
+      }
+    } catch (error) {
+      console.warn('Error drawing trendline with coordinate system:', error)
     }
-
-    ctx.setLineDash([]) // Reset line dash
   }
 
-  private _getTrendlinePrice(trendline: CalculatedTrendline, time: number): number | null {
-    const time1 = timeToNumber(trendline.point1.time)
-    const timeDiff = time - time1
-    return trendline.point1.price + (trendline.slope * timeDiff)
-  }
 }

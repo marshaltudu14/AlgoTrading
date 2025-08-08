@@ -8,7 +8,11 @@ import {
   createSeriesMarkers,
   UTCTimestamp,
   CandlestickSeries,
-  LineSeries
+  LineSeries,
+  AreaSeries,
+  IPriceLine,
+  ISeriesApi,
+  Time
 } from "lightweight-charts"
 import { useTheme } from "next-themes"
 import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react"
@@ -22,8 +26,8 @@ interface CandlestickData {
   close: number
 }
 
-interface TradeMarker {
-  time: string | number | UTCTimestamp
+export interface TradeMarker {
+  time: Time
   position: 'aboveBar' | 'belowBar'
   color: string
   shape: 'circle' | 'square' | 'arrowUp' | 'arrowDown'
@@ -90,10 +94,9 @@ export function TradingChart({
   const chartRef = React.useRef<IChartApi | null>(null)
   const candlestickSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
   const portfolioSeriesRef = React.useRef<ReturnType<IChartApi['addSeries']> | null>(null)
-  const slPriceLineRef = React.useRef<any>(null)
-  const tpPriceLineRef = React.useRef<any>(null)
-  const positionAreaSeriesRefs = React.useRef<{ top: any; bottom: any; } | null>(null)
-  const positionAreaSeriesRef = React.useRef<any>(null)
+  const slPriceLineRef = React.useRef<IPriceLine | null>(null)
+  const tpPriceLineRef = React.useRef<IPriceLine | null>(null)
+  const positionAreaSeriesRefs = React.useRef<{ top: ISeriesApi<'Area'>; bottom: ISeriesApi<'Area'>; } | null>(null)
   const trendlinePrimitiveRef = React.useRef<TrendlinePrimitive | null>(null)
   const { theme } = useTheme()
   const [chartHeight, setChartHeight] = React.useState(400) // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -146,7 +149,7 @@ export function TradingChart({
       height: chartContainerRef.current.clientHeight,
       layout: {
         background: { type: ColorType.Solid, color: 'transparent' },
-        textColor: theme === 'dark' ? '#ffffff' : '#000000',
+        textColor: '#000000', // Will be updated by theme effect
       },
       grid: {
         vertLines: { visible: false },
@@ -218,6 +221,7 @@ export function TradingChart({
       chart.remove()
       chartRef.current = null
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showPortfolio])
 
   // Update theme
@@ -300,7 +304,9 @@ export function TradingChart({
   React.useEffect(() => {
     if (candlestickSeriesRef.current && lastTick) {
       const formattedCandle = {
-        time: lastTick.timestamp as UTCTimestamp,
+        time: (typeof lastTick.timestamp === 'string' 
+          ? parseInt(lastTick.timestamp) 
+          : lastTick.timestamp) as UTCTimestamp,
         open: lastTick.open,
         high: lastTick.high,
         low: lastTick.low,
@@ -310,11 +316,11 @@ export function TradingChart({
       candlestickSeriesRef.current.update(formattedCandle);
 
       // Update trendline primitive with new real-time data
-      if (trendlinePrimitiveRef.current && data.length > 0) {
+      if (trendlinePrimitiveRef.current && candlestickData.length > 0) {
         // Maintain the full dataset for trendline calculations
-        const updatedData = [...data, candle]
+        const updatedData = [...candlestickData, formattedCandle]
         const trendlineData = updatedData.map(item => ({
-          time: item.time,
+          time: item.time as Time,
           open: item.open,
           high: item.high,
           low: item.low,
@@ -328,6 +334,7 @@ export function TradingChart({
         chartRef.current.timeScale().scrollToRealTime();
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastTick]);
 
   // Initial data loading for demo/static data
@@ -423,9 +430,9 @@ export function TradingChart({
       // Add markers from tradeMarkers prop (for historical trades)
       if (tradeMarkers.length > 0) {
         const formattedMarkers = tradeMarkers.map(marker => ({
-          time: typeof marker.time === 'string' ?
+          time: (typeof marker.time === 'string' ?
             marker.time.includes('T') ? marker.time.split('T')[0] : marker.time :
-            (Math.floor(marker.time as number / 1000) as UTCTimestamp),
+            (Math.floor(marker.time as number / 1000) as UTCTimestamp)) as Time,
           position: marker.position,
           color: marker.color,
           shape: marker.shape,
@@ -500,13 +507,13 @@ export function TradingChart({
     }
 
     if (activePosition && activePosition.isOpen && lastTick) {
-      const topSeries = chartRef.current.addAreaSeries({
+      // Create area series using the correct API
+      const topSeries = chartRef.current.addSeries(AreaSeries, {
         priceScaleId: 'right',
-        lineWidth: 0,
       });
-      const bottomSeries = chartRef.current.addAreaSeries({
+      
+      const bottomSeries = chartRef.current.addSeries(AreaSeries, {
         priceScaleId: 'right',
-        lineWidth: 0,
       });
 
       positionAreaSeriesRefs.current = { top: topSeries, bottom: bottomSeries };
@@ -528,8 +535,8 @@ export function TradingChart({
       bottomSeries.applyOptions({ topColor: color, bottomColor: color });
 
       const seriesData = [
-        { time: activePosition.entryTime as UTCTimestamp, value: activePosition.entryPrice },
-        { time: lastTick.timestamp as UTCTimestamp, value: lastTick.price },
+        { time: (typeof activePosition.entryTime === 'string' ? parseInt(activePosition.entryTime) : activePosition.entryTime) as UTCTimestamp, value: activePosition.entryPrice },
+        { time: (typeof lastTick.timestamp === 'string' ? parseInt(lastTick.timestamp) : lastTick.timestamp) as UTCTimestamp, value: lastTick.price },
       ];
 
       topSeries.setData(seriesData.map(d => ({ time: d.time, value: Math.max(d.value, activePosition.entryPrice) })));
@@ -665,7 +672,9 @@ export function createTradeMarker(
 
   const config = markerConfig[action]
   return {
-    time,
+    time: (typeof time === 'string' ?
+      time.includes('T') ? time.split('T')[0] : time :
+      (Math.floor(time as number / 1000) as UTCTimestamp)) as Time,
     position: config.position,
     color: config.color,
     shape: config.shape,

@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input"
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TradingViewLayout } from "@/components/trading-view-layout"
-import { TradingChart, createTradeMarker } from "@/components/trading-chart"
+import { TradingChart, createTradeMarker, TradeMarker } from "@/components/trading-chart"
 import { apiClient, formatApiError, type Instrument } from "@/lib/api"
 import { useBacktestProgress } from "@/hooks/use-websocket"
 import { toast } from "sonner"
@@ -85,11 +85,7 @@ export default function BacktestPage() {
     fetchConfig()
   }, [])
 
-  React.useEffect(() => {
-    // Disabled GSAP animations temporarily to avoid ref issues
-    // TODO: Re-enable with proper ref checks
-  }, []);
-
+  // Removed GSAP animation effect as it's not needed for current implementation
 
   // Initialize demo data on component mount
   React.useEffect(() => {
@@ -103,10 +99,7 @@ export default function BacktestPage() {
     setDemoPortfolioData(portfolioData)
   }, [])
 
-  React.useEffect(() => {
-    // Disabled GSAP animations temporarily to avoid ref issues
-    // TODO: Re-enable with proper ref checks
-  }, []);
+  // Removed second GSAP animation effect as it's not needed for current implementation
 
   // Use WebSocket hook for real-time progress and chart data
   const {
@@ -254,7 +247,10 @@ export default function BacktestPage() {
           <TradingChart
             candlestickData={demoData}
             portfolioData={demoPortfolioData}
-            tradeMarkers={demoTradeMarkers}
+            tradeMarkers={demoTradeMarkers.map(marker => ({
+              ...marker,
+              time: marker.time as TradeMarker['time']
+            }))}
             title="Demo Trading Chart"
             showPortfolio={true}
             fullScreen={true}

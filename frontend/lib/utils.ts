@@ -5,9 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatApiError(error: any): string {
-  if (error?.message) {
-    return error.message;
+export function formatApiError(error: unknown): string {
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message: string }).message);
   }
   if (typeof error === 'string') {
     return error;

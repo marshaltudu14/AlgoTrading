@@ -15,14 +15,12 @@ import {
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useRouter } from "next/navigation"
 import { AppLayout } from "@/components/app-layout"
 import ConnectionStatus from "@/components/connection-status";
 import { toast } from "sonner"
 
 import { formatIndianCurrency } from "@/lib/formatters"
-import { apiClient, formatApiError, Instrument, CandlestickData, Metrics } from "@/lib/api"
+import { apiClient, formatApiError, Metrics } from "@/lib/api"
 
 interface DashboardUserData {
   name: string;
@@ -66,8 +64,6 @@ export default function DashboardPage() {
   const [metrics, setMetrics] = React.useState<Metrics | null>(null)
   const [isMetricsLoading, setIsMetricsLoading] = React.useState(true)
   const [metricsError, setMetricsError] = React.useState<string | null>(null)
-  const router = useRouter()
-
 
   React.useEffect(() => {
     const fetchUserProfile = async () => {
@@ -263,7 +259,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Clock className="h-3 w-3" />
-                      {userData?.lastTradeTime}
+                      {metrics?.lastTradeTime || 'No trades yet'}
                     </div>
                   </div>
 
