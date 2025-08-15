@@ -18,19 +18,22 @@ This is a sophisticated algorithmic trading system for the Indian stock market t
 ### Frontend Development
 ```bash
 cd frontend
-npm run dev          # Start Next.js dev server on port 3000
+npm run dev          # Start both Next.js (port 3000) and FastAPI (port 8000) servers concurrently
 npm run build        # Build for production  
 npm run lint         # Run ESLint
 npm run start        # Start production server
+npm test             # Run Jest tests
+npm run test:watch   # Run Jest tests in watch mode
 ```
 
 ### Backend Development
 ```bash
 # From root directory
 cd backend
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload  # Start FastAPI server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload  # Start FastAPI server only
 
-# Run both frontend and backend concurrently (from frontend/)
+# Preferred: Use concurrent development from frontend directory
+cd frontend
 npm run dev          # Starts both Next.js and FastAPI using concurrently
 ```
 
@@ -40,21 +43,22 @@ npm run dev          # Starts both Next.js and FastAPI using concurrently
 activate_venv.bat
 
 # Install dependencies
-pip install -r requirements.txt        # Core dependencies
-pip install -r backend/requirements.txt # Backend-specific
-pip install -r api/requirements.txt     # Lightweight API deps
+pip install -r requirements.txt     # All Python dependencies (comprehensive)
 ```
 
 ### Testing
 ```bash
 # Python tests
-pytest                    # Run all tests
-pytest tests/test_*.py    # Run specific test files
-pytest -v                 # Verbose output
+pytest                               # Run all Python tests
+pytest tests/test_api/test_*.py     # Run specific API test files
+pytest tests/test_trading/test_*.py # Run trading-specific tests
+pytest -v                          # Verbose output
+pytest -k "test_name"               # Run specific test by name
 
-# Frontend tests (when implemented)
+# Frontend tests
 cd frontend
-npm test                  # Run Jest tests
+npm test                           # Run Jest tests
+npm run test:watch                 # Run Jest tests in watch mode
 ```
 
 ### Model Training and Backtesting
@@ -69,11 +73,21 @@ python run_live_bot.py              # Start live trading bot
 ### Service-Oriented Backend Structure
 The backend follows a service-oriented architecture with these key services:
 
+#### Core Trading Services (`src/trading/`)
 - **LiveTradingService** (`src/trading/live_trading_service.py`): Core trading logic, model integration, WebSocket communication
 - **BacktestService** (`src/trading/backtest_service.py`): Historical backtesting with real-time progress updates  
 - **FyersClient** (`src/trading/fyers_client.py`): Abstraction layer for Fyers API interactions
 - **TradingEnv** (`src/backtesting/environment.py`): Reinforcement learning environment for position management
 - **DataLoader** (`src/utils/data_loader.py`): Data processing and feature generation pipeline
+
+#### Modular FastAPI Backend (`backend/`)
+- **Routing**: Modular route structure in `backend/routes/`
+  - `auth_routes.py`: Authentication and user management
+  - `config_routes.py`: Configuration endpoints
+  - `trading_routes.py`: Trading-related API endpoints
+- **WebSocket Handlers**: Real-time communication in `backend/websocket_handlers/`
+- **Models**: Pydantic models for API requests/responses in `backend/models/`
+- **Dependencies**: Shared FastAPI dependencies in `backend/core/dependencies.py`
 
 ### Frontend Architecture
 - **App Router**: Next.js 15 App Router pattern with `app/` directory structure
@@ -95,15 +109,25 @@ The backend follows a service-oriented architecture with these key services:
 - `config/training_sequence.yaml`: Model training parameters and architecture
 - `models/universal_final_model.pth`: Pre-trained PPO trading model
 
+### Frontend Configuration
+- `frontend/package.json`: Frontend dependencies and scripts (includes concurrent dev setup)
+- `frontend/jest.config.js`: Jest testing configuration with Next.js integration
+- `frontend/next.config.ts`: Next.js configuration
+- `frontend/tsconfig.json`: TypeScript configuration for frontend
+
+### Backend Configuration
+- `requirements.txt`: All Python dependencies (comprehensive)
+- `backend/main.py`: FastAPI application entry point with modular routing
+- `tests/conftest.py`: Shared test fixtures and configuration
+
 ### API Documentation
 - `fyers_docs.txt`: Comprehensive Fyers API documentation and integration details
-- `docs/architecture.md`: Detailed system architecture specifications
-- `docs/prd.md`: Product requirements with user stories and acceptance criteria
 
 ### Deployment Configuration
 - `vercel.json`: Vercel deployment configuration for Next.js + Python serverless functions
 - `DEPLOYMENT.md`: Step-by-step deployment guide for Vercel
 - `api/index.py`: Lightweight serverless API entry point for production
+- `activate_venv.bat`: Windows batch script to activate Python virtual environment
 
 ## Important Implementation Notes
 
@@ -128,9 +152,15 @@ The backend follows a service-oriented architecture with these key services:
 - Graceful fallbacks when model loading fails (uses random actions)
 
 ### Testing Strategy  
-- Unit tests for individual components in `tests/` directory
-- Integration tests for full trading pipeline
-- Use `pytest` for Python testing with fixtures in `conftest.py`
+- **Python Testing**: Comprehensive test suite in `tests/` directory with pytest
+  - `tests/test_api/`: API endpoint and WebSocket integration tests
+  - `tests/test_trading/`: Trading logic, live trading service, and position management tests
+  - `tests/test_utils/`: Utility function tests (instrument loading, option utils)
+  - `tests/conftest.py`: Shared fixtures for mock data, TradingEnv, and PPOAgent setup
+- **Frontend Testing**: Jest-based testing with React Testing Library
+  - Test files in `frontend/__tests__/` directory
+  - Configuration in `frontend/jest.config.js` with Next.js integration
+- **Integration Testing**: Full pipeline tests that combine multiple components
 
 ## Development Workflow
 
