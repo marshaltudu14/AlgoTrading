@@ -14,6 +14,8 @@ import logging
 from pathlib import Path
 
 # Add project root to path for imports
+from src.config.settings import get_settings
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 logger = logging.getLogger(__name__)
@@ -248,12 +250,15 @@ def generate_multiple_test_instruments(
 
 
 def create_test_data_files(
-    data_dir: str = "data/test",
+    data_dir: str = None,
     symbol: str = "Bank_Nifty_5",
     num_rows: int = 150,
     create_both: bool = True,
     create_multiple_instruments: bool = True
 ) -> dict:
+    settings = get_settings()
+    paths_config = settings.get('paths', {})
+    data_dir = data_dir or paths_config.get('test_data_dir', 'data/test')
     """
     Create test data files for training pipeline testing.
 
@@ -328,8 +333,11 @@ if __name__ == "__main__":
 
     # Also test file creation
     print("\nTesting file creation:")
+    settings = get_settings()
+    paths_config = settings.get('paths', {})
+    test_data_dir = paths_config.get('test_data_dir', 'data/test')
     files = create_test_data_files(
-        data_dir="data/test",
+        data_dir=test_data_dir,
         symbol="Bank_Nifty_5",  # Base symbol (not used when create_multiple_instruments=True)
         num_rows=150,
         create_both=True,
@@ -339,3 +347,4 @@ if __name__ == "__main__":
     print("Created test data files:")
     for file_type, path in files.items():
         print(f"  {file_type}: {path}")
+

@@ -45,8 +45,8 @@ class Trainer:
         self.cumulative_capital_history = []  # Track capital across all episodes
 
     def _load_config(self) -> dict:
-        """Load configuration from training_sequence.yaml"""
-        config_path = "config/training_sequence.yaml"
+        """Load configuration from settings.yaml"""
+        config_path = "config/settings.yaml"
         try:
             with open(config_path, 'r') as file:
                 config = yaml.safe_load(file)

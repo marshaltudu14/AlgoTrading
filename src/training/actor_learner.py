@@ -69,10 +69,14 @@ class TradingActor:
         self.env_config = env_config
         self.agent_config = agent_config
         
+        paths_config = env_config.get('paths', {})
+        final_data_dir = paths_config.get('final_data_dir', 'data/final')
+        raw_data_dir = paths_config.get('raw_data_dir', 'data/raw')
+
         # Initialize environment
         data_loader = DataLoader(
-            final_data_dir=env_config.get("final_data_dir", "data/final"),
-            raw_data_dir=env_config.get("raw_data_dir", "data/raw"),
+            final_data_dir=final_data_dir,
+            raw_data_dir=raw_data_dir,
             chunk_size=env_config.get("chunk_size", 10000),
             use_parquet=env_config.get("use_parquet", True)
         )

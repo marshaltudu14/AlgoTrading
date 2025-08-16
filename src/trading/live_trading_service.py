@@ -16,6 +16,8 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 
+from src.config.settings import get_settings
+
 # Import existing trading components
 import sys
 import os
@@ -542,8 +544,13 @@ class LiveTradingService:
         try:
             logger.info("Initializing trading environment")
 
+            # Load settings
+            settings = get_settings()
+            paths_config = settings.get('paths', {})
+            final_data_dir = paths_config.get('final_data_dir', 'data/final')
+
             # Initialize data loader for live trading
-            data_loader = DataLoader(final_data_dir="data/final", use_parquet=True)
+            data_loader = DataLoader(final_data_dir=final_data_dir, use_parquet=True)
 
             # Initialize trading environment in LIVE mode
             self.trading_env = TradingEnv(
@@ -590,7 +597,7 @@ class LiveTradingService:
             action_dim_continuous = 1
             # Load training config to get hidden_dim
             import yaml
-            training_config_path = Path(__file__).parent.parent.parent / "config" / "training_sequence.yaml"
+            training_config_path = Path(__file__).parent.parent.parent / "config" / "settings.yaml"
             with open(training_config_path, 'r') as f:
                 training_config = yaml.safe_load(f)
             hidden_dim = training_config.get('model', {}).get('hidden_dim', 64)

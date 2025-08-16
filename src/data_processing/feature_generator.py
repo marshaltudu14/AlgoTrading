@@ -23,7 +23,7 @@ import logging
 from pytz import timezone
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
-from config.config import get_config
+from src.config.settings import get_settings
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -80,11 +80,12 @@ class DynamicFileProcessor:
 
     def __init__(self, data_folder: str = None):
         # Load configuration
-        self.config = get_config()
+        self.config = get_settings()
 
         # Set up folders
-        self.data_folder = Path(data_folder or self.config['data']['input_folder'])
-        self.processed_folder = Path("data/final")
+        data_processing_config = self.config.get('data_processing', {})
+        self.data_folder = Path(data_folder or data_processing_config.get('input_folder'))
+        self.processed_folder = Path(data_processing_config.get('output_folder'))
         self.processed_folder.mkdir(exist_ok=True)
         
         self.market_structure = MarketStructureAnalyzer()

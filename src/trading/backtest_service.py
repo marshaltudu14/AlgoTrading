@@ -203,7 +203,7 @@ class BacktestService:
             action_dim_continuous = 1
             # Load training config to get hidden_dim
             import yaml
-            training_config_path = Path(__file__).parent.parent.parent / "config" / "training_sequence.yaml"
+            training_config_path = Path(__file__).parent.parent.parent / "config" / "settings.yaml"
             with open(training_config_path, 'r') as f:
                 training_config = yaml.safe_load(f)
             hidden_dim = training_config.get('model', {}).get('hidden_dim', 64)

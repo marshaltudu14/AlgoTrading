@@ -33,6 +33,12 @@ import pandas as pd
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent)) # Add project root to sys.path
 
+from src.config.settings import get_settings
+
+
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent)) # Add project root to sys.path
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -59,7 +65,7 @@ class DataProcessingPipeline:
         Args:
             config: Optional configuration dictionary
         """
-        self.config = config or {}
+        self.config = config or get_settings()
         
         # Setup directories
         self.setup_directories()
@@ -74,21 +80,25 @@ class DataProcessingPipeline:
     
     def setup_directories(self):
         """Setup required directories for the pipeline."""
+        paths_config = self.config.get('paths', {})
         directories = [
-            'data/raw',
-            'data/final',
-            'reports/pipeline',
-            'reports/quality',
-            'logs',
-            'temp'
+            paths_config.get('raw_data_dir', 'data/raw'),
+            paths_config.get('final_data_dir', 'data/final'),
+            Path(paths_config.get('reports_dir', 'reports')) / 'pipeline',
+            Path(paths_config.get('reports_dir', 'reports')) / 'quality',
+            paths_config.get('logs_dir', 'logs'),
+            paths_config.get('temp_dir', 'temp')
         ]
 
         for directory in directories:
             Path(directory).mkdir(parents=True, exist_ok=True)
             logger.debug(f"Ensured directory exists: {directory}")
     
-    def run_complete_pipeline(self, input_dir: str = "data/raw",
-                            output_dir: str = "data/final") -> Dict[str, Any]:
+    def run_complete_pipeline(self, input_dir: str = None,
+                            output_dir: str = None) -> Dict[str, Any]:
+        paths_config = self.config.get('paths', {})
+        input_dir = input_dir or paths_config.get('raw_data_dir', 'data/raw')
+        output_dir = output_dir or paths_config.get('final_data_dir', 'data/final')
         """
         Run the complete pipeline: Features -> Reasoning -> Final Data
         
@@ -180,7 +190,8 @@ class DataProcessingPipeline:
                 logger.info("Feature generator completed successfully")
 
                 # Count processed files and rows
-                processed_data_path = Path("data/processed")
+                paths_config = self.config.get('paths', {})
+                processed_data_path = Path(paths_config.get('processed_data_dir', 'data/processed'))
                 feature_files = list(processed_data_path.glob("features_*.csv"))
 
                 total_rows = 0
@@ -332,11 +343,14 @@ class DataProcessingPipeline:
 
 def main():
     """Main function for the integrated pipeline."""
+    pipeline = DataProcessingPipeline()
+    paths_config = pipeline.config.get('paths', {})
+
     parser = argparse.ArgumentParser(description='Integrated Data Processing Pipeline')
-    parser.add_argument('--input-dir', default='data/raw',
-                       help='Directory containing raw historical data (default: data/raw)')
-    parser.add_argument('--output-dir', default='data/final',
-                       help='Directory for final processed data (default: data/final)')
+    parser.add_argument('--input-dir', default=paths_config.get('raw_data_dir', 'data/raw'),
+                       help='Directory containing raw historical data')
+    parser.add_argument('--output-dir', default=paths_config.get('final_data_dir', 'data/final'),
+                       help='Directory for final processed data')
     parser.add_argument('--features-only', action='store_true',
                        help='Run only feature generation step')
     parser.add_argument('--config-file',
@@ -352,13 +366,11 @@ def main():
     
     try:
         # Initialize pipeline
-        pipeline = DataProcessingPipeline()
-
         
 
         if args.features_only:
             print("Running FEATURES ONLY mode...")
-            result = pipeline.run_feature_generation(args.input_dir, "data/processed")
+            result = pipeline.run_feature_generation(args.input_dir, paths_config.get('processed_data_dir', 'data/processed'))
 
         
             

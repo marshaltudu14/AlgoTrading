@@ -43,8 +43,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def load_config():
-    """Load configuration from training_sequence.yaml"""
-    config_path = "config/training_sequence.yaml"
+    """Load configuration from settings.yaml"""
+    config_path = "config/settings.yaml"
     try:
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
@@ -69,6 +69,8 @@ class UnifiedBacktester:
         env_config = self.config.get('environment', {})
         model_config = self.config.get('model', {})
 
+        data_processing_config = self.config.get('data_processing', {})
+
         # Hardcoded configuration - Bank Nifty, 2min, 30 days
         self.SYMBOL = 'NSE:NIFTYBANK-INDEX'
         self.TIMEFRAME = '2'  # 2 minutes
@@ -81,8 +83,8 @@ class UnifiedBacktester:
         self.ACTION_DIM_CONTINUOUS = model_config.get('action_dim_continuous', 1)
 
         # Fallback data configuration
-        self.FALLBACK_DATA_PATH = "data/fallback_market_data.csv"
-        self.FALLBACK_BACKTEST_RESULTS_PATH = "data/fallback_backtest_results.json"
+        self.FALLBACK_DATA_PATH = data_processing_config.get('fallback_data_path', "data/fallback_market_data.csv")
+        self.FALLBACK_BACKTEST_RESULTS_PATH = data_processing_config.get('fallback_backtest_results_path', "data/fallback_backtest_results.json")
 
     def save_fallback_data(self, data):
         """Save market data as fallback for future use when authentication fails."""

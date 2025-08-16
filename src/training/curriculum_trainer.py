@@ -24,6 +24,8 @@ from src.utils.metrics import (
     calculate_profit_factor, calculate_avg_pnl_per_trade
 )
 
+from src.utils.file_utils import get_filename
+
 logger = logging.getLogger(__name__)
 
 
@@ -81,10 +83,15 @@ class CurriculumTrainer:
 
     def _discover_curriculum_data(self) -> List[Dict[str, Any]]:
         """Discover available data files and organize into curriculum batches."""
-        final_dir = "data/final"
+        paths_config = self.config.get('paths', {})
+        final_dir = paths_config.get('final_data_dir', 'data/final')
         if not os.path.exists(final_dir):
             logger.warning(f"Data directory {final_dir} not found")
             return []
+        
+        data_processing_config = self.config.get('data_processing', {})
+        file_patterns = data_processing_config.get('file_patterns', {})
+        features_pattern = file_patterns.get('features_with_timeframe', 'features_{symbol}_{timeframe}.csv')
         
         # Find all CSV files and extract symbols/timeframes
         files = [f for f in os.listdir(final_dir) if f.endswith('.csv')]
@@ -92,8 +99,8 @@ class CurriculumTrainer:
         
         for file in files:
             # Extract symbol and timeframe from filename
-            # Pattern: features_Symbol_Timeframe.csv
-            match = re.match(r'features_(.+)_(\d+)\.csv', file)
+            pattern = features_pattern.replace('{symbol}', '(.+)').replace('{timeframe}', '(\d+)')
+            match = re.match(pattern, file)
             if match:
                 symbol = match.group(1)
                 timeframe = int(match.group(2))
@@ -117,8 +124,8 @@ class CurriculumTrainer:
             # Fallback: use any available symbols
             all_symbols = []
             for file in files:
-                if file.startswith('features_'):
-                    symbol_part = file.replace('features_', '').replace('.csv', '')
+                if file.startswith(file_patterns.get('features', 'features_').split('{')[0]):
+                    symbol_part = file.replace(file_patterns.get('features', 'features_').split('{')[0], '').replace('.csv', '')
                     all_symbols.append(symbol_part)
             
             if all_symbols:
@@ -129,6 +136,7 @@ class CurriculumTrainer:
                 }]
         
         return curriculum_batches
+
 
     def _get_current_batch(self, episode: int) -> Dict[str, Any]:
         """Get the current curriculum batch based on episode number."""

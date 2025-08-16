@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def load_training_config(config_path: str = "config/training_sequence.yaml") -> dict:
+def load_training_config(config_path: str = "config/settings.yaml") -> dict:
     """Load training configuration from YAML file."""
     try:
         with open(config_path, 'r') as file:
@@ -89,7 +89,8 @@ def run_ppo_training(
     model_config = config.get('model', {})
 
     # Use appropriate data directory for testing vs production
-    final_data_dir = "data/test/final" if testing_mode else data_dir
+    data_processing_config = config.get('data_processing', {})
+    final_data_dir = os.path.join(data_processing_config.get('test_folder', 'data/test'), 'final') if testing_mode else data_dir
     data_loader = DataLoader(final_data_dir=final_data_dir, use_parquet=True)
 
     env = TradingEnv(
@@ -129,7 +130,7 @@ def run_ppo_training(
     # Only save model in production mode (not testing)
     if not testing_mode:
         # Use universal model path instead of symbol-specific
-        model_path = "models/universal_final_model.pth"
+        model_path = model_config.get('model_path', 'models/universal_final_model.pth')
         os.makedirs("models", exist_ok=True)
 
         if hasattr(agent, 'save_model'):
@@ -166,7 +167,8 @@ def run_universal_ppo_training(
     model_config = config.get('model', {})
 
     # Use appropriate data directory for testing vs production
-    final_data_dir = "data/test/final" if testing_mode else data_dir
+    data_processing_config = config.get('data_processing', {})
+    final_data_dir = os.path.join(data_processing_config.get('test_folder', 'data/test'), 'final') if testing_mode else data_dir
     data_loader = DataLoader(final_data_dir=final_data_dir, use_parquet=True)
 
     # Create environment with first symbol to get dimensions
@@ -210,7 +212,7 @@ def run_universal_ppo_training(
     # Only save model in production mode (not testing)
     if not testing_mode:
         # Use universal model path instead of symbol-specific
-        model_path = "models/universal_final_model.pth"
+        model_path = model_config.get('model_path', 'models/universal_final_model.pth')
         os.makedirs("models", exist_ok=True)
 
         if hasattr(agent, 'save_model'):
@@ -288,7 +290,7 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
     # Only save model in production mode (not testing)
     if not testing_mode:
         # Use universal model path
-        model_path = "models/universal_final_model.pth"
+        model_path = model_config.get('model_path', 'models/universal_final_model.pth')
         os.makedirs("models", exist_ok=True)
 
         if hasattr(agent, 'save_model'):
@@ -333,7 +335,8 @@ def main():
 
         # Create test data files for both stock and option instruments
         symbols = ["RELIANCE_1", "Bank_Nifty_5"]
-        args.data_dir = 'data/test'
+        data_processing_config = config.get('data_processing', {})
+        args.data_dir = data_processing_config.get('test_folder', 'data/test')
 
         # Use test data configuration if available
         if 'testing_overrides' in config and 'test_data' in config['testing_overrides']:

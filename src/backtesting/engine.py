@@ -71,9 +71,62 @@ class BacktestingEngine:
                 'trading': {'brokerage_entry': 25.0, 'brokerage_exit': 35.0},
                 'risk_management': {'risk_multiplier': 1.0, 'reward_multiplier': 2.0, 'use_atr_based_stops': True}
             }
-        self._position_entry_time = None
-        self._position_entry_reason = ""
-        self._last_decision_timestamp = None
+        from src.config.settings import get_settings
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Warning deduplication to prevent spam
+_warning_cache = set()
+
+class BacktestingEngine:
+    def __init__(self, initial_capital: float, instrument: Instrument, trailing_stop_percentage: float = 0.02):
+        if initial_capital <= 0:
+            raise ValueError("Initial capital must be positive.")
+        self._initial_capital = initial_capital
+        self._capital = initial_capital
+        self.instrument = instrument
+        self._current_position_quantity = 0.0
+        self._current_position_entry_price = 0.0
+        self._realized_pnl = 0.0
+        self._unrealized_pnl = 0.0
+        self._trade_history = [] # To store details of each trade for reporting/metrics
+        self._stop_loss_price = 0.0
+        self._target_profit_price = 0.0
+        self._trailing_stop_price = 0.0
+        self._peak_price = 0.0
+        self._is_position_open = False
+        self.trailing_stop_percentage = trailing_stop_percentage
+
+        # Point-based trailing stop variables
+        self._initial_sl_points = 0.0  # Fixed point gap from initial SL
+        self._use_point_based_trailing = True  # Use point-based instead of percentage-based
+        self._premium_paid_per_lot = 0.0 # For options P&L calculation
+
+        # Load configuration for brokerage and risk management
+        self.config = self._load_config()
+        trading_config = self.config.get('trading', {})
+        risk_config = self.config.get('risk_management', {})
+
+        self.BROKERAGE_ENTRY = trading_config.get('brokerage_entry', 25.0)  # INR
+        self.BROKERAGE_EXIT = trading_config.get('brokerage_exit', 35.0)   # INR
+
+        # Risk management configuration
+        self.risk_multiplier = risk_config.get('risk_multiplier', 1.0)
+        self.reward_multiplier = risk_config.get('reward_multiplier', 2.0)
+        self.use_atr_based_stops = risk_config.get('use_atr_based_stops', True)
+
+        # Enhanced P&L tracking
+        self._total_realized_pnl = 0.0  # Total P&L from all closed trades
+        self._trade_count = 0  # Number of completed trades
+
+        # Real-time trade decision logging
+        self._current_step = 0
+        self._decision_log = []  # Detailed log of all decisions
+
+    def _load_config(self) -> dict:
+        """Load configuration from settings.yaml"""
+        return get_settings()
 
     def reset(self, verbose: bool = False):
         if verbose:

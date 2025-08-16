@@ -7,14 +7,19 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import pyarrow as pa
 
+from src.config.settings import get_settings
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class DataLoader:
-    def __init__(self, final_data_dir: str = "data/final", raw_data_dir: str = "data/raw",
+    def __init__(self, final_data_dir: str = None, raw_data_dir: str = None,
                  chunk_size: int = 10000, use_parquet: bool = True):
-        self.final_data_dir = final_data_dir
-        self.raw_data_dir = raw_data_dir
+        settings = get_settings()
+        paths_config = settings.get('paths', {})
+        
+        self.final_data_dir = final_data_dir or paths_config.get('final_data_dir', 'data/final')
+        self.raw_data_dir = raw_data_dir or paths_config.get('raw_data_dir', 'data/raw')
         self.chunk_size = chunk_size
         self.use_parquet = use_parquet
         self.testing_mode = False  # Initialize testing mode

@@ -9,12 +9,15 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 
 class InferenceEngine:
-    def __init__(self, model_path, scaler_path, encoder_path, hf_tokenizer_path="models/hf_tokenizer", hf_model_path="models/hf_model"):
+    def __init__(self, config, model_path, scaler_path, encoder_path):
+        live_trading_config = config.get('live_trading', {})
         self.model = joblib.load(model_path)
         self.scaler = joblib.load(scaler_path)
         self.label_encoder = joblib.load(encoder_path)
 
         # Load Hugging Face tokenizer and model
+        hf_tokenizer_path = live_trading_config.get('hf_tokenizer_path', 'models/hf_tokenizer')
+        hf_model_path = live_trading_config.get('hf_model_path', 'models/hf_model')
         self.hf_tokenizer = AutoTokenizer.from_pretrained(hf_tokenizer_path)
         self.hf_model = AutoModel.from_pretrained(hf_model_path)
 

@@ -26,9 +26,10 @@ class LiveTrader:
         self.config = config
         self.fyers_client = FyersClient(config)
 
-        # Check for autonomous champion agent first
+        live_trading_config = config.get('live_trading', {})
         symbol = config.get('trading', {}).get('symbol', 'NIFTY')
-        autonomous_path = f"models/autonomous_agents/{symbol}_autonomous_final.pth"
+        autonomous_path_template = live_trading_config.get('autonomous_agent_path_template', "models/autonomous_agents/{symbol}_autonomous_final.pth")
+        autonomous_path = autonomous_path_template.format(symbol=symbol)
 
         if os.path.exists(autonomous_path):
             logger.info(f"Loading autonomous champion agent from {autonomous_path}")
@@ -41,9 +42,10 @@ class LiveTrader:
             self.autonomous_agent = None
             self.use_autonomous_agent = False
             self.inference_engine = InferenceEngine(
-                model_path="models/supervised_model.joblib",
-                scaler_path="models/scaler.joblib",
-                encoder_path="models/label_encoder.joblib"
+                config=self.config,
+                model_path=live_trading_config.get('supervised_model_path', "models/supervised_model.joblib"),
+                scaler_path=live_trading_config.get('scaler_path', "models/scaler.joblib"),
+                encoder_path=live_trading_config.get('label_encoder_path', "models/label_encoder.joblib")
             )
 
         self.live_data_processor = LiveDataProcessor(config)

@@ -15,14 +15,18 @@ from src.utils.metrics import (
     calculate_num_trades
 )
 
+from src.config.settings import get_settings
+
 # Configure logging to capture messages during tests
 @pytest.fixture(autouse=True)
 def caplog_fixture(caplog):
     caplog.set_level(logging.INFO)
 
 # Mock data for testing
-MOCK_FINAL_DATA_DIR = "data/final"
-MOCK_RAW_DATA_DIR = "data/raw"
+settings = get_settings()
+paths_config = settings.get('paths', {})
+MOCK_FINAL_DATA_DIR = paths_config.get('final_data_dir', 'data/final')
+MOCK_RAW_DATA_DIR = paths_config.get('raw_data_dir', 'data/raw')
 
 MOCK_FINAL_FILES = {
     "Nifty_5.csv": pd.DataFrame({'datetime': ['2023-01-01'], 'open': [100], 'high': [105], 'low': [99], 'close': [103]}),
