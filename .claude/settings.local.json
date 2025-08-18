@@ -34,7 +34,10 @@
       "mcp__context7__resolve-library-id",
       "mcp__context7__get-library-docs",
       "Bash(cp:*)",
-      "Bash(del \"C:\\AlgoTrading\\src\\training\\curriculum_trainer.py\")"
+      "Bash(del \"C:\\AlgoTrading\\src\\training\\curriculum_trainer.py\")",
+      "Bash(grep:*)",
+      "Bash(sed:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

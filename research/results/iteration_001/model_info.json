@@ -1,0 +1,6 @@
+{
+  "model_path": "models/universal_final_model.pth",
+  "model_size_bytes": 90867585,
+  "model_saved_at": "2025-08-18T23:38:29.863630",
+  "note": "Model stored in central models/ directory to avoid storage duplication"
+}

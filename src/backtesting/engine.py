@@ -238,18 +238,21 @@ class BacktestingEngine:
                         logger.info(f"🛑 Step {self._current_step}: SL hit for LONG position at ₹{price:.2f} (SL: ₹{self._stop_loss_price:.2f})")
                     action = "CLOSE_LONG"
                     quantity = self._current_position_quantity
+                    price = self._stop_loss_price  # Use SL price for execution, not market price
                 elif price >= self._target_profit_price:
                     exit_reason = f"TARGET_PROFIT_HIT"
                     if detailed_logging:
                         logger.info(f"🎯 Step {self._current_step}: TP hit for LONG position at ₹{price:.2f} (TP: ₹{self._target_profit_price:.2f})")
                     action = "CLOSE_LONG"
                     quantity = self._current_position_quantity
+                    price = self._target_profit_price  # Use TP price for execution
                 elif price <= self._trailing_stop_price:
                     exit_reason = f"TRAILING_STOP_HIT"
                     if detailed_logging:
                         logger.info(f"📉 Step {self._current_step}: Trailing SL hit for LONG position at ₹{price:.2f} (Trail: ₹{self._trailing_stop_price:.2f})")
                     action = "CLOSE_LONG"
                     quantity = self._current_position_quantity
+                    price = self._trailing_stop_price  # Use trailing stop price for execution
             elif self._current_position_quantity < 0: # Short position
                 if price >= self._stop_loss_price:
                     exit_reason = f"STOP_LOSS_HIT"
@@ -257,18 +260,21 @@ class BacktestingEngine:
                         logger.info(f"🛑 Step {self._current_step}: SL hit for SHORT position at ₹{price:.2f} (SL: ₹{self._stop_loss_price:.2f})")
                     action = "CLOSE_SHORT"
                     quantity = abs(self._current_position_quantity)
+                    price = self._stop_loss_price  # Use SL price for execution, not market price
                 elif price <= self._target_profit_price:
                     exit_reason = f"TARGET_PROFIT_HIT"
                     if detailed_logging:
                         logger.info(f"🎯 Step {self._current_step}: TP hit for SHORT position at ₹{price:.2f} (TP: ₹{self._target_profit_price:.2f})")
                     action = "CLOSE_SHORT"
                     quantity = abs(self._current_position_quantity)
+                    price = self._target_profit_price  # Use TP price for execution
                 elif price >= self._trailing_stop_price:
                     exit_reason = f"TRAILING_STOP_HIT"
                     if detailed_logging:
                         logger.info(f"📈 Step {self._current_step}: Trailing SL hit for SHORT position at ₹{price:.2f} (Trail: ₹{self._trailing_stop_price:.2f})")
                     action = "CLOSE_SHORT"
                     quantity = abs(self._current_position_quantity)
+                    price = self._trailing_stop_price  # Use trailing stop price for execution
 
         if action == "BUY_LONG":
             if self._current_position_quantity != 0:

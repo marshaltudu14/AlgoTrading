@@ -235,12 +235,42 @@ data_processing:
   remove_duplicates: True
   drop_nan_rows: True
 
+# === RESEARCH & ITERATION MANAGEMENT ===
+research:
+  results_dir: "research/results"
+  iteration_prefix: "iteration_"
+  create_new_iteration_on:
+    - config_change  # New iteration if any config parameters change
+    - feature_count_change  # New iteration if feature dimensions change
+    - architecture_change  # New iteration if model architecture changes
+  save_artifacts:
+    - config_snapshot  # Save complete settings.yaml snapshot
+    - detailed_logs    # Save all training logs
+    - model_weights    # Save trained model
+    - training_metrics # Save performance metrics
+    - feature_info     # Save feature column information
+
 # === LOGGING CONFIGURATION ===
 logging:
+  # Console logging mode
+  console_mode: "minimal"  # Options: "minimal", "detailed", "silent"
+  
+  # Minimal format for console (when not using --noLog)
+  minimal_format: "{step} | {datetime} | {instrument} | {action} | WR: {win_rate}% | {initial_capital} -> {current_capital} | P&L: {pnl} | Entry: {entry_price} | SL: {sl_price} | Target: {target_price}"
+  
+  # Detailed format for iteration log files
+  detailed_format: "%(asctime)s - %(levelname)s - %(message)s"
+  
+  # Progress bar settings (for --noLog mode)
+  progress_bar:
+    enabled: True
+    update_frequency: 10  # Update every N steps
+    show_metrics: ["win_rate", "current_capital", "total_pnl"]
+  
+  # File logging always enabled for research tracking
+  log_to_file: True
+  iteration_log_file: "training_detailed.log"
   level: "INFO"
-  format: "%(asctime)s - %(levelname)s - %(message)s"
-  log_to_file: False
-  log_file: "feature_generator.log"
 
 # === PERFORMANCE CONFIGURATION ===
 performance:

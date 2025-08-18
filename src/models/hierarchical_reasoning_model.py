@@ -812,7 +812,7 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
                     # Ensure probabilities are valid
                     if torch.isnan(action_probs).any() or (action_probs < 0).any():
                         logger.warning("Invalid action probabilities, using HOLD action")
-                        action_type = 2  # HOLD
+                        action_type = 4  # HOLD (Fixed: was incorrectly set to 2=CLOSE_LONG)
                     else:
                         # Safe sampling
                         try:
@@ -824,11 +824,11 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
                     # Validate action type
                     if action_type < 0 or action_type >= self.output_config['action_dim']:
                         logger.warning(f"Invalid action_type {action_type}, using HOLD")
-                        action_type = 2  # HOLD
+                        action_type = 4  # HOLD (Fixed: was incorrectly set to 2=CLOSE_LONG)
                 
                 except Exception as e:
                     logger.error(f"Action sampling failed: {e}")
-                    action_type = 2  # Safe fallback to HOLD
+                    action_type = 4  # Safe fallback to HOLD (Fixed: was incorrectly set to 2=CLOSE_LONG)
                 
                 # Quantity extraction with error handling
                 try:
@@ -1201,8 +1201,9 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
                       available_capital: float,
                       current_position_quantity: float,
                       current_price: float,
-                      instrument: Any # Will import Instrument later
-                     ) -> Tuple[int, float]:
+                      instrument: Any, # Will import Instrument later
+                      return_probabilities: bool = False
+                     ) -> Union[Tuple[int, float], Tuple[int, float, np.ndarray]]:
         """
         Select action using HRM hierarchical reasoning with action masking.
         
@@ -1221,9 +1222,37 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
         elif observation.dim() == 1:
             observation = observation.unsqueeze(0)
         
+        # Extract instrument and timeframe IDs from instrument object
+        instrument_id = None
+        timeframe_id = None
+        
+        if instrument and hasattr(instrument, 'symbol'):
+            # Extract instrument and timeframe from symbol (e.g., 'Bankex_180')
+            symbol_parts = instrument.symbol.split('_')
+            
+            # Map instrument name to ID (simple hash for now)
+            instrument_name = symbol_parts[0] if len(symbol_parts) > 0 else 'Unknown'
+            instrument_id = abs(hash(instrument_name)) % self.instrument_embedding_config['vocab_size']
+            
+            # Map timeframe to ID if available
+            if len(symbol_parts) > 1:
+                try:
+                    timeframe = int(symbol_parts[1])
+                    # Map common timeframes to IDs: 1->0, 10->1, 15->2, 120->3, 180->4
+                    timeframe_map = {1: 0, 10: 1, 15: 2, 120: 3, 180: 4}
+                    timeframe_id = timeframe_map.get(timeframe, abs(hash(str(timeframe))) % self.timeframe_embedding_config['vocab_size'])
+                except ValueError:
+                    timeframe_id = 0  # Default timeframe
+            else:
+                timeframe_id = 0  # Default timeframe
+        
         # Generate action through hierarchical reasoning
         with torch.no_grad():
-            outputs_dict, _ = self.forward(observation)
+            # Pass instrument and timeframe IDs to the model
+            instrument_ids = torch.tensor([instrument_id], device=observation.device) if instrument_id is not None else None
+            timeframe_ids = torch.tensor([timeframe_id], device=observation.device) if timeframe_id is not None else None
+            
+            outputs_dict, _ = self.forward(observation, instrument_ids, timeframe_ids)
             action_logits = outputs_dict['action_type']
 
             # --- Action Masking Logic ---
@@ -1267,27 +1296,44 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
 
             action_probs = F.softmax(action_logits, dim=-1)
             
+            
             # If all actions are masked (should not happen with HOLD always available), default to HOLD
             if torch.all(~action_mask): # If all actions are False in the mask
                 action_type = 4 # Default to HOLD
             else:
-                action_type = torch.argmax(action_probs, dim=-1).item()
+                # Use sampling instead of deterministic argmax for exploration
+                action_type = torch.multinomial(action_probs, 1).item()
             
-            # Get continuous quantity 
-            quantity = torch.clamp(outputs_dict['quantity'], 0.1, 100.0).item()
+            # Get continuous quantity - let model predict freely within configured range
+            # Use quantity_min and quantity_max from model config (set during initialization)
+            quantity_min = getattr(self, 'quantity_min', 1.0)
+            quantity_max = getattr(self, 'quantity_max', 100000.0)
+            raw_quantity = torch.clamp(outputs_dict['quantity'], quantity_min, quantity_max).item()
             
-        return action_type, quantity
+            # Convert to actual quantity based on capital and action type
+            if action_type in [0, 1]:  # BUY_LONG or SELL_SHORT (opening positions)
+                if max_affordable_quantity_buy_sell > 0:
+                    # Use capital-aware quantity for opening positions
+                    quantity = selector.adjust_quantity_for_capital(
+                        predicted_quantity=raw_quantity,
+                        available_capital=available_capital,
+                        current_price=current_price,
+                        instrument=instrument
+                    )
+                else:
+                    quantity = 0  # No capital available
+            elif action_type in [2, 3]:  # CLOSE_LONG or CLOSE_SHORT (closing positions)
+                # For closing, quantity should be the current position quantity
+                quantity = abs(current_position_quantity)
+            else:  # HOLD (action_type == 4)
+                quantity = 0  # HOLD doesn't need quantity
+            
+        if return_probabilities:
+            prob_values = action_probs.squeeze().cpu().numpy()
+            return action_type, quantity, prob_values
+        else:
+            return action_type, quantity
 
-    def learn(self, experiences: Dict[str, Any]) -> None:
-        """
-        HRM learning through hierarchical reasoning optimization.
-        
-        Note: HRM doesn't use traditional RL learning. This method updates
-        the model through gradient-based optimization of reasoning patterns.
-        """
-        # HRM learning is implicit through its hierarchical convergence
-        # The model learns by optimizing its reasoning patterns during forward passes
-        pass
 
     def act(self, observation: Union[torch.Tensor, np.ndarray]) -> Tuple[int, float]:
         """

@@ -35,12 +35,14 @@ class UniversalTrainer:
     """
     
     def __init__(self, agent: BaseAgent, symbols: List[str], data_loader: DataLoader, 
-                 num_episodes: int = 100, log_interval: int = 10, config: dict = None):
+                 num_episodes: int = 100, log_interval: int = 10, config: dict = None,
+                 research_logger = None):
         self.agent = agent
         self.data_loader = data_loader
         self.num_episodes = num_episodes
         self.log_interval = log_interval
         self.config = config or {}
+        self.research_logger = research_logger
         
         # Sort symbols by timeframe (higher to lower) for curriculum learning
         self.symbols = self._sort_symbols_by_timeframe(symbols)
@@ -153,10 +155,18 @@ class UniversalTrainer:
         env_config = self.config.get('environment', {})
         initial_capital = env_config.get('initial_capital', 100000.0)
         
+        # Initialize research logging
+        if self.research_logger:
+            self.research_logger.start_training(self.num_episodes, self.symbols)
+        
         for episode in range(self.num_episodes):
             # Get symbol for this episode
             current_symbol = self._get_next_symbol(episode)
             logger.info(f"📊 Episode {episode + 1}/{self.num_episodes} | Symbol: {current_symbol}")
+            
+            # Initialize research logging for episode
+            if self.research_logger:
+                self.research_logger.start_episode(episode + 1, current_symbol, initial_capital)
             
             # Create environment for current symbol
             env = TradingEnv(
@@ -193,6 +203,24 @@ class UniversalTrainer:
             # Track symbol performance
             self.symbol_performance[current_symbol].append(episode_reward)
             
+            # Calculate episode-specific metrics for research logging
+            episode_win_rate = self._calculate_win_rate_from_trades(episode_trades) if episode_trades else 0.0
+            final_capital = env.engine.get_account_state()['capital']
+            
+            episode_metrics = {
+                'episode': episode + 1,
+                'symbol': current_symbol,
+                'episode_reward': episode_reward,
+                'episode_win_rate': episode_win_rate,
+                'episode_trades': len([t for t in episode_trades if t.get('trade_type') == 'CLOSE']) if episode_trades else 0,
+                'final_capital': final_capital,
+                'total_pnl': final_capital - initial_capital
+            }
+            
+            # End episode research logging
+            if self.research_logger:
+                self.research_logger.end_episode(episode_metrics)
+            
             # Log progress at intervals
             if (episode + 1) % self.log_interval == 0:
                 avg_reward = np.mean(self.episode_rewards[-self.log_interval:])
@@ -208,6 +236,13 @@ class UniversalTrainer:
                                               win_rate, total_pnl, num_trades, account_state['capital'])
                 else:
                     self._log_progress(episode + 1, episode_reward, avg_reward, None)
+        
+        # Create training summary for research logging
+        training_summary = self._create_training_summary(initial_capital)
+        
+        # End research logging with model analysis
+        if self.research_logger:
+            self.research_logger.end_training(training_summary, model=self.agent)
         
         # Display comprehensive training summary
         self._display_training_summary(initial_capital)
@@ -227,14 +262,26 @@ class UniversalTrainer:
             available_capital = account_state['capital']
             current_price = env.data['close'].iloc[env.current_step] # Assuming current_step is valid index
 
-            # Select action with masking context
-            action = self.agent.select_action(
-                obs,
-                available_capital=available_capital,
-                current_position_quantity=current_position_quantity,
-                current_price=current_price,
-                instrument=env.instrument # Pass the instrument object
-            )
+            # Select action with masking context and get probabilities for logging
+            if hasattr(self.agent, 'select_action') and 'return_probabilities' in self.agent.select_action.__code__.co_varnames:
+                action_type, quantity, action_probs = self.agent.select_action(
+                    obs,
+                    available_capital=available_capital,
+                    current_position_quantity=current_position_quantity,
+                    current_price=current_price,
+                    instrument=env.instrument, # Pass the instrument object
+                    return_probabilities=True
+                )
+                action = [action_type, quantity]
+            else:
+                action = self.agent.select_action(
+                    obs,
+                    available_capital=available_capital,
+                    current_position_quantity=current_position_quantity,
+                    current_price=current_price,
+                    instrument=env.instrument # Pass the instrument object
+                )
+                action_probs = None
             
             # Take step
             next_obs, reward, done, info = env.step(action)
@@ -248,13 +295,10 @@ class UniversalTrainer:
             episode_reward += reward
             step_count += 1
             
-            # Enhanced step logging with real-time metrics
-            if step_count <= 20 or step_count % 10 == 0:  # Log first 20 steps then every 10th
-                self._log_step_details(env, episode_num, step_count, action, reward, info, symbol)
+            # Enhanced step logging with real-time metrics (every step for debugging)
+            self._log_step_details(env, episode_num, step_count, action, reward, info, symbol, action_probs)
         
-        # Learn from experiences
-        if hasattr(self.agent, 'learn'):
-            self.agent.learn(experiences)
+        # HRM uses deep supervision during forward passes, not experience-based learning
         
         # Get episode trades
         episode_trades = env.engine.get_trade_history()
@@ -262,11 +306,10 @@ class UniversalTrainer:
         return episode_reward, episode_trades
 
     def _log_step_details(self, env: TradingEnv, episode: int, step: int, action: list, 
-                         reward: float, info: dict, symbol: str) -> None:
+                         reward: float, info: dict, symbol: str, action_probs: np.ndarray = None) -> None:
         """Log detailed step information with real-time metrics."""
         # Get current datetime from environment data
         current_datetime = "N/A"
-        epoch_feature = "N/A"
         
         try:
             if hasattr(env, 'data') and env.data is not None and env.current_step < len(env.data):
@@ -274,7 +317,6 @@ class UniversalTrainer:
                 if 'datetime_epoch' in env.data.columns:
                     epoch_timestamp = env.data['datetime_epoch'].iloc[env.current_step]
                     current_datetime = self._convert_epoch_to_readable(epoch_timestamp)
-                    epoch_feature = int(epoch_timestamp)
                 else:
                     current_datetime = f"Step_{env.current_step}"
         except Exception as e:
@@ -285,34 +327,78 @@ class UniversalTrainer:
         action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
         action_name = action_names[action[0]] if action[0] < len(action_names) else "UNKNOWN"
         
-        # Calculate real-time win rate from current episode trades + cumulative
+        # ACTION DEBUGGING: Log raw model output for analysis
+        raw_action_type = action[0] if len(action) > 0 else "NONE"
+        raw_quantity = action[1] if len(action) > 1 else "NONE"
+        logger.debug(f"RAW MODEL OUTPUT: action_type={raw_action_type}, quantity={raw_quantity}")
+        
+        # Calculate real-time win rate from current episode trades only (not cumulative)
         current_episode_trades = env.engine.get_trade_history()
-        all_trades = self.cumulative_trade_history + current_episode_trades
-        real_time_win_rate = self._calculate_win_rate_from_trades(all_trades)
-        total_trades = len([t for t in all_trades if t.get('trade_type') == 'CLOSE'])
         
-        # Get exit reason if available
-        exit_reason = self._get_exit_reason_from_info(info)
-        exit_info = f" | Exit: {exit_reason}" if exit_reason else ""
+        # TRADE DEBUGGING: Check if trades are being executed but not logged
+        trade_count = len(current_episode_trades)
+        logger.debug(f"CURRENT TRADE COUNT: {trade_count} trades in episode")
+        episode_win_rate = self._calculate_win_rate_from_trades(current_episode_trades)
         
-        # Extract timeframe for enhanced logging
-        def extract_timeframe(symbol: str) -> str:
-            parts = symbol.split('_')
-            if len(parts) >= 2:
-                try:
-                    return f"{parts[-1]}min"
-                except ValueError:
-                    pass
-            return "?min"
+        # Get trading position information
+        current_position = account_state.get('current_position_quantity', 0)
+        entry_price = "N/A"
+        sl_price = "N/A" 
+        target_price = "N/A"
         
-        timeframe = extract_timeframe(symbol)
+        # Get position details if in a position
+        if current_position != 0 and hasattr(env.engine, 'position_manager'):
+            position_info = env.engine.position_manager.get_position_details()
+            if position_info:
+                entry_price = position_info.get('entry_price', 'N/A')
+                sl_price = position_info.get('stop_loss', 'N/A')
+                target_price = position_info.get('target_profit', 'N/A')
         
-        # Enhanced logging with real-time metrics and timeframe info
-        logger.info(f"🎯 Ep {episode} | Step {step} | {current_datetime} | {symbol} ({timeframe}) | "
-                   f"Action: {action_name} | Capital: ₹{account_state['capital']:.2f} | "
-                   f"Position: {account_state['current_position_quantity']} | "
-                   f"Reward: {reward:.4f} | Win Rate: {real_time_win_rate:.1%} | "
-                   f"Trades: {total_trades}{exit_info}")
+        # Prepare step data for research logger  
+        env_config = self.config.get('environment', {}) if hasattr(self, 'config') else {}
+        initial_capital = env_config.get('initial_capital', 100000.0)
+        step_data = {
+            'datetime': current_datetime,
+            'instrument': symbol,
+            'action_name': action_name,
+            'quantity': action[1] if len(action) > 1 else 0,
+            'episode_win_rate': episode_win_rate,
+            'initial_capital': initial_capital,
+            'current_capital': account_state['capital'],
+            'entry_price': entry_price,
+            'sl_price': sl_price,
+            'target_price': target_price,
+            'reward': reward,
+            'exit_reason': self._get_exit_reason_from_info(info)
+        }
+        
+        # Add action probabilities as percentages if available
+        if action_probs is not None:
+            action_names = ["BUY", "SELL", "CLOSE_L", "CLOSE_S", "HOLD"]
+            for i, prob in enumerate(action_probs):
+                if i < len(action_names):
+                    step_data[f'prob_{action_names[i]}'] = f'{prob*100:.1f}%'
+        
+        # Use research logger if available
+        if hasattr(self, 'research_logger') and self.research_logger:
+            self.research_logger.log_step(step, step_data)
+        else:
+            # Fallback to standard logging
+            timeframe = self._extract_timeframe(symbol)
+            logger.info(f"🎯 Ep {episode} | Step {step} | {current_datetime} | {symbol} ({timeframe}) | "
+                       f"Action: {action_name} | Capital: ₹{account_state['capital']:.2f} | "
+                       f"Position: {account_state['current_position_quantity']} | "
+                       f"Reward: {reward:.4f} | Win Rate: {episode_win_rate:.1%}")
+    
+    def _extract_timeframe(self, symbol: str) -> str:
+        """Extract timeframe from symbol name."""
+        parts = symbol.split('_')
+        if len(parts) >= 2:
+            try:
+                return f"{parts[-1]}min"
+            except ValueError:
+                pass
+        return "?min"
 
     def _log_progress_detailed(self, episode: int, episode_reward: float, avg_reward: float,
                               win_rate: float, total_pnl: float, num_trades: int, capital: float) -> None:
@@ -363,3 +449,38 @@ class UniversalTrainer:
                 logger.info(f"💰 Avg P&L per Trade: ₹{avg_pnl_per_trade:.2f}")
         
         logger.info("=" * 80)
+    
+    def _create_training_summary(self, initial_capital: float) -> Dict[str, Any]:
+        """Create a comprehensive training summary."""
+        total_episodes_run = len(self.episode_rewards)
+        final_capital = self.cumulative_capital_history[-1] if self.cumulative_capital_history else initial_capital
+        
+        summary = {
+            'total_episodes': total_episodes_run,
+            'initial_capital': initial_capital,
+            'final_capital': final_capital,
+            'total_return': final_capital - initial_capital,
+            'total_return_pct': ((final_capital/initial_capital - 1) * 100) if initial_capital > 0 else 0,
+            'symbol_distribution': dict(self.symbol_episode_count),
+            'avg_episode_reward': np.mean(self.episode_rewards) if self.episode_rewards else 0,
+        }
+        
+        # Add trading statistics if available
+        if self.cumulative_trade_history:
+            closing_trades = [trade for trade in self.cumulative_trade_history if trade.get('trade_type') == 'CLOSE']
+            win_rate = calculate_win_rate(self.cumulative_trade_history)
+            total_trades = len(closing_trades)
+            
+            summary.update({
+                'total_trades': total_trades,
+                'win_rate': win_rate,
+                'profit_factor': calculate_profit_factor(closing_trades) if total_trades > 0 else 0,
+                'avg_pnl_per_trade': calculate_avg_pnl_per_trade(self.cumulative_trade_history) if total_trades > 0 else 0
+            })
+        
+        return summary
+    
+    def get_training_summary(self) -> Dict[str, Any]:
+        """Get training summary for external use."""
+        initial_capital = self.config.get('environment', {}).get('initial_capital', 100000.0)
+        return self._create_training_summary(initial_capital)

@@ -28,15 +28,6 @@ class BaseAgent(ABC):
         """
         pass
     
-    @abstractmethod
-    def learn(self, experiences: Dict[str, Any]) -> None:
-        """
-        Learn from a batch of experiences.
-        
-        Args:
-            experiences: Dictionary containing training data
-        """
-        pass
     
     def act(self, observation: Union[torch.Tensor, np.ndarray]) -> Tuple[int, float]:
         """

@@ -15,11 +15,13 @@ class Instrument:
         lot_size: Number of units per lot
         tick_size: Minimum price movement
         instrument_type: Type of instrument ("stock" or "index")
+        option_premium_range: For index instruments, [min_premium_%, max_premium_%]
     """
     symbol: str
     lot_size: int
     tick_size: float
     instrument_type: str = "stock"
+    option_premium_range: list = None
     
     def __str__(self) -> str:
         """String representation of the instrument."""

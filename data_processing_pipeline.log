@@ -50,3 +50,55 @@
 2025-08-18 15:29:59,752 - feature_generator - INFO - Loaded 50093 rows from Bankex_2.csv
 2025-08-18 15:29:59,752 - feature_generator - INFO - Processing in-memory DataFrame with 50093 rows...
 2025-08-18 15:29:59,781 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-08-18 18:36:05,038 - __main__ - INFO - DataProcessingPipeline initialized
+2025-08-18 18:36:05,038 - __main__ - INFO - ================================================================================
+2025-08-18 18:36:05,038 - __main__ - INFO - STARTING COMPLETE DATA PROCESSING PIPELINE
+2025-08-18 18:36:05,038 - __main__ - INFO - ================================================================================
+2025-08-18 18:36:05,038 - __main__ - INFO - STEP 1: FEATURE GENERATION
+2025-08-18 18:36:05,038 - __main__ - INFO - ----------------------------------------
+2025-08-18 18:36:05,038 - __main__ - INFO - Running feature generator...
+2025-08-18 18:36:05,439 - feature_generator - INFO - Found 65 CSV files to process
+2025-08-18 18:36:05,563 - feature_generator - INFO - Dropped 'volume' column from Bankex_1.csv
+2025-08-18 18:36:05,611 - feature_generator - INFO - Loaded 99915 rows from Bankex_1.csv
+2025-08-18 18:36:05,611 - feature_generator - INFO - Processing in-memory DataFrame with 99915 rows...
+2025-08-18 18:36:05,737 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-08-18 18:37:25,783 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 99716 rows
+2025-08-18 18:37:25,783 - feature_generator - INFO - Generated 48 features for DataFrame
+2025-08-18 18:37:30,179 - feature_generator - INFO - Processed Bankex_1.csv: 99716 rows, 53 features
+2025-08-18 18:37:30,179 - feature_generator - INFO - Replaced existing file: data\final\features_Bankex_1.csv
+2025-08-18 18:37:30,195 - feature_generator - INFO - Dropped 'volume' column from Bankex_10.csv
+2025-08-18 18:37:30,195 - feature_generator - INFO - Loaded 10127 rows from Bankex_10.csv
+2025-08-18 18:37:30,195 - feature_generator - INFO - Processing in-memory DataFrame with 10127 rows...
+2025-08-18 18:37:30,210 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-08-18 18:37:38,375 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 9928 rows
+2025-08-18 18:37:38,375 - feature_generator - INFO - Generated 48 features for DataFrame
+2025-08-18 18:37:38,826 - feature_generator - INFO - Processed Bankex_10.csv: 9928 rows, 53 features
+2025-08-18 18:37:38,826 - feature_generator - INFO - Replaced existing file: data\final\features_Bankex_10.csv
+2025-08-18 18:37:38,826 - feature_generator - INFO - Dropped 'volume' column from Bankex_120.csv
+2025-08-18 18:37:38,826 - feature_generator - INFO - Loaded 1067 rows from Bankex_120.csv
+2025-08-18 18:37:38,842 - feature_generator - INFO - Processing in-memory DataFrame with 1067 rows...
+2025-08-18 18:37:38,842 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-08-18 18:37:39,669 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 868 rows
+2025-08-18 18:37:39,669 - feature_generator - INFO - Generated 48 features for DataFrame
+2025-08-18 18:37:39,722 - feature_generator - INFO - Processed Bankex_120.csv: 868 rows, 53 features
+2025-08-18 18:37:39,722 - feature_generator - INFO - Replaced existing file: data\final\features_Bankex_120.csv
+2025-08-18 18:37:39,737 - feature_generator - INFO - Dropped 'volume' column from Bankex_15.csv
+2025-08-18 18:37:39,739 - feature_generator - INFO - Loaded 6661 rows from Bankex_15.csv
+2025-08-18 18:37:39,739 - feature_generator - INFO - Processing in-memory DataFrame with 6661 rows...
+2025-08-18 18:37:39,739 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-08-18 18:37:44,858 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 6462 rows
+2025-08-18 18:37:44,858 - feature_generator - INFO - Generated 48 features for DataFrame
+2025-08-18 18:37:45,183 - feature_generator - INFO - Processed Bankex_15.csv: 6462 rows, 53 features
+2025-08-18 18:37:45,183 - feature_generator - INFO - Replaced existing file: data\final\features_Bankex_15.csv
+2025-08-18 18:37:45,187 - feature_generator - INFO - Dropped 'volume' column from Bankex_180.csv
+2025-08-18 18:37:45,190 - feature_generator - INFO - Loaded 802 rows from Bankex_180.csv
+2025-08-18 18:37:45,190 - feature_generator - INFO - Processing in-memory DataFrame with 802 rows...
+2025-08-18 18:37:45,194 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index
+2025-08-18 18:37:45,935 - feature_generator - INFO - Removed 199 rows with NaN values. Final dataset: 603 rows
+2025-08-18 18:37:45,935 - feature_generator - INFO - Generated 48 features for DataFrame
+2025-08-18 18:37:45,976 - feature_generator - INFO - Processed Bankex_180.csv: 603 rows, 53 features
+2025-08-18 18:37:45,976 - feature_generator - INFO - Replaced existing file: data\final\features_Bankex_180.csv
+2025-08-18 18:37:46,059 - feature_generator - INFO - Dropped 'volume' column from Bankex_2.csv
+2025-08-18 18:37:46,077 - feature_generator - INFO - Loaded 50093 rows from Bankex_2.csv
+2025-08-18 18:37:46,077 - feature_generator - INFO - Processing in-memory DataFrame with 50093 rows...
+2025-08-18 18:37:46,102 - feature_generator - INFO - ✅ Enhanced datetime processing: epoch as feature, readable as index

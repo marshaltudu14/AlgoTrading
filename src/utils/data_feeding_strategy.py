@@ -75,7 +75,7 @@ class DataFeedingStrategyManager:
 
         # Handle small datasets
         if self.total_length < 100:
-            logger.warning(f"Small dataset ({self.total_length} rows), creating single segment")
+            logger.info(f"Small dataset ({self.total_length} rows), creating single segment")
             segments.append(DataSegment(
                 start_idx=0,
                 end_idx=self.total_length,
@@ -270,7 +270,7 @@ class DataFeedingStrategyManager:
 
         # Handle empty data segments case
         if not suitable_segments:
-            logger.warning("No data segments available for curriculum episode, using random episode")
+            logger.info("No data segments available for curriculum episode, using random episode")
             return self._get_random_episode()
 
         # Select random segment from suitable ones
@@ -304,7 +304,7 @@ class DataFeedingStrategyManager:
 
         # Handle empty data segments case
         if not suitable_segments:
-            logger.warning("No data segments available for balanced episode, using random episode")
+            logger.info("No data segments available for balanced episode, using random episode")
             return self._get_random_episode()
 
         segment = random.choice(suitable_segments)

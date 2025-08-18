@@ -1,0 +1,2 @@
+episode,symbol,initial_capital,steps,trades,win_rate,current_capital,total_pnl,episode_reward,episode_win_rate,episode_trades,final_capital
+1,Bank_Nifty_5,100000.0,12,0,80.0,1732589.2999999998,1632589.2999999998,6264.688231567819,0.8,5,1732589.2999999998

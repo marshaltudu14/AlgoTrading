@@ -47,10 +47,19 @@ class CapitalAwareQuantitySelector:
         Returns:
             Adjusted integer quantity that fits within available capital
         """
-        # Calculate cost per lot
-        # Calculate cost per lot
-        # For all instruments, use direct price calculation
-        cost_per_lot = current_price * instrument.lot_size
+        # Calculate cost per lot based on instrument type
+        if instrument.instrument_type == "index":
+            # Use virtual option premium calculation for index instruments
+            if hasattr(instrument, 'option_premium_range') and instrument.option_premium_range:
+                premium_min, premium_max = instrument.option_premium_range
+                virtual_premium_rate = (premium_min + premium_max) / 2
+            else:
+                virtual_premium_rate = 0.025  # Default 2.5% premium
+            virtual_option_price = current_price * virtual_premium_rate
+            cost_per_lot = virtual_option_price * instrument.lot_size
+        else:
+            # For stock instruments, use direct price calculation
+            cost_per_lot = current_price * instrument.lot_size
 
         # Calculate maximum affordable quantity
         max_affordable_quantity = int((available_capital - self.brokerage_entry) // cost_per_lot)
@@ -100,10 +109,21 @@ class CapitalAwareQuantitySelector:
         Returns:
             Maximum affordable quantity (integer)
         """
-        # Calculate cost per lot
-        # Calculate cost per lot
-        # For all instruments, use direct price calculation
-        cost_per_lot = current_price * instrument.lot_size
+        # Calculate cost per lot based on instrument type
+        if instrument.instrument_type == "index":
+            # For index instruments, use virtual option premium calculation
+            # Get premium range from instrument config (default to 2.5% if not available)
+            if hasattr(instrument, 'option_premium_range') and instrument.option_premium_range:
+                premium_min, premium_max = instrument.option_premium_range
+                virtual_premium_rate = (premium_min + premium_max) / 2  # Use midpoint
+            else:
+                virtual_premium_rate = 0.025  # Default 2.5%
+            
+            virtual_option_price = current_price * virtual_premium_rate
+            cost_per_lot = virtual_option_price * instrument.lot_size
+        else:
+            # For stock instruments, use direct price calculation
+            cost_per_lot = current_price * instrument.lot_size
 
         # Calculate maximum affordable quantity (no artificial limits)
         if cost_per_lot <= 0:

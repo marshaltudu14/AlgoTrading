@@ -20,7 +20,7 @@ instruments:
     symbol: "Bankex"
     exchange-symbol: "NSE:BANKEX-INDEX"
     type: "index"
-    lot_size: 50 # Bankex lot size
+    lot_size: 30 # Bankex lot size
     tick_size: 0.05
     option_premium_range: [0.02, 0.03] # 2% to 3% of index price
 
@@ -28,7 +28,7 @@ instruments:
     symbol: "Finnifty"
     exchange-symbol: "NSE:FINNIFTY-INDEX"
     type: "index"
-    lot_size: 50 # Finnifty lot size
+    lot_size: 65 # Finnifty lot size
     tick_size: 0.05
     option_premium_range: [0.02, 0.03] # 2% to 3% of index price
 
@@ -63,12 +63,12 @@ instruments:
     tick_size: 0.05
 
 timeframes:
-  - "1"   # 1 minute
-  - "3"   # 3 minutes
-  - "5"   # 5 minutes
-  - "15"  # 15 minutes
-  - "30"  # 30 minutes
-  - "60"  # 1 hour
+  - "1" # 1 minute
+  - "3" # 3 minutes
+  - "5" # 5 minutes
+  - "15" # 15 minutes
+  - "30" # 30 minutes
+  - "60" # 1 hour
   - "120" # 2 hours
   - "240" # 4 hours
-  - "D"   # Daily
+  - "D" # Daily

@@ -296,9 +296,7 @@ class TradingEnv(gym.Env):
         try:
             self.current_step += 1
 
-            # Check if detailed logging is enabled
-            import os
-            detailed_logging = os.environ.get('DETAILED_BACKTEST_LOGGING', 'false').lower() == 'true'
+            # Remove deprecated detailed logging - now handled by centralized research logger
 
             if self.current_step >= len(self.data):
                 # Force close any open positions before episode ends
@@ -356,14 +354,7 @@ class TradingEnv(gym.Env):
                     self._last_predicted_quantity = predicted_quantity
                     self._last_max_affordable = max_affordable_quantity
 
-                    # Log quantity adjustment if needed
-                    if detailed_logging:
-                        if actual_quantity != int(predicted_quantity):
-                            logger.info(f"💰 Quantity adjusted: {int(predicted_quantity)} → {actual_quantity} lots (capital limit)")
-                        else:
-                            logger.info(f"💰 Quantity: {actual_quantity} lots")
-                        logger.info(f"   Available capital: ₹{available_capital:.2f}")
-                        logger.info(f"   Max affordable: {max_affordable_quantity} lots")
+                    # Removed deprecated quantity logging - handled by centralized research logger
 
                     quantity = float(actual_quantity)
                 else:
@@ -376,14 +367,7 @@ class TradingEnv(gym.Env):
                 self._last_predicted_quantity = 0.0
                 self._last_max_affordable = 0
 
-            # DEBUG: Log every action to see what the agent is doing (only if detailed logging enabled)
-            if detailed_logging:
-                action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
-                action_name = action_names[action_type]
-
-                if self.current_step % 10 == 0 or action_type != 4:  # Log every 10 steps or non-HOLD actions
-                    logger.info(f"🎯 Step {self.current_step}: Agent action: {action} -> {action_name} (qty: {quantity})")
-                    logger.info(f"   Current price: ₹{current_price:.2f}, Capital: ₹{prev_capital:.2f}")
+            # Removed deprecated action logging - handled by centralized research logger
 
             # Get current position state to validate actions
             account_state = self.engine.get_account_state()
@@ -393,16 +377,16 @@ class TradingEnv(gym.Env):
             if self.smart_action_filtering:
                 if action_type == 0 and current_position != 0:  # BUY_LONG when already have position
                     action_type = 4  # Convert to HOLD
-                    if detailed_logging: logger.info("🚫 Converted BUY_LONG to HOLD: Already in position.")
+                    # Removed deprecated conversion logging
                 elif action_type == 1 and current_position != 0:  # SELL_SHORT when already have position
                     action_type = 4  # Convert to HOLD
-                    if detailed_logging: logger.info("🚫 Converted SELL_SHORT to HOLD: Already in position.")
+                    # Removed deprecated conversion logging
                 elif action_type == 2 and current_position <= 0: # CLOSE_LONG when not long
                     action_type = 4 # Convert to HOLD
-                    if detailed_logging: logger.info("🚫 Converted CLOSE_LONG to HOLD: No long position.")
+                    # Removed deprecated conversion logging
                 elif action_type == 3 and current_position >= 0: # CLOSE_SHORT when not short
                     action_type = 4 # Convert to HOLD
-                    if detailed_logging: logger.info("🚫 Converted CLOSE_SHORT to HOLD: No short position.")
+                    # Removed deprecated conversion logging
 
             if action_type == 0: # BUY_LONG
                 self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)
@@ -425,16 +409,7 @@ class TradingEnv(gym.Env):
             elif action_type == 4: # HOLD
                 self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
 
-            # Log significant trading actions (not HOLD) every 50 steps or for trades (only if detailed logging enabled)
-            if detailed_logging and (action_type != 4 or self.current_step % 50 == 0):
-                action_names = ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
-                action_name = action_names[action_type]
-                account_state = self.engine.get_account_state(current_price=current_price)
-                if action_type != 4:  # Actual trade
-                    logger.info(f"🎯 Step {self.current_step}: {action_name} @ ₹{current_price:.2f} (Qty: {quantity})")
-                    logger.info(f"   Position: {account_state['current_position_quantity']}, Capital: ₹{account_state['capital']:.2f}")
-                else:  # Periodic status update
-                    logger.info(f"📊 Step {self.current_step}: Capital: ₹{account_state['capital']:.2f}, Position: {account_state['current_position_quantity']}")
+            # Removed deprecated environment logging - all logging now handled by centralized research logger
 
             # Calculate reward using selected reward function
             current_capital = self.engine.get_account_state(current_price=current_price)['capital']
@@ -462,10 +437,7 @@ class TradingEnv(gym.Env):
             # Apply normalization for universal model training across different instruments
             reward = self._normalize_reward(shaped_reward)
 
-            # DEBUG: Log reward calculation (only if detailed logging enabled)
-            if detailed_logging and (self.current_step % 20 == 0 or abs(reward) > 0.1):
-                logger.info(f"💰 Step {self.current_step}: Reward = {reward:.4f} (base: {base_reward:.4f}, shaped: {shaped_reward:.4f})")
-                logger.info(f"   Capital: {prev_capital:.2f} -> {current_capital:.2f} (change: {current_capital - prev_capital:.2f})")
+            # Removed deprecated reward logging - handled by centralized research logger
 
             self.last_action_type = action_type
 
@@ -497,9 +469,7 @@ class TradingEnv(gym.Env):
 
     def _force_close_open_positions(self):
         """Force close any open positions at the end of an episode to ensure accurate final capital."""
-        # Check if detailed logging is enabled
-        import os
-        detailed_logging = os.environ.get('DETAILED_BACKTEST_LOGGING', 'false').lower() == 'true'
+        # Removed deprecated detailed logging check
 
         account_state = self.engine.get_account_state()
 
@@ -509,13 +479,11 @@ class TradingEnv(gym.Env):
 
             if position_quantity > 0:
                 # Close long position
-                if detailed_logging:
-                    logging.info(f"Force closing long position at episode end. Price: {current_price}")
+                # Removed deprecated force close logging
                 self.engine.execute_trade("CLOSE_LONG", current_price, abs(position_quantity))
             elif position_quantity < 0:
                 # Close short position
-                if detailed_logging:
-                    logging.info(f"Force closing short position at episode end. Price: {current_price}")
+                # Removed deprecated force close logging
                 self.engine.execute_trade("CLOSE_SHORT", current_price, abs(position_quantity))
 
     def _calculate_reward(self, current_capital: float, prev_capital: float) -> float:

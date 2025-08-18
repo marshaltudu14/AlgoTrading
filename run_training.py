@@ -19,6 +19,8 @@ from src.utils.data_loader import DataLoader
 from src.training.trainer import Trainer
 from src.training.universal_trainer import UniversalTrainer
 from src.utils.test_data_generator import create_test_data_files
+from src.utils.iteration_manager import IterationManager
+from src.utils.research_logger import ResearchLogger
 
 # Configure clean, minimal logging for training
 logging.basicConfig(
@@ -159,7 +161,9 @@ def run_universal_hrm_training(
     num_episodes: int,
     data_dir: str,
     testing_mode: bool = False,
-    config: dict = None
+    config: dict = None,
+    iteration_manager = None,
+    research_logger = None
 ):
     """
     Run universal HRM training that rotates through symbols per episode.
@@ -215,7 +219,13 @@ def run_universal_hrm_training(
     agent = HierarchicalReasoningModel(config_copy)
 
     # Create universal trainer that handles symbol rotation
-    trainer = UniversalTrainer(agent, symbols, data_loader, num_episodes=num_episodes, log_interval=10, config=config)
+    trainer = UniversalTrainer(
+        agent, symbols, data_loader, 
+        num_episodes=num_episodes, 
+        log_interval=10, 
+        config=config,
+        research_logger=research_logger
+    )
     logger.info(f"🎯 Training {num_episodes} episodes with symbol rotation")
     trainer.train()
 
@@ -223,15 +233,26 @@ def run_universal_hrm_training(
     if not testing_mode:
         # Use universal model path instead of symbol-specific
         model_path = model_config.get('model_path', 'models/universal_final_model.pth')
-        os.makedirs("models", exist_ok=True)
+        # Ensure models directory exists
+        model_dir = os.path.dirname(model_path)
+        os.makedirs(model_dir, exist_ok=True)
 
         if hasattr(agent, 'save_model'):
             agent.save_model(model_path)
             logger.info(f"✅ Universal model saved to {model_path}")
+            
+            # Copy model to iteration directory
+            if iteration_manager:
+                iteration_manager.save_model_artifacts(model_path)
         else:
             logger.warning(f"Agent does not have save_model method. Cannot save model to {model_path}")
     else:
         logger.info("🧪 Testing mode - Model not saved")
+
+    # Save final training metrics
+    if iteration_manager and hasattr(trainer, 'get_training_summary'):
+        training_summary = trainer.get_training_summary()
+        iteration_manager.save_training_metrics(training_summary)
 
     logger.info("✅ Universal training complete")
 
@@ -249,6 +270,7 @@ def main():
     parser.add_argument("--data-dir", default="data/final", help="Data directory")
     parser.add_argument("--episodes", type=int, help="Number of episodes for training (overrides config)")
     parser.add_argument("--testing", action="store_true", help="Enable testing mode")
+    parser.add_argument("--noLog", action="store_true", help="Use progress bar instead of console logs")
     args = parser.parse_args()
 
     # Load configuration
@@ -317,10 +339,40 @@ def main():
         episodes = args.episodes
         logger.info(f"📊 Overriding episodes with command line value: {episodes}")
 
-    # Use unified universal training with timeframe awareness
+    # Set up iteration management and research logging
     try:
+        # Initialize iteration manager
+        iteration_manager = IterationManager(config)
+        
+        # Temporarily initialize data loader for iteration setup
+        data_processing_config = config.get('data_processing', {})
+        if args.testing:
+            data_dir_for_iteration = os.path.join(data_processing_config.get('test_folder', 'data/test'), 'final')
+        else:
+            data_dir_for_iteration = args.data_dir
+        temp_data_loader = DataLoader(final_data_dir=data_dir_for_iteration)
+        
+        # Setup iteration directory
+        iteration_dir = iteration_manager.setup_iteration(temp_data_loader, symbols)
+        
+        # Initialize research logger
+        research_logger = ResearchLogger(config, iteration_dir, use_progress_bar=args.noLog)
+        
+        logger.info(f"🔬 Research iteration: {iteration_manager.current_iteration}")
+        logger.info(f"📁 Iteration directory: {iteration_dir}")
         logger.info("🎯 Using Universal Training with Timeframe-Aware Symbol Rotation")
-        run_universal_hrm_training(symbols, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing, config=config)
+        
+        # Run training with enhanced logging
+        run_universal_hrm_training(
+            symbols, 
+            num_episodes=episodes, 
+            data_dir=args.data_dir, 
+            testing_mode=args.testing, 
+            config=config,
+            iteration_manager=iteration_manager,
+            research_logger=research_logger
+        )
+        
     except Exception as e:
         logger.error(f"Failed to run training: {e}", exc_info=True)
 

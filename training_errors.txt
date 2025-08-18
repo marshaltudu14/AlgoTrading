@@ -1,6 +1,0 @@
-2025-08-18 17:41:01,223 - WARNING - Small dataset (99 rows), creating single segment
-2025-08-18 17:41:01,484 - WARNING - Small dataset (99 rows), creating single segment
-==============================
-Session started: 2025-08-18 17:41:01
-================================================================================
-
