@@ -1197,12 +1197,21 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
             raise
 
     # BaseAgent interface methods
-    def select_action(self, observation: Union[torch.Tensor, np.ndarray]) -> Tuple[int, float]:
+    def select_action(self, observation: Union[torch.Tensor, np.ndarray],
+                      available_capital: float,
+                      current_position_quantity: float,
+                      current_price: float,
+                      instrument: Any # Will import Instrument later
+                     ) -> Tuple[int, float]:
         """
-        Select action using HRM hierarchical reasoning.
+        Select action using HRM hierarchical reasoning with action masking.
         
         Args:
             observation: Market observation tensor
+            available_capital: Current available capital
+            current_position_quantity: Current quantity of held position (positive for long, negative for short, 0 for none)
+            current_price: Current market price
+            instrument: The Instrument object for capital calculations
             
         Returns:
             Tuple of (action_type, quantity)
@@ -1214,14 +1223,58 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
         
         # Generate action through hierarchical reasoning
         with torch.no_grad():
-            outputs = self.forward(observation)
+            outputs_dict, _ = self.forward(observation)
+            action_logits = outputs_dict['action_type']
+
+            # --- Action Masking Logic ---
+            # Initialize mask with all ones (no actions masked)
+            action_mask = torch.ones_like(action_logits, dtype=torch.bool)
+
+            # Action types: 0=BUY_LONG, 1=SELL_SHORT, 2=CLOSE_LONG, 3=CLOSE_SHORT, 4=HOLD
+
+            # Import CapitalAwareQuantitySelector here to avoid circular imports
+            from src.utils.capital_aware_quantity import CapitalAwareQuantitySelector
+            selector = CapitalAwareQuantitySelector()
             
-            # Get discrete action (policy head)
-            action_probs = F.softmax(outputs['policy'], dim=-1)
-            action_type = torch.argmax(action_probs, dim=-1).item()
+            # Calculate max_affordable_quantity for opening new positions
+            max_affordable_quantity_buy_sell = selector.get_max_affordable_quantity(
+                available_capital=available_capital,
+                current_price=current_price,
+                instrument=instrument
+            )
+
+            if max_affordable_quantity_buy_sell <= 0:
+                # If no capital, mask out BUY_LONG (0) and SELL_SHORT (1)
+                action_mask[0, 0] = False # BUY_LONG
+                action_mask[0, 1] = False # SELL_SHORT
+
+            # Masking based on current position (for CLOSE_LONG, CLOSE_SHORT)
+            if current_position_quantity <= 0:
+                # If not long (or short), mask out CLOSE_LONG (2)
+                action_mask[0, 2] = False
+            if current_position_quantity >= 0:
+                # If not short (or long), mask out CLOSE_SHORT (3)
+                action_mask[0, 3] = False
+            
+            # If agent is already in a position, it should not open a new one
+            if current_position_quantity != 0:
+                action_mask[0, 0] = False # Mask BUY_LONG
+                action_mask[0, 1] = False # Mask SELL_SHORT
+
+            # Apply mask: set logits of masked actions to a very small number
+            # This effectively gives them a probability of zero after softmax
+            action_logits = torch.where(action_mask, action_logits, torch.tensor(-1e9, device=action_logits.device))
+
+            action_probs = F.softmax(action_logits, dim=-1)
+            
+            # If all actions are masked (should not happen with HOLD always available), default to HOLD
+            if torch.all(~action_mask): # If all actions are False in the mask
+                action_type = 4 # Default to HOLD
+            else:
+                action_type = torch.argmax(action_probs, dim=-1).item()
             
             # Get continuous quantity 
-            quantity = torch.clamp(outputs['quantity'], 0.1, 100.0).item()
+            quantity = torch.clamp(outputs_dict['quantity'], 0.1, 100.0).item()
             
         return action_type, quantity
 

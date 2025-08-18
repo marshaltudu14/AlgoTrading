@@ -489,6 +489,7 @@ class DataLoader:
             filepath = os.path.join(self.final_data_dir, filename)
             logging.info(f"Checking file: {filepath}")
             if os.path.exists(filepath):
+                logging.info(f"File exists: {filepath}")
                 try:
                     # CRITICAL: Set datetime_readable as index when loading processed features
                     df = pd.read_csv(filepath, index_col=0)
@@ -497,6 +498,8 @@ class DataLoader:
                 except Exception as e:
                     logging.error(f"Error loading {filepath}: {e}")
                     continue
+            else:
+                logging.info(f"File does not exist: {filepath}")
 
         logging.error(f"No final data found for symbol: {symbol}")
         return pd.DataFrame()

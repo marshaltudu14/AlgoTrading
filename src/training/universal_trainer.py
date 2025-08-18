@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 """
-Universal Trainer with Symbol Rotation
-===================================================
+Universal Trainer with Timeframe-Aware Symbol Rotation
+======================================================
 
-This trainer rotates through different symbols per episode to create
-a universal model that can handle diverse market conditions.
+This trainer rotates through symbols with timeframe progression (higher to lower)
+to create a universal model that can handle diverse market conditions with 
+curriculum learning benefits.
 """
 
 import logging
 import random
 import numpy as np
 import pandas as pd
+import os
+import re
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
@@ -27,17 +30,20 @@ logger = logging.getLogger(__name__)
 
 class UniversalTrainer:
     """
-    Universal trainer that rotates symbols per episode for diverse market exposure.
+    Universal trainer with timeframe-aware symbol rotation for curriculum learning.
+    Progresses from higher timeframes (less noisy) to lower timeframes (more noisy).
     """
     
     def __init__(self, agent: BaseAgent, symbols: List[str], data_loader: DataLoader, 
                  num_episodes: int = 100, log_interval: int = 10, config: dict = None):
         self.agent = agent
-        self.symbols = symbols
         self.data_loader = data_loader
         self.num_episodes = num_episodes
         self.log_interval = log_interval
         self.config = config or {}
+        
+        # Sort symbols by timeframe (higher to lower) for curriculum learning
+        self.symbols = self._sort_symbols_by_timeframe(symbols)
         
         # Enhanced tracking for comprehensive metrics
         self.capital_history = []
@@ -51,17 +57,49 @@ class UniversalTrainer:
         self.step_trade_counts = []
         
         # Symbol rotation tracking
-        self.symbol_episode_count = {symbol: 0 for symbol in symbols}
-        self.symbol_performance = {symbol: [] for symbol in symbols}
+        self.symbol_episode_count = {symbol: 0 for symbol in self.symbols}
+        self.symbol_performance = {symbol: [] for symbol in self.symbols}
         
-        logger.info(f"🎯 Universal Trainer initialized with {len(symbols)} symbols")
-        logger.info(f"   Symbols: {symbols}")
+        logger.info(f"🎯 Universal Trainer initialized with {len(self.symbols)} symbols")
+        logger.info(f"   Symbols (timeframe-sorted): {self.symbols}")
         logger.info(f"   Episodes: {num_episodes}")
         logger.info(f"   Log interval: {log_interval}")
 
+    def _sort_symbols_by_timeframe(self, symbols: List[str]) -> List[str]:
+        """
+        Sort symbols by timeframe (highest to lowest) for curriculum learning.
+        Expects symbols in format: 'symbol_timeframe' (e.g., 'Bankex_180', 'RELIANCE_1')
+        """
+        def extract_timeframe(symbol: str) -> int:
+            # Extract timeframe from symbol name (e.g., 'Bankex_180' -> 180)
+            parts = symbol.split('_')
+            if len(parts) >= 2:
+                try:
+                    return int(parts[-1])  # Last part should be timeframe
+                except ValueError:
+                    pass
+            return 0  # Default timeframe for symbols without explicit timeframe
+        
+        # Sort by timeframe in descending order (highest to lowest)
+        sorted_symbols = sorted(symbols, key=extract_timeframe, reverse=True)
+        
+        # Group by timeframe for logging
+        timeframe_groups = {}
+        for symbol in sorted_symbols:
+            tf = extract_timeframe(symbol)
+            if tf not in timeframe_groups:
+                timeframe_groups[tf] = []
+            timeframe_groups[tf].append(symbol)
+        
+        logger.info("📊 Timeframe-based symbol grouping (curriculum order):")
+        for tf in sorted(timeframe_groups.keys(), reverse=True):
+            logger.info(f"   {tf}min timeframe: {timeframe_groups[tf]}")
+        
+        return sorted_symbols
+
     def _get_next_symbol(self, episode: int) -> str:
-        """Get the next symbol for training using rotation strategy."""
-        # Simple round-robin rotation
+        """Get the next symbol for training using timeframe-aware rotation strategy."""
+        # Curriculum-aware round-robin rotation (higher timeframes first)
         symbol = self.symbols[episode % len(self.symbols)]
         self.symbol_episode_count[symbol] += 1
         return symbol
@@ -183,8 +221,20 @@ class UniversalTrainer:
         experiences = []
         
         while not done:
-            # Select action
-            action = self.agent.select_action(obs)
+            # Get current account state and price from environment for action masking
+            account_state = env.engine.get_account_state()
+            current_position_quantity = account_state['current_position_quantity']
+            available_capital = account_state['capital']
+            current_price = env.data['close'].iloc[env.current_step] # Assuming current_step is valid index
+
+            # Select action with masking context
+            action = self.agent.select_action(
+                obs,
+                available_capital=available_capital,
+                current_position_quantity=current_position_quantity,
+                current_price=current_price,
+                instrument=env.instrument # Pass the instrument object
+            )
             
             # Take step
             next_obs, reward, done, info = env.step(action)
@@ -245,8 +295,20 @@ class UniversalTrainer:
         exit_reason = self._get_exit_reason_from_info(info)
         exit_info = f" | Exit: {exit_reason}" if exit_reason else ""
         
-        # Enhanced logging with real-time metrics
-        logger.info(f"🎯 Ep {episode} | Step {step} | {current_datetime} | {symbol} | "
+        # Extract timeframe for enhanced logging
+        def extract_timeframe(symbol: str) -> str:
+            parts = symbol.split('_')
+            if len(parts) >= 2:
+                try:
+                    return f"{parts[-1]}min"
+                except ValueError:
+                    pass
+            return "?min"
+        
+        timeframe = extract_timeframe(symbol)
+        
+        # Enhanced logging with real-time metrics and timeframe info
+        logger.info(f"🎯 Ep {episode} | Step {step} | {current_datetime} | {symbol} ({timeframe}) | "
                    f"Action: {action_name} | Capital: ₹{account_state['capital']:.2f} | "
                    f"Position: {account_state['current_position_quantity']} | "
                    f"Reward: {reward:.4f} | Win Rate: {real_time_win_rate:.1%} | "

@@ -292,7 +292,7 @@ class TradingEnv(gym.Env):
 
         return info
 
-    def step(self, action) -> Tuple[np.ndarray, float, bool, Dict]:
+    def step(self, action: Tuple[int, float]) -> Tuple[np.ndarray, float, bool, Dict]:
         try:
             self.current_step += 1
 
@@ -328,17 +328,8 @@ class TradingEnv(gym.Env):
             # Direct price for index trading - no option premium complexity
             proxy_premium = current_price
 
-            # Parse action: [action_type, quantity] or (action_type, quantity)
-            if isinstance(action, (list, np.ndarray, tuple)) and len(action) >= 2:
-                action_type = int(np.clip(action[0], 0, 4))
-                predicted_quantity = max(1.0, float(action[1]))  # Ensure minimum 1 lot
-            else:
-                # Backward compatibility: treat as discrete action with default quantity
-                try:
-                    action_type = int(action) if isinstance(action, (int, float)) else 4
-                except (ValueError, TypeError):
-                    action_type = 4  # Default to HOLD if conversion fails
-                predicted_quantity = 1.0 if action_type != 4 else 0.0  # Default to 1 lot
+            # Action is now directly from agent.select_action: (action_type, quantity)
+            action_type, predicted_quantity = action
 
             # Adjust predicted quantity to available capital for trading actions (not HOLD)
             if action_type != 4 and predicted_quantity > 0:
@@ -398,12 +389,20 @@ class TradingEnv(gym.Env):
             account_state = self.engine.get_account_state()
             current_position = account_state['current_position_quantity']
 
-            # Smart action filtering to prevent redundant position attempts
+            # Smart action filtering to prevent redundant position attempts and invalid closes
             if self.smart_action_filtering:
                 if action_type == 0 and current_position != 0:  # BUY_LONG when already have position
                     action_type = 4  # Convert to HOLD
+                    if detailed_logging: logger.info("🚫 Converted BUY_LONG to HOLD: Already in position.")
                 elif action_type == 1 and current_position != 0:  # SELL_SHORT when already have position
                     action_type = 4  # Convert to HOLD
+                    if detailed_logging: logger.info("🚫 Converted SELL_SHORT to HOLD: Already in position.")
+                elif action_type == 2 and current_position <= 0: # CLOSE_LONG when not long
+                    action_type = 4 # Convert to HOLD
+                    if detailed_logging: logger.info("🚫 Converted CLOSE_LONG to HOLD: No long position.")
+                elif action_type == 3 and current_position >= 0: # CLOSE_SHORT when not short
+                    action_type = 4 # Convert to HOLD
+                    if detailed_logging: logger.info("🚫 Converted CLOSE_SHORT to HOLD: No short position.")
 
             if action_type == 0: # BUY_LONG
                 self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)

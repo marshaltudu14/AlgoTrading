@@ -48,17 +48,9 @@ class CapitalAwareQuantitySelector:
             Adjusted integer quantity that fits within available capital
         """
         # Calculate cost per lot
-        if instrument.type == "index":
-            # For index instruments, treat as options with premium calculation
-            if proxy_premium is None:
-                # Use the configured premium range (default to middle of range)
-                premium_min, premium_max = instrument.option_premium_range
-                premium_rate = (premium_min + premium_max) / 2  # Use middle of range
-                proxy_premium = current_price * premium_rate
-            cost_per_lot = proxy_premium * instrument.lot_size
-        else:
-            # For stock instruments, use direct price calculation
-            cost_per_lot = current_price * instrument.lot_size
+        # Calculate cost per lot
+        # For all instruments, use direct price calculation
+        cost_per_lot = current_price * instrument.lot_size
 
         # Calculate maximum affordable quantity
         max_affordable_quantity = int((available_capital - self.brokerage_entry) // cost_per_lot)
@@ -109,17 +101,9 @@ class CapitalAwareQuantitySelector:
             Maximum affordable quantity (integer)
         """
         # Calculate cost per lot
-        if instrument.type == "index":
-            # For index instruments, treat as options with premium calculation
-            if proxy_premium is None:
-                # Use the configured premium range (default to middle of range)
-                premium_min, premium_max = instrument.option_premium_range
-                premium_rate = (premium_min + premium_max) / 2  # Use middle of range
-                proxy_premium = current_price * premium_rate
-            cost_per_lot = proxy_premium * instrument.lot_size
-        else:
-            # For stock instruments, use direct price calculation
-            cost_per_lot = current_price * instrument.lot_size
+        # Calculate cost per lot
+        # For all instruments, use direct price calculation
+        cost_per_lot = current_price * instrument.lot_size
 
         # Calculate maximum affordable quantity (no artificial limits)
         if cost_per_lot <= 0:
@@ -148,17 +132,9 @@ class CapitalAwareQuantitySelector:
             Total cost including brokerage
         """
         # Calculate cost per lot based on instrument type
-        if instrument.type == "index":
-            # For index instruments, treat as options with premium calculation
-            if proxy_premium is None:
-                # Use the configured premium range (default to middle of range)
-                premium_min, premium_max = instrument.option_premium_range
-                premium_rate = (premium_min + premium_max) / 2  # Use middle of range
-                proxy_premium = current_price * premium_rate
-            cost_per_lot = proxy_premium * instrument.lot_size
-        else:
-            # For stock instruments, use direct price calculation
-            cost_per_lot = current_price * instrument.lot_size
+        # Calculate cost per lot
+        # For all instruments, use direct price calculation
+        cost_per_lot = current_price * instrument.lot_size
 
         # Total cost including brokerage
         total_cost = (cost_per_lot * quantity) + self.brokerage_entry

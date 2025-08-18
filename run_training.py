@@ -18,7 +18,6 @@ from src.backtesting.environment import TradingEnv
 from src.utils.data_loader import DataLoader
 from src.training.trainer import Trainer
 from src.training.universal_trainer import UniversalTrainer
-from src.training.curriculum_trainer import CurriculumTrainer
 from src.utils.test_data_generator import create_test_data_files
 
 # Configure clean, minimal logging for training
@@ -205,6 +204,13 @@ def run_universal_hrm_training(
     config_copy['model'] = config_copy.get('model', {})
     config_copy['model']['observation_dim'] = observation_dim
 
+    # Ensure hierarchical_reasoning_model.input_embedding.input_dim is also updated
+    hrm_config = config_copy.get('hierarchical_reasoning_model', {})
+    input_embedding_config = hrm_config.get('input_embedding', {})
+    input_embedding_config['input_dim'] = observation_dim
+    hrm_config['input_embedding'] = input_embedding_config
+    config_copy['hierarchical_reasoning_model'] = hrm_config
+
     # Create HRM agent
     agent = HierarchicalReasoningModel(config_copy)
 
@@ -230,78 +236,6 @@ def run_universal_hrm_training(
     logger.info("✅ Universal training complete")
 
 
-def run_curriculum_hrm_training(num_episodes: int = 10, testing_mode: bool = False, config: dict = None, data_dir: str = "data/final"):
-    """
-    Run curriculum HRM training with timeframe progression.
-
-    Args:
-        num_episodes: Number of episodes to train
-        testing_mode: Whether to run in testing mode (no model saving)
-        data_dir: The directory containing the final data.
-    """
-    logger.info("🎓 Starting Curriculum HRM Training")
-
-    # Load configuration
-    config = load_training_config()
-
-    # Initialize data loader with the correct final data directory
-    final_data_dir = os.path.join(data_dir, 'final')
-    data_loader = DataLoader(final_data_dir=final_data_dir)
-
-    # Get configuration sections
-    model_config = config.get('model', {})
-
-    # Create curriculum trainer first to discover data
-    temp_trainer = CurriculumTrainer(None, data_loader, num_episodes=1, config=config)
-
-    # Determine observation dimension from a sample environment instance
-    if temp_trainer.curriculum_batches:
-        from src.backtesting.environment import TradingMode
-        sample_env = TradingEnv(
-            data_loader=data_loader,
-            symbol=temp_trainer.curriculum_batches[0]['symbols'][0],
-            initial_capital=config.get('initial_capital', 100000),
-            lookback_window=config.get('lookback_window', 50),
-            episode_length=50,  # Small episode for dimension detection
-            mode=TradingMode.TRAINING
-        )
-        observation_dim = sample_env.observation_space.shape[0]
-        logger.info(f"🔧 Detected observation dimension: {observation_dim}")
-    else:
-        observation_dim = 1186  # Fallback
-        logger.warning("🔧 Using fallback observation dimension: 1186")
-
-    # Update config with the true, environment-derived dimension before creating the model
-    config_copy = config.copy()
-    config_copy['model'] = config_copy.get('model', {})
-    config_copy['model']['observation_dim'] = observation_dim
-
-    # Create HRM agent with correct dimensions
-    agent = HierarchicalReasoningModel(config_copy)
-
-    # Create curriculum trainer
-    trainer = CurriculumTrainer(agent, data_loader, num_episodes=num_episodes, log_interval=5, config=config)
-    logger.info(f"🎯 Curriculum training: {num_episodes} episodes")
-
-    # Execute curriculum training
-    training_results = trainer.train()
-
-    # Only save model in production mode (not testing)
-    if not testing_mode:
-        # Use universal model path
-        model_path = model_config.get('model_path', 'models/universal_final_model.pth')
-        os.makedirs("models", exist_ok=True)
-
-        if hasattr(agent, 'save_model'):
-            agent.save_model(model_path)
-            logger.info(f"✅ Curriculum model saved to {model_path}")
-        else:
-            logger.warning(f"Agent does not have save_model method. Cannot save model to {model_path}")
-    else:
-        logger.info("🧪 Testing mode - Model not saved")
-
-    logger.info(f"🎓 Curriculum HRM training completed")
-    return training_results
 
 
 def main():
@@ -315,11 +249,22 @@ def main():
     parser.add_argument("--data-dir", default="data/final", help="Data directory")
     parser.add_argument("--episodes", type=int, help="Number of episodes for training (overrides config)")
     parser.add_argument("--testing", action="store_true", help="Enable testing mode")
-    parser.add_argument("--no-curriculum", action="store_true", help="Disable curriculum training (use basic symbol rotation instead)")
     args = parser.parse_args()
 
     # Load configuration
     config = load_training_config()
+
+    # Determine data directory for DataLoader based on testing mode
+    data_processing_config = config.get('data_processing', {})
+    if args.testing:
+        # In testing mode, data is generated in data/test
+        data_dir_for_loader = os.path.join(data_processing_config.get('test_folder', 'data/test'), 'final')
+    else:
+        # In production mode, data is in args.data_dir (default: data/final)
+        data_dir_for_loader = args.data_dir
+
+    # Initialize data_loader here, it's needed for both training paths
+    data_loader = DataLoader(final_data_dir=data_dir_for_loader)
 
     # Determine episodes based on testing mode and configuration
     if args.testing:
@@ -334,7 +279,7 @@ def main():
 
         # Create test data files for both stock and option instruments
         symbols = ["RELIANCE_1", "Bank_Nifty_5"]
-        data_processing_config = config.get('data_processing', {})
+        # args.data_dir is used by create_test_data_files, ensure it points to the test folder
         args.data_dir = data_processing_config.get('test_folder', 'data/test')
 
         # Use test data configuration if available
@@ -372,14 +317,10 @@ def main():
         episodes = args.episodes
         logger.info(f"📊 Overriding episodes with command line value: {episodes}")
 
-    # Choose training method based on arguments
+    # Use unified universal training with timeframe awareness
     try:
-        if args.testing or args.no_curriculum:
-            logger.info("🔄 Using universal training (symbol rotation) for testing or by request")
-            run_universal_hrm_training(symbols, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing, config=config)
-        else:
-            logger.info("🎓 Using curriculum training (timeframe progression) - DEFAULT")
-            run_curriculum_hrm_training(num_episodes=episodes, testing_mode=args.testing, config=config, data_dir=args.data_dir)
+        logger.info("🎯 Using Universal Training with Timeframe-Aware Symbol Rotation")
+        run_universal_hrm_training(symbols, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing, config=config)
     except Exception as e:
         logger.error(f"Failed to run training: {e}", exc_info=True)
 

@@ -1,30 +1,6 @@
-2025-08-18 14:52:06,571 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 14:52:06,571 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
-2025-08-18 14:52:06,687 - ERROR - Error in episode 0 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 14:52:06,743 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 14:52:06,743 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
-2025-08-18 14:52:06,847 - ERROR - Error in episode 1 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 14:52:06,900 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 14:52:06,900 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
-2025-08-18 14:52:06,994 - ERROR - Error in episode 2 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 14:52:07,047 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 14:52:07,047 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
-2025-08-18 14:52:07,141 - ERROR - Error in episode 3 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 14:52:07,180 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 14:52:07,180 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
-2025-08-18 14:52:07,281 - ERROR - Error in episode 4 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 14:52:07,329 - ERROR - No final data found for symbol: Nifty_2
-2025-08-18 14:52:07,330 - WARNING - Small dataset (0 rows), creating single segment
-2025-08-18 14:52:07,330 - ERROR - Error in episode 5 with symbol Nifty_2: 'close'
-2025-08-18 14:52:07,367 - ERROR - No final data found for symbol: Nifty_2
-2025-08-18 14:52:07,367 - WARNING - Small dataset (0 rows), creating single segment
-2025-08-18 14:52:07,367 - ERROR - Error in episode 6 with symbol Nifty_2: 'close'
-2025-08-18 14:52:07,420 - ERROR - No final data found for symbol: Nifty_2
-2025-08-18 14:52:07,420 - WARNING - Small dataset (0 rows), creating single segment
-2025-08-18 14:52:07,420 - ERROR - Error in episode 7 with symbol Nifty_2: 'close'
-2025-08-18 14:52:07,487 - ERROR - No final data found for symbol: Nifty_2
-2025-08-18 14:52:07,487 - WARNING - Small dataset (0 rows), creating single segment
-2025-08-18 14:52:07,487 - ERROR - Error in episode 8 with symbol Nifty_2: 'close'
-2025-08-18 14:52:07,568 - ERROR - No final data found for symbol: Nifty_2
-2025-08-18 14:52:07,568 - WARNING - Small dataset (0 rows), creating single segment
-2025-08-18 14:52:07,568 - ERROR - Error in episode 9 with symbol Nifty_2: 'close'
+2025-08-18 17:41:01,223 - WARNING - Small dataset (99 rows), creating single segment
+2025-08-18 17:41:01,484 - WARNING - Small dataset (99 rows), creating single segment
+==============================
+Session started: 2025-08-18 17:41:01
+================================================================================
+
