@@ -7,6 +7,7 @@ import torch.backends.cudnn as cudnn
 import logging
 import psutil
 import gc
+import os
 from typing import Dict, Any, Optional, Tuple, Union
 import numpy as np
 
@@ -43,10 +44,23 @@ class HardwareOptimizer:
     def _get_optimal_device(self) -> torch.device:
         """
         Get the optimal device for training with graceful fallback.
+        Priority: TPU > CUDA > MPS > CPU
         
         Returns:
-            torch.device: Optimal device (CUDA, MPS, or CPU)
+            torch.device: Optimal device (TPU, CUDA, MPS, or CPU)
         """
+        # Check for TPU availability first
+        if 'COLAB_TPU_ADDR' in os.environ or 'TPU_NAME' in os.environ:
+            try:
+                import torch_xla.core.xla_model as xm
+                device = xm.xla_device()
+                logger.info("TPU detected and configured")
+                return device
+            except ImportError:
+                logger.warning("TPU environment detected but PyTorch XLA not available")
+            except Exception as e:
+                logger.warning(f"TPU initialization failed: {e}")
+        
         # Check for CUDA (NVIDIA GPU)
         if torch.cuda.is_available():
             device = torch.device('cuda')
@@ -81,12 +95,19 @@ class HardwareOptimizer:
                 'cudnn_version': torch.backends.cudnn.version(),
                 'cuda_version': torch.version.cuda
             })
+        elif 'xla' in str(self.device):
+            # TPU device
+            info.update({
+                'tpu_detected': True,
+                'tpu_env': os.environ.get('COLAB_TPU_ADDR', os.environ.get('TPU_NAME', 'Unknown'))
+            })
         
         return info
     
     def _enable_cudnn_optimization(self) -> None:
         """Enable cuDNN optimizations for CUDA devices."""
-        if torch.backends.cudnn.is_available():
+        # Only enable cuDNN for CUDA devices, not TPU
+        if self.device.type == 'cuda' and torch.backends.cudnn.is_available():
             # Enable benchmark mode for consistent input sizes
             torch.backends.cudnn.benchmark = True
             
@@ -94,6 +115,8 @@ class HardwareOptimizer:
             # torch.backends.cudnn.deterministic = True
             
             logger.info("cuDNN optimization enabled: benchmark=True")
+        elif self.device.type != 'cuda':
+            logger.info(f"cuDNN optimization skipped for {self.device.type} device")
         else:
             logger.warning("cuDNN not available")
     
@@ -106,6 +129,9 @@ class HardwareOptimizer:
                 logger.info("Mixed precision training enabled")
             except ImportError:
                 logger.warning("Mixed precision training not available (requires PyTorch 1.6+)")
+        elif 'xla' in str(self.device):
+            # TPU uses bfloat16 by default, no additional setup needed
+            logger.info("TPU uses bfloat16 by default, mixed precision enabled")
         else:
             logger.info("Mixed precision training only available on CUDA devices")
     
@@ -125,6 +151,8 @@ class HardwareOptimizer:
             logger.info(f"GPU memory: {self.device_info['gpu_memory_total_gb']:.1f} GB")
             logger.info(f"CUDA version: {self.device_info['cuda_version']}")
             logger.info(f"cuDNN version: {self.device_info['cudnn_version']}")
+        elif 'xla' in str(self.device):
+            logger.info(f"TPU environment: {self.device_info.get('tpu_env', 'Detected')}")
         
         logger.info("==============================")
     
@@ -181,6 +209,10 @@ class HardwareOptimizer:
         if not self.enable_optimization:
             return tensor
         
+        # For TPU, we don't use non-blocking transfers
+        if 'xla' in str(self.device):
+            return tensor.to(self.device)
+        
         return tensor.to(self.device, non_blocking=non_blocking and self.device.type == 'cuda')
     
     def get_optimal_batch_size(self, model_name: str, base_batch_size: int = 32, 
@@ -201,6 +233,9 @@ class HardwareOptimizer:
         
         if self.device.type == 'cuda':
             optimal_size = self._calculate_gpu_batch_size(base_batch_size, memory_fraction)
+        elif 'xla' in str(self.device):
+            # TPU typically uses larger batch sizes
+            optimal_size = self._calculate_tpu_batch_size(base_batch_size)
         else:
             optimal_size = self._calculate_cpu_batch_size(base_batch_size)
         
@@ -250,11 +285,32 @@ class HardwareOptimizer:
             logger.warning(f"CPU batch size calculation failed: {e}")
             return base_batch_size
     
+    def _calculate_tpu_batch_size(self, base_batch_size: int) -> int:
+        """Calculate optimal batch size for TPU."""
+        try:
+            # TPUs typically benefit from larger batch sizes
+            # Start with 2x the base batch size and scale up
+            tpu_batch_size = base_batch_size * 4
+            
+            # Cap at reasonable maximum for memory constraints
+            return min(tpu_batch_size, 1024)
+            
+        except Exception as e:
+            logger.warning(f"TPU batch size calculation failed: {e}")
+            return base_batch_size * 2
+    
     def clear_cache(self) -> None:
         """Clear GPU cache and run garbage collection."""
         if self.device.type == 'cuda':
             torch.cuda.empty_cache()
             logger.debug("CUDA cache cleared")
+        elif 'xla' in str(self.device):
+            try:
+                import torch_xla.core.xla_model as xm
+                xm.mark_step()  # Ensure all computations are finished
+                logger.debug("TPU step marked and cache managed")
+            except ImportError:
+                pass
         
         gc.collect()
         logger.debug("Garbage collection completed")
@@ -272,6 +328,11 @@ class HardwareOptimizer:
                 'gpu_memory_reserved_gb': torch.cuda.memory_reserved() / (1024**3),
                 'gpu_memory_percent': (torch.cuda.memory_allocated() / 
                                      torch.cuda.get_device_properties(0).total_memory) * 100
+            })
+        elif 'xla' in str(self.device):
+            # TPU memory tracking is limited, just indicate TPU usage
+            usage.update({
+                'tpu_in_use': True
             })
         
         return usage

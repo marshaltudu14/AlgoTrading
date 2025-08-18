@@ -54,8 +54,10 @@ class UniversalTrainer:
         self.episode_rewards = []
         self.total_reward = 0.0
         self.symbol_episode_count = {symbol: 0 for symbol in symbols}
+        self.capital_history = []
         self.cumulative_trade_history = []
         self.cumulative_capital_history = []
+        self.symbol_performance = {symbol: [] for symbol in symbols}
         
         logger.info(f"🎯 Universal Trainer initialized with {len(symbols)} symbols across {len(self.symbol_groups)} timeframe groups")
         for timeframe, group_symbols in self.symbol_groups.items():

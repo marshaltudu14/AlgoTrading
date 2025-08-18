@@ -1,0 +1,22 @@
+# Core Data Science & ML Libraries
+pandas
+numpy
+scikit-learn
+torch
+joblib
+gymnasium
+PyYAML
+
+# Trading & API Libraries (optional for training)
+requests
+pytz
+
+# Visualization Libraries (for analysis)
+matplotlib
+seaborn
+
+# Testing & Development Libraries
+tqdm
+
+# Utility Libraries
+psutil

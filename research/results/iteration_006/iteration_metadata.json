@@ -1,9 +1,10 @@
 {
-  "iteration_name": "iteration_002",
+  "iteration_name": "iteration_006",
   "config_hash": "509d82d2996f",
   "feature_info": {
-    "feature_count": 53,
+    "feature_count": 54,
     "feature_columns": [
+      "index",
       "open",
       "high",
       "low",
@@ -59,12 +60,12 @@
       "volatility_20"
     ],
     "data_shape": [
-      99716,
-      53
+      301,
+      54
     ]
   },
-  "created_at": "2025-08-19T02:58:51.607022",
-  "is_new_iteration": false,
+  "created_at": "2025-08-19T02:57:22.943352",
+  "is_new_iteration": true,
   "config_elements_hashed": [
     "hrm",
     "model",

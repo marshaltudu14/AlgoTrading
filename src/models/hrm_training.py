@@ -192,12 +192,31 @@ class DeepSupervisionTrainer:
                 
                 # Use mixed precision if enabled
                 if hardware_optimizer and hardware_optimizer.is_mixed_precision_enabled():
-                    hardware_optimizer.scaler.scale(accumulated_loss).backward()
-                    hardware_optimizer.scaler.step(optimizer)
-                    hardware_optimizer.scaler.update()
+                    if hasattr(hardware_optimizer, 'is_tpu') and hardware_optimizer.is_tpu:
+                        # TPU-specific optimization steps
+                        try:
+                            import torch_xla.core.xla_model as xm
+                            accumulated_loss.backward()
+                            xm.optimizer_step(optimizer)  # TPU-specific optimizer step
+                        except ImportError:
+                            accumulated_loss.backward()
+                            optimizer.step()
+                    else:
+                        # CUDA mixed precision
+                        hardware_optimizer.scaler.scale(accumulated_loss).backward()
+                        hardware_optimizer.scaler.step(optimizer)
+                        hardware_optimizer.scaler.update()
                 else:
                     accumulated_loss.backward()
-                    optimizer.step()
+                    # TPU-specific optimizer step if needed
+                    if hardware_optimizer and hasattr(hardware_optimizer, 'is_tpu') and hardware_optimizer.is_tpu:
+                        try:
+                            import torch_xla.core.xla_model as xm
+                            xm.optimizer_step(optimizer)
+                        except ImportError:
+                            optimizer.step()
+                    else:
+                        optimizer.step()
                 
                 accumulated_loss = 0  # Reset accumulated loss
             

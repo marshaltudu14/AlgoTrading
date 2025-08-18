@@ -1,0 +1,2 @@
+episode,symbol,initial_capital,steps,trades,win_rate,current_capital,total_pnl,episode_reward,episode_win_rate,episode_trades,final_capital
+1,RELIANCE_1,100000.0,110,0,45.94594594594595,92559.13500000005,-7440.864999999947,-2.2200185160015202,0.4594594594594595,37,92559.13500000005

@@ -47,3 +47,7 @@ idna
 h11
 sniffio
 typing_extensions
+
+# TPU Support (for Google Colab)
+# torch_xla  # Uncomment when using TPU
+# cloud-tpu-client  # Uncomment when using TPU

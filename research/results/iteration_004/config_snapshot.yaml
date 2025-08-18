@@ -13,7 +13,7 @@
 training_sequence:
   # Stage 1: HRM Training
   stage_1_hrm:
-    episodes: 1500 # Default episodes for production HRM training
+    episodes: 100 # Default episodes for production HRM training
 
 # Environment Configuration - Centralized settings
 environment:
@@ -59,7 +59,7 @@ hierarchical_reasoning_model:
   # Hierarchical multi-timeframe processing
   hierarchical_processing:
     high_level_lookback: 128 # Comprehensive market overview
-    low_level_lookback: 50 # Recent market dynamics
+    low_level_lookback: 50   # Recent market dynamics
 
   # Hierarchical convergence mechanism
   hierarchical:
