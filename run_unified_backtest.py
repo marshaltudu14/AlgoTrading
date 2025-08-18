@@ -229,7 +229,7 @@ class UnifiedBacktester:
             logger.info("🔄 Attempting to use fallback data...")
             return self.load_fallback_data()
     
-    def load_model(self, env: TradingEnv) -> Optional[PPOAgent]:
+    def load_model(self, env: TradingEnv) -> Optional[HierarchicalReasoningModel]:
         """Load the trained HRM model with proper dimensions from environment."""
         try:
             model_config = self.config.get('model', {})
