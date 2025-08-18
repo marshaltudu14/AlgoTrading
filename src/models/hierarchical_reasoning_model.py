@@ -145,6 +145,18 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
             'reset_factor': 0.3
         })
         
+        # Ensure convergence_threshold is a float
+        if 'convergence_threshold' in self.hierarchical_config:
+            # Convert to float if it's a string
+            if isinstance(self.hierarchical_config['convergence_threshold'], str):
+                self.hierarchical_config['convergence_threshold'] = float(self.hierarchical_config['convergence_threshold'])
+        else:
+            self.hierarchical_config['convergence_threshold'] = 1e-6
+        
+        # Add missing convergence_threshold if not present
+        if 'convergence_threshold' not in self.hierarchical_config:
+            self.hierarchical_config['convergence_threshold'] = 1e-6
+        
         # Embedding configurations
         embedding_config = hrm_config.get('embeddings', {})
         self.embedding_configs = {
@@ -573,6 +585,30 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
         
         return epoch_stats
 
+    def get_convergence_diagnostics(self, x: torch.Tensor) -> Dict[str, Any]:
+        """
+        Get detailed convergence diagnostics for a given input.
+        
+        Args:
+            x: Input tensor
+            
+        Returns:
+            Dictionary with detailed convergence information
+        """
+        # Run forward pass with diagnostics enabled
+        outputs, final_states, diagnostics = self.forward(x, return_diagnostics=True)
+        convergence_info = diagnostics['convergence_info']
+        
+        # Add additional metrics for the diagnostic suite
+        convergence_info['convergence_metrics'] = {
+            'total_cycles': len(convergence_info['cycles']),
+            'total_l_steps': convergence_info['total_l_steps'],
+            'h_updates': convergence_info['h_updates'],
+            'final_residuals': convergence_info['residuals'][-5:] if convergence_info['residuals'] else []
+        }
+        
+        return convergence_info
+    
     def run_brain_correspondence_analysis(
         self, 
         test_dataloader: torch.utils.data.DataLoader,

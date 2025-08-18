@@ -196,7 +196,7 @@ class ConvergencePatternAnalyzer:
         self.h_states_history.append(z_h_curr.detach().cpu().numpy().flatten())
         self.l_states_history.append(z_l_curr.detach().cpu().numpy().flatten())
         
-        # Mark cycle boundaries
+        # Mark cycle boundaries (at the beginning of each cycle, except the first)
         if timestep == 0 and cycle > 0:
             self.cycle_boundaries.append(len(self.h_residuals) - 1)
     
@@ -424,34 +424,78 @@ class HRMDiagnosticSuite:
                 data = data.to(device)
                 batch_size = data.size(0)
                 
-                # Get detailed convergence diagnostics
-                diagnostics = model.get_convergence_diagnostics(data)
+                # Get detailed convergence diagnostics using the model's forward method
+                outputs, final_states, diagnostics = model.forward(data, return_diagnostics=True)
                 
-                # Extract trajectories for PR analysis
-                for cycle_info in diagnostics['cycles']:
-                    for l_step in cycle_info['l_timesteps']:
-                        # Create mock tensors for trajectory (in real implementation, 
-                        # you'd extract actual states from forward pass)
-                        z_h_mock = torch.randn(batch_size, model.h_config['hidden_dim'])
-                        z_l_mock = torch.randn(batch_size, model.l_config['hidden_dim'])
+                # Extract trajectories for PR analysis from actual model states
+                convergence_info = diagnostics['convergence_info']
+                for cycle_idx, cycle_info in enumerate(convergence_info['cycles']):
+                    # For each timestep in the cycle, collect the L-state
+                    for t_idx, l_state in enumerate(cycle_info['l_timesteps']):
+                        # Extract corresponding H-state (same for all timesteps in a cycle)
+                        z_h_state = convergence_info['h_states'][cycle_idx] if cycle_idx < len(convergence_info['h_states']) else final_states[0]
+                        z_l_state = l_state
                         
-                        self.pr_analyzer.collect_trajectory(z_h_mock, z_l_mock)
+                        # Collect trajectories for PR analysis
+                        self.pr_analyzer.collect_trajectory(z_h_state, z_l_state)
                         task_trajectories[f'sample_{sample_count}'].append(
-                            (z_h_mock.numpy(), z_l_mock.numpy())
+                            (z_h_state.cpu().numpy(), z_l_state.cpu().numpy())
                         )
                 
-                # Track convergence patterns (mock implementation)
-                for cycle in range(diagnostics['convergence_metrics']['total_cycles']):
-                    z_h_prev = torch.randn(batch_size, model.h_config['hidden_dim'])
-                    z_h_curr = torch.randn(batch_size, model.h_config['hidden_dim'])
-                    z_l_prev = torch.randn(batch_size, model.l_config['hidden_dim'])
-                    z_l_curr = torch.randn(batch_size, model.l_config['hidden_dim'])
-                    
-                    self.convergence_analyzer.track_convergence_step(
-                        z_h_prev, z_h_curr, z_l_prev, z_l_curr, cycle, 0
-                    )
+                # Track convergence patterns using actual model states
+                h_states = convergence_info['h_states']
+                # Collect L-states from all cycles
+                l_states = []
+                for cycle_info in convergence_info['cycles']:
+                    l_states.extend(cycle_info['l_timesteps'])
+                
+                # Track convergence for each transition
+                min_states = min(len(h_states) - 1, len(l_states) - 1)
+                for i in range(min_states):
+                    if i < len(h_states) - 1 and i < len(l_states) - 1:
+                        z_h_prev = h_states[i]
+                        z_h_curr = h_states[i + 1]
+                        z_l_prev = l_states[i]
+                        z_l_curr = l_states[i + 1]
+                        
+                        # Only track if we have meaningful state changes
+                        if z_h_prev is not None and z_h_curr is not None and z_l_prev is not None and z_l_curr is not None:
+                            self.convergence_analyzer.track_convergence_step(
+                                z_h_prev, z_h_curr, z_l_prev, z_l_curr, i // model.convergence_engine.T, i % model.convergence_engine.T
+                            )
                 
                 sample_count += min(batch_size, num_samples - sample_count)
+        
+        # Run analyses
+        pr_results = self.pr_analyzer.analyze_dimensionality_hierarchy()
+        task_scaling_results = self.pr_analyzer.task_scaling_analysis(task_trajectories)
+        convergence_results = self.convergence_analyzer.analyze_convergence_patterns()
+        
+        # Compile comprehensive report
+        diagnostic_report = {
+            'model_info': {
+                'total_parameters': model.count_parameters(),
+                'h_module_params': sum(p.numel() for p in model.h_module.parameters()),
+                'l_module_params': sum(p.numel() for p in model.l_module.parameters()),
+                'samples_analyzed': sample_count
+            },
+            'participation_ratio_analysis': pr_results,
+            'task_scaling_analysis': task_scaling_results,
+            'convergence_pattern_analysis': convergence_results,
+            'brain_correspondence_score': self._compute_brain_correspondence_score(
+                pr_results, convergence_results
+            ),
+            'hrm_compliance_score': self._compute_hrm_compliance_score(
+                pr_results, convergence_results
+            )
+        }
+        
+        self.diagnostic_history.append(diagnostic_report)
+        
+        logger.info(f"Diagnostic completed. Brain correspondence score: "
+                   f"{diagnostic_report['brain_correspondence_score']:.3f}")
+        
+        return diagnostic_report
         
         # Run analyses
         pr_results = self.pr_analyzer.analyze_dimensionality_hierarchy()

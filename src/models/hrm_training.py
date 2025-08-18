@@ -251,13 +251,24 @@ class HRMTrainingOrchestrator:
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
+        # One-step gradient approximation
+        self.gradient_approximator = OneStepGradientApproximator()
+        
         self.deep_supervisor = DeepSupervisionTrainer(
             M_max=config.get('training', {}).get('M_max', 8),
-            M_min=config.get('training', {}).get('M_min', 2)
+            M_min=config.get('training', {}).get('M_min', 2),
+            gradient_approximator=self.gradient_approximator
         )
+        # Ensure convergence threshold is properly typed
+        hrm_hierarchical_config = config.get('hierarchical_reasoning_model', {}).get('hierarchical', {})
+        convergence_threshold = hrm_hierarchical_config.get('convergence_threshold', 1e-6)
+        if isinstance(convergence_threshold, str):
+            convergence_threshold = float(convergence_threshold)
+        
         self.convergence_engine = HierarchicalConvergenceEngine(
             N=config.get('hierarchical_reasoning_model', {}).get('hierarchical', {}).get('N_cycles', 3),
-            T=config.get('hierarchical_reasoning_model', {}).get('hierarchical', {}).get('T_timesteps', 5)
+            T=config.get('hierarchical_reasoning_model', {}).get('hierarchical', {}).get('T_timesteps', 5),
+            convergence_threshold=convergence_threshold
         )
         
     def train_epoch(

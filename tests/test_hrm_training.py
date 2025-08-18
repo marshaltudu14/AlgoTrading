@@ -303,18 +303,21 @@ class TestHRMTrainingIntegration:
         x = torch.randn(2, 256)
         
         # Get detailed diagnostics
-        diagnostics = model.get_convergence_diagnostics(x)
+        outputs, final_states, diagnostics = model.forward(x, return_diagnostics=True)
         
         # Check diagnostic information is available
-        assert 'cycles' in diagnostics
-        assert 'convergence_metrics' in diagnostics
-        assert 'parameter_statistics' in diagnostics
+        assert 'convergence_info' in diagnostics
+        assert 'output_stats' in diagnostics
+        assert 'state_norms' in diagnostics
         
-        # Check convergence metrics
-        metrics = diagnostics['convergence_metrics']
-        assert 'cycles_converged' in metrics
-        assert 'total_cycles' in metrics
-        assert metrics['total_cycles'] == 2  # As per testing config
+        # Check convergence info
+        conv_info = diagnostics['convergence_info']
+        assert 'cycles' in conv_info
+        assert 'h_updates' in conv_info
+        assert 'total_l_steps' in conv_info
+        
+        # Check that we have the expected number of cycles
+        assert len(conv_info['cycles']) == 2  # As per testing config
     
     def test_hrm_state_management(self, training_config):
         """Test HRM hidden state management during training"""

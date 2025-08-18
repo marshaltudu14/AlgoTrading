@@ -62,6 +62,8 @@ hierarchical_reasoning_model:
     T_timesteps: 5 # Low-level timesteps per cycle
     convergence_threshold: 1e-6 # Convergence detection threshold
     max_convergence_steps: 100 # Maximum convergence iterations
+    reset_factor: 0.3 # L-module reset strength between cycles
+    reset_noise_scale: 0.1 # Noise scale for L-module reset
 
   # Instrument and timeframe embeddings for multi-instrument learning
   embeddings:
@@ -76,7 +78,57 @@ hierarchical_reasoning_model:
     quantity_min: 1.0 # Minimum position size
     quantity_max: 100000.0 # Maximum position size
     value_estimation: true # Enable state value estimation
-    q_learning_prep: true # Enable Q-head for future ACT mechanism
+    q_learning_enabled: true # Enable Q-head for ACT mechanism
+
+  # Core architectural constants (from paper)
+  architecture:
+    rms_norm_eps: 1e-8 # RMSNorm epsilon value
+    rope_max_seq_len: 2048 # RoPE maximum sequence length
+    rope_base_freq: 10000 # RoPE base frequency
+    transformer_mask_value: -1e9 # Attention mask fill value
+    truncated_normal_std: 1.0 # Standard deviation for state initialization
+    truncated_normal_limit: 2.0 # Truncation limit (±2σ)
+
+  # Training configuration (One-Step Gradient & Deep Supervision)
+  training:
+    # Deep Supervision parameters
+    M_max: 8 # Maximum segments per training step
+    M_min: 2 # Minimum segments per training step
+    gradient_convergence_threshold: 1e-6 # Gradient approximation threshold
+    neumann_series_terms: 3 # Terms for Neumann series approximation
+    improvement_threshold: 0.001 # Minimum improvement for adaptive segments
+    log_frequency: 10 # Batch logging frequency
+
+  # Adaptive Computation Time (ACT) parameters
+  act:
+    enabled: true # Enable ACT mechanism
+    M_max: 16 # Maximum segments for ACT
+    M_min_range: [1, 8] # Range for minimum segments sampling
+    epsilon: 0.3 # Exploration probability for M_min sampling
+    gamma: 0.99 # Q-learning discount factor
+    q_learning_lr: 0.001 # Learning rate for Q-head
+    target_update_freq: 100 # Q-target update frequency
+    history_maxlen: 1000 # Maximum history length for statistics
+    prediction_tolerance: 0.05 # Tolerance for regression correctness
+    max_scaling_factor: 4.0 # Maximum inference-time scaling
+    difficulty_scaling_factor: 2.0 # Task difficulty scaling multiplier
+
+  # Brain Correspondence Validation
+  brain_validation:
+    min_samples_for_pr: 10 # Minimum samples for Participation Ratio
+    eigenvalue_threshold: 1e-12 # Threshold for filtering near-zero eigenvalues
+    expected_hierarchy_ratio_min: 2.25 # Expected PR_H/PR_L minimum
+    expected_hierarchy_ratio_max: 3.0 # Expected PR_H/PR_L maximum
+    hierarchy_midpoint: 2.625 # Midpoint for brain similarity calculation
+    residual_spike_threshold_factor: 2.0 # Factor for spike detection
+    stability_variance_factor: 0.5 # Factor for steady vs variable classification
+    convergence_rate_normalization: 10.0 # Normalization factor for separation score
+
+  # Diagnostic settings
+  diagnostics:
+    comprehensive_analysis_samples: 100 # Samples for comprehensive analysis
+    pca_components: 3 # PCA components for trajectory analysis
+    convergence_health_weight: 0.5 # Weight for convergence health in scores
 
 # Risk Management Configuration - Moved from src/config/config.py
 risk_management:

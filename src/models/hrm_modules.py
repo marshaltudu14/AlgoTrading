@@ -175,13 +175,21 @@ class HierarchicalConvergenceEngine:
         convergence_info = {
             'cycles': [],
             'total_l_steps': 0,
-            'h_updates': 0
+            'h_updates': 0,
+            'l_states': [],  # Track L-module states for analysis
+            'h_states': [],  # Track H-module states for analysis
+            'residuals': []  # Track all residuals for analysis
         }
+        
+        # Store initial states
+        convergence_info['h_states'].append(z_h.clone())
+        convergence_info['l_states'].append(z_l.clone())
         
         for cycle in range(self.N):
             cycle_info = {
                 'cycle': cycle,
                 'l_convergence_residuals': [],
+                'l_timesteps': [],  # Track L-module states during cycle
                 'converged': False
             }
             
@@ -193,7 +201,9 @@ class HierarchicalConvergenceEngine:
                 # Track convergence
                 residual = torch.norm(z_l - z_l_prev, dim=-1).mean().item()
                 cycle_info['l_convergence_residuals'].append(residual)
+                cycle_info['l_timesteps'].append(z_l.clone())  # Store L-state for analysis
                 convergence_info['total_l_steps'] += 1
+                convergence_info['residuals'].append(residual)  # Track all residuals
                 
                 # Check for premature convergence
                 if residual < self.convergence_threshold:
@@ -204,11 +214,14 @@ class HierarchicalConvergenceEngine:
             z_l_projected = l_to_h_projection(z_l)
             
             # H-module updates once per cycle using converged L-state
+            z_h_prev = z_h.clone()
             z_h = h_module(z_h, z_l_projected)
             convergence_info['h_updates'] += 1
             
-            # Store cycle information
+            # Store cycle information and states
             convergence_info['cycles'].append(cycle_info)
+            convergence_info['h_states'].append(z_h.clone())
+            convergence_info['l_states'].append(z_l.clone())
             
             # Reset L-module for next cycle's fresh convergence
             if cycle < self.N - 1:

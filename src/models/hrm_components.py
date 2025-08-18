@@ -30,7 +30,9 @@ class RMSNorm(nn.Module):
 
     def forward(self, x):
         norm = x.norm(dim=-1, keepdim=True) * x.size(-1) ** -0.5
-        return self.scale * x / (norm + self.eps)
+        # Ensure self.eps is a scalar float, not a string
+        eps = self.eps if isinstance(self.eps, (int, float)) else 1e-8
+        return self.scale * x / (norm + eps)
 
 
 class RotaryPositionalEmbedding(nn.Module):
@@ -60,21 +62,28 @@ class RotaryPositionalEmbedding(nn.Module):
 
 def apply_rotary_pos_emb(x, cos, sin):
     """Apply rotary positional embedding"""
-    # Ensure cos and sin match the input dimensions
-    if cos.size(-1) != x.size(-1) // 2:
-        # Truncate or pad cos/sin to match input dimensions
-        target_dim = x.size(-1) // 2
-        if cos.size(-1) > target_dim:
-            cos = cos[..., :target_dim]
-            sin = sin[..., :target_dim]
-        else:
-            # Pad with zeros if needed
-            pad_size = target_dim - cos.size(-1)
-            cos = torch.cat([cos, torch.zeros(*cos.shape[:-1], pad_size, device=cos.device)], dim=-1)
-            sin = torch.cat([sin, torch.zeros(*sin.shape[:-1], pad_size, device=sin.device)], dim=-1)
+    # x has shape (batch, seq_len, heads, head_dim)
+    # cos, sin have shape (seq_len, head_dim)
     
+    # Split x into two halves along the last dimension
     x1, x2 = x[..., :x.size(-1)//2], x[..., x.size(-1)//2:]
-    return torch.cat([x1 * cos - x2 * sin, x1 * sin + x2 * cos], dim=-1)
+    
+    # Split cos and sin to match the dimensions of x1 and x2
+    cos1, cos2 = cos[..., :x.size(-1)//2], cos[..., x.size(-1)//2:]
+    sin1, sin2 = sin[..., :x.size(-1)//2], sin[..., x.size(-1)//2:]
+    
+    # Expand cos and sin to match x dimensions
+    # cos and sin are (seq_len, head_dim//2)
+    # We need to expand to (1, seq_len, 1, head_dim//2) to broadcast with (batch, seq_len, heads, head_dim//2)
+    if cos1.dim() == 2:  # (seq_len, head_dim//2)
+        cos1 = cos1.unsqueeze(0).unsqueeze(2)  # (1, seq_len, 1, head_dim//2)
+        sin1 = sin1.unsqueeze(0).unsqueeze(2)  # (1, seq_len, 1, head_dim//2)
+        cos2 = cos2.unsqueeze(0).unsqueeze(2)  # (1, seq_len, 1, head_dim//2)
+        sin2 = sin2.unsqueeze(0).unsqueeze(2)  # (1, seq_len, 1, head_dim//2)
+    
+    # Apply rotary embedding
+    rotated = torch.cat([x1 * cos1 - x2 * sin1, x1 * sin2 + x2 * cos2], dim=-1)
+    return rotated
 
 
 class GLU(nn.Module):
