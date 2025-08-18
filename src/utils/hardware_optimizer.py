@@ -22,6 +22,7 @@ class HardwareOptimizer:
         self.device = None
         self.device_info = {}
         self.optimal_batch_sizes = {}
+        self.scaler = None  # For mixed precision training
         
         if self.enable_optimization:
             self._initialize_hardware()
@@ -96,6 +97,22 @@ class HardwareOptimizer:
         else:
             logger.warning("cuDNN not available")
     
+    def enable_mixed_precision(self) -> None:
+        """Enable mixed precision training for better performance on compatible hardware."""
+        if self.device.type == 'cuda':
+            try:
+                from torch.cuda.amp import GradScaler
+                self.scaler = GradScaler()
+                logger.info("Mixed precision training enabled")
+            except ImportError:
+                logger.warning("Mixed precision training not available (requires PyTorch 1.6+)")
+        else:
+            logger.info("Mixed precision training only available on CUDA devices")
+    
+    def is_mixed_precision_enabled(self) -> bool:
+        """Check if mixed precision training is enabled."""
+        return self.scaler is not None
+    
     def _log_hardware_info(self) -> None:
         """Log comprehensive hardware information."""
         logger.info("=== Hardware Configuration ===")
@@ -132,6 +149,11 @@ class HardwareOptimizer:
             # Convert model to half precision for compatible layers
             # model = model.half()  # Uncomment if needed
             pass
+        
+        # Enable multi-GPU training if multiple GPUs are available
+        if self.device.type == 'cuda' and torch.cuda.device_count() > 1:
+            logger.info(f"Using {torch.cuda.device_count()} GPUs with DataParallel")
+            model = torch.nn.DataParallel(model)
         
         # Compile model for PyTorch 2.0+ (if available and C++ compiler present)
         # Disabled for now due to C++ compiler requirements

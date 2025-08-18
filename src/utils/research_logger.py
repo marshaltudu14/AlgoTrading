@@ -97,7 +97,7 @@ class ResearchLogger:
             )
         
         # Log training start
-        start_msg = f"🎯 Training Started: {total_episodes} episodes across {len(symbols)} symbols"
+        start_msg = f"Training Started: {total_episodes} episodes across {len(symbols)} symbols"
         self._log_both(start_msg)
         
         # Detailed file logging
@@ -159,38 +159,41 @@ class ResearchLogger:
         
         # Minimal console logging (only show key steps)
         if not self.use_progress_bar:
-            if step <= 5 or step % 20 == 0:  # Show first 5 steps, then every 20th
-                # Build action string with probabilities
-                if action_name == "HOLD":
-                    action_str = action_name
-                else:
-                    action_str = f"{action_name}-{quantity:.0f}" if quantity > 0 else action_name
-                
-                # Add action probabilities if available
-                action_prob_str = ""
-                prob_key_map = {
-                    'BUY_LONG': 'prob_BUY',
-                    'SELL_SHORT': 'prob_SELL', 
-                    'CLOSE_LONG': 'prob_CLOSE_L',
-                    'CLOSE_SHORT': 'prob_CLOSE_S',
-                    'HOLD': 'prob_HOLD'
-                }
-                
-                if action_name in prob_key_map and prob_key_map[action_name] in step_data:
-                    action_prob_str = f" ({step_data[prob_key_map[action_name]]})"
-                
-                action_display = f"{action_str}{action_prob_str}"
-                
-                # Format prices for display
-                entry_str = f"₹{entry_price:.2f}" if isinstance(entry_price, (int, float)) else str(entry_price)
-                sl_str = f"₹{sl_price:.2f}" if isinstance(sl_price, (int, float)) else str(sl_price)
-                target_str = f"₹{target_price:.2f}" if isinstance(target_price, (int, float)) else str(target_price)
-                
-                minimal_log = (f"{step:4d} | {datetime_str} | {instrument} | {action_display:15s} | "
-                             f"WR: {win_rate:5.1f}% | ₹{initial_capital:8,.0f} -> ₹{current_capital:8,.0f} | "
-                             f"P&L: ₹{total_pnl:8,.0f} | {entry_str} | {sl_str} | {target_str}")
-                
-                self.console_logger.info(minimal_log)
+            # Build action string with probabilities
+            if action_name == "HOLD":
+                action_str = action_name
+            else:
+                action_str = f"{action_name}-{int(quantity)}" if quantity > 0 else action_name
+            
+            # Add action probabilities if available
+            action_prob_str = ""
+            prob_key_map = {
+                'BUY_LONG': 'prob_BUY',
+                'SELL_SHORT': 'prob_SELL', 
+                'CLOSE_LONG': 'prob_CLOSE_L',
+                'CLOSE_SHORT': 'prob_CLOSE_S',
+                'HOLD': 'prob_HOLD'
+            }
+            
+            if action_name in prob_key_map and prob_key_map[action_name] in step_data:
+                action_prob_str = f" ({step_data[prob_key_map[action_name]]})"
+            
+            action_display = f"{action_str}{action_prob_str}"
+            
+            # Format prices for display
+            entry_str = f"Rs.{entry_price:,.0f}" if isinstance(entry_price, (int, float)) else str(entry_price)
+            sl_str = f"Rs.{sl_price:,.0f}" if isinstance(sl_price, (int, float)) else str(sl_price)
+            target_str = f"Rs.{target_price:,.0f}" if isinstance(target_price, (int, float)) else str(target_price)
+            
+            # Include exit reason in console output if available
+            exit_reason = step_data.get('exit_reason', '')
+            exit_str = f" | Exit: {exit_reason}" if exit_reason else ""
+            
+            minimal_log = (f"{step:3d} | {datetime_str} | {instrument} | {action_display:18s} | "
+                         f"WR: {win_rate:5.1f}% | Rs.{initial_capital:7,.0f} -> Rs.{current_capital:7,.0f} | "
+                         f"P&L: Rs.{total_pnl:7,.0f} | {entry_str} | {sl_str} | {target_str}{exit_str}")
+            
+            self.console_logger.info(minimal_log)
         
         # Single-line detailed file logging with | separators
         reward_str = f" | Reward: {step_data.get('reward', 0):.4f}" if 'reward' in step_data else ""
@@ -219,9 +222,9 @@ class ResearchLogger:
         
         # Console summary
         if not self.use_progress_bar:
-            episode_summary = (f"📈 Episode {final_metrics['episode']} Complete | {final_metrics['symbol']} | "
-                             f"WR: {final_metrics['win_rate']:.1f}% | ₹{final_metrics['current_capital']:,.0f} | "
-                             f"P&L: ₹{final_metrics['total_pnl']:,.0f} | {duration:.1f}s")
+            episode_summary = (f"Episode {final_metrics['episode']} Complete | {final_metrics['symbol']} | "
+                             f"WR: {final_metrics['win_rate']:.1f}% | Rs.{final_metrics['current_capital']:,.0f} | "
+                             f"P&L: Rs.{final_metrics['total_pnl']:,.0f} | {duration:.1f}s")
             self.console_logger.info(episode_summary)
         
         # Update progress bar
@@ -246,8 +249,8 @@ class ResearchLogger:
             self.progress_bar.close()
         
         # Console summary
-        final_summary = (f"✅ Training Complete | Episodes: {training_summary.get('total_episodes', 0)} | "
-                        f"Final Capital: ₹{training_summary.get('final_capital', 0):,.0f} | "
+        final_summary = (f"Training Complete | Episodes: {training_summary.get('total_episodes', 0)} | "
+                        f"Final Capital: Rs.{training_summary.get('final_capital', 0):,.0f} | "
                         f"Total Return: {training_summary.get('total_return_pct', 0):.2f}%")
         self._log_both(final_summary)
         
@@ -299,8 +302,18 @@ class ResearchLogger:
     
     def _log_both(self, message: str):
         """Log to both console and file."""
+        # Remove emojis for console logging to avoid encoding issues
+        console_message = message
         if not self.use_progress_bar:
-            self.console_logger.info(message)
+            # Remove common emojis that might cause encoding issues
+            emoji_chars = ['🎯', '📊', '💰', '📈', '📉', '🛑', '✅', '🔄', '⚠️', '❌', '🟢', '🔴', '🟥', '🟩', '🟦', '⬜', '⬛', '🔶', '🔷', '🔸', '🔹']
+            for emoji in emoji_chars:
+                console_message = console_message.replace(emoji, '')
+            # Also replace the chart emoji
+            console_message = console_message.replace('📈', '').replace('📉', '').replace('🎯', '').replace('📊', '')
+            console_message = console_message.replace('💰', '').replace('🛑', '').replace('✅', '').replace('🔄', '')
+            console_message = console_message.replace('⚠️', '').replace('❌', '').replace('🟢', '').replace('🔴', '')
+            self.console_logger.info(console_message.strip())
         self.file_logger.info(message)
     
     def log_info(self, message: str):

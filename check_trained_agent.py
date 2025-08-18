@@ -1,76 +1,70 @@
 #!/usr/bin/env python3
 """
-Check the dimensions of the trained_agent.pth file to identify dimension mismatches.
+Check the dimensions of the HRM model file to identify dimension mismatches.
 """
 
 import torch
 import sys
 
+
 def check_trained_agent():
-    """Check the trained_agent.pth file for dimension information."""
-    model_path = "trained_agent.pth"
+    """Check the universal_final_model.pth file for dimension information."""
+    model_path = "models/universal_final_model.pth"
     
     try:
-        print(f"🔍 Checking model: {model_path}")
+        print(f"🔍 Checking HRM model: {model_path}")
         checkpoint = torch.load(model_path, map_location='cpu')
         
         # Print all keys in checkpoint
         print(f"🔑 Checkpoint keys: {list(checkpoint.keys())}")
 
-        # Check if it's a MoE agent model
-        if 'observation_dim' in checkpoint:
-            print(f"📊 Saved observation_dim: {checkpoint['observation_dim']}")
-        else:
-            print("❌ No observation_dim found in checkpoint")
-
-        if 'action_dim_discrete' in checkpoint:
-            print(f"📊 Saved action_dim_discrete: {checkpoint['action_dim_discrete']}")
-
-        if 'action_dim_continuous' in checkpoint:
-            print(f"📊 Saved action_dim_continuous: {checkpoint['action_dim_continuous']}")
-
-        if 'hidden_dim' in checkpoint:
-            print(f"📊 Saved hidden_dim: {checkpoint['hidden_dim']}")
-        
-        # Check gating network dimensions
-        if 'gating_network_state_dict' in checkpoint:
-            gating_state = checkpoint['gating_network_state_dict']
-            print(f"🧠 Gating network layers:")
-            for key, tensor in gating_state.items():
-                if 'weight' in key:
-                    print(f"   {key}: {tensor.shape}")
-        
-        # Check expert dimensions
-        if 'experts_state_dicts' in checkpoint:
-            expert_states = checkpoint['experts_state_dicts']
-            print(f"👥 Number of experts: {len(expert_states)}")
+        # Check if it's an HRM model
+        if 'architecture' in checkpoint:
+            print(f"🧠 Model architecture: {checkpoint['architecture']}")
+            print(f"🔢 Model version: {checkpoint.get('version', 'Unknown')}")
             
-            for i, expert_state in enumerate(expert_states):
-                print(f"   Expert {i}:")
-                if 'actor_state_dict' in expert_state:
-                    actor_state = expert_state['actor_state_dict']
-                    for key, tensor in actor_state.items():
-                        if 'weight' in key and ('input_projection' in key or 'layers.0' in key):
-                            print(f"     Actor layer: {key} -> {tensor.shape}")
-                            if tensor.shape[1] == 342:
-                                print(f"     ⚠️  FOUND 342 INPUT DIM: {key}")
-                            if tensor.shape[0] == 72:
-                                print(f"     ⚠️  FOUND 72 OUTPUT DIM: {key}")
-                        
-        # Check for any other state dicts
-        for key, value in checkpoint.items():
-            if 'state_dict' in key and key not in ['gating_network_state_dict', 'experts_state_dicts']:
-                print(f"🔍 Other state dict: {key}")
-                if isinstance(value, dict):
-                    for layer_key, tensor in value.items():
-                        if 'weight' in layer_key and hasattr(tensor, 'shape'):
-                            if tensor.shape[1] == 342 or tensor.shape[0] == 72:
-                                print(f"     ⚠️  DIMENSION MATCH: {layer_key} -> {tensor.shape}")
-                                
+        if 'parameter_breakdown' in checkpoint:
+            pb = checkpoint['parameter_breakdown']
+            print(f"📊 Total parameters: {pb.get('total_parameters', 'Unknown'):,}")
+            print(f"📊 Input embedding: {pb.get('input_embedding', 0):,}")
+            print(f"📊 High-level module: {pb.get('high_level_module', 0):,}")
+            print(f"📊 Low-level module: {pb.get('low_level_module', 0):,}")
+            print(f"📊 Output processor: {pb.get('output_processor', 0):,}")
+            
+        if 'config' in checkpoint:
+            config = checkpoint['config']
+            print(f"🔧 Model config keys: {list(config.keys())}")
+            
+            # Check input dimensions
+            if 'hierarchical_reasoning_model' in config:
+                hrm_config = config['hierarchical_reasoning_model']
+                if 'input_embedding' in hrm_config:
+                    input_config = hrm_config['input_embedding']
+                    print(f"📊 Input embedding config: {input_config}")
+                    
+            if 'model' in config:
+                model_config = config['model']
+                if 'observation_dim' in model_config:
+                    print(f"📊 Observation dimension: {model_config['observation_dim']}")
+                    
+        # Check model state dict keys
+        if 'model_state_dict' in checkpoint:
+            state_dict = checkpoint['model_state_dict']
+            print(f"💾 State dict keys: {len(state_dict)} parameters")
+            # Print first few parameter names
+            param_names = list(state_dict.keys())[:10]
+            print(f"📋 First 10 parameters: {param_names}")
+            
+        print("✅ Model check completed successfully")
+        
+    except FileNotFoundError:
+        print(f"❌ Model file not found: {model_path}")
+        print("💡 Make sure you have trained the model first")
+        sys.exit(1)
     except Exception as e:
         print(f"❌ Error checking model: {e}")
-        import traceback
-        traceback.print_exc()
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     check_trained_agent()

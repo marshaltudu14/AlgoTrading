@@ -18,8 +18,8 @@ training_sequence:
 # Environment Configuration - Centralized settings
 environment:
   initial_capital: 100000.0
-  lookback_window: 50 # Increased from 20 to 50 for more historical context
-  episode_length: 500
+  lookback_window: 128 # Optimal balance: comprehensive market overview (high-level) with efficient recent context (low-level)
+  episode_length: 5000 # Increased for better market exposure before switching instruments
   use_streaming: false
   reward_function: "enhanced_trading_focused" # New enhanced reward function
   trailing_stop_percentage: 0.015 # Tighter trailing stop for better risk management
@@ -45,16 +45,21 @@ hierarchical_reasoning_model:
     dropout: 0.1 # Dropout rate for regularization
 
   l_module:
-    hidden_dim: 256 # Tactical execution dimension
-    num_layers: 3 # Tactical execution depth
+    hidden_dim: 512 # Tactical execution dimension
+    num_layers: 4 # Tactical execution depth
     n_heads: 8 # Multi-head attention heads
-    ff_dim: 1024 # Feed-forward dimension
+    ff_dim: 2048 # Feed-forward dimension
     dropout: 0.1 # Dropout rate for regularization
 
   # Input embedding configuration
   input_embedding:
     embedding_dim: 512 # Embedded representation dimension
     dropout: 0.1 # Input dropout rate
+
+  # Hierarchical multi-timeframe processing
+  hierarchical_processing:
+    high_level_lookback: 128 # Comprehensive market overview
+    low_level_lookback: 50   # Recent market dynamics
 
   # Hierarchical convergence mechanism
   hierarchical:
@@ -292,33 +297,33 @@ research:
   results_dir: "research/results"
   iteration_prefix: "iteration_"
   create_new_iteration_on:
-    - config_change  # New iteration if any config parameters change
-    - feature_count_change  # New iteration if feature dimensions change
-    - architecture_change  # New iteration if model architecture changes
+    - config_change # New iteration if any config parameters change
+    - feature_count_change # New iteration if feature dimensions change
+    - architecture_change # New iteration if model architecture changes
   save_artifacts:
-    - config_snapshot  # Save complete settings.yaml snapshot
-    - detailed_logs    # Save all training logs
-    - model_weights    # Save trained model
+    - config_snapshot # Save complete settings.yaml snapshot
+    - detailed_logs # Save all training logs
+    - model_weights # Save trained model
     - training_metrics # Save performance metrics
-    - feature_info     # Save feature column information
+    - feature_info # Save feature column information
 
 # === LOGGING CONFIGURATION ===
 logging:
   # Console logging mode
-  console_mode: "minimal"  # Options: "minimal", "detailed", "silent"
-  
+  console_mode: "minimal" # Options: "minimal", "detailed", "silent"
+
   # Minimal format for console (when not using --noLog)
   minimal_format: "{step} | {datetime} | {instrument} | {action} | WR: {win_rate}% | {initial_capital} -> {current_capital} | P&L: {pnl} | Entry: {entry_price} | SL: {sl_price} | Target: {target_price}"
-  
+
   # Detailed format for iteration log files
   detailed_format: "%(asctime)s - %(levelname)s - %(message)s"
-  
+
   # Progress bar settings (for --noLog mode)
   progress_bar:
     enabled: True
-    update_frequency: 10  # Update every N steps
+    update_frequency: 10 # Update every N steps
     show_metrics: ["win_rate", "current_capital", "total_pnl"]
-  
+
   # File logging always enabled for research tracking
   log_to_file: True
   iteration_log_file: "training_detailed.log"

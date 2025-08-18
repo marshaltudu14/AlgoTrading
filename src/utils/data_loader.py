@@ -460,46 +460,26 @@ class DataLoader:
         """Load processed final data for a specific symbol."""
         logging.info(f"Looking for data for symbol: {symbol} in directory: {self.final_data_dir}")
 
-        # Try different possible filename patterns
-        possible_files = [
-            f"{symbol}.csv",
-            f"features_{symbol}.csv",
-            f"processed_{symbol}.csv"
-        ]
-
-        # Also try to find files with timeframe suffixes
-        import os
-        if os.path.exists(self.final_data_dir):
-            logging.info(f"Directory exists. Files in {self.final_data_dir}: {os.listdir(self.final_data_dir)}")
-            for filename in os.listdir(self.final_data_dir):
-                if filename.endswith(".csv"):
-                    # Check if this file matches the symbol (with or without timeframe)
-                    base_name = filename.replace(".csv", "")
-
-                    # Pattern: features_Symbol_Timeframe or Symbol_Timeframe
-                    if (base_name.startswith(f"features_{symbol}_") or
-                        base_name.startswith(f"processed_{symbol}_") or
-                        base_name.startswith(f"{symbol}_")):
-                        possible_files.append(filename)
+        # Only look for the correct pattern: features_{symbol}.csv
+        filename = f"features_{symbol}.csv"
+        filepath = os.path.join(self.final_data_dir, filename)
+        
+        logging.info(f"Checking file: {filepath}")
+        if os.path.exists(filepath):
+            logging.info(f"File exists: {filepath}")
+            try:
+                # CRITICAL: Set datetime_readable as index when loading processed features
+                df = pd.read_csv(filepath, index_col=0)
+                logging.info(f"Loaded final data for {symbol}: {len(df)} rows from {filename}")
+                return df
+            except Exception as e:
+                logging.error(f"Error loading {filepath}: {e}")
         else:
-            logging.error(f"Directory does not exist: {self.final_data_dir}")
-
-        logging.info(f"Trying files: {possible_files}")
-        for filename in possible_files:
-            filepath = os.path.join(self.final_data_dir, filename)
-            logging.info(f"Checking file: {filepath}")
-            if os.path.exists(filepath):
-                logging.info(f"File exists: {filepath}")
-                try:
-                    # CRITICAL: Set datetime_readable as index when loading processed features
-                    df = pd.read_csv(filepath, index_col=0)
-                    logging.info(f"Loaded final data for {symbol}: {len(df)} rows from {filename}")
-                    return df
-                except Exception as e:
-                    logging.error(f"Error loading {filepath}: {e}")
-                    continue
-            else:
-                logging.info(f"File does not exist: {filepath}")
+            logging.info(f"File does not exist: {filepath}")
+            # List available files for debugging
+            if os.path.exists(self.final_data_dir):
+                available_files = [f for f in os.listdir(self.final_data_dir) if f.endswith(".csv")]
+                logging.info(f"Available CSV files in directory: {available_files}")
 
         logging.error(f"No final data found for symbol: {symbol}")
         return pd.DataFrame()

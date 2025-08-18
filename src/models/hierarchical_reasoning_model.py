@@ -36,6 +36,7 @@ import numpy as np
 from typing import Dict, Any, Tuple, Optional, Union
 from src.utils.config_loader import ConfigLoader
 from src.agents.base_agent import BaseAgent
+from src.utils.hardware_optimizer import HardwareOptimizer
 
 # Import modular components
 from .hrm_components import (
@@ -95,17 +96,20 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
         self._setup_training_components()
         self._setup_diagnostic_suite()
         
+        # Initialize hardware optimizer for GPU/TPU optimization
+        self.hardware_optimizer = HardwareOptimizer(enable_optimization=True)
+        
+        # Optimize model for hardware
+        self = self.hardware_optimizer.optimize_model(self)
+        
+        # Enable mixed precision training if available
+        self.hardware_optimizer.enable_mixed_precision()
+        
         # Log initialization with parameter count
         param_count = self.count_parameters()
-        logger.info(f"🧠 HRM v2.0 initialized: {param_count:,} parameters "
-                   f"(Target: ~27M from paper)")
-        
-        if param_count > 30_000_000:
-            logger.warning(f"⚠️  Parameter count ({param_count:,}) exceeds paper target (27M)")
-        elif param_count < 20_000_000:
-            logger.warning(f"⚠️  Parameter count ({param_count:,}) below recommended minimum (20M)")
-        else:
-            logger.info(f"✅ Parameter count within optimal range for HRM efficiency")
+        logger.info(f"🧠 HRM v2.0 initialized: {param_count:,} parameters ")
+        logger.info(f"   Device: {self.hardware_optimizer.device}")
+        logger.info(f"   Mixed Precision: {'Enabled' if self.hardware_optimizer.is_mixed_precision_enabled() else 'Disabled'}")
 
     def _validate_and_setup_config(self):
         """Validate configuration and setup architectural parameters"""
@@ -135,6 +139,14 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
             'input_dim': self.config.get('model', {}).get('observation_dim', 256),
             'embedding_dim': self.h_config['hidden_dim'],
             'dropout': 0.1
+        })
+        
+        # Hierarchical processing configuration for multi-timeframe analysis
+        self.hierarchical_processing_config = hrm_config.get('hierarchical_processing', {
+            'high_level_lookback': 128,  # Comprehensive market overview
+            'low_level_lookback': 50,    # Recent market dynamics
+            'high_level_features': 64,   # Features for high-level analysis
+            'low_level_features': 32     # Features for low-level analysis
         })
         
         # Hierarchical convergence parameters
@@ -525,10 +537,11 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
         optimizer: torch.optim.Optimizer,
         loss_fn: nn.Module,
         device: torch.device,
-        use_act: bool = False
+        use_act: bool = False,
+        accumulation_steps: int = 1
     ) -> Dict[str, Any]:
         """
-        Train using revolutionary deep supervision methodology.
+        Train using revolutionary deep supervision methodology with hardware optimization.
         
         Args:
             dataloader: Training data loader
@@ -536,6 +549,7 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
             loss_fn: Loss function
             device: Computing device
             use_act: Whether to use ACT mechanism
+            accumulation_steps: Number of steps to accumulate gradients before update
             
         Returns:
             Comprehensive training statistics
@@ -544,7 +558,9 @@ class HierarchicalReasoningModel(nn.Module, BaseAgent):
             return self._train_with_act(dataloader, optimizer, loss_fn, device)
         else:
             return self.training_orchestrator.train_epoch(
-                self, dataloader, optimizer, loss_fn, device
+                self, dataloader, optimizer, loss_fn, device,
+                accumulation_steps=accumulation_steps,
+                hardware_optimizer=self.hardware_optimizer
             )
 
     def _train_with_act(

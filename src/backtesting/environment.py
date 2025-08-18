@@ -188,10 +188,30 @@ class TradingEnv(gym.Env):
             excluded_columns = ['datetime', 'date', 'time', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
             feature_columns = [col for col in self.data.columns if col.lower() not in [x.lower() for x in excluded_columns]]
             self.features_per_step = len(feature_columns)
+            
+            # Get hierarchical processing configuration
+            from src.utils.config_loader import ConfigLoader
+            config_loader = ConfigLoader()
+            hrm_config = config_loader.get_config().get('hierarchical_reasoning_model', {})
+            hierarchical_processing_config = hrm_config.get('hierarchical_processing', {
+                'high_level_lookback': 128,
+                'low_level_lookback': 50,
+                'high_level_features': 64,
+                'low_level_features': 32
+            })
+            
+            # Use hierarchical lookback configuration
+            self.high_level_lookback = hierarchical_processing_config.get('high_level_lookback', 128)
+            self.low_level_lookback = hierarchical_processing_config.get('low_level_lookback', 50)
+            
+            # For backward compatibility, use the larger lookback as the main lookback
+            self.lookback_window = max(self.high_level_lookback, self.low_level_lookback)
+            
             self.observation_dim = (self.lookback_window * self.features_per_step) + self.account_state_features + self.trailing_features
             self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.observation_dim,), dtype=np.float32)
             logger.info(f"🔧 Universal Model: Excluded raw OHLC prices, using {len(feature_columns)} derived features")
             logger.info(f"📊 Observation space set: {self.features_per_step} features per step, total dim: {self.observation_dim}")
+            logger.info(f"📈 Hierarchical lookback - High: {self.high_level_lookback}, Low: {self.low_level_lookback}")
             logger.info(f"🎯 Feature columns: {feature_columns[:10]}...")  # Show first 10 features
 
         self.engine.reset()
@@ -761,6 +781,10 @@ class TradingEnv(gym.Env):
         trailing_reward = self._calculate_trailing_stop_reward_shaping(action_type)
         shaped_reward += trailing_reward
 
+        # Reward/penalty for closing positions before stop loss hit
+        sl_reward = self._calculate_stop_loss_proximity_reward(action_type)
+        shaped_reward += sl_reward
+
         return shaped_reward
 
     def _calculate_quantity_feedback_reward(self, action, available_capital: float) -> float:
@@ -870,6 +894,52 @@ class TradingEnv(gym.Env):
 
         # Update previous trailing stop for next iteration
         self.previous_trailing_stop = current_trailing_stop
+
+        return reward_adjustment
+
+    def _calculate_stop_loss_proximity_reward(self, action_type: int) -> float:
+        """Calculate reward shaping based on stop loss proximity to encourage closing before SL hit."""
+        if not self.engine._is_position_open:
+            return 0.0
+
+        # Get current price and position details
+        if not hasattr(self, 'data') or self.current_step >= len(self.data):
+            return 0.0
+
+        safe_step = min(self.current_step, len(self.data) - 1)
+        current_price = self.data['close'].iloc[safe_step]
+        stop_loss_price = self.engine._stop_loss_price
+        position_quantity = self.engine._current_position_quantity
+
+        # Calculate distance to stop loss as a percentage of entry price
+        account_state = self.engine.get_account_state()
+        entry_price = account_state['current_position_entry_price']
+        
+        if entry_price == 0:
+            return 0.0
+
+        # Calculate distance to stop loss
+        if position_quantity > 0:  # Long position
+            distance_to_sl = (current_price - stop_loss_price) / entry_price
+        else:  # Short position
+            distance_to_sl = (stop_loss_price - current_price) / entry_price
+
+        reward_adjustment = 0.0
+
+        # If the agent is closing a position when it's close to stop loss, give a small bonus
+        if action_type in [2, 3]:  # CLOSE_LONG or CLOSE_SHORT
+            # If we're within 5% of the stop loss, give a small bonus for closing proactively
+            if 0 < distance_to_sl < 0.05:  # Within 5% of stop loss
+                reward_adjustment += 0.2  # Small bonus for closing before SL hit
+            # If we're very close to stop loss (within 1%), give a larger bonus
+            elif 0 < distance_to_sl < 0.01:  # Within 1% of stop loss
+                reward_adjustment += 0.5  # Larger bonus for closing very close to SL
+
+        # If the agent is holding when very close to stop loss, give a small penalty
+        elif action_type == 4:  # HOLD action
+            # If we're very close to stop loss (within 1%), give a small penalty for not closing
+            if 0 < distance_to_sl < 0.01:  # Within 1% of stop loss
+                reward_adjustment -= 0.1  # Small penalty for holding when close to SL
 
         return reward_adjustment
 

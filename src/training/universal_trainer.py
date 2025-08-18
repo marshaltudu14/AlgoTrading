@@ -34,38 +34,61 @@ class UniversalTrainer:
     Progresses from higher timeframes (less noisy) to lower timeframes (more noisy).
     """
     
-    def __init__(self, agent: BaseAgent, symbols: List[str], data_loader: DataLoader, 
-                 num_episodes: int = 100, log_interval: int = 10, config: dict = None,
-                 research_logger = None):
+    def __init__(self, agent, symbols: List[str], data_loader: DataLoader, 
+                 num_episodes: int, log_interval: int = 10, config: Dict = None,
+                 research_logger: 'ResearchLogger' = None):
         self.agent = agent
+        self.symbols = symbols
         self.data_loader = data_loader
         self.num_episodes = num_episodes
         self.log_interval = log_interval
         self.config = config or {}
         self.research_logger = research_logger
         
-        # Sort symbols by timeframe (higher to lower) for curriculum learning
-        self.symbols = self._sort_symbols_by_timeframe(symbols)
+        # Group symbols by timeframe for batch processing
+        self.symbol_groups = self._group_symbols_by_timeframe()
+        self.current_group_index = 0
+        self.current_symbol_index_in_group = 0
         
-        # Enhanced tracking for comprehensive metrics
-        self.capital_history = []
+        # Initialize tracking variables
         self.episode_rewards = []
         self.total_reward = 0.0
-        self.cumulative_trade_history = []  # Accumulate trades across all episodes
-        self.cumulative_capital_history = []  # Track capital across all episodes
+        self.symbol_episode_count = {symbol: 0 for symbol in symbols}
+        self.cumulative_trade_history = []
+        self.cumulative_capital_history = []
         
-        # Real-time win rate tracking
-        self.step_win_rates = []
-        self.step_trade_counts = []
+        logger.info(f"🎯 Universal Trainer initialized with {len(symbols)} symbols across {len(self.symbol_groups)} timeframe groups")
+        for timeframe, group_symbols in self.symbol_groups.items():
+            logger.info(f"   📊 Timeframe {timeframe}: {len(group_symbols)} symbols")
+
+    def _group_symbols_by_timeframe(self) -> Dict[str, List[str]]:
+        """Group symbols by their timeframe for batch processing."""
+        groups = {}
+        for symbol in self.symbols:
+            # Extract timeframe from symbol (assuming format like SYMBOL_TIMEFRAME)
+            parts = symbol.split('_')
+            if len(parts) >= 2:
+                timeframe = parts[-1]  # Last part is timeframe
+            else:
+                timeframe = "unknown"
+            
+            if timeframe not in groups:
+                groups[timeframe] = []
+            groups[timeframe].append(symbol)
         
-        # Symbol rotation tracking
-        self.symbol_episode_count = {symbol: 0 for symbol in self.symbols}
-        self.symbol_performance = {symbol: [] for symbol in self.symbols}
+        # Sort timeframes numerically for processing order (lower timeframes first)
+        sorted_groups = {}
+        try:
+            # Try to sort numerically
+            sorted_timeframes = sorted(groups.keys(), key=lambda x: int(x) if x.isdigit() else float('inf'))
+            for tf in sorted_timeframes:
+                sorted_groups[tf] = groups[tf]
+        except:
+            # Fallback to alphabetical sorting
+            for tf in sorted(groups.keys()):
+                sorted_groups[tf] = groups[tf]
         
-        logger.info(f"🎯 Universal Trainer initialized with {len(self.symbols)} symbols")
-        logger.info(f"   Symbols (timeframe-sorted): {self.symbols}")
-        logger.info(f"   Episodes: {num_episodes}")
-        logger.info(f"   Log interval: {log_interval}")
+        return sorted_groups
 
     def _sort_symbols_by_timeframe(self, symbols: List[str]) -> List[str]:
         """
@@ -100,10 +123,27 @@ class UniversalTrainer:
         return sorted_symbols
 
     def _get_next_symbol(self, episode: int) -> str:
-        """Get the next symbol for training using timeframe-aware rotation strategy."""
-        # Curriculum-aware round-robin rotation (higher timeframes first)
-        symbol = self.symbols[episode % len(self.symbols)]
+        """Get the next symbol for training using batch timeframe rotation strategy."""
+        # Get current timeframe group
+        timeframe_groups = list(self.symbol_groups.keys())
+        current_timeframe = timeframe_groups[self.current_group_index]
+        current_group_symbols = self.symbol_groups[current_timeframe]
+        
+        # Get next symbol within the current group
+        symbol = current_group_symbols[self.current_symbol_index_in_group]
         self.symbol_episode_count[symbol] += 1
+        
+        # Move to next symbol in group
+        self.current_symbol_index_in_group += 1
+        
+        # If we've processed all symbols in current group, move to next timeframe group
+        if self.current_symbol_index_in_group >= len(current_group_symbols):
+            self.current_symbol_index_in_group = 0
+            self.current_group_index = (self.current_group_index + 1) % len(timeframe_groups)
+            
+            # Log group completion
+            logger.info(f"✅ Completed processing all symbols for timeframe {current_timeframe}")
+        
         return symbol
 
     def _convert_epoch_to_readable(self, epoch_timestamp: float) -> str:
@@ -162,7 +202,12 @@ class UniversalTrainer:
         for episode in range(self.num_episodes):
             # Get symbol for this episode
             current_symbol = self._get_next_symbol(episode)
-            logger.info(f"📊 Episode {episode + 1}/{self.num_episodes} | Symbol: {current_symbol}")
+            
+            # Get current timeframe for logging
+            timeframe_groups = list(self.symbol_groups.keys())
+            current_timeframe = timeframe_groups[self.current_group_index]
+            
+            logger.info(f"📊 Episode {episode + 1}/{self.num_episodes} | Symbol: {current_symbol} | Timeframe: {current_timeframe}")
             
             # Initialize research logging for episode
             if self.research_logger:
@@ -173,8 +218,8 @@ class UniversalTrainer:
                 data_loader=self.data_loader,
                 symbol=current_symbol,
                 initial_capital=initial_capital,
-                lookback_window=env_config.get('lookback_window', 50),
-                episode_length=env_config.get('episode_length', 500),
+                lookback_window=env_config.get('lookback_window', 128),  # Updated to 128 for comprehensive market view
+                episode_length=env_config.get('episode_length', 5000),   # Updated to 5000 for better market exposure
                 reward_function=env_config.get('reward_function', "trading_focused"),
                 use_streaming=env_config.get('use_streaming', False),
                 trailing_stop_percentage=env_config.get('trailing_stop_percentage', 0.02)
@@ -346,13 +391,11 @@ class UniversalTrainer:
         sl_price = "N/A" 
         target_price = "N/A"
         
-        # Get position details if in a position
-        if current_position != 0 and hasattr(env.engine, 'position_manager'):
-            position_info = env.engine.position_manager.get_position_details()
-            if position_info:
-                entry_price = position_info.get('entry_price', 'N/A')
-                sl_price = position_info.get('stop_loss', 'N/A')
-                target_price = position_info.get('target_profit', 'N/A')
+        # Get position details if in a position from the engine directly
+        if current_position != 0 and hasattr(env.engine, '_current_position_entry_price'):
+            entry_price = env.engine._current_position_entry_price
+            sl_price = env.engine._stop_loss_price
+            target_price = env.engine._target_profit_price
         
         # Prepare step data for research logger  
         env_config = self.config.get('environment', {}) if hasattr(self, 'config') else {}

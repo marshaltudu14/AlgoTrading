@@ -1,0 +1,15 @@
+{
+  "total_episodes": 1,
+  "initial_capital": 100000.0,
+  "final_capital": 98576.34999999797,
+  "total_return": -1423.6500000020314,
+  "total_return_pct": -1.4236500000020302,
+  "symbol_distribution": {
+    "Bankex_10": 1
+  },
+  "avg_episode_reward": 1372.2097845228404,
+  "total_trades": 48,
+  "win_rate": 0.5416666666666666,
+  "profit_factor": 0.9975071405681578,
+  "avg_pnl_per_trade": -4.659375000042019
+}

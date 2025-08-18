@@ -1,0 +1,350 @@
+# =========================================================================
+# Unified Configuration File for AlgoTrading Bot
+# =========================================================================
+# This file centralizes all configurations for the trading bot,
+# including training sequences, model parameters, and feature generation.
+# Instrument configuration is managed in instruments.yaml.
+# =========================================================================
+
+# Training Sequence Configuration
+
+# PRODUCTION VALUES - Optimized for robust real-world trading performance
+
+training_sequence:
+  # Stage 1: HRM Training
+  stage_1_hrm:
+    episodes: 100 # Default episodes for production HRM training
+
+# Environment Configuration - Centralized settings
+environment:
+  initial_capital: 100000.0
+  lookback_window: 128 # Optimal balance: comprehensive market overview (high-level) with efficient recent context (low-level)
+  episode_length: 5000 # Increased for better market exposure before switching instruments
+  use_streaming: false
+  reward_function: "enhanced_trading_focused" # New enhanced reward function
+  trailing_stop_percentage: 0.015 # Tighter trailing stop for better risk management
+  smart_action_filtering: true # Prevent redundant position attempts
+
+# Model Configuration - Moved from src/config/config.py
+model:
+  hidden_dim: 256
+  action_dim_discrete: 5 # Number of discrete actions (BUY_LONG, SELL_SHORT, CLOSE_LONG, CLOSE_SHORT, HOLD)
+  action_dim_continuous: 1 # Continuous action dimension (quantity: 1 to max_affordable)
+  model_path: "models/universal_final_model.pth"
+  model_type: "hrm"
+
+# === HRM MODEL CONFIGURATION ===
+# Brain-inspired Hierarchical Reasoning Model with dual-module architecture
+hierarchical_reasoning_model:
+  # Dual-module architecture
+  h_module:
+    hidden_dim: 512 # Strategic reasoning dimension
+    num_layers: 4 # Strategic reasoning depth
+    n_heads: 8 # Multi-head attention heads
+    ff_dim: 2048 # Feed-forward dimension
+    dropout: 0.1 # Dropout rate for regularization
+
+  l_module:
+    hidden_dim: 512 # Tactical execution dimension
+    num_layers: 4 # Tactical execution depth
+    n_heads: 8 # Multi-head attention heads
+    ff_dim: 2048 # Feed-forward dimension
+    dropout: 0.1 # Dropout rate for regularization
+
+  # Input embedding configuration
+  input_embedding:
+    embedding_dim: 512 # Embedded representation dimension
+    dropout: 0.1 # Input dropout rate
+
+  # Hierarchical multi-timeframe processing
+  hierarchical_processing:
+    high_level_lookback: 128 # Comprehensive market overview
+    low_level_lookback: 50   # Recent market dynamics
+
+  # Hierarchical convergence mechanism
+  hierarchical:
+    N_cycles: 3 # High-level reasoning cycles
+    T_timesteps: 5 # Low-level timesteps per cycle
+    convergence_threshold: 1e-6 # Convergence detection threshold
+    max_convergence_steps: 100 # Maximum convergence iterations
+    reset_factor: 0.3 # L-module reset strength between cycles
+    reset_noise_scale: 0.1 # Noise scale for L-module reset
+
+  # Instrument and timeframe embeddings for multi-instrument learning
+  embeddings:
+    instrument_dim: 64 # Instrument embedding dimension
+    timeframe_dim: 32 # Timeframe embedding dimension
+    max_instruments: 1000 # Maximum number of tradeable instruments
+    max_timeframes: 10 # Maximum number of timeframes (1m, 5m, 15m, etc.)
+
+  # Unified output heads for trading actions
+  output_heads:
+    action_dim: 5 # Discrete actions: BUY, SELL, HOLD, etc.
+    quantity_min: 1.0 # Minimum position size
+    quantity_max: 100000.0 # Maximum position size
+    value_estimation: true # Enable state value estimation
+    q_learning_enabled: true # Enable Q-head for ACT mechanism
+
+  # Core architectural constants (from paper)
+  architecture:
+    rms_norm_eps: 1e-8 # RMSNorm epsilon value
+    rope_max_seq_len: 2048 # RoPE maximum sequence length
+    rope_base_freq: 10000 # RoPE base frequency
+    transformer_mask_value: -1e9 # Attention mask fill value
+    truncated_normal_std: 1.0 # Standard deviation for state initialization
+    truncated_normal_limit: 2.0 # Truncation limit (±2σ)
+
+  # Training configuration (One-Step Gradient & Deep Supervision)
+  training:
+    # Deep Supervision parameters
+    M_max: 8 # Maximum segments per training step
+    M_min: 2 # Minimum segments per training step
+    gradient_convergence_threshold: 1e-6 # Gradient approximation threshold
+    neumann_series_terms: 3 # Terms for Neumann series approximation
+    improvement_threshold: 0.001 # Minimum improvement for adaptive segments
+    log_frequency: 10 # Batch logging frequency
+
+  # Adaptive Computation Time (ACT) parameters
+  act:
+    enabled: true # Enable ACT mechanism
+    M_max: 16 # Maximum segments for ACT
+    M_min_range: [1, 8] # Range for minimum segments sampling
+    epsilon: 0.3 # Exploration probability for M_min sampling
+    gamma: 0.99 # Q-learning discount factor
+    q_learning_lr: 0.001 # Learning rate for Q-head
+    target_update_freq: 100 # Q-target update frequency
+    history_maxlen: 1000 # Maximum history length for statistics
+    prediction_tolerance: 0.05 # Tolerance for regression correctness
+    max_scaling_factor: 4.0 # Maximum inference-time scaling
+    difficulty_scaling_factor: 2.0 # Task difficulty scaling multiplier
+
+  # Brain Correspondence Validation
+  brain_validation:
+    min_samples_for_pr: 10 # Minimum samples for Participation Ratio
+    eigenvalue_threshold: 1e-12 # Threshold for filtering near-zero eigenvalues
+    expected_hierarchy_ratio_min: 2.25 # Expected PR_H/PR_L minimum
+    expected_hierarchy_ratio_max: 3.0 # Expected PR_H/PR_L maximum
+    hierarchy_midpoint: 2.625 # Midpoint for brain similarity calculation
+    residual_spike_threshold_factor: 2.0 # Factor for spike detection
+    stability_variance_factor: 0.5 # Factor for steady vs variable classification
+    convergence_rate_normalization: 10.0 # Normalization factor for separation score
+
+  # Diagnostic settings
+  diagnostics:
+    comprehensive_analysis_samples: 100 # Samples for comprehensive analysis
+    pca_components: 3 # PCA components for trajectory analysis
+    convergence_health_weight: 0.5 # Weight for convergence health in scores
+
+# Risk Management Configuration - Moved from src/config/config.py
+risk_management:
+  risk_multiplier: 1.5 # SL = 1.5 * ATR (tighter stops)
+  reward_multiplier: 3.0 # TP = 3 * ATR (1:2 Risk-Reward Ratio)
+  use_atr_based_stops: true
+  max_risk_per_trade: 0.015 # Maximum 1.5% risk per trade (tighter)
+  stop_loss_percentage: 0.015 # Tighter stop loss
+  target_profit_percentage: 0.045 # Higher profit target (3:1 risk-reward)
+  win_rate_bonus_threshold: 0.6 # Bonus for high win rate
+  profit_factor_bonus_threshold: 1.5 # Bonus for good profit factor
+
+# Trading Configuration
+trading:
+  brokerage_entry: 25 # Entry brokerage in INR
+  brokerage_exit: 35 # Exit brokerage in INR
+
+# Training Parameters - Optimized for Production Performance
+training_params:
+
+# Validation and Progression Rules - Production Standards
+progression_rules:
+  # No automatic progression needed for single-stage training
+  auto_progression: false
+
+  # Training completion criteria
+  completion_criteria:
+    min_episodes: 300 # PRODUCTION: Ensure sufficient learning
+    min_win_rate: 0.35 # PRODUCTION: Realistic performance threshold
+    min_profit_factor: 0.8 # PRODUCTION: Minimum profitability requirement
+
+  # Fallback strategies if criteria not met
+  fallback_strategies:
+    extend_training: true
+    max_extension_episodes: 200 # PRODUCTION: More training if needed
+    hyperparameter_tuning: true
+
+# Output and Monitoring
+monitoring:
+  save_checkpoints: true
+  checkpoint_frequency: 50 # episodes
+  generate_reports: true
+  compare_stages: true
+
+# Model Management
+model_management:
+  save_stage_models: true
+  model_naming_convention: "{symbol}_{stage}_{algorithm}_{timestamp}"
+  keep_best_models: true
+  transfer_learning: true # Use previous stage as initialization
+
+# Testing Configuration - Minimal values for quick pipeline validation
+testing_overrides:
+  # Override training sequence for testing
+  training_sequence:
+    stage_1_hrm:
+      episodes: 5 # Minimal episodes for testing
+      description: "Testing HRM integration"
+
+  # Override training parameters for testing
+  training_params:
+
+  # Override progression rules for testing
+  progression_rules:
+    completion_criteria:
+      min_episodes: 3 # Very low threshold for testing
+      min_win_rate: 0.10 # Very relaxed for testing
+      min_profit_factor: 0.1 # Very relaxed for testing
+    fallback_strategies:
+      max_extension_episodes: 20 # Minimal extension for testing
+
+  # Testing data configuration
+  test_data:
+    num_rows: 500 # Sufficient data for technical indicators + NaN removal
+    symbols: ["RELIANCE_1", "Bank_Nifty_5"] # Test with different data sources (with timeframes)
+    save_models: false # Don't save models in testing mode
+
+# === FEATURE GENERATION CONFIGURATION ===
+feature_generation:
+  # Moving Average Periods
+  sma_periods: [5, 10, 20, 50, 100, 200]
+  ema_periods: [5, 10, 20, 50, 100, 200]
+
+  # RSI Periods
+  rsi_periods: [14, 21]
+
+  # MACD Parameters
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+
+  # Bollinger Bands
+  bb_period: 20
+  bb_std_dev: 2.0
+
+  # ATR Period
+  atr_period: 14
+
+  # Stochastic Parameters
+  stoch_k_period: 14
+  stoch_d_period: 3
+
+  # Williams %R Period
+  williams_r_period: 14
+
+  # CCI Period
+  cci_period: 20
+
+  # ADX Period
+  adx_period: 14
+
+  # Momentum and ROC Periods
+  momentum_period: 10
+  roc_period: 10
+
+  # TRIX Period
+  trix_period: 14
+
+  # Volatility Calculation Periods
+  volatility_periods: [10, 20]
+
+# === PATHS CONFIGURATION ===
+paths:
+  raw_data_dir: "data/raw"
+  final_data_dir: "data/final"
+  processed_data_dir: "data/processed"
+  test_data_dir: "data/test"
+  fallback_data_path: "data/fallback_market_data.csv"
+  fallback_backtest_results_path: "data/fallback_backtest_results.json"
+  reports_dir: "reports"
+  logs_dir: "logs"
+  temp_dir: "temp"
+
+# === DATA PROCESSING CONFIGURATION ===
+data_processing:
+  input_folder: "data/raw" # Input directory for raw data
+  output_folder: "data/final" # Output directory for processed features
+
+  # File Processing
+  file_pattern: "*.csv"
+  file_patterns:
+    raw_data: "{symbol}.csv"
+    features: "features_{symbol}.csv"
+    features_with_timeframe: "features_{symbol}_{timeframe}.csv"
+    processed: "processed_{symbol}.csv"
+    final: "final_{symbol}.csv"
+
+  # Data Cleaning
+  remove_volume_column: True
+  timezone: "Asia/Kolkata"
+  round_decimals: 2
+
+  # Data Validation
+  required_columns: ["datetime", "open", "high", "low", "close"]
+  validate_ohlc: True
+  remove_duplicates: True
+  drop_nan_rows: True
+
+# === RESEARCH & ITERATION MANAGEMENT ===
+research:
+  results_dir: "research/results"
+  iteration_prefix: "iteration_"
+  create_new_iteration_on:
+    - config_change # New iteration if any config parameters change
+    - feature_count_change # New iteration if feature dimensions change
+    - architecture_change # New iteration if model architecture changes
+  save_artifacts:
+    - config_snapshot # Save complete settings.yaml snapshot
+    - detailed_logs # Save all training logs
+    - model_weights # Save trained model
+    - training_metrics # Save performance metrics
+    - feature_info # Save feature column information
+
+# === LOGGING CONFIGURATION ===
+logging:
+  # Console logging mode
+  console_mode: "minimal" # Options: "minimal", "detailed", "silent"
+
+  # Minimal format for console (when not using --noLog)
+  minimal_format: "{step} | {datetime} | {instrument} | {action} | WR: {win_rate}% | {initial_capital} -> {current_capital} | P&L: {pnl} | Entry: {entry_price} | SL: {sl_price} | Target: {target_price}"
+
+  # Detailed format for iteration log files
+  detailed_format: "%(asctime)s - %(levelname)s - %(message)s"
+
+  # Progress bar settings (for --noLog mode)
+  progress_bar:
+    enabled: True
+    update_frequency: 10 # Update every N steps
+    show_metrics: ["win_rate", "current_capital", "total_pnl"]
+
+  # File logging always enabled for research tracking
+  log_to_file: True
+  iteration_log_file: "training_detailed.log"
+  level: "INFO"
+
+# === PERFORMANCE CONFIGURATION ===
+performance:
+  batch_size: 10000
+  parallel_processing: False
+  memory_optimization: True
+
+# === VALIDATION CONFIGURATION ===
+validation:
+  feature_correlation_check: False
+  max_correlation_threshold: 0.95
+
+# === LIVE TRADING CONFIGURATION ===
+live_trading:
+  autonomous_agent_path_template: "models/autonomous_agents/{symbol}_autonomous_final.pth"
+  supervised_model_path: "models/supervised_model.joblib"
+  scaler_path: "models/scaler.joblib"
+  label_encoder_path: "models/label_encoder.joblib"
+  hf_tokenizer_path: "models/hf_tokenizer"
+  hf_model_path: "models/hf_model"

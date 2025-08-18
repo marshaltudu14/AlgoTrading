@@ -8,7 +8,7 @@ import time
 from src.config.instrument import Instrument
 from src.utils.config_loader import ConfigLoader
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # Warning deduplication to prevent spam
@@ -73,12 +73,6 @@ class BacktestingEngine:
                 'risk_management': {'risk_multiplier': 1.0, 'reward_multiplier': 2.0, 'use_atr_based_stops': True}
             }
         from src.config.settings import get_settings
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-# Warning deduplication to prevent spam
-_warning_cache = set()
 
 class BacktestingEngine:
     def __init__(self, initial_capital: float, instrument: Instrument, trailing_stop_percentage: float = 0.02):
@@ -228,7 +222,7 @@ class BacktestingEngine:
         # Store original action for logging
         original_action = action
 
-        # Check for SL/TP/Trailing Stop hit if a position is open
+        # Check for SL/Trailing Stop hit if a position is open (removed TP check when using trailing stops)
         exit_reason = None
         if self._is_position_open:
             if self._current_position_quantity > 0: # Long position
@@ -239,13 +233,6 @@ class BacktestingEngine:
                     action = "CLOSE_LONG"
                     quantity = self._current_position_quantity
                     price = self._stop_loss_price  # Use SL price for execution, not market price
-                elif price >= self._target_profit_price:
-                    exit_reason = f"TARGET_PROFIT_HIT"
-                    if detailed_logging:
-                        logger.info(f"🎯 Step {self._current_step}: TP hit for LONG position at ₹{price:.2f} (TP: ₹{self._target_profit_price:.2f})")
-                    action = "CLOSE_LONG"
-                    quantity = self._current_position_quantity
-                    price = self._target_profit_price  # Use TP price for execution
                 elif price <= self._trailing_stop_price:
                     exit_reason = f"TRAILING_STOP_HIT"
                     if detailed_logging:
@@ -261,13 +248,6 @@ class BacktestingEngine:
                     action = "CLOSE_SHORT"
                     quantity = abs(self._current_position_quantity)
                     price = self._stop_loss_price  # Use SL price for execution, not market price
-                elif price <= self._target_profit_price:
-                    exit_reason = f"TARGET_PROFIT_HIT"
-                    if detailed_logging:
-                        logger.info(f"🎯 Step {self._current_step}: TP hit for SHORT position at ₹{price:.2f} (TP: ₹{self._target_profit_price:.2f})")
-                    action = "CLOSE_SHORT"
-                    quantity = abs(self._current_position_quantity)
-                    price = self._target_profit_price  # Use TP price for execution
                 elif price >= self._trailing_stop_price:
                     exit_reason = f"TRAILING_STOP_HIT"
                     if detailed_logging:
@@ -309,14 +289,15 @@ class BacktestingEngine:
             self._trailing_stop_price = self._stop_loss_price  # Start with initial SL
 
             # Detailed position entry logging (only if detailed logging enabled)
+            # Log key information for research logger to capture
             if detailed_logging:
-                logger.info(f"🟢 Step {self._current_step}: BUY_LONG EXECUTED")
-                logger.info(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Entry Brokerage: ₹{cost:.2f})")
-                logger.info(f"   🛑 Stop Loss: ₹{self._stop_loss_price:.2f} ({risk_multiplier}x ATR)")
-                logger.info(f"   🎯 Target: ₹{self._target_profit_price:.2f} ({reward_multiplier}x ATR)")
-                logger.info(f"   📉 Trailing SL: ₹{self._trailing_stop_price:.2f} ({self.trailing_stop_percentage:.1%})")
-                logger.info(f"   💰 Capital remaining: ₹{self._capital:.2f}")
-                logger.info(f"   📈 Risk-Reward Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
+                logger.debug(f"🟢 Step {self._current_step}: BUY_LONG EXECUTED")
+                logger.debug(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Entry Brokerage: ₹{cost:.2f})")
+                logger.debug(f"   🛑 Stop Loss: ₹{self._stop_loss_price:.2f} ({risk_multiplier}x ATR)")
+                logger.debug(f"   🎯 Target: ₹{self._target_profit_price:.2f} ({reward_multiplier}x ATR)")
+                logger.debug(f"   📉 Trailing SL: ₹{self._trailing_stop_price:.2f} ({self.trailing_stop_percentage:.1%})")
+                logger.debug(f"   💰 Capital remaining: ₹{self._capital:.2f}")
+                logger.debug(f"   📈 Risk-Reward Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
 
             # Update decision log
             decision_log['result'] = 'POSITION_OPENED'
@@ -355,14 +336,15 @@ class BacktestingEngine:
             # Calculate initial SL points for point-based trailing
             self._initial_sl_points = self._stop_loss_price - price  # Fixed point gap
             self._trailing_stop_price = self._stop_loss_price  # Start with initial SL
+            # Log key information for research logger to capture
             if detailed_logging:
-                logging.info(f"🔴 Step {self._current_step}: SELL_SHORT EXECUTED")
-                logging.info(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Entry Brokerage: ₹{cost:.2f})")
-                logging.info(f"   🛑 Stop Loss: ₹{self._stop_loss_price:.2f} ({risk_multiplier}x ATR)")
-                logging.info(f"   🎯 Target: ₹{self._target_profit_price:.2f} ({reward_multiplier}x ATR)")
-                logging.info(f"   📈 Trailing SL: ₹{self._trailing_stop_price:.2f} ({self.trailing_stop_percentage:.1%})")
-                logging.info(f"   💰 Capital remaining: ₹{self._capital:.2f}")
-                logging.info(f"   📉 Risk-Reward Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
+                logging.debug(f"🔴 Step {self._current_step}: SELL_SHORT EXECUTED")
+                logging.debug(f"   📊 Position: {quantity} lots @ ₹{price:.2f} (Entry Brokerage: ₹{cost:.2f})")
+                logging.debug(f"   🛑 Stop Loss: ₹{self._stop_loss_price:.2f} ({risk_multiplier}x ATR)")
+                logging.debug(f"   🎯 Target: ₹{self._target_profit_price:.2f} ({reward_multiplier}x ATR)")
+                logging.debug(f"   📈 Trailing SL: ₹{self._trailing_stop_price:.2f} ({self.trailing_stop_percentage:.1%})")
+                logging.debug(f"   💰 Capital remaining: ₹{self._capital:.2f}")
+                logging.debug(f"   📉 Risk-Reward Ratio: 1:{reward_multiplier/risk_multiplier:.1f}")
 
         elif action == "CLOSE_LONG":
             if self._current_position_quantity <= 0: # No long position to close
@@ -395,11 +377,12 @@ class BacktestingEngine:
             # Calculate total P&L from initial capital
             total_pnl_from_initial = self._capital - self._initial_capital
 
+            # Log key information for research logger to capture
             if detailed_logging:
-                logging.info(f"Executed CLOSE_LONG. Quantity: {quantity}, Price: {price}.")
-                logging.info(f"  📊 Current Trade P&L: ₹{net_pnl_this_trade:.2f}")
-                logging.info(f"  💰 Total P&L from Initial: ₹{total_pnl_from_initial:.2f}")
-                logging.info(f"  🏦 Capital: ₹{self._capital:.2f} (Trade #{self._trade_count})")
+                logging.debug(f"Executed CLOSE_LONG. Quantity: {quantity}, Price: {price}.")
+                logging.debug(f"  📊 Current Trade P&L: ₹{net_pnl_this_trade:.2f}")
+                logging.debug(f"  💰 Total P&L from Initial: ₹{total_pnl_from_initial:.2f}")
+                logging.debug(f"  🏦 Capital: ₹{self._capital:.2f} (Trade #{self._trade_count})")
 
         elif action == "CLOSE_SHORT":
             if self._current_position_quantity >= 0: # No short position to close
@@ -432,11 +415,12 @@ class BacktestingEngine:
             # Calculate total P&L from initial capital
             total_pnl_from_initial = self._capital - self._initial_capital
 
+            # Log key information for research logger to capture
             if detailed_logging:
-                logging.info(f"Executed CLOSE_SHORT. Quantity: {quantity}, Price: {price}.")
-                logging.info(f"  📊 Current Trade P&L: ₹{net_pnl_this_trade:.2f}")
-                logging.info(f"  💰 Total P&L from Initial: ₹{total_pnl_from_initial:.2f}")
-                logging.info(f"  🏦 Capital: ₹{self._capital:.2f} (Trade #{self._trade_count})")
+                logging.debug(f"Executed CLOSE_SHORT. Quantity: {quantity}, Price: {price}.")
+                logging.debug(f"  📊 Current Trade P&L: ₹{net_pnl_this_trade:.2f}")
+                logging.debug(f"  💰 Total P&L from Initial: ₹{total_pnl_from_initial:.2f}")
+                logging.debug(f"  🏦 Capital: ₹{self._capital:.2f} (Trade #{self._trade_count})")
 
         elif action == "HOLD":
             # HOLD action just updates trailing stop and checks for stop hits (already done above)

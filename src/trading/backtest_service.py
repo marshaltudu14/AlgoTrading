@@ -9,7 +9,8 @@ import numpy as np
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import torch
-from src.models.core_transformer import CoreTransformer
+from src.models.hierarchical_reasoning_model import HierarchicalReasoningModel
+from src.utils.hardware_optimizer import HardwareOptimizer
 import json
 import os
 from pathlib import Path
@@ -209,19 +210,20 @@ class BacktestService:
 
             logger.info(f"Model dimensions: obs={observation_dim}, discrete={action_dim_discrete}, continuous={action_dim_continuous}")
 
-            # Create CoreTransformer agent
-            # Assuming CoreTransformer's ff_dim is equivalent to hidden_dim
-            # Assuming default num_heads=8, num_layers=6, dropout=0.1, max_seq_len=1000, use_positional_encoding=True
-            agent = CoreTransformer(
-                input_dim=observation_dim,
-                ff_dim=hidden_dim,
-                output_dim=action_dim_discrete + action_dim_continuous # 5 discrete + 1 continuous
-            )
-
+            # Create HRM agent
+            agent = HierarchicalReasoningModel()
+            
+            # Initialize hardware optimizer
+            hardware_optimizer = HardwareOptimizer()
+            
             # Load the trained model
-            agent.load_state_dict(torch.load(str(model_path)))
-            agent.eval() # Set to evaluation mode
-            logger.info("✅ Universal model loaded successfully")
+            agent.load_model_v2(str(model_path))
+            agent.eval()  # Set to evaluation mode
+            
+            # Optimize model for inference
+            agent = hardware_optimizer.optimize_model(agent)
+            
+            logger.info("✅ Universal HRM model loaded and optimized successfully")
 
             # Create a wrapper function for select_action
             def select_action_wrapper(observation):
@@ -229,19 +231,22 @@ class BacktestService:
                     # Ensure observation is a tensor and has a batch dimension
                     obs_tensor = torch.FloatTensor(observation).unsqueeze(0)
                     
-                    # Forward pass through the CoreTransformer
-                    output = agent(obs_tensor)
+                    # Move tensor to the same device as the model
+                    obs_tensor = obs_tensor.to(agent.hardware_optimizer.device)
                     
-                    # Split output into discrete action logits and continuous quantity
-                    action_logits = output[:, :action_dim_discrete]
-                    quantity_raw = output[:, action_dim_discrete:]
+                    # Forward pass through the HRM model
+                    outputs = agent(obs_tensor)
+                    
+                    # Extract action type and quantity from HRM outputs
+                    action_type_logits = outputs['action_type']
+                    quantity = outputs['quantity'].item()
                     
                     # Apply softmax to get probabilities for discrete actions
-                    action_probs = torch.softmax(action_logits, dim=-1)
+                    action_probs = torch.softmax(action_type_logits, dim=-1)
                     action_type = torch.argmax(action_probs, dim=-1).item()
                     
                     # Apply clamping for continuous quantity
-                    quantity = torch.clamp(quantity_raw, min=1.0, max=100000.0).item()
+                    quantity = max(1.0, min(quantity, 100000.0))
                     
                     return action_type, quantity
 

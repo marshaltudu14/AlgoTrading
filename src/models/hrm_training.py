@@ -133,21 +133,25 @@ class DeepSupervisionTrainer:
         targets: torch.Tensor,
         optimizer: torch.optim.Optimizer,
         loss_fn: nn.Module,
-        M: Optional[int] = None
+        M: Optional[int] = None,
+        accumulation_steps: int = 1,
+        hardware_optimizer: Optional[Any] = None
     ) -> Dict[str, Any]:
         """
-        Execute one deep supervision training step.
+        Execute one deep supervision training step with optional gradient accumulation.
         
         Args:
-            model: HRM model
-            data_batch: Input batch [batch_size, feature_dim]
-            targets: Target batch
-            optimizer: Optimizer instance
+            model: HRM model to train
+            data_batch: Input data batch
+            targets: Training targets
+            optimizer: Optimizer for parameter updates
             loss_fn: Loss function
-            M: Number of segments (if None, uses random between M_min and M_max)
+            M: Number of segments (None for random selection)
+            accumulation_steps: Number of steps to accumulate gradients before update
+            hardware_optimizer: Hardware optimizer for mixed precision support
             
         Returns:
-            Training statistics and losses
+            Training statistics for the step
         """
         if M is None:
             M = torch.randint(self.M_min, self.M_max + 1, (1,)).item()
@@ -161,6 +165,7 @@ class DeepSupervisionTrainer:
         total_loss = 0
         segment_losses = []
         convergence_stats = []
+        accumulated_loss = 0
         
         for segment in range(M):
             # Forward pass for current segment
@@ -173,15 +178,28 @@ class DeepSupervisionTrainer:
             total_loss += segment_loss
             segment_losses.append(segment_loss.item())
             
+            # Accumulate loss for gradient accumulation
+            accumulated_loss += segment_loss / accumulation_steps
+            
             # One-step gradient approximation
             gradients = self.gradient_approximator.approximate_gradient(
                 model.h_module, model.l_module, z_h_new, z_l_new, segment_loss
             )
             
-            # Update parameters
-            optimizer.zero_grad()
-            segment_loss.backward()
-            optimizer.step()
+            # Update parameters with gradient accumulation
+            if (segment + 1) % accumulation_steps == 0 or segment == M - 1:
+                optimizer.zero_grad()
+                
+                # Use mixed precision if enabled
+                if hardware_optimizer and hardware_optimizer.is_mixed_precision_enabled():
+                    hardware_optimizer.scaler.scale(accumulated_loss).backward()
+                    hardware_optimizer.scaler.step(optimizer)
+                    hardware_optimizer.scaler.update()
+                else:
+                    accumulated_loss.backward()
+                    optimizer.step()
+                
+                accumulated_loss = 0  # Reset accumulated loss
             
             # CRITICAL: Detach states to prevent gradient flow to next segment
             z_h = z_h_new.detach()
@@ -277,11 +295,22 @@ class HRMTrainingOrchestrator:
         dataloader: torch.utils.data.DataLoader,
         optimizer: torch.optim.Optimizer,
         loss_fn: nn.Module,
-        device: torch.device
+        device: torch.device,
+        accumulation_steps: int = 1,
+        hardware_optimizer: Optional[Any] = None
     ) -> Dict[str, Any]:
         """
-        Train one complete epoch with HRM methodology.
+        Train one complete epoch with HRM methodology and optional gradient accumulation.
         
+        Args:
+            model: HRM model to train
+            dataloader: Training data loader
+            optimizer: Optimizer for parameter updates
+            loss_fn: Loss function
+            device: Device to train on
+            accumulation_steps: Number of steps to accumulate gradients before update
+            hardware_optimizer: Hardware optimizer for mixed precision support
+            
         Returns:
             Comprehensive training statistics
         """
@@ -305,14 +334,16 @@ class HRMTrainingOrchestrator:
                 loss_history=loss_history
             )
             
-            # Execute deep supervision training step
+            # Execute deep supervision training step with gradient accumulation
             batch_stats = self.deep_supervisor.train_step(
                 model=model,
                 data_batch=data,
                 targets=targets,
                 optimizer=optimizer,
                 loss_fn=loss_fn,
-                M=M
+                M=M,
+                accumulation_steps=accumulation_steps,
+                hardware_optimizer=hardware_optimizer
             )
             
             # Update epoch statistics

@@ -18,8 +18,8 @@ training_sequence:
 # Environment Configuration - Centralized settings
 environment:
   initial_capital: 100000.0
-  lookback_window: 50 # Increased from 20 to 50 for more historical context
-  episode_length: 500
+  lookback_window: 128 # Optimal balance: comprehensive market overview (high-level) with efficient recent context (low-level)
+  episode_length: 5000 # Increased for better market exposure
   use_streaming: false
   reward_function: "enhanced_trading_focused" # New enhanced reward function
   trailing_stop_percentage: 0.015 # Tighter trailing stop for better risk management
