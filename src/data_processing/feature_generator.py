@@ -81,6 +81,7 @@ class DynamicFileProcessor:
     def __init__(self, data_folder: str = None):
         # Load configuration
         self.config = get_settings()
+        self.feature_config = self.config.get('feature_generation', {})
 
         # Set up folders
         data_processing_config = self.config.get('data_processing', {})
@@ -157,8 +158,9 @@ class DynamicFileProcessor:
 
         # === TREND INDICATORS ===
         # Moving Averages using pandas-ta
-        for period in [5, 10, 20, 50, 100, 200]:
+        for period in self.feature_config.get('sma_periods', [5, 10, 20, 50, 100, 200]):
             features[f'sma_{period}'] = ta.sma(close_prices, length=period)
+        for period in self.feature_config.get('ema_periods', [5, 10, 20, 50, 100, 200]):
             features[f'ema_{period}'] = ta.ema(close_prices, length=period)
 
         # MACD using pandas-ta

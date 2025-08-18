@@ -1,25 +1,30 @@
-2025-08-18 13:44:59,531 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:44:59,738 - ERROR - Error in episode 0 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 13:44:59,857 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:00,036 - ERROR - Error in episode 1 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 13:45:00,133 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:00,328 - ERROR - Error in episode 2 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 13:45:00,429 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:00,556 - ERROR - Error in episode 3 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 13:45:00,660 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:00,780 - ERROR - Error in episode 4 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
-2025-08-18 13:45:00,885 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 13:45:00,888 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:00,998 - ERROR - Error in episode 5 with symbol Nifty_2: tuple indices must be integers or slices, not str
-2025-08-18 13:45:01,057 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 13:45:01,058 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:01,145 - ERROR - Error in episode 6 with symbol Nifty_2: tuple indices must be integers or slices, not str
-2025-08-18 13:45:01,217 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 13:45:01,218 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:01,399 - ERROR - Error in episode 7 with symbol Nifty_2: tuple indices must be integers or slices, not str
-2025-08-18 13:45:01,483 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 13:45:01,484 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:01,586 - ERROR - Error in episode 8 with symbol Nifty_2: tuple indices must be integers or slices, not str
-2025-08-18 13:45:01,646 - WARNING - No data segments available for curriculum episode, using random episode
-2025-08-18 13:45:01,647 - WARNING - Input dimension mismatch: expected 256, got 2456. Attempting to adapt...
-2025-08-18 13:45:01,731 - ERROR - Error in episode 9 with symbol Nifty_2: tuple indices must be integers or slices, not str
+2025-08-18 14:52:06,571 - WARNING - No data segments available for curriculum episode, using random episode
+2025-08-18 14:52:06,571 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
+2025-08-18 14:52:06,687 - ERROR - Error in episode 0 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
+2025-08-18 14:52:06,743 - WARNING - No data segments available for curriculum episode, using random episode
+2025-08-18 14:52:06,743 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
+2025-08-18 14:52:06,847 - ERROR - Error in episode 1 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
+2025-08-18 14:52:06,900 - WARNING - No data segments available for curriculum episode, using random episode
+2025-08-18 14:52:06,900 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
+2025-08-18 14:52:06,994 - ERROR - Error in episode 2 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
+2025-08-18 14:52:07,047 - WARNING - No data segments available for curriculum episode, using random episode
+2025-08-18 14:52:07,047 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
+2025-08-18 14:52:07,141 - ERROR - Error in episode 3 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
+2025-08-18 14:52:07,180 - WARNING - No data segments available for curriculum episode, using random episode
+2025-08-18 14:52:07,180 - WARNING - Input dimension mismatch: expected 256, got 2506. Attempting to adapt...
+2025-08-18 14:52:07,281 - ERROR - Error in episode 4 with symbol Bank_Nifty_5: tuple indices must be integers or slices, not str
+2025-08-18 14:52:07,329 - ERROR - No final data found for symbol: Nifty_2
+2025-08-18 14:52:07,330 - WARNING - Small dataset (0 rows), creating single segment
+2025-08-18 14:52:07,330 - ERROR - Error in episode 5 with symbol Nifty_2: 'close'
+2025-08-18 14:52:07,367 - ERROR - No final data found for symbol: Nifty_2
+2025-08-18 14:52:07,367 - WARNING - Small dataset (0 rows), creating single segment
+2025-08-18 14:52:07,367 - ERROR - Error in episode 6 with symbol Nifty_2: 'close'
+2025-08-18 14:52:07,420 - ERROR - No final data found for symbol: Nifty_2
+2025-08-18 14:52:07,420 - WARNING - Small dataset (0 rows), creating single segment
+2025-08-18 14:52:07,420 - ERROR - Error in episode 7 with symbol Nifty_2: 'close'
+2025-08-18 14:52:07,487 - ERROR - No final data found for symbol: Nifty_2
+2025-08-18 14:52:07,487 - WARNING - Small dataset (0 rows), creating single segment
+2025-08-18 14:52:07,487 - ERROR - Error in episode 8 with symbol Nifty_2: 'close'
+2025-08-18 14:52:07,568 - ERROR - No final data found for symbol: Nifty_2
+2025-08-18 14:52:07,568 - WARNING - Small dataset (0 rows), creating single segment
+2025-08-18 14:52:07,568 - ERROR - Error in episode 9 with symbol Nifty_2: 'close'

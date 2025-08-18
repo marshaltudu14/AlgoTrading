@@ -42,7 +42,7 @@ instruments:
 
   # Stock instruments (direct price-based quantity calculation)
   - name: "Reliance Industries"
-    symbol: "Reliance"
+    symbol: "RELIANCE"
     exchange-symbol: "NSE:RELIANCE-EQ"
     type: "stock"
     lot_size: 1 # RELIANCE lot size

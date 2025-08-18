@@ -253,25 +253,16 @@ def create_test_data_files(
     data_dir: str = None,
     symbol: str = "Bank_Nifty_5",
     num_rows: int = 150,
-    create_both: bool = True,
     create_multiple_instruments: bool = True
 ) -> dict:
+    """
+    Create test data files for training pipeline testing by using the actual
+    file-based feature generation pipeline.
+    """
     settings = get_settings()
     paths_config = settings.get('paths', {})
     data_dir = data_dir or paths_config.get('test_data_dir', 'data/test')
-    """
-    Create test data files for training pipeline testing.
 
-    Args:
-        data_dir: Directory to create test data in
-        symbol: Trading symbol name (used as base if create_multiple_instruments is False)
-        num_rows: Number of data rows to generate
-        create_both: Whether to create both raw and features files
-        create_multiple_instruments: Whether to create both STOCK and OPTION test data
-
-    Returns:
-        Dictionary with paths to created files
-    """
     logger.info(f"Creating test data files in {data_dir}")
 
     # Create directories
@@ -282,38 +273,61 @@ def create_test_data_files(
 
     created_files = {}
 
-    # Define instruments to create (based on config/instruments.yaml with timeframes)
+    # 1. Define instruments to create based on the centralized config
     if create_multiple_instruments:
-        instruments = [
-            {"symbol": "RELIANCE_1", "type": "STOCK", "start_price": 2800.0, "volatility": 0.025},
-            {"symbol": "Bank_Nifty_5", "type": "OPTION", "start_price": 46500.0, "volatility": 0.03}
-        ]
+        try:
+            settings = get_settings()
+            test_config = settings.get('testing_overrides', {}).get('test_data', {})
+            symbols = test_config.get('symbols', ["RELIANCE_1", "Bank_Nifty_5"])
+            # This mapping can be expanded or moved to config if more detail is needed
+            instrument_map = {
+                "RELIANCE_1": {"type": "STOCK", "start_price": 2800.0, "volatility": 0.025},
+                "Bank_Nifty_5": {"type": "OPTION", "start_price": 46500.0, "volatility": 0.03}
+            }
+            instruments = [{"symbol": s, **instrument_map[s]} for s in symbols if s in instrument_map]
+        except Exception as e:
+            logger.warning(f"Could not load test symbols from config, using fallback. Error: {e}")
+            instruments = [
+                {"symbol": "RELIANCE_1", "type": "STOCK", "start_price": 2800.0, "volatility": 0.025},
+                {"symbol": "Bank_Nifty_5", "type": "OPTION", "start_price": 46500.0, "volatility": 0.03}
+            ]
     else:
         instruments = [{"symbol": symbol, "type": "STOCK", "start_price": 46500.0, "volatility": 0.02}]
 
+    # 2. Generate and save all the raw files first
     for instrument in instruments:
         inst_symbol = instrument["symbol"]
-        inst_type = instrument["type"]
         start_price = instrument["start_price"]
         volatility = instrument.get("volatility", 0.02)
+        
+        raw_df = generate_raw_test_data(inst_symbol, num_rows, start_price, volatility)
+        raw_file_path = Path(raw_dir) / f"{inst_symbol}.csv"
+        raw_df.to_csv(raw_file_path, index=False)
+        created_files[f'raw_{inst_symbol}'] = str(raw_file_path)
+        logger.info(f"Created raw data file: {raw_file_path}")
 
-        logger.info(f"Creating {inst_type} data for {inst_symbol} (start_price: {start_price})")
+    # 3. Process all raw files in the directory using the real pipeline
+    try:
+        from src.data_processing.feature_generator import DynamicFileProcessor
+        # Point the processor to the raw test data directory
+        processor = DynamicFileProcessor(data_folder=raw_dir)
+        # Ensure it writes to the final test data directory
+        processor.processed_folder = Path(final_dir)
+        
+        # This single call processes all files and saves the output
+        processor.process_all_files()
 
-        # Generate raw data
-        instrument_data = generate_test_data_in_memory(inst_symbol, num_rows, start_price, volatility)
+        # Populate the created_files dict with the output paths for the test to find
+        for instrument in instruments:
+            inst_symbol = instrument["symbol"]
+            final_file_path = Path(final_dir) / f"features_{inst_symbol}.csv"
+            if final_file_path.exists():
+                created_files[f'features_{inst_symbol}'] = str(final_file_path)
+            else:
+                 logger.error(f"Processor did not create expected output file: {final_file_path}")
 
-        if create_both:
-            # Save raw data
-            raw_file = os.path.join(raw_dir, f"{inst_symbol}.csv")
-            instrument_data['raw'].to_csv(raw_file, index=False)
-            created_files[f'raw_{inst_symbol}'] = raw_file
-            logger.info(f"Created raw {inst_type} data file: {raw_file}")
-
-        # Save features data
-        features_file = os.path.join(final_dir, f"features_{inst_symbol}.csv")
-        instrument_data['features'].to_csv(features_file, index=False)
-        created_files[f'features_{inst_symbol}'] = features_file
-        logger.info(f"Created features {inst_type} data file: {features_file}")
+    except Exception as e:
+        logger.error(f"Failed to process files using the pipeline: {e}", exc_info=True)
 
     return created_files
 

@@ -29,7 +29,6 @@ model:
   hidden_dim: 256
   action_dim_discrete: 5  # Number of discrete actions (BUY_LONG, SELL_SHORT, CLOSE_LONG, CLOSE_SHORT, HOLD)
   action_dim_continuous: 1 # Continuous action dimension (quantity: 1 to max_affordable)
-  observation_dim: 256    # Input feature dimension
   model_path: "models/universal_final_model.pth"
   model_type: "hrm"
 
@@ -216,6 +215,9 @@ paths:
 
 # === DATA PROCESSING CONFIGURATION ===
 data_processing:
+  input_folder: 'data/raw'  # Input directory for raw data
+  output_folder: 'data/final' # Output directory for processed features
+
   # File Processing
   file_pattern: '*.csv'
   file_patterns:

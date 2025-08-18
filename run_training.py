@@ -115,22 +115,22 @@ def run_hrm_training(
         trailing_stop_percentage=env_config.get('trailing_stop_percentage', 0.02)
     )
 
-    obs = env.reset()
-    observation_dim = obs.shape[0]
+    # Dynamically get dimensions from the environment
+    observation_dim = env.observation_space.shape[0]
     action_dim_discrete = int(env.action_space.high[0]) + 1
-    action_dim_continuous = 1
+    logger.info(f"🔧 Environment configured with Observation Dim: {observation_dim}")
 
-    logger.info(f"📐 Model dimensions: {observation_dim}D obs, {action_dim_discrete}A, {action_dim_continuous}Q")
-
-    # Update config with environment-detected dimensions
+    # Update config with the true, environment-derived dimension before creating the model
     config_copy = config.copy()
-    if 'model' not in config_copy:
-        config_copy['model'] = {}
-    config_copy['model'].update({
-        'observation_dim': observation_dim,
-        'action_dim_discrete': action_dim_discrete,
-        'action_dim_continuous': action_dim_continuous
-    })
+    config_copy['model'] = config_copy.get('model', {})
+    config_copy['model']['observation_dim'] = observation_dim
+
+    # Ensure hierarchical_reasoning_model.input_embedding.input_dim is also updated
+    hrm_config = config_copy.get('hierarchical_reasoning_model', {})
+    input_embedding_config = hrm_config.get('input_embedding', {})
+    input_embedding_config['input_dim'] = observation_dim
+    hrm_config['input_embedding'] = input_embedding_config
+    config_copy['hierarchical_reasoning_model'] = hrm_config
 
     agent = HierarchicalReasoningModel(config_copy)
 
@@ -193,23 +193,17 @@ def run_universal_hrm_training(
         trailing_stop_percentage=env_config.get('trailing_stop_percentage', 0.02)
     )
 
-    # Get observation and action dimensions from environment
-    obs = env.reset()
-    observation_dim = obs.shape[0]
-    action_dim_discrete = int(env.action_space.high[0]) + 1
-    action_dim_continuous = 1
+    # Call reset to initialize observation_space
+    env.reset()
 
-    logger.info(f"📐 Model dimensions: {observation_dim}D obs, {action_dim_discrete}A, {action_dim_continuous}Q")
+    # Dynamically get dimensions from the environment
+    observation_dim = env.observation_space.shape[0]
+    logger.info(f"🔧 Environment configured with Observation Dim: {observation_dim}")
 
-    # Update config with environment-detected dimensions
+    # Update config with the true, environment-derived dimension before creating the model
     config_copy = config.copy()
-    if 'model' not in config_copy:
-        config_copy['model'] = {}
-    config_copy['model'].update({
-        'observation_dim': observation_dim,
-        'action_dim_discrete': action_dim_discrete,
-        'action_dim_continuous': action_dim_continuous
-    })
+    config_copy['model'] = config_copy.get('model', {})
+    config_copy['model']['observation_dim'] = observation_dim
 
     # Create HRM agent
     agent = HierarchicalReasoningModel(config_copy)
@@ -236,21 +230,23 @@ def run_universal_hrm_training(
     logger.info("✅ Universal training complete")
 
 
-def run_curriculum_hrm_training(num_episodes: int = 10, testing_mode: bool = False, config: dict = None):
+def run_curriculum_hrm_training(num_episodes: int = 10, testing_mode: bool = False, config: dict = None, data_dir: str = "data/final"):
     """
     Run curriculum HRM training with timeframe progression.
 
     Args:
         num_episodes: Number of episodes to train
         testing_mode: Whether to run in testing mode (no model saving)
+        data_dir: The directory containing the final data.
     """
     logger.info("🎓 Starting Curriculum HRM Training")
 
     # Load configuration
     config = load_training_config()
 
-    # Initialize data loader
-    data_loader = DataLoader()
+    # Initialize data loader with the correct final data directory
+    final_data_dir = os.path.join(data_dir, 'final')
+    data_loader = DataLoader(final_data_dir=final_data_dir)
 
     # Get configuration sections
     model_config = config.get('model', {})
@@ -258,7 +254,7 @@ def run_curriculum_hrm_training(num_episodes: int = 10, testing_mode: bool = Fal
     # Create curriculum trainer first to discover data
     temp_trainer = CurriculumTrainer(None, data_loader, num_episodes=1, config=config)
 
-    # Determine observation dimension from actual data
+    # Determine observation dimension from a sample environment instance
     if temp_trainer.curriculum_batches:
         from src.backtesting.environment import TradingMode
         sample_env = TradingEnv(
@@ -269,22 +265,16 @@ def run_curriculum_hrm_training(num_episodes: int = 10, testing_mode: bool = Fal
             episode_length=50,  # Small episode for dimension detection
             mode=TradingMode.TRAINING
         )
-        sample_obs = sample_env.reset()
-        observation_dim = len(sample_obs)
+        observation_dim = sample_env.observation_space.shape[0]
         logger.info(f"🔧 Detected observation dimension: {observation_dim}")
     else:
         observation_dim = 1186  # Fallback
         logger.warning("🔧 Using fallback observation dimension: 1186")
 
-    # Update config with environment-detected dimensions
+    # Update config with the true, environment-derived dimension before creating the model
     config_copy = config.copy()
-    if 'model' not in config_copy:
-        config_copy['model'] = {}
-    config_copy['model'].update({
-        'observation_dim': observation_dim,
-        'action_dim_discrete': 5,
-        'action_dim_continuous': 1
-    })
+    config_copy['model'] = config_copy.get('model', {})
+    config_copy['model']['observation_dim'] = observation_dim
 
     # Create HRM agent with correct dimensions
     agent = HierarchicalReasoningModel(config_copy)
@@ -382,14 +372,14 @@ def main():
         episodes = args.episodes
         logger.info(f"📊 Overriding episodes with command line value: {episodes}")
 
-    # Choose training method based on arguments (curriculum is default)
+    # Choose training method based on arguments
     try:
-        if args.no_curriculum:
-            logger.info("🔄 Using universal training (symbol rotation)")
+        if args.testing or args.no_curriculum:
+            logger.info("🔄 Using universal training (symbol rotation) for testing or by request")
             run_universal_hrm_training(symbols, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing, config=config)
         else:
             logger.info("🎓 Using curriculum training (timeframe progression) - DEFAULT")
-            run_curriculum_hrm_training(num_episodes=episodes, testing_mode=args.testing, config=config)
+            run_curriculum_hrm_training(num_episodes=episodes, testing_mode=args.testing, config=config, data_dir=args.data_dir)
     except Exception as e:
         logger.error(f"Failed to run training: {e}", exc_info=True)
 
