@@ -155,7 +155,7 @@ class BacktestingConfigLoader:
             
             # Model parameters
             'model_path': self.get_model_config().get('model_path', 'models/universal_final_model.pth'),
-            'model_type': self.get_model_config().get('model_type', 'ppo'),
+            'model_type': self.get_model_config().get('model_type', 'hrm'),
         }
         
         # Override with testing parameters if in testing mode
@@ -209,7 +209,7 @@ class BacktestingConfigLoader:
             },
             'model': {
                 'model_path': 'models/universal_final_model.pth',
-                'model_type': 'ppo'
+                'model_type': 'hrm'
             },
             'output': {
                 'results_dir': 'results/backtesting',

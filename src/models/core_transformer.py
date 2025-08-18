@@ -2,7 +2,7 @@
 Core Transformer Module for Trading Agents
 
 This module provides a generic, reusable Transformer-based neural network architecture
-that can be used across all trading agents (PPO, MoE, MAML, and Autonomous).
+that can be used across all trading agents (HRM, MoE, MAML, and Autonomous).
 The module is designed with configurable parameters to support future Neural Architecture Search (NAS).
 """
 

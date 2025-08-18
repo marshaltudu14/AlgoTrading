@@ -14,7 +14,8 @@ import queue
 
 from src.backtesting.environment import TradingEnv
 from src.utils.data_loader import DataLoader
-from src.agents.ppo_agent import PPOAgent
+from src.models.hierarchical_reasoning_model import HierarchicalReasoningModel
+
 
 logger = logging.getLogger(__name__)
 
@@ -93,16 +94,11 @@ class TradingActor:
         )
         
         # Initialize agent (local copy for action selection)
-        self.agent = PPOAgent(
+        self.agent = HierarchicalReasoningModel(
             observation_dim=agent_config.get("observation_dim", 10),
             action_dim_discrete=agent_config.get("action_dim_discrete", 2),
             action_dim_continuous=agent_config.get("action_dim_continuous", 1),
-            hidden_dim=agent_config.get("hidden_dim", 64),
-            lr_actor=agent_config.get("lr_actor", 0.001),
-            lr_critic=agent_config.get("lr_critic", 0.001),
-            gamma=agent_config.get("gamma", 0.99),
-            epsilon_clip=agent_config.get("epsilon_clip", 0.2),
-            k_epochs=agent_config.get("k_epochs", 3)
+            hidden_dim=agent_config.get("hidden_dim", 64)
         )
         
         self.episode_count = 0
@@ -190,16 +186,11 @@ class TradingLearner:
         self.learning_config = learning_config
         
         # Initialize master agent
-        self.agent = PPOAgent(
+        self.agent = HierarchicalReasoningModel(
             observation_dim=agent_config.get("observation_dim", 10),
             action_dim_discrete=agent_config.get("action_dim_discrete", 2),
             action_dim_continuous=agent_config.get("action_dim_continuous", 1),
-            hidden_dim=agent_config.get("hidden_dim", 64),
-            lr_actor=agent_config.get("lr_actor", 0.001),
-            lr_critic=agent_config.get("lr_critic", 0.001),
-            gamma=agent_config.get("gamma", 0.99),
-            epsilon_clip=agent_config.get("epsilon_clip", 0.2),
-            k_epochs=agent_config.get("k_epochs", 3)
+            hidden_dim=agent_config.get("hidden_dim", 64)
         )
         
         self.update_count = 0

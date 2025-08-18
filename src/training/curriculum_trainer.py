@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Curriculum Trainer for PPO Agent with Timeframe Progression
+Curriculum Trainer with Timeframe Progression
 ==========================================================
 
 This trainer implements curriculum learning by progressing from higher timeframes
@@ -291,7 +291,7 @@ class CurriculumTrainer:
                 # Execute action in environment
                 next_obs, reward, done, info = env.step(action)
 
-                # PPOAgent handles experience storage internally during update()
+                # Agent handles experience storage internally during update()
 
                 # Update tracking
                 episode_reward += reward

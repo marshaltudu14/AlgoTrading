@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Universal Trainer for PPO Agent with Symbol Rotation
+Universal Trainer with Symbol Rotation
 ===================================================
 
 This trainer rotates through different symbols per episode to create

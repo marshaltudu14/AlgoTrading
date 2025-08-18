@@ -31,7 +31,8 @@ from utils.data_loader import DataLoader
 from utils.capital_aware_quantity import CapitalAwareQuantitySelector
 from src.trading.position import Position
 from src.utils.option_utils import get_nearest_itm_strike, get_nearest_expiry, map_underlying_to_option_price
-from agents.ppo_agent import PPOAgent
+from src.models.hierarchical_reasoning_model import HierarchicalReasoningModel
+
 
 
 class TradingMode(str, Enum):
@@ -605,7 +606,7 @@ class LiveTradingService:
             logger.info(f"Model dimensions: obs={observation_dim}, discrete={action_dim_discrete}, continuous={action_dim_continuous}")
 
             # Create agent with same parameters as training
-            self.agent = PPOAgent(
+            self.agent = HierarchicalReasoningModel(
                 observation_dim=observation_dim,
                 action_dim_discrete=action_dim_discrete,
                 action_dim_continuous=action_dim_continuous,

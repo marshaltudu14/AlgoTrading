@@ -26,7 +26,7 @@ from typing import Dict, Optional
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from src.backtesting.environment import TradingEnv, TradingMode
-from src.agents.ppo_agent import PPOAgent
+from src.models.hierarchical_reasoning_model import HierarchicalReasoningModel
 from src.trading.fyers_client import FyersClient
 from src.data_processing.feature_generator import DynamicFileProcessor
 import yaml
@@ -230,7 +230,7 @@ class UnifiedBacktester:
             return self.load_fallback_data()
     
     def load_model(self, env: TradingEnv) -> Optional[PPOAgent]:
-        """Load the trained PPO model with proper dimensions from environment."""
+        """Load the trained HRM model with proper dimensions from environment."""
         try:
             model_config = self.config.get('model', {})
             model_path = model_config.get('model_path', "models/universal_final_model.pth")
@@ -251,7 +251,7 @@ class UnifiedBacktester:
             logger.info(f"   Action continuous: {action_dim_continuous}")
 
             # Create agent with exact same parameters as training
-            agent = PPOAgent(
+            agent = HierarchicalReasoningModel(
                 observation_dim=observation_dim,
                 action_dim_discrete=action_dim_discrete,
                 action_dim_continuous=action_dim_continuous,

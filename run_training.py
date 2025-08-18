@@ -13,7 +13,7 @@ from typing import List
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from src.agents.ppo_agent import PPOAgent
+from src.models.hierarchical_reasoning_model import HierarchicalReasoningModel
 from src.backtesting.environment import TradingEnv
 from src.utils.data_loader import DataLoader
 from src.training.trainer import Trainer
@@ -68,7 +68,7 @@ def get_available_symbols(data_dir: str = "data/final") -> List[str]:
     logger.info(f"🔍 Found {len(symbols)} symbols in {data_dir}: {symbols}")
     return symbols
 
-def run_ppo_training(
+def run_hrm_training(
     symbol: str,
     num_episodes: int,
     data_dir: str,
@@ -78,7 +78,7 @@ def run_ppo_training(
     """
     Run single-threaded PPO training for a symbol.
     """
-    logger.info(f"Starting PPO training for symbol: {symbol}")
+    logger.info(f"Starting HRM training for symbol: {symbol}")
 
     # Load configuration if not provided
     if config is None:
@@ -111,7 +111,7 @@ def run_ppo_training(
 
     logger.info(f"Environment dimensions: obs={observation_dim}, action_discrete={action_dim_discrete}, action_continuous={action_dim_continuous}")
 
-    agent = PPOAgent(
+    agent = HierarchicalReasoningModel(
         observation_dim=observation_dim,
         action_dim_discrete=action_dim_discrete,
         action_dim_continuous=action_dim_continuous,
@@ -124,7 +124,7 @@ def run_ppo_training(
     )
 
     trainer = Trainer(agent, num_episodes=num_episodes, log_interval=10)
-    logger.info(f"Training PPO agent for {num_episodes} episodes...")
+    logger.info(f"Training HRM agent for {num_episodes} episodes...")
     trainer.train(data_loader, symbol, env_config.get('initial_capital', 100000.0))
 
     # Only save model in production mode (not testing)
@@ -141,10 +141,10 @@ def run_ppo_training(
     else:
         logger.info("🧪 Testing mode - Model not saved")
 
-    logger.info(f"PPO training completed for {symbol}")
+    logger.info(f"HRM training completed for {symbol}")
 
 
-def run_universal_ppo_training(
+def run_universal_hrm_training(
     symbols: List[str],
     num_episodes: int,
     data_dir: str,
@@ -155,7 +155,7 @@ def run_universal_ppo_training(
     Run universal PPO training that rotates through symbols per episode.
     This creates a single universal model trained on diverse market data.
     """
-    logger.info(f"Starting Universal PPO training with {len(symbols)} symbols: {symbols}")
+    logger.info(f"Starting Universal HRM training with {len(symbols)} symbols: {symbols}")
     logger.info(f"🔄 Symbol rotation: Each episode will use a different symbol for diverse market exposure")
 
     # Load configuration if not provided
@@ -192,7 +192,7 @@ def run_universal_ppo_training(
     logger.info(f"Environment dimensions: obs={observation_dim}, action_discrete={action_dim_discrete}, action_continuous={action_dim_continuous}")
 
     # Create PPO agent
-    agent = PPOAgent(
+    agent = HierarchicalReasoningModel(
         observation_dim=observation_dim,
         action_dim_discrete=action_dim_discrete,
         action_dim_continuous=action_dim_continuous,
@@ -206,7 +206,7 @@ def run_universal_ppo_training(
 
     # Create universal trainer that handles symbol rotation
     trainer = UniversalTrainer(agent, symbols, data_loader, num_episodes=num_episodes, log_interval=10, config=config)
-    logger.info(f"Training Universal PPO agent for {num_episodes} episodes with symbol rotation...")
+    logger.info(f"Training Universal HRM agent for {num_episodes} episodes with symbol rotation...")
     trainer.train()
 
     # Only save model in production mode (not testing)
@@ -223,10 +223,10 @@ def run_universal_ppo_training(
     else:
         logger.info("🧪 Testing mode - Model not saved")
 
-    logger.info(f"Universal PPO training completed for all symbols")
+    logger.info(f"Universal HRM training completed for all symbols")
 
 
-def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = False, config: dict = None):
+def run_curriculum_hrm_training(num_episodes: int = 10, testing_mode: bool = False, config: dict = None):
     """
     Run curriculum PPO training with timeframe progression.
 
@@ -234,7 +234,7 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
         num_episodes: Number of episodes to train
         testing_mode: Whether to run in testing mode (no model saving)
     """
-    logger.info("🎓 Starting Curriculum PPO Training")
+    logger.info("🎓 Starting Curriculum HRM Training")
     logger.info("=" * 60)
 
     # Load configuration
@@ -268,7 +268,7 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
         logger.warning("🔧 Using fallback observation dimension: 1186")
 
     # Create PPO agent with correct dimensions
-    agent = PPOAgent(
+    agent = HierarchicalReasoningModel(
         observation_dim=observation_dim,
         action_dim_discrete=5,
         action_dim_continuous=1,
@@ -282,7 +282,7 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
 
     # Create curriculum trainer
     trainer = CurriculumTrainer(agent, data_loader, num_episodes=num_episodes, log_interval=5, config=config)
-    logger.info(f"Training PPO agent with curriculum learning for {num_episodes} episodes...")
+    logger.info(f"Training HRM agent with curriculum learning for {num_episodes} episodes...")
 
     # Execute curriculum training
     training_results = trainer.train()
@@ -301,7 +301,7 @@ def run_curriculum_ppo_training(num_episodes: int = 10, testing_mode: bool = Fal
     else:
         logger.info("🧪 Testing mode - Model not saved")
 
-    logger.info(f"🎓 Curriculum PPO training completed")
+    logger.info(f"🎓 Curriculum HRM training completed")
     return training_results
 
 
@@ -311,7 +311,7 @@ def main():
     os.environ['DETAILED_BACKTEST_LOGGING'] = 'true'
     logger.info("Detailed trade logging enabled for direct training run")
 
-    parser = argparse.ArgumentParser(description="Run PPO training for trading")
+    parser = argparse.ArgumentParser(description="Run HRM training for trading")
     parser.add_argument("--symbols", nargs="+", help="Trading symbols to train on")
     parser.add_argument("--data-dir", default="data/final", help="Data directory")
     parser.add_argument("--episodes", type=int, help="Number of episodes for training (overrides config)")
@@ -327,7 +327,7 @@ def main():
         logger.info("🧪 TESTING MODE ENABLED - Using testing configuration")
         # Use testing overrides from config
         if 'testing_overrides' in config and 'training_sequence' in config['testing_overrides']:
-            episodes = config['testing_overrides']['training_sequence']['stage_1_ppo']['episodes']
+            episodes = config['testing_overrides']['training_sequence']['stage_1_hrm']['episodes']
             logger.info(f"📊 Using testing episodes from config: {episodes}")
         else:
             episodes = 5  # Fallback for testing
@@ -354,7 +354,7 @@ def main():
     else:
         # Production mode - use production configuration
         if 'training_sequence' in config and 'stage_1_ppo' in config['training_sequence']:
-            episodes = config['training_sequence']['stage_1_ppo']['episodes']
+            episodes = config['training_sequence']['stage_1_hrm']['episodes']
             logger.info(f"📊 Using production episodes from config: {episodes}")
         else:
             episodes = 100  # Full episodes as per config (not reduced)
@@ -377,10 +377,10 @@ def main():
     try:
         if args.no_curriculum:
             logger.info("🔄 Using universal training (symbol rotation)")
-            run_universal_ppo_training(symbols, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing, config=config)
+            run_universal_hrm_training(symbols, num_episodes=episodes, data_dir=args.data_dir, testing_mode=args.testing, config=config)
         else:
             logger.info("🎓 Using curriculum training (timeframe progression) - DEFAULT")
-            run_curriculum_ppo_training(num_episodes=episodes, testing_mode=args.testing, config=config)
+            run_curriculum_hrm_training(num_episodes=episodes, testing_mode=args.testing, config=config)
     except Exception as e:
         logger.error(f"Failed to run training: {e}", exc_info=True)
 

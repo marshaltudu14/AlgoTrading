@@ -38,6 +38,7 @@ pytest-asyncio
 httpx
 psutil
 tqdm
+ruff
 
 # Utility Libraries
 anyio

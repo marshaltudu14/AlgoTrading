@@ -8,7 +8,7 @@
 | **Attribute** | **Value** |
 |---------------|-----------|
 | **Document Type** | Technical Architecture |
-| **Project** | PPO to HRM Migration |
+| **Project** | HRM Integration |
 | **Version** | 1.0 |
 | **Date** | 2025-08-17 |
 | **Author** | Claude Code AI |

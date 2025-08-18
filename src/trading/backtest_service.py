@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+import torch
+from src.models.core_transformer import CoreTransformer
 import json
 import os
 from pathlib import Path
@@ -193,9 +195,6 @@ class BacktestService:
                 logger.warning(f"Model not found at {model_path}, using random actions")
                 return None
 
-            # Import PPOAgent
-            from agents.ppo_agent import PPOAgent
-
             # Get observation dimensions from environment
             obs = env.reset()
             observation_dim = obs.shape[0]
@@ -210,17 +209,45 @@ class BacktestService:
 
             logger.info(f"Model dimensions: obs={observation_dim}, discrete={action_dim_discrete}, continuous={action_dim_continuous}")
 
-            # Create agent with same parameters as training
-            agent = PPOAgent(
-                observation_dim=observation_dim,
-                action_dim_discrete=action_dim_discrete,
-                action_dim_continuous=action_dim_continuous,
-                hidden_dim=hidden_dim
+            # Create CoreTransformer agent
+            # Assuming CoreTransformer's ff_dim is equivalent to hidden_dim
+            # Assuming default num_heads=8, num_layers=6, dropout=0.1, max_seq_len=1000, use_positional_encoding=True
+            agent = CoreTransformer(
+                input_dim=observation_dim,
+                ff_dim=hidden_dim,
+                output_dim=action_dim_discrete + action_dim_continuous # 5 discrete + 1 continuous
             )
 
             # Load the trained model
-            agent.load_model(str(model_path))
+            agent.load_state_dict(torch.load(str(model_path)))
+            agent.eval() # Set to evaluation mode
             logger.info("✅ Universal model loaded successfully")
+
+            # Create a wrapper function for select_action
+            def select_action_wrapper(observation):
+                with torch.no_grad():
+                    # Ensure observation is a tensor and has a batch dimension
+                    obs_tensor = torch.FloatTensor(observation).unsqueeze(0)
+                    
+                    # Forward pass through the CoreTransformer
+                    output = agent(obs_tensor)
+                    
+                    # Split output into discrete action logits and continuous quantity
+                    action_logits = output[:, :action_dim_discrete]
+                    quantity_raw = output[:, action_dim_discrete:]
+                    
+                    # Apply softmax to get probabilities for discrete actions
+                    action_probs = torch.softmax(action_logits, dim=-1)
+                    action_type = torch.argmax(action_probs, dim=-1).item()
+                    
+                    # Apply clamping for continuous quantity
+                    quantity = torch.clamp(quantity_raw, min=1.0, max=100000.0).item()
+                    
+                    return action_type, quantity
+
+            # Attach the wrapper to the agent object
+            agent.select_action = select_action_wrapper
+            
             return agent
 
         except Exception as e:

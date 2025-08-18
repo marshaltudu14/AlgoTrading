@@ -7,23 +7,12 @@
 # =========================================================================
 
 # Training Sequence Configuration
-# PPO Training Only - Simplified for single-stage training
+
 # PRODUCTION VALUES - Optimized for robust real-world trading performance
 
 training_sequence:
-  # Stage 1: PPO Training
-  stage_1_ppo:
-    algorithm: "PPO"
-    episodes: 5  # PRODUCTION: Sufficient episodes for stable learning
-    description: "PPO reinforcement learning for trading"
-    objectives:
-      - "Learn optimal trading patterns"
-      - "Maximize risk-adjusted returns"
-      - "Develop robust trading strategies"
-    success_criteria:
-      min_win_rate: 0.35  # Realistic for options trading
-      min_profit_factor: 0.8
-      max_drawdown: 0.4
+  # Stage 1: HRM Training
+  
 
 # Environment Configuration - Centralized settings
 environment:
@@ -37,11 +26,11 @@ environment:
 
 # Model Configuration - Moved from src/config/config.py
 model:
-  hidden_dim: 256          # Hidden layer dimension for PPO agent
+  hidden_dim: 256
   action_dim_discrete: 5  # Number of discrete actions (BUY_LONG, SELL_SHORT, CLOSE_LONG, CLOSE_SHORT, HOLD)
   action_dim_continuous: 1 # Continuous action dimension (quantity: 1 to max_affordable)
   model_path: "models/universal_final_model.pth"
-  model_type: "ppo"
+  model_type: "hrm"
 
 # Risk Management Configuration - Moved from src/config/config.py
 risk_management:
@@ -61,14 +50,8 @@ trading:
 
 # Training Parameters - Optimized for Production Performance
 training_params:
-  # PPO specific parameters
-  ppo:
-    learning_rate: 0.0001  # PRODUCTION: Lower LR for stable, robust learning
-    batch_size: 128       # PRODUCTION: Larger batch for better gradient estimates
-    gamma: 0.995          # PRODUCTION: Higher gamma for longer-term planning in trading
-    gae_lambda: 0.95      # Standard GAE lambda for advantage estimation
-    clip_epsilon: 0.15    # PRODUCTION: Conservative clipping for stable policy updates
-    k_epochs: 6           # PRODUCTION: More epochs for thorough policy optimization
+  
+  
 
 # Validation and Progression Rules - Production Standards
 progression_rules:
@@ -105,16 +88,11 @@ model_management:
 testing_overrides:
   # Override training sequence for testing
   training_sequence:
-    stage_1_ppo:
-      episodes: 5  # Minimal episodes for testing
+    
 
   # Override training parameters for testing
   training_params:
-    ppo:
-      learning_rate: 0.001  # Higher LR for faster testing
-      batch_size: 32  # Smaller batch for testing
-      gamma: 0.99  # Standard gamma for testing
-      k_epochs: 3  # Fewer epochs for testing
+    
 
   # Override progression rules for testing
   progression_rules:

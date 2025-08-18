@@ -245,7 +245,7 @@ class DynamicParameterManager:
             return 64
     
     def _compute_k_epochs(self, data_chars: Dict, training_progress: float) -> int:
-        """Compute number of PPO epochs."""
+        """Compute number of training epochs."""
         base_epochs = 2
         # More epochs for complex data, fewer as training progresses
         complexity_bonus = int(data_chars['complexity'] * 2)
@@ -253,7 +253,7 @@ class DynamicParameterManager:
         return max(1, base_epochs + complexity_bonus - progress_penalty)
     
     def _compute_epsilon_clip(self, training_progress: float) -> float:
-        """Compute PPO clipping parameter."""
+        """Compute clipping parameter for policy updates."""
         base_clip = 0.2
         # Reduce clipping as training progresses for more conservative updates
         return max(0.05, base_clip * (1.0 - training_progress * 0.5))

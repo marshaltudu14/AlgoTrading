@@ -9,7 +9,7 @@ This is a sophisticated algorithmic trading system for the Indian stock market t
 ### Key Architecture Components
 - **Frontend**: Next.js 15+ with TypeScript, Radix UI, Tailwind CSS, and Lightweight Charts
 - **Backend**: FastAPI with Python 3.11+, handling live trading, backtesting, and Fyers API integration
-- **Trading Engine**: PPO-based reinforcement learning model with TradingEnv for position management
+- **Trading Engine**: HRM-based hierarchical reasoning model with TradingEnv for position management
 - **Data Pipeline**: Real-time and historical data processing with pandas/numpy
 - **Authentication**: JWT-based session management with HTTP-only cookies
 
@@ -107,7 +107,7 @@ The backend follows a service-oriented architecture with these key services:
 ### Trading Configuration
 - `config/instruments.yaml`: Available trading instruments and timeframes
 - `config/training_sequence.yaml`: Model training parameters and architecture
-- `models/universal_final_model.pth`: Pre-trained PPO trading model
+- `models/universal_final_model.pth`: Pre-trained universal trading model (now HRM-compatible)
 
 ### Frontend Configuration
 - `frontend/package.json`: Frontend dependencies and scripts (includes concurrent dev setup)
@@ -142,7 +142,7 @@ The backend follows a service-oriented architecture with these key services:
 - Frontend charts update in real-time with tick-by-tick data
 
 ### Trading Model Integration
-- Universal PPO model (`universal_final_model.pth`) generates trading signals
+- Universal HRM model (`universal_final_model.pth`) generates trading signals
 - TradingEnv handles position management, stop-loss, and target calculations
 - Capital-aware quantity validation before trade execution
 
@@ -156,7 +156,7 @@ The backend follows a service-oriented architecture with these key services:
   - `tests/test_api/`: API endpoint and WebSocket integration tests
   - `tests/test_trading/`: Trading logic, live trading service, and position management tests
   - `tests/test_utils/`: Utility function tests (instrument loading, option utils)
-  - `tests/conftest.py`: Shared fixtures for mock data, TradingEnv, and PPOAgent setup
+  - `tests/conftest.py`: Shared fixtures for mock data, TradingEnv, and HRM agent setup
 - **Frontend Testing**: Jest-based testing with React Testing Library
   - Test files in `frontend/__tests__/` directory
   - Configuration in `frontend/jest.config.js` with Next.js integration
