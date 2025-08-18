@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Configuration Loader for Backtesting
-Loads and manages backtesting configuration from YAML files
+Configuration Loader for Trading System
+Loads and manages configuration from YAML files including settings.yaml and backtesting configs
 """
 
 import yaml
@@ -10,6 +10,113 @@ import logging
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
+
+class ConfigLoader:
+    """
+    Generic configuration loader for settings.yaml
+    """
+    
+    def __init__(self, config_path: str = "config/settings.yaml"):
+        """
+        Initialize the configuration loader.
+        
+        Args:
+            config_path (str): Path to the configuration YAML file
+        """
+        self.config_path = config_path
+        self.config = None
+        self.load_config()
+    
+    def load_config(self) -> Dict[str, Any]:
+        """
+        Load configuration from YAML file.
+        
+        Returns:
+            dict: Loaded configuration
+        """
+        try:
+            if not os.path.exists(self.config_path):
+                logger.warning(f"Config file not found: {self.config_path}")
+                self.config = self._get_default_config()
+                return self.config
+            
+            with open(self.config_path, 'r') as file:
+                self.config = yaml.safe_load(file)
+            
+            logger.info(f"✅ Configuration loaded from {self.config_path}")
+            return self.config
+            
+        except Exception as e:
+            logger.error(f"Error loading config from {self.config_path}: {e}")
+            self.config = self._get_default_config()
+            return self.config
+    
+    def get_config(self) -> Dict[str, Any]:
+        """Get the complete configuration."""
+        return self.config if self.config is not None else self._get_default_config()
+    
+    def get_section(self, section_name: str) -> Dict[str, Any]:
+        """Get a specific configuration section."""
+        return self.config.get(section_name, {}) if self.config else {}
+    
+    def _get_default_config(self) -> Dict[str, Any]:
+        """
+        Get default configuration if file loading fails.
+        
+        Returns:
+            dict: Default configuration
+        """
+        return {
+            'model': {
+                'hidden_dim': 256,
+                'action_dim_discrete': 5,
+                'action_dim_continuous': 1,
+                'observation_dim': 256,
+                'model_path': "models/universal_final_model.pth",
+                'model_type': "hrm"
+            },
+            'hierarchical_reasoning_model': {
+                'h_module': {
+                    'hidden_dim': 512,
+                    'num_layers': 4,
+                    'n_heads': 8,
+                    'ff_dim': 2048,
+                    'dropout': 0.1
+                },
+                'l_module': {
+                    'hidden_dim': 256,
+                    'num_layers': 3,
+                    'n_heads': 8,
+                    'ff_dim': 1024,
+                    'dropout': 0.1
+                },
+                'input_embedding': {
+                    'input_dim': 256,
+                    'embedding_dim': 512,
+                    'dropout': 0.1
+                },
+                'hierarchical': {
+                    'N_cycles': 3,
+                    'T_timesteps': 5,
+                    'convergence_threshold': 1e-6,
+                    'max_convergence_steps': 100
+                },
+                'embeddings': {
+                    'instrument_dim': 64,
+                    'timeframe_dim': 32,
+                    'max_instruments': 1000,
+                    'max_timeframes': 10
+                },
+                'output_heads': {
+                    'action_dim': 5,
+                    'quantity_min': 1.0,
+                    'quantity_max': 100000.0,
+                    'value_estimation': True,
+                    'q_learning_prep': True
+                }
+            }
+        }
 
 class BacktestingConfigLoader:
     """

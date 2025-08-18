@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Script for running PPO training.
+Script for running HRM (Hierarchical Reasoning Model) training.
 """
 
 import os
@@ -21,11 +21,22 @@ from src.training.universal_trainer import UniversalTrainer
 from src.training.curriculum_trainer import CurriculumTrainer
 from src.utils.test_data_generator import create_test_data_files
 
-# Configure logging
+# Configure clean, minimal logging for training
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+# Reduce verbosity for specific modules during training
+logging.getLogger('src.backtesting.environment').setLevel(logging.WARNING)
+logging.getLogger('src.utils.data_loader').setLevel(logging.WARNING)
+logging.getLogger('src.data_processing.feature_generator').setLevel(logging.WARNING)
+logging.getLogger('src.utils.data_feeding_strategy').setLevel(logging.WARNING)
+logging.getLogger('src.utils.config_loader').setLevel(logging.WARNING)
+logging.getLogger('src.training.curriculum_trainer').setLevel(logging.WARNING)
+logging.getLogger('src.training.trainer').setLevel(logging.WARNING)
+logging.getLogger('src.training.universal_trainer').setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 def load_training_config(config_path: str = "config/settings.yaml") -> dict:
@@ -76,9 +87,9 @@ def run_hrm_training(
     config: dict = None
 ):
     """
-    Run single-threaded PPO training for a symbol.
+    Run single-threaded HRM training for a symbol.
     """
-    logger.info(f"Starting HRM training for symbol: {symbol}")
+    logger.info(f"🚀 Starting HRM training: {symbol}")
 
     # Load configuration if not provided
     if config is None:
@@ -109,22 +120,22 @@ def run_hrm_training(
     action_dim_discrete = int(env.action_space.high[0]) + 1
     action_dim_continuous = 1
 
-    logger.info(f"Environment dimensions: obs={observation_dim}, action_discrete={action_dim_discrete}, action_continuous={action_dim_continuous}")
+    logger.info(f"📐 Model dimensions: {observation_dim}D obs, {action_dim_discrete}A, {action_dim_continuous}Q")
 
-    agent = HierarchicalReasoningModel(
-        observation_dim=observation_dim,
-        action_dim_discrete=action_dim_discrete,
-        action_dim_continuous=action_dim_continuous,
-        hidden_dim=model_config.get('hidden_dim', 64),
-        lr_actor=0.001,
-        lr_critic=0.001,
-        gamma=0.99,
-        epsilon_clip=0.2,
-        k_epochs=3
-    )
+    # Update config with environment-detected dimensions
+    config_copy = config.copy()
+    if 'model' not in config_copy:
+        config_copy['model'] = {}
+    config_copy['model'].update({
+        'observation_dim': observation_dim,
+        'action_dim_discrete': action_dim_discrete,
+        'action_dim_continuous': action_dim_continuous
+    })
+
+    agent = HierarchicalReasoningModel(config_copy)
 
     trainer = Trainer(agent, num_episodes=num_episodes, log_interval=10)
-    logger.info(f"Training HRM agent for {num_episodes} episodes...")
+    logger.info(f"🎯 Training {num_episodes} episodes")
     trainer.train(data_loader, symbol, env_config.get('initial_capital', 100000.0))
 
     # Only save model in production mode (not testing)
@@ -141,7 +152,7 @@ def run_hrm_training(
     else:
         logger.info("🧪 Testing mode - Model not saved")
 
-    logger.info(f"HRM training completed for {symbol}")
+    logger.info(f"✅ Training complete: {symbol}")
 
 
 def run_universal_hrm_training(
@@ -152,11 +163,10 @@ def run_universal_hrm_training(
     config: dict = None
 ):
     """
-    Run universal PPO training that rotates through symbols per episode.
+    Run universal HRM training that rotates through symbols per episode.
     This creates a single universal model trained on diverse market data.
     """
-    logger.info(f"Starting Universal HRM training with {len(symbols)} symbols: {symbols}")
-    logger.info(f"🔄 Symbol rotation: Each episode will use a different symbol for diverse market exposure")
+    logger.info(f"🚀 Universal HRM training: {len(symbols)} symbols")
 
     # Load configuration if not provided
     if config is None:
@@ -189,24 +199,24 @@ def run_universal_hrm_training(
     action_dim_discrete = int(env.action_space.high[0]) + 1
     action_dim_continuous = 1
 
-    logger.info(f"Environment dimensions: obs={observation_dim}, action_discrete={action_dim_discrete}, action_continuous={action_dim_continuous}")
+    logger.info(f"📐 Model dimensions: {observation_dim}D obs, {action_dim_discrete}A, {action_dim_continuous}Q")
 
-    # Create PPO agent
-    agent = HierarchicalReasoningModel(
-        observation_dim=observation_dim,
-        action_dim_discrete=action_dim_discrete,
-        action_dim_continuous=action_dim_continuous,
-        hidden_dim=model_config.get('hidden_dim', 64),
-        lr_actor=0.001,
-        lr_critic=0.001,
-        gamma=0.99,
-        epsilon_clip=0.2,
-        k_epochs=3
-    )
+    # Update config with environment-detected dimensions
+    config_copy = config.copy()
+    if 'model' not in config_copy:
+        config_copy['model'] = {}
+    config_copy['model'].update({
+        'observation_dim': observation_dim,
+        'action_dim_discrete': action_dim_discrete,
+        'action_dim_continuous': action_dim_continuous
+    })
+
+    # Create HRM agent
+    agent = HierarchicalReasoningModel(config_copy)
 
     # Create universal trainer that handles symbol rotation
     trainer = UniversalTrainer(agent, symbols, data_loader, num_episodes=num_episodes, log_interval=10, config=config)
-    logger.info(f"Training Universal HRM agent for {num_episodes} episodes with symbol rotation...")
+    logger.info(f"🎯 Training {num_episodes} episodes with symbol rotation")
     trainer.train()
 
     # Only save model in production mode (not testing)
@@ -223,19 +233,18 @@ def run_universal_hrm_training(
     else:
         logger.info("🧪 Testing mode - Model not saved")
 
-    logger.info(f"Universal HRM training completed for all symbols")
+    logger.info("✅ Universal training complete")
 
 
 def run_curriculum_hrm_training(num_episodes: int = 10, testing_mode: bool = False, config: dict = None):
     """
-    Run curriculum PPO training with timeframe progression.
+    Run curriculum HRM training with timeframe progression.
 
     Args:
         num_episodes: Number of episodes to train
         testing_mode: Whether to run in testing mode (no model saving)
     """
     logger.info("🎓 Starting Curriculum HRM Training")
-    logger.info("=" * 60)
 
     # Load configuration
     config = load_training_config()
@@ -267,22 +276,22 @@ def run_curriculum_hrm_training(num_episodes: int = 10, testing_mode: bool = Fal
         observation_dim = 1186  # Fallback
         logger.warning("🔧 Using fallback observation dimension: 1186")
 
-    # Create PPO agent with correct dimensions
-    agent = HierarchicalReasoningModel(
-        observation_dim=observation_dim,
-        action_dim_discrete=5,
-        action_dim_continuous=1,
-        hidden_dim=model_config.get('hidden_dim', 64),
-        lr_actor=0.0003,
-        lr_critic=0.001,
-        gamma=0.99,
-        epsilon_clip=0.2,
-        k_epochs=3
-    )
+    # Update config with environment-detected dimensions
+    config_copy = config.copy()
+    if 'model' not in config_copy:
+        config_copy['model'] = {}
+    config_copy['model'].update({
+        'observation_dim': observation_dim,
+        'action_dim_discrete': 5,
+        'action_dim_continuous': 1
+    })
+
+    # Create HRM agent with correct dimensions
+    agent = HierarchicalReasoningModel(config_copy)
 
     # Create curriculum trainer
     trainer = CurriculumTrainer(agent, data_loader, num_episodes=num_episodes, log_interval=5, config=config)
-    logger.info(f"Training HRM agent with curriculum learning for {num_episodes} episodes...")
+    logger.info(f"🎯 Curriculum training: {num_episodes} episodes")
 
     # Execute curriculum training
     training_results = trainer.train()
@@ -328,10 +337,10 @@ def main():
         # Use testing overrides from config
         if 'testing_overrides' in config and 'training_sequence' in config['testing_overrides']:
             episodes = config['testing_overrides']['training_sequence']['stage_1_hrm']['episodes']
-            logger.info(f"📊 Using testing episodes from config: {episodes}")
+            logger.info(f"🧪 Testing mode: {episodes} episodes")
         else:
             episodes = 5  # Fallback for testing
-            logger.info(f"📊 Using fallback testing episodes: {episodes}")
+            logger.info(f"🧪 Testing mode: {episodes} episodes (fallback)")
 
         # Create test data files for both stock and option instruments
         symbols = ["RELIANCE_1", "Bank_Nifty_5"]
@@ -353,7 +362,7 @@ def main():
         )
     else:
         # Production mode - use production configuration
-        if 'training_sequence' in config and 'stage_1_ppo' in config['training_sequence']:
+        if 'training_sequence' in config and 'stage_1_hrm' in config['training_sequence']:
             episodes = config['training_sequence']['stage_1_hrm']['episodes']
             logger.info(f"📊 Using production episodes from config: {episodes}")
         else:

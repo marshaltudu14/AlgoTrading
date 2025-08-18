@@ -6,6 +6,7 @@ from datetime import datetime
 import time
 
 from src.config.instrument import Instrument
+from src.utils.config_loader import ConfigLoader
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -126,7 +127,8 @@ class BacktestingEngine:
 
     def _load_config(self) -> dict:
         """Load configuration from settings.yaml"""
-        return get_settings()
+        config_loader = ConfigLoader()
+        return config_loader.get_config()
 
     def reset(self, verbose: bool = False):
         if verbose:

@@ -24,7 +24,7 @@ from datetime import datetime
 
 from src.backtesting.environment import TradingEnv, TradingMode
 from src.trading.fyers_client import FyersClient
-from src.config.config import RISK_REWARD_CONFIG, MODEL_CONFIG
+from src.utils.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ from src.backtesting.engine import BacktestingEngine
 from src.config.instrument import Instrument
 from src.utils.instrument_loader import load_instruments
 from src.utils.data_feeding_strategy import DataFeedingStrategyManager, FeedingStrategy
-from src.config.config import RISK_REWARD_CONFIG, INITIAL_CAPITAL, FEATURE_CONFIG
+from src.utils.config_loader import ConfigLoader
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -29,6 +29,10 @@ class TradingEnv(gym.Env):
                  use_streaming: bool = True, mode: TradingMode = TradingMode.TRAINING,
                  external_data: pd.DataFrame = None, smart_action_filtering: bool = False):
         super(TradingEnv, self).__init__()
+        
+        # Load centralized configuration
+        config_loader = ConfigLoader()
+        config = config_loader.get_config()
 
         # Mode and data handling
         self.mode = mode
@@ -45,7 +49,7 @@ class TradingEnv(gym.Env):
             self.data_loader = data_loader  # Optional for backtesting/live
             self.symbol = symbol or "INDEX"  # Default symbol for backtesting/live
 
-        self.initial_capital = initial_capital or INITIAL_CAPITAL
+        self.initial_capital = initial_capital or config.get('environment', {}).get('initial_capital', 100000.0)
         self.lookback_window = lookback_window
         self.reward_function = reward_function
         self.episode_length = episode_length
@@ -101,7 +105,7 @@ class TradingEnv(gym.Env):
 
         # Use centralized trailing stop configuration if not provided
         if trailing_stop_percentage is None:
-            trailing_stop_percentage = RISK_REWARD_CONFIG['trailing_stop_percentage']
+            trailing_stop_percentage = config.get('environment', {}).get('trailing_stop_percentage', 0.02)
 
         self.engine = BacktestingEngine(self.initial_capital, self.instrument, trailing_stop_percentage)
         self.data = None  # This will store the loaded data for the current episode

@@ -29,8 +29,55 @@ model:
   hidden_dim: 256
   action_dim_discrete: 5  # Number of discrete actions (BUY_LONG, SELL_SHORT, CLOSE_LONG, CLOSE_SHORT, HOLD)
   action_dim_continuous: 1 # Continuous action dimension (quantity: 1 to max_affordable)
+  observation_dim: 256    # Input feature dimension
   model_path: "models/universal_final_model.pth"
   model_type: "hrm"
+
+# === HRM MODEL CONFIGURATION ===
+# Brain-inspired Hierarchical Reasoning Model with dual-module architecture
+hierarchical_reasoning_model:
+  # Dual-module architecture
+  h_module:
+    hidden_dim: 512      # Strategic reasoning dimension
+    num_layers: 4        # Strategic reasoning depth
+    n_heads: 8           # Multi-head attention heads
+    ff_dim: 2048         # Feed-forward dimension
+    dropout: 0.1         # Dropout rate for regularization
+  
+  l_module:
+    hidden_dim: 256      # Tactical execution dimension
+    num_layers: 3        # Tactical execution depth
+    n_heads: 8           # Multi-head attention heads
+    ff_dim: 1024         # Feed-forward dimension
+    dropout: 0.1         # Dropout rate for regularization
+  
+  # Input embedding configuration
+  input_embedding:
+    input_dim: 256       # Market feature input dimension
+    embedding_dim: 512   # Embedded representation dimension
+    dropout: 0.1         # Input dropout rate
+  
+  # Hierarchical convergence mechanism
+  hierarchical:
+    N_cycles: 3          # High-level reasoning cycles
+    T_timesteps: 5       # Low-level timesteps per cycle
+    convergence_threshold: 1e-6     # Convergence detection threshold
+    max_convergence_steps: 100      # Maximum convergence iterations
+  
+  # Instrument and timeframe embeddings for multi-instrument learning
+  embeddings:
+    instrument_dim: 64   # Instrument embedding dimension
+    timeframe_dim: 32    # Timeframe embedding dimension
+    max_instruments: 1000 # Maximum number of tradeable instruments
+    max_timeframes: 10   # Maximum number of timeframes (1m, 5m, 15m, etc.)
+  
+  # Unified output heads for trading actions
+  output_heads:
+    action_dim: 5        # Discrete actions: BUY, SELL, HOLD, etc.
+    quantity_min: 1.0    # Minimum position size
+    quantity_max: 100000.0 # Maximum position size
+    value_estimation: true  # Enable state value estimation
+    q_learning_prep: true   # Enable Q-head for future ACT mechanism
 
 # Risk Management Configuration - Moved from src/config/config.py
 risk_management:
@@ -88,7 +135,9 @@ model_management:
 testing_overrides:
   # Override training sequence for testing
   training_sequence:
-    
+    stage_1_hrm:
+      episodes: 5  # Minimal episodes for testing
+      description: "Testing HRM integration"
 
   # Override training parameters for testing
   training_params:
