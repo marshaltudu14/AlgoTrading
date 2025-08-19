@@ -189,10 +189,10 @@ class DataProcessingPipeline:
             if results:
                 logger.info("Feature generator completed successfully")
 
-                # Count processed files and rows
-                paths_config = self.config.get('paths', {})
-                processed_data_path = Path(paths_config.get('processed_data_dir', 'data/processed'))
-                feature_files = list(processed_data_path.glob("features_*.csv"))
+                # Count processed files and rows from the actual output directory
+                # Feature generator saves directly to final directory, not processed
+                output_data_path = Path(output_dir)
+                feature_files = list(output_data_path.glob("features_*.csv"))
 
                 total_rows = 0
                 for feature_file in feature_files:
@@ -370,7 +370,7 @@ def main():
 
         if args.features_only:
             print("Running FEATURES ONLY mode...")
-            result = pipeline.run_feature_generation(args.input_dir, paths_config.get('processed_data_dir', 'data/processed'))
+            result = pipeline.run_feature_generation(args.input_dir, args.output_dir)
 
         
             
