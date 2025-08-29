@@ -14,6 +14,7 @@ fyers_apiv3
 pyotp
 requests
 pytz
+pandsa_ta
 
 # Visualization Libraries
 matplotlib

@@ -38,7 +38,9 @@
       "Bash(grep:*)",
       "Bash(sed:*)",
       "Bash(timeout:*)",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Bash(cat:*)",
+      "Bash(del:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

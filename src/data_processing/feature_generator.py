@@ -164,67 +164,99 @@ class DynamicFileProcessor:
             features[f'ema_{period}'] = ta.ema(close_prices, length=period)
 
         # MACD using pandas-ta
-        macd_data = ta.macd(close_prices)
+        macd_fast = self.feature_config.get('macd_fast', 12)
+        macd_slow = self.feature_config.get('macd_slow', 26)
+        macd_signal = self.feature_config.get('macd_signal', 9)
+        macd_data = ta.macd(close_prices, fast=macd_fast, slow=macd_slow, signal=macd_signal)
         if macd_data is not None and not macd_data.empty:
+            # Use dynamic column names based on configuration
+            macd_col_name = f'MACD_{macd_fast}_{macd_slow}_{macd_signal}'
+            macd_signal_col_name = f'MACDs_{macd_fast}_{macd_slow}_{macd_signal}'
+            macd_hist_col_name = f'MACDh_{macd_fast}_{macd_slow}_{macd_signal}'
             features.update({
-                'macd': macd_data['MACD_12_26_9'],
-                'macd_signal': macd_data['MACDs_12_26_9'],
-                'macd_histogram': macd_data['MACDh_12_26_9']
+                'macd': macd_data[macd_col_name],
+                'macd_signal': macd_data[macd_signal_col_name],
+                'macd_histogram': macd_data[macd_hist_col_name]
             })
 
         # === MOMENTUM INDICATORS ===
         # RSI using pandas-ta
-        for period in [14, 21]:
+        for period in self.feature_config.get('rsi_periods', [14, 21]):
             features[f'rsi_{period}'] = ta.rsi(close_prices, length=period)
 
         # Stochastic using pandas-ta
-        stoch_data = ta.stoch(high_prices, low_prices, close_prices)
+        stoch_k_period = self.feature_config.get('stoch_k_period', 14)
+        stoch_d_period = self.feature_config.get('stoch_d_period', 3)
+        stoch_data = ta.stoch(high_prices, low_prices, close_prices, k=stoch_k_period, d=stoch_d_period)
         if stoch_data is not None and not stoch_data.empty:
+            # Use dynamic column names based on configuration
+            stoch_k_col = f'STOCHk_{stoch_k_period}_{stoch_d_period}_3'
+            stoch_d_col = f'STOCHd_{stoch_k_period}_{stoch_d_period}_3'
             # Reindex to match the original data length
-            stoch_k = stoch_data['STOCHk_14_3_3'].reindex(close_prices.index)
-            stoch_d = stoch_data['STOCHd_14_3_3'].reindex(close_prices.index)
+            stoch_k = stoch_data[stoch_k_col].reindex(close_prices.index)
+            stoch_d = stoch_data[stoch_d_col].reindex(close_prices.index)
             features.update({
                 'stoch_k': stoch_k,
                 'stoch_d': stoch_d
             })
 
         # Williams %R using pandas-ta
-        features['williams_r'] = ta.willr(high_prices, low_prices, close_prices)
+        williams_r_period = self.feature_config.get('williams_r_period', 14)
+        features['williams_r'] = ta.willr(high_prices, low_prices, close_prices, length=williams_r_period)
 
         # CCI using pandas-ta
-        features['cci'] = ta.cci(high_prices, low_prices, close_prices)
+        cci_period = self.feature_config.get('cci_period', 20)
+        features['cci'] = ta.cci(high_prices, low_prices, close_prices, length=cci_period)
 
         # ADX using pandas-ta
-        adx_data = ta.adx(high_prices, low_prices, close_prices)
+        adx_period = self.feature_config.get('adx_period', 14)
+        adx_data = ta.adx(high_prices, low_prices, close_prices, length=adx_period)
         if adx_data is not None and not adx_data.empty:
+            # Use dynamic column names based on configuration
             features.update({
-                'adx': adx_data['ADX_14'],
-                'di_plus': adx_data['DMP_14'],
-                'di_minus': adx_data['DMN_14']
+                'adx': adx_data[f'ADX_{adx_period}'],
+                'di_plus': adx_data[f'DMP_{adx_period}'],
+                'di_minus': adx_data[f'DMN_{adx_period}']
             })
 
         # Momentum and ROC using pandas-ta
-        features['momentum_10'] = ta.mom(close_prices, length=10)
-        features['roc_10'] = ta.roc(close_prices, length=10)
+        momentum_period = self.feature_config.get('momentum_period', 10)
+        roc_period = self.feature_config.get('roc_period', 10)
+        features[f'momentum_{momentum_period}'] = ta.mom(close_prices, length=momentum_period)
+        features[f'roc_{roc_period}'] = ta.roc(close_prices, length=roc_period)
 
         # TRIX using pandas-ta (returns DataFrame)
-        trix_data = ta.trix(close_prices)
+        trix_period = self.feature_config.get('trix_period', 14)
+        trix_data = ta.trix(close_prices, length=trix_period)
         if trix_data is not None and not trix_data.empty:
-            features['trix'] = trix_data['TRIX_30_9']
+            # TRIX column naming is period_9 format by default
+            trix_col = f'TRIX_{trix_period}_9'
+            if trix_col in trix_data.columns:
+                features['trix'] = trix_data[trix_col]
+            else:
+                # Fallback to first available column
+                features['trix'] = trix_data.iloc[:, 0]
 
         # === VOLATILITY INDICATORS ===
         # ATR using pandas-ta
-        features['atr'] = ta.atr(high_prices, low_prices, close_prices)
+        atr_period = self.feature_config.get('atr_period', 14)
+        features['atr'] = ta.atr(high_prices, low_prices, close_prices, length=atr_period)
 
         # Bollinger Bands using pandas-ta
-        bb_data = ta.bbands(close_prices, length=20)
+        bb_period = self.feature_config.get('bb_period', 20)
+        bb_std_dev = self.feature_config.get('bb_std_dev', 2.0)
+        bb_data = ta.bbands(close_prices, length=bb_period, std=bb_std_dev)
         if bb_data is not None and not bb_data.empty:
+            # Use dynamic column names based on configuration
+            bb_upper_col = f'BBU_{bb_period}_{bb_std_dev}'
+            bb_middle_col = f'BBM_{bb_period}_{bb_std_dev}'
+            bb_lower_col = f'BBL_{bb_period}_{bb_std_dev}'
             features.update({
-                'bb_upper': bb_data['BBU_20_2.0'],
-                'bb_middle': bb_data['BBM_20_2.0'],
-                'bb_lower': bb_data['BBL_20_2.0'],
-                'bb_width': (bb_data['BBU_20_2.0'] - bb_data['BBL_20_2.0']) / bb_data['BBM_20_2.0'] * 100,
-                'bb_position': (close_prices - bb_data['BBL_20_2.0']) / (bb_data['BBU_20_2.0'] - bb_data['BBL_20_2.0']) * 100
+                'bb_upper': bb_data[bb_upper_col],
+                'bb_middle': bb_data[bb_middle_col],
+                'bb_lower': bb_data[bb_lower_col],
+                'bb_width': (bb_data[bb_upper_col] - bb_data[bb_lower_col]) / bb_data[bb_middle_col] * 100,
+                'bb_position': (close_prices - bb_data[bb_lower_col]) / (bb_data[bb_upper_col] - bb_data[bb_lower_col]) * 100
             })
 
         # === MARKET STRUCTURE ===
@@ -271,8 +303,9 @@ class DynamicFileProcessor:
             features['price_vs_ema_20'] = np.zeros(len(close_prices))
 
         # Volatility measures
-        features['volatility_10'] = close_prices.rolling(10).std() / close_prices.rolling(10).mean() * 100
-        features['volatility_20'] = close_prices.rolling(20).std() / close_prices.rolling(20).mean() * 100
+        volatility_periods = self.feature_config.get('volatility_periods', [10, 20])
+        for period in volatility_periods:
+            features[f'volatility_{period}'] = close_prices.rolling(period).std() / close_prices.rolling(period).mean() * 100
 
         
 

@@ -1,1 +1,0 @@
-"""Core package for shared dependencies and utilities"""

@@ -7,7 +7,7 @@ import random
 from enum import Enum
 
 from src.utils.data_loader import DataLoader
-from src.backtesting.engine import BacktestingEngine
+from src.env.engine import BacktestingEngine
 from src.config.instrument import Instrument
 from src.utils.instrument_loader import load_instruments
 from src.utils.data_feeding_strategy import DataFeedingStrategyManager, FeedingStrategy
