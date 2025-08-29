@@ -10,13 +10,6 @@ environment:
   initial_capital: 100000.0
   trailing_stop_percentage: 0.015
 
-# Hierarchical Reasoning Model Configuration - Used by TradingEnv
-hierarchical_reasoning_model:
-  # Hierarchical multi-timeframe processing
-  hierarchical_processing:
-    high_level_lookback: 128 # Comprehensive market overview
-    low_level_lookback: 50 # Recent market dynamics
-
 # Risk Management Configuration - Used by BacktestingEngine
 risk_management:
   risk_multiplier: 1.5
