@@ -1,0 +1,4 @@
+2025-08-29 17:32:13,589 - ERROR - Training failed: mat1 and mat2 must have the same dtype, but got Double and Float
+2025-08-29 17:32:13,590 - ERROR - Training pipeline failed: mat1 and mat2 must have the same dtype, but got Double and Float
+===============================================================================
+

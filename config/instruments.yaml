@@ -1,17 +1,36 @@
 timeframes:
-  - "1" # 1 minute
-  - "3" # 3 minutes
-  - "5" # 5 minutes
-  - "15" # 15 minutes
-  - "30" # 30 minutes
-  - "60" # 1 hour
-  - "120" # 2 hours
-  - "240" # 4 hours
-  - "D" # Daily
+  - id: 0
+    name: "1"
+    description: "1 minute"
+  - id: 1
+    name: "3"
+    description: "3 minutes"
+  - id: 2
+    name: "5"
+    description: "5 minutes"
+  - id: 3
+    name: "15"
+    description: "15 minutes"
+  - id: 4
+    name: "30"
+    description: "30 minutes"
+  - id: 5
+    name: "60"
+    description: "1 hour"
+  - id: 6
+    name: "120"
+    description: "2 hours"
+  - id: 7
+    name: "240"
+    description: "4 hours"
+  - id: 8
+    name: "D"
+    description: "Daily"
 
 instruments:
   # Index instruments (treated as options with premium calculation)
-  - name: "Bank Nifty"
+  - id: 0
+    name: "Bank Nifty"
     symbol: "Bank_Nifty"
     exchange-symbol: "NSE:NIFTYBANK-INDEX"
     type: "index"
@@ -19,7 +38,8 @@ instruments:
     tick_size: 0.05
     option_premium_range: [0.02, 0.03] # 2% to 3% of index price
 
-  - name: "Nifty 50"
+  - id: 1
+    name: "Nifty 50"
     symbol: "Nifty"
     exchange-symbol: "NSE:NIFTY50-INDEX"
     type: "index"
@@ -27,7 +47,8 @@ instruments:
     tick_size: 0.05
     option_premium_range: [0.01, 0.02] # 1% to 2% of index price
 
-  - name: "Bankex"
+  - id: 2
+    name: "Bankex"
     symbol: "Bankex"
     exchange-symbol: "NSE:BANKEX-INDEX"
     type: "index"
@@ -35,7 +56,8 @@ instruments:
     tick_size: 0.05
     option_premium_range: [0.02, 0.03] # 2% to 3% of index price
 
-  - name: "Finnifty"
+  - id: 3
+    name: "Finnifty"
     symbol: "Finnifty"
     exchange-symbol: "NSE:FINNIFTY-INDEX"
     type: "index"
@@ -43,7 +65,8 @@ instruments:
     tick_size: 0.05
     option_premium_range: [0.02, 0.03] # 2% to 3% of index price
 
-  - name: "Sensex"
+  - id: 4
+    name: "Sensex"
     symbol: "Sensex"
     exchange-symbol: "BSE:SENSEX-INDEX"
     type: "index"
@@ -52,21 +75,24 @@ instruments:
     option_premium_range: [0.02, 0.03] # 2% to 3% of index price
 
   # Stock instruments (direct price-based quantity calculation)
-  - name: "Reliance Industries"
+  - id: 5
+    name: "Reliance Industries"
     symbol: "RELIANCE"
     exchange-symbol: "NSE:RELIANCE-EQ"
     type: "stock"
     lot_size: 1 # RELIANCE lot size
     tick_size: 0.05
 
-  - name: "Tata Consultancy Services"
+  - id: 6
+    name: "Tata Consultancy Services"
     symbol: "TCS"
     exchange-symbol: "NSE:TCS-EQ"
     type: "stock"
     lot_size: 1 # TCS lot size
     tick_size: 0.05
 
-  - name: "HDFC Bank"
+  - id: 7
+    name: "HDFC Bank"
     symbol: "HDFC"
     exchange-symbol: "NSE:HDFCBANK-EQ"
     type: "stock"

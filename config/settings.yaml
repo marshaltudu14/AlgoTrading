@@ -11,7 +11,7 @@ environment:
   trailing_stop_percentage: 0.015
 
 # Risk Management Configuration - Used by BacktestingEngine
-risk_management:
+risk_management: 
   risk_multiplier: 1.5
   reward_multiplier: 3.0
 

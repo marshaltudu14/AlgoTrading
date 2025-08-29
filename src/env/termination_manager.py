@@ -21,6 +21,10 @@ class TerminationManager:
         if current_capital > self.peak_equity:
             self.peak_equity = current_capital
     
+    def get_current_drawdown(self) -> float:
+        """Get current drawdown percentage."""
+        return self.max_drawdown_pct
+    
     def check_termination_conditions(self, current_step: int, data_length: int, 
                                    current_capital: float) -> Tuple[bool, Optional[str]]:
         """Check if episode should terminate due to risk management conditions or strategic episode end."""

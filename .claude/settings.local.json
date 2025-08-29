@@ -40,7 +40,9 @@
       "Bash(timeout:*)",
       "Bash(mv:*)",
       "Bash(cat:*)",
-      "Bash(del:*)"
+      "Bash(del:*)",
+      "Read(c:\\AlgoTrading/**)",
+      "Read(c:\\AlgoTrading/**)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
