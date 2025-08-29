@@ -131,8 +131,8 @@ class HRMTradingAgent(nn.Module):
         )
         
         # Initialize hidden states
-        self.register_buffer('initial_H_state', torch.randn(1, self.hidden_dim) * 0.1)
-        self.register_buffer('initial_L_state', torch.randn(1, self.hidden_dim) * 0.1)
+        self.register_buffer('initial_H_state', torch.randn(1, self.hidden_dim, dtype=torch.float32) * 0.1)
+        self.register_buffer('initial_L_state', torch.randn(1, self.hidden_dim, dtype=torch.float32) * 0.1)
         
     def create_initial_carry(self, batch_size: int) -> HRMCarry:
         """Create initial carry state for a batch"""

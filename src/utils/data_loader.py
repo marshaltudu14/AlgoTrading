@@ -6,6 +6,7 @@ from typing import List, Tuple, Iterator, Optional, Union, Dict
 from pathlib import Path
 import pyarrow.parquet as pq
 import pyarrow as pa
+import numpy as np
 
 from src.config.settings import get_settings
 
@@ -470,6 +471,11 @@ class DataLoader:
             try:
                 # CRITICAL: Set datetime_readable as index when loading processed features
                 df = pd.read_csv(filepath, index_col=0)
+                
+                # Ensure all numeric columns are float32 to prevent dtype mismatches
+                numeric_columns = df.select_dtypes(include=[np.number]).columns
+                df[numeric_columns] = df[numeric_columns].astype(np.float32)
+                
                 logging.info(f"Loaded final data for {symbol}: {len(df)} rows from {filename}")
                 return df
             except Exception as e:

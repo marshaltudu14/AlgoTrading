@@ -325,9 +325,12 @@ class HRMTrainer:
             if self.scheduler:
                 self.scheduler.step()
             
-            # Logging
-            if episode % log_frequency == 0:
-                self._log_training_progress(episode, metrics)
+            # Detailed logging for every step
+            self._log_training_progress(episode, metrics)
+            
+            # Save checkpoints
+            if episode > 0 and episode % save_frequency == 0:
+                self._save_checkpoint(episode)
             
             # Save checkpoint (including first episode)
             if episode % save_frequency == 0:
@@ -349,13 +352,26 @@ class HRMTrainer:
                    f"Loss: {metrics['avg_loss']:6.3f} | "
                    f"Steps: {metrics['steps']:3d}")
         
+        # Log additional metrics
+        if 'episode_reward' in metrics:
+            logger.info(f"  Episode Reward: {metrics['episode_reward']:8.2f}")
+        
+        if 'sharpe_ratio' in metrics:
+            logger.info(f"  Sharpe Ratio: {metrics['sharpe_ratio']:6.3f}")
+            
+        if 'max_drawdown' in metrics:
+            logger.info(f"  Max Drawdown: {metrics['max_drawdown']:6.3f}")
+        
         # Log hierarchical metrics if available
         h_metrics = metrics.get('hierarchical_metrics', {})
         if h_metrics:
+            logger.info("  Hierarchical Metrics:")
             for category, values in h_metrics.items():
                 if isinstance(values, dict):
                     for metric, value in values.items():
-                        logger.debug(f"  {category}.{metric}: {value}")
+                        logger.info(f"    {category}.{metric}: {value}")
+                else:
+                    logger.info(f"    {category}: {values}")
     
     def _save_checkpoint(self, episode: int):
         """Save training checkpoint"""

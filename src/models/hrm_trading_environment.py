@@ -129,27 +129,53 @@ class HRMTradingEnvironment(TradingEnv):
     def _resolve_market_context(self):
         """Resolve instrument and timeframe IDs from current symbol and config"""
         try:
-            # Extract timeframe from environment config or data
-            timeframe = getattr(self, 'timeframe', None)
-            if not timeframe and hasattr(self, 'data') and hasattr(self.data, 'columns'):
-                # Try to extract from data structure or default to 5min
+            # Get symbol from environment
+            symbol = getattr(self, 'symbol', None)
+            
+            # Parse instrument and timeframe from symbol (e.g., "Bank_Nifty_5")
+            instrument_symbol = None
+            timeframe = None
+            
+            if symbol and "_" in symbol:
+                parts = symbol.split("_")
+                if len(parts) >= 2 and parts[-1].isdigit():
+                    timeframe = parts[-1]
+                    instrument_symbol = "_".join(parts[:-1])
+                    logger.info(f"Parsed symbol: {instrument_symbol}, timeframe: {timeframe}")
+                else:
+                    # Assume the whole symbol is the instrument and use default timeframe
+                    instrument_symbol = symbol
+                    timeframe = "5"
+                    logger.info(f"Using symbol as instrument: {instrument_symbol}, default timeframe: {timeframe}")
+            elif symbol:
+                # Symbol without underscore, treat as instrument with default timeframe
+                instrument_symbol = symbol
+                timeframe = "5"
+                logger.info(f"Using symbol as instrument: {instrument_symbol}, default timeframe: {timeframe}")
+            else:
+                # No symbol provided
+                instrument_symbol = None
+                timeframe = "5"
+                logger.warning("No symbol provided, using default context")
+            
+            # If no timeframe found, default to 5
+            if not timeframe:
                 timeframe = "5"
             
             # Get IDs from instruments loader
-            symbol = getattr(self, 'symbol', None)
-            if symbol and timeframe:
-                valid, instrument_id, timeframe_id = self.instruments_loader.validate_symbol_timeframe(symbol, timeframe)
+            if instrument_symbol:
+                valid, instrument_id, timeframe_id = self.instruments_loader.validate_symbol_timeframe(instrument_symbol, timeframe)
                 if valid:
                     self.current_instrument_id = instrument_id
                     self.current_timeframe_id = timeframe_id
-                    logger.info(f"Resolved market context: {symbol} (ID: {instrument_id}), {timeframe} (ID: {timeframe_id})")
+                    logger.info(f"Resolved market context: {instrument_symbol} (ID: {instrument_id}), {timeframe} (ID: {timeframe_id})")
                 else:
-                    logger.warning(f"Could not resolve market context for {symbol}_{timeframe}")
+                    logger.warning(f"Could not resolve market context for {instrument_symbol}_{timeframe}")
                     # Use default IDs (0, 0) for unknown instruments/timeframes
                     self.current_instrument_id = 0
                     self.current_timeframe_id = 0
             else:
-                logger.warning("Symbol or timeframe not available, using default context")
+                logger.warning("Instrument symbol not available, using default context")
                 self.current_instrument_id = 0
                 self.current_timeframe_id = 0
                 
@@ -217,8 +243,8 @@ class HRMTradingEnvironment(TradingEnv):
             # This will be further processed by the HRM agent for hierarchical reasoning
             raw_observation = hierarchical_obs['high_level']
         
-        # Convert to torch tensor
-        observation_tensor = torch.FloatTensor(raw_observation).unsqueeze(0).to(self.device)
+        # Convert to torch tensor with explicit float32 dtype
+        observation_tensor = torch.tensor(raw_observation, dtype=torch.float32).unsqueeze(0).to(self.device)
         
         # Prepare market context tensors
         instrument_tensor = torch.tensor([self.current_instrument_id], dtype=torch.long, device=self.device)
