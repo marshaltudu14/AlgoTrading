@@ -7,6 +7,8 @@ from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 from datetime import datetime
 import json
+from tqdm import tqdm
+import time
 
 from src.models.hrm import HRMTradingAgent, HRMCarry
 from src.models.hrm_trading_environment import HRMTradingEnvironment, HRMTradingWrapper
@@ -121,10 +123,12 @@ class HRMTrainer:
     def __init__(self, 
                  config_path: str = "config/hrm_config.yaml",
                  data_path: str = "data/final",
-                 device: str = "cuda" if torch.cuda.is_available() else "cpu"):
+                 device: str = "cuda" if torch.cuda.is_available() else "cpu",
+                 debug_mode: bool = False):
         
         self.device = torch.device(device)
         self.config_path = config_path
+        self.debug_mode = debug_mode
         
         # Load configuration
         import yaml
@@ -140,31 +144,116 @@ class HRMTrainer:
         self.best_performance = float('-inf')
         self.training_history = []
         
+        # Progress tracking
+        self.epoch_start_time = None
+        self.total_epochs = 0
+        
         # Model and optimizer will be initialized during training
         self.model = None
         self.optimizer = None
         self.scheduler = None
         
-    def setup_training(self, symbol: str = "Bank_Nifty_5"):
-        """Setup training environment and model"""
+    def setup_training_complete(self, symbol: str = "Bank_Nifty_5"):
+        """Complete training setup in one centralized place - no resets, no hanging"""
         
-        # Create training environment
+        # Load configuration to get initial capital and episode length
+        from src.utils.config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        config = config_loader.get_config()
+        initial_capital = config.get('environment', {}).get('initial_capital', 100000.0)
+        episode_length = config.get('environment', {}).get('episode_length', 1500)
+        
+        # 1. Load full data first
+        self.full_data = self.data_loader.load_final_data_for_symbol(symbol)
+        
+        # 2. Initialize episode tracking
+        self.current_episode_start = 0
+        self.episode_length = episode_length
+        self.total_data_length = len(self.full_data)
+        
+        # 3. Create environment with episode length config
         self.env = HRMTradingEnvironment(
             data_loader=self.data_loader,
             symbol=symbol,
-            initial_capital=100000.0,
+            initial_capital=initial_capital,
             mode=TradingMode.TRAINING,
             hrm_config_path=self.config_path,
-            device=self.device
+            device=self.device,
+            episode_length=episode_length
         )
         
-        # Reset environment to initialize observation space
-        _ = self.env.reset()
+        # 4. Set up first episode data segment
+        self._setup_current_episode()
         
-        # Model is initialized automatically in the environment
+        # 5. Initialize observation space
+        feature_columns = self.env.observation_handler.initialize_observation_space(self.env.data, config)
+        self.env.observation_space = self.env.observation_handler.observation_space
+        
+        # Initialize all components manually
+        self.env.engine.reset()
+        self.env.reward_calculator.reset(self.env.initial_capital)
+        self.env.observation_handler.reset()
+        self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
+        
+        # 4. Initialize HRM agent
+        self.env._initialize_hrm_agent()
         self.model = self.env.hrm_agent
         
-        # Setup optimizer
+        # 5. Initialize HRM carry state
+        self.env.current_carry = self.model.create_initial_carry(batch_size=1)
+        
+        # 6. Setup optimizer
+        self._setup_optimizer()
+        
+        logger.info("Training setup completed successfully")
+    
+    def _setup_current_episode(self):
+        """Set up data for current episode - sequential feeding"""
+        
+        # Calculate episode boundaries
+        episode_end = min(self.current_episode_start + self.episode_length, self.total_data_length)
+        
+        # Get sequential data segment
+        self.env.data = self.full_data.iloc[self.current_episode_start:episode_end].copy()
+        
+        # Set environment positions
+        self.env.current_step = self.env.lookback_window - 1
+        self.env.episode_end_step = len(self.env.data) - 1
+        
+        logger.info(f"Episode data: rows {self.current_episode_start} to {episode_end-1} "
+                   f"({len(self.env.data)} rows)")
+        if hasattr(self.env.data.index, 'strftime'):
+            start_time = self.env.data.index[0].strftime('%Y-%m-%d %H:%M:%S')
+            end_time = self.env.data.index[-1].strftime('%Y-%m-%d %H:%M:%S')
+            logger.info(f"Time range: {start_time} to {end_time}")
+    
+    def _advance_to_next_episode(self):
+        """Move to next sequential episode"""
+        
+        # Move to next episode segment
+        self.current_episode_start += self.episode_length
+        
+        # Check if we've reached end of data
+        if self.current_episode_start >= self.total_data_length - self.episode_length:
+            # Reset to beginning for next epoch
+            self.current_episode_start = 0
+            logger.info("End of data reached, resetting to beginning for next epoch")
+        
+        # Set up next episode data
+        self._setup_current_episode()
+        
+        # Reset environment state for new episode
+        self.env.engine.reset()
+        self.env.reward_calculator.reset(self.env.initial_capital)
+        self.env.observation_handler.reset()
+        self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
+        
+        # Reset HRM carry state for new episode
+        if hasattr(self.env, 'current_carry') and self.model:
+            self.env.current_carry = self.model.create_initial_carry(batch_size=1)
+    
+    def _setup_optimizer(self):
+        """Setup optimizer and scheduler"""
         training_config = self.config['training']
         
         # Different learning rates for different components
@@ -214,14 +303,26 @@ class HRMTrainer:
                 T_max=training_config.get('total_episodes', 1000),
                 eta_min=training_config['learning_rates']['base_lr'] * training_config['min_lr_ratio']
             )
-        
-        logger.info("Training setup completed")
     
     def train_episode(self) -> Dict[str, float]:
         """Train for one episode"""
         
-        # Reset environment
-        observation = self.env.reset()
+        # Print step debug header if in debug mode
+        if self.debug_mode:
+            # Get instrument and timeframe info
+            instrument_name = getattr(self.env, 'symbol', 'Unknown')
+            timeframe = 'Unknown'
+            if hasattr(self.env, 'symbol'):
+                parts = self.env.symbol.split('_')
+                if len(parts) >= 2:
+                    instrument_name = '_'.join(parts[:-1])
+                    timeframe = f"{parts[-1]}min"
+            
+            print(f"\nEPOCH {getattr(self, 'current_episode', 0) + 1} STEP-BY-STEP: {instrument_name} ({timeframe})")
+            print("Step | Instrument     | Timeframe | DateTime           | Initial Cap | Current Cap | Action   | Win%  | P&L      | Entry   | Target Price(Pts) | SL Price(Pts)   | Reward | Reason")
+            print("-" * 165)
+        
+        # Environment is already initialized in setup_training_complete, no reset needed
         
         episode_metrics = {
             'total_reward': 0.0,
@@ -240,6 +341,10 @@ class HRMTrainer:
             
             episode_metrics['total_reward'] += reward
             step_count += 1
+            
+            # Debug step logging if enabled
+            if self.debug_mode:
+                self._log_step_debug(step_count, reward, info)
             
             # Extract loss information if available in info
             if 'segment_rewards' in info:
@@ -283,6 +388,110 @@ class HRMTrainer:
         
         return episode_metrics
     
+    def _log_step_debug(self, step_num: int, reward: float, info: Dict):
+        """Log detailed step information using environment as single source of truth."""
+        
+        # Extract all information from environment's info dict
+        instrument_name = getattr(self.env, 'symbol', 'Unknown')
+        timeframe = 'Unknown'
+        if hasattr(self.env, 'symbol'):
+            parts = self.env.symbol.split('_')
+            if len(parts) >= 2:
+                instrument_name = '_'.join(parts[:-1])
+                timeframe = f"{parts[-1]}min"
+        
+        # Get datetime from environment info
+        datetime_readable = 'N/A'
+        if 'datetime' in info and hasattr(info['datetime'], 'strftime'):
+            datetime_readable = info['datetime'].strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Get all data from environment info
+        action_taken = info.get('action', 'HOLD')
+        quantity = info.get('quantity', 0.0)
+        account_state = info.get('account_state', {})
+        initial_capital = info.get('initial_capital', 100000.0)
+        current_capital = account_state.get('capital', 100000.0)
+        is_position_open = account_state.get('is_position_open', False)
+        entry_price = account_state.get('current_position_entry_price', 0.0)
+        
+        # Get win rate from environment calculation
+        win_rate = info.get('win_rate', 0.0) * 100  # Convert to percentage
+        
+        # Get P&L information from environment
+        if is_position_open:
+            # Show unrealized P&L when position is open
+            profit_loss = info.get('unrealized_pnl', 0.0)
+        elif info.get('position_closed', False):
+            # Position was just closed - show the realized P&L of this trade
+            engine_decision = info.get('engine_decision', {})
+            profit_loss = engine_decision.get('realized_pnl', 0.0)
+        else:
+            # No position and no recent closure - show no P&L
+            profit_loss = 0.0
+        
+        # Show quantity only when position was actually opened this step
+        if info.get('position_opened', False):
+            # Position was actually opened this step, show quantity
+            action_str = f"{action_taken}-{quantity:.1f}"
+        else:
+            # No position opened (invalid action, hold, rejected, etc.) - don't show quantity
+            action_str = action_taken
+        
+        # Format price displays using environment data
+        if is_position_open and entry_price > 0:
+            entry_display = f"Rs{entry_price:7.2f}"
+            pnl_display = f"Rs{profit_loss:+8.0f}"
+            
+            # Get risk management prices from environment info
+            target_price = info.get('target_price', 0.0)
+            sl_price = info.get('sl_price', 0.0)
+            
+            if target_price > 0 and sl_price > 0:
+                # Calculate actual points difference from entry
+                target_points = target_price - entry_price
+                sl_points = entry_price - sl_price
+                target_display = f"Rs{target_price:7.2f}({target_points:+4.0f})"
+                sl_display = f"Rs{sl_price:7.2f}({-sl_points:+4.0f})"
+            else:
+                target_display = "        -       "
+                sl_display = "        -       "
+        else:
+            # No position - show dashes or total P&L if we just closed
+            entry_display = "     -     "
+            if profit_loss != 0:
+                pnl_display = f"Rs{profit_loss:+8.0f}"
+            else:
+                pnl_display = "Rs      -"
+            target_display = "        -       "
+            sl_display = "        -       "
+        
+        # Get reason based on actual position changes, not engine decisions
+        reason = "-"
+        
+        # Check if position actually changed this step
+        if info.get('position_opened', False):
+            reason = "ENTRY"
+        elif info.get('position_closed', False):
+            # Check if it was an automated exit (SL/Trail) or model decision
+            engine_decision = info.get('engine_decision', {})
+            exit_reason = engine_decision.get('exit_reason', '')
+            if 'STOP_LOSS' in str(exit_reason):
+                reason = "SL_HIT"
+            elif 'TRAILING' in str(exit_reason):
+                reason = "TRAIL_HIT"
+            else:
+                reason = "MODEL_EXIT"
+        # For all other cases (no position change, holds, rejected actions), reason stays "-"
+        
+        # Format single line log
+        log_line = (f"{step_num:4d} | {instrument_name:14s} | {timeframe:9s} | {datetime_readable} | "
+                   f"Rs{initial_capital:,.0f} | Rs{current_capital:,.0f} | "
+                   f"{action_str:8s} | {win_rate:5.1f}% | "
+                   f"{pnl_display} | {entry_display} | "
+                   f"{target_display} | {sl_display} | {reward:+6.3f} | {reason}")
+        
+        print(log_line)
+    
     def _create_dummy_targets(self, info: Dict) -> Dict[str, torch.Tensor]:
         """Create dummy targets for training - replace with real targets in production"""
         
@@ -304,29 +513,89 @@ class HRMTrainer:
               symbol: str = None,
               save_frequency: int = 100,
               log_frequency: int = 10):
-        """Main training loop"""
+        """Main training loop with enhanced progress tracking"""
         
         # Setup training only if not already done
         if self.model is None:
             if symbol is None:
                 raise ValueError("Symbol must be provided for initial setup")
-            self.setup_training(symbol)
+            self.setup_training_complete(symbol)
         
+        self.total_epochs = episodes
         logger.info(f"Starting HRM training for {episodes} episodes")
+        logger.info(f"Debug mode: {'ON' if self.debug_mode else 'OFF'}")
+        logger.info(f"Device: {self.device}")
+        logger.info(f"Progress tracking: {'Step-by-step' if self.debug_mode else 'Epoch-level progress bar'}")
+        
+        # Initialize metrics tracking for progress bar
+        running_metrics = {
+            'reward': [],
+            'loss': [],
+            'best_reward': float('-inf'),
+            'total_time': 0
+        }
+        
+        # Create progress bar
+        if not self.debug_mode:
+            progress_bar = tqdm(
+                total=episodes,
+                desc="Training Progress",
+                unit="epoch",
+                ncols=120,
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}"
+            )
+        
+        start_time = time.time()
         
         for episode in range(episodes):
             self.current_episode = episode
+            epoch_start_time = time.time()
             
             # Train episode
             metrics = self.train_episode()
             self.training_history.append(metrics)
             
+            # Advance to next sequential episode after training
+            self._advance_to_next_episode()
+            
             # Update learning rate
             if self.scheduler:
                 self.scheduler.step()
             
-            # Detailed logging for every step
-            self._log_training_progress(episode, metrics)
+            # Track running metrics
+            running_metrics['reward'].append(metrics['avg_reward'])
+            running_metrics['loss'].append(metrics['avg_loss'])
+            if metrics['avg_reward'] > running_metrics['best_reward']:
+                running_metrics['best_reward'] = metrics['avg_reward']
+            
+            # Calculate epoch time
+            epoch_time = time.time() - epoch_start_time
+            running_metrics['total_time'] += epoch_time
+            
+            if self.debug_mode:
+                # Detailed logging for debug mode
+                self._log_training_progress_debug(episode, metrics, epoch_time)
+            else:
+                # Update progress bar
+                if episode >= 5:  # Calculate running averages after first 5 episodes
+                    avg_reward = np.mean(running_metrics['reward'][-5:])
+                    avg_loss = np.mean(running_metrics['loss'][-5:])
+                else:
+                    avg_reward = metrics['avg_reward']
+                    avg_loss = metrics['avg_loss']
+                
+                # Update progress bar postfix
+                progress_bar.set_postfix({
+                    'Reward': f"{avg_reward:.4f}",
+                    'Loss': f"{avg_loss:.4f}",
+                    'Best': f"{running_metrics['best_reward']:.4f}",
+                    'Time': f"{epoch_time:.1f}s"
+                })
+                progress_bar.update(1)
+                
+                # Log summary every log_frequency episodes
+                if (episode + 1) % log_frequency == 0 or episode == 0:
+                    self._log_epoch_summary(episode + 1, running_metrics, episodes)
             
             # Save checkpoints
             if episode > 0 and episode % save_frequency == 0:
@@ -340,38 +609,72 @@ class HRMTrainer:
             if metrics['avg_reward'] > self.best_performance:
                 self.best_performance = metrics['avg_reward']
                 self._save_best_model()
+                if not self.debug_mode:
+                    progress_bar.write(f"🎯 New best model saved! Reward: {self.best_performance:.4f}")
+        
+        # Close progress bar
+        if not self.debug_mode:
+            progress_bar.close()
+        
+        # Final summary
+        total_time = time.time() - start_time
+        self._log_training_summary(episodes, running_metrics, total_time)
         
         logger.info("Training completed")
         return self.training_history
     
-    def _log_training_progress(self, episode: int, metrics: Dict):
-        """Log training progress"""
+    def _log_training_progress_debug(self, episode: int, metrics: Dict, epoch_time: float):
+        """Enhanced epoch summary logging for debug mode"""
         
-        logger.info(f"Episode {episode:4d} | "
-                   f"Reward: {metrics['avg_reward']:6.3f} | "
-                   f"Loss: {metrics['avg_loss']:6.3f} | "
-                   f"Steps: {metrics['steps']:3d}")
+        # Calculate average win rate from environment if available
+        total_trades = getattr(self.env, 'total_trades', 0)
+        winning_trades = getattr(self.env, 'winning_trades', 0)
+        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
         
-        # Log additional metrics
-        if 'episode_reward' in metrics:
-            logger.info(f"  Episode Reward: {metrics['episode_reward']:8.2f}")
+        # Print separator and epoch summary
+        print("\n" + "="*100)
+        print(f"EPOCH {episode+1:4d} SUMMARY | "
+              f"Total Reward: {metrics.get('total_reward', 0):+8.2f} | "
+              f"Loss: {metrics.get('avg_loss', 0):6.4f} | "
+              f"Win Rate: {win_rate:5.1f}% | "
+              f"Steps: {metrics.get('steps', 0):3d} | "
+              f"Time: {epoch_time:.2f}s")
+        print("="*100 + "\n")
+    
+    def _log_epoch_summary(self, completed_episodes: int, running_metrics: Dict, total_episodes: int):
+        """Log epoch summary with running statistics"""
         
-        if 'sharpe_ratio' in metrics:
-            logger.info(f"  Sharpe Ratio: {metrics['sharpe_ratio']:6.3f}")
-            
-        if 'max_drawdown' in metrics:
-            logger.info(f"  Max Drawdown: {metrics['max_drawdown']:6.3f}")
+        recent_rewards = running_metrics['reward'][-10:] if len(running_metrics['reward']) >= 10 else running_metrics['reward']
+        recent_losses = running_metrics['loss'][-10:] if len(running_metrics['loss']) >= 10 else running_metrics['loss']
         
-        # Log hierarchical metrics if available
-        h_metrics = metrics.get('hierarchical_metrics', {})
-        if h_metrics:
-            logger.info("  Hierarchical Metrics:")
-            for category, values in h_metrics.items():
-                if isinstance(values, dict):
-                    for metric, value in values.items():
-                        logger.info(f"    {category}.{metric}: {value}")
-                else:
-                    logger.info(f"    {category}: {values}")
+        avg_reward = np.mean(recent_rewards)
+        avg_loss = np.mean(recent_losses)
+        progress_pct = (completed_episodes / total_episodes) * 100
+        
+        logger.info(f"📊 Progress: {completed_episodes}/{total_episodes} ({progress_pct:.1f}%) | "
+                   f"Avg Reward (last 10): {avg_reward:.4f} | "
+                   f"Avg Loss (last 10): {avg_loss:.4f} | "
+                   f"Best Reward: {running_metrics['best_reward']:.4f}")
+    
+    def _log_training_summary(self, episodes: int, running_metrics: Dict, total_time: float):
+        """Log final training summary"""
+        
+        logger.info("=" * 80)
+        logger.info("🎉 TRAINING COMPLETED - SUMMARY")
+        logger.info("=" * 80)
+        logger.info(f"Total Episodes: {episodes}")
+        logger.info(f"Total Time: {total_time:.1f} seconds ({total_time/60:.1f} minutes)")
+        logger.info(f"Average Time per Episode: {total_time/episodes:.2f} seconds")
+        
+        if running_metrics['reward']:
+            logger.info(f"Final Average Reward: {np.mean(running_metrics['reward'][-10:]):.4f}")
+            logger.info(f"Best Reward Achieved: {running_metrics['best_reward']:.4f}")
+            logger.info(f"Reward Trend (last 20 episodes): {np.mean(running_metrics['reward'][-20:]):.4f}")
+        
+        if running_metrics['loss']:
+            logger.info(f"Final Average Loss: {np.mean(running_metrics['loss'][-10:]):.4f}")
+        
+        logger.info("=" * 80)
     
     def _save_checkpoint(self, episode: int):
         """Save training checkpoint"""

@@ -37,11 +37,13 @@ class HRMTrainingPipeline:
     def __init__(self, 
                  config_path: str = "config/hrm_config.yaml",
                  data_path: str = "data/final",
-                 device: str = None):
+                 device: str = None,
+                 debug_mode: bool = False):
         
         self.config_path = config_path
         self.data_path = data_path
         self.device = torch.device(device if device else ("cuda" if torch.cuda.is_available() else "cpu"))
+        self.debug_mode = debug_mode
         
         # Load configuration
         self.config = self._load_config()
@@ -58,6 +60,7 @@ class HRMTrainingPipeline:
         self._validate_data_directory()
         
         logger.info(f"HRM Training Pipeline initialized on {self.device}")
+        logger.info(f"Debug mode: {'ON - detailed step-by-step logging' if debug_mode else 'OFF - progress bar with epoch summaries'}")
         
     def _load_config(self) -> dict:
         """Load training configuration"""
@@ -162,23 +165,19 @@ class HRMTrainingPipeline:
         # Initialize data loader
         self.data_loader = DataLoader(final_data_dir=self.data_path)
         
-        # Initialize trainer with proper configuration
+        # Initialize trainer with proper configuration (no setup yet)
         self.trainer = HRMTrainer(
             config_path=self.config_path,
             data_path=self.data_path,
-            device=str(self.device)
+            device=str(self.device),
+            debug_mode=self.debug_mode
         )
         
-        # Setup training environment with real instrument+timeframe
-        self.trainer.setup_training(symbol=actual_symbol_with_timeframe)
+        # Store symbol for later use in training
+        self.selected_symbol = actual_symbol_with_timeframe
         
-        logger.info(f"Training setup completed for {instrument_symbol}")
-        
-        # Log model summary
-        model_summary = self.trainer.model.get_model_summary()
-        logger.info("HRM Model Summary:")
-        for key, value in model_summary.items():
-            logger.info(f"  {key}: {value}")
+        logger.info(f"Trainer initialized for {instrument_symbol}")
+        # Model setup will happen during train() call
     
     def train(self, 
               epochs: int = 100,
@@ -193,12 +192,14 @@ class HRMTrainingPipeline:
         
         logger.info(f"Starting HRM training for {epochs} epochs on {instrument_symbol or 'auto-selected'}")
         logger.info(f"Device: {self.device}")
-        logger.info(f"Total model parameters: {sum(p.numel() for p in self.trainer.model.parameters()):,}")
+        # Skip parameter counting to avoid hang - it's already logged in model summary
+        logger.info("Model loaded and ready for training")
         
         try:
-            # Run training
+            # Run training with selected symbol
             training_history = self.trainer.train(
                 episodes=epochs,
+                symbol=self.selected_symbol,
                 save_frequency=save_frequency,
                 log_frequency=log_frequency
             )
@@ -296,6 +297,7 @@ def main():
     parser.add_argument("--config", type=str, default="config/hrm_config.yaml", help="Config file path")
     parser.add_argument("--data", type=str, default="data/final", help="Data directory path")
     parser.add_argument("--test-only", action="store_true", help="Only run test training (1-2 epochs)")
+    parser.add_argument("--debug", action="store_true", help="Enable debug mode (step-by-step logging instead of progress bar)")
     
     args = parser.parse_args()
     
@@ -305,7 +307,8 @@ def main():
         pipeline = HRMTrainingPipeline(
             config_path=args.config,
             data_path=args.data,
-            device=args.device
+            device=args.device,
+            debug_mode=args.debug
         )
         
         # Determine number of epochs

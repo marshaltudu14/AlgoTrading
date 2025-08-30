@@ -235,9 +235,7 @@ class TradingEnv(gym.Env):
         )
 
         if self.data.empty:
-            from src.utils.error_logger import log_error
-            log_error(f"Failed to load data segment for {self.symbol}, falling back to full FINAL data loading",
-                     f"Episode: {self.current_episode_start}-{self.current_episode_end}")
+            print(f"Warning: Failed to load data segment for {self.symbol}, falling back to full FINAL data loading. Episode: {self.current_episode_start}-{self.current_episode_end}")
             self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
             self.use_streaming = False
         else:
@@ -406,17 +404,97 @@ class TradingEnv(gym.Env):
             if done:
                 self.termination_manager.force_close_positions(self.engine, self.data, self.current_step)
 
-            # Create info dictionary with termination reason and exit reason
+            # Create comprehensive info dictionary with all debug information
             info = {}
             if termination_reason:
                 info["termination_reason"] = termination_reason
 
-            # Get exit reason from the latest decision log entry
+            # Add comprehensive trading information for debug logging
+            account_state = self.engine.get_account_state(current_price=current_price)
+            
+            # Add action mapping
+            action_mapping = {0: 'BUY_LONG', 1: 'SELL_SHORT', 2: 'CLOSE_LONG', 3: 'CLOSE_SHORT', 4: 'HOLD'}
+            info['action'] = action_mapping.get(action_type, 'UNKNOWN')
+            info['action_idx'] = action_type
+            info['quantity'] = quantity
+            
+            # Add account state information
+            info['account_state'] = account_state
+            info['initial_capital'] = self.initial_capital
+            info['current_step'] = self.current_step
+            
+            # Add current price and datetime information
+            info['current_price'] = current_price
+            try:
+                safe_step = min(self.current_step, len(self.data) - 1)
+                if hasattr(self.data.index, 'strftime'):
+                    # DatetimeIndex
+                    info['datetime'] = self.data.index[safe_step]
+                elif 'datetime' in self.data.columns:
+                    # DateTime column
+                    datetime_val = self.data['datetime'].iloc[safe_step]
+                    info['datetime'] = pd.to_datetime(datetime_val)
+                else:
+                    # Fallback to creating datetime from index
+                    info['datetime'] = pd.to_datetime(f"2024-01-01 09:{safe_step*5:02d}:00")
+            except Exception as e:
+                # Final fallback
+                info['datetime'] = pd.to_datetime("2024-01-01 09:00:00")
+                
+            # Add engine decision log information
             if self.engine._decision_log:
                 latest_decision = self.engine._decision_log[-1]
+                info['engine_decision'] = latest_decision
                 exit_reason = latest_decision.get('exit_reason')
                 if exit_reason:
                     info["exit_reason"] = exit_reason
+            
+            # Add trade statistics and position change tracking
+            trade_history = self.engine.get_trade_history()
+            if trade_history:
+                # Calculate win rate from closed trades
+                closed_trades = [trade for trade in trade_history if trade.get('trade_type') == 'CLOSE']
+                if closed_trades:
+                    winning_trades = sum(1 for trade in closed_trades if trade.get('pnl', 0) > 0)
+                    info['win_rate'] = (winning_trades / len(closed_trades)) if closed_trades else 0.0
+                    info['total_trades'] = len(closed_trades)
+                else:
+                    info['win_rate'] = 0.0
+                    info['total_trades'] = 0
+                    
+                info['trade_history'] = trade_history[-5:]  # Last 5 trades for context
+            else:
+                info['win_rate'] = 0.0 
+                info['total_trades'] = 0
+                info['trade_history'] = []
+                
+            # Track actual position changes for accurate reason display
+            prev_capital = getattr(self, '_prev_capital', self.initial_capital)
+            prev_position = getattr(self, '_prev_position', 0.0)
+            current_position = account_state.get('current_position_quantity', 0.0)
+            
+            # Store for next step
+            self._prev_capital = account_state.get('capital', self.initial_capital)
+            self._prev_position = current_position
+            
+            # Determine if this was an actual position change
+            info['position_changed'] = abs(current_position - prev_position) > 0.001
+            info['position_opened'] = prev_position == 0 and current_position != 0
+            info['position_closed'] = prev_position != 0 and current_position == 0
+            info['previous_position'] = prev_position
+                
+            # Add risk management information - only show when position is actually open
+            if account_state['is_position_open'] and account_state['current_position_entry_price'] > 0:
+                info['entry_price'] = account_state['current_position_entry_price']
+                info['target_price'] = getattr(self.engine, '_target_profit_price', 0.0)
+                info['sl_price'] = getattr(self.engine, '_stop_loss_price', 0.0)
+                info['unrealized_pnl'] = account_state['unrealized_pnl']
+            else:
+                # No position or invalid position state - clear all position-related data
+                info['entry_price'] = 0.0
+                info['target_price'] = 0.0
+                info['sl_price'] = 0.0
+                info['unrealized_pnl'] = 0.0
 
             # Return 4 values as expected by standard gym environments
             return self.observation_handler.get_observation(self.data, self.current_step, self.engine, current_price), reward, done, info

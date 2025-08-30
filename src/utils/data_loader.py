@@ -282,12 +282,10 @@ class DataLoader:
             if self._validate_chunk(df, require_datetime=require_datetime):
                 return df
             else:
-                from src.utils.error_logger import log_warning
-                log_warning(f"Invalid data segment in {filepath}", f"Segment: {start_idx}-{end_idx}")
+                print(f"Warning: Invalid data segment in {filepath}, Segment: {start_idx}-{end_idx}")
                 return pd.DataFrame()
         except Exception as e:
-            from src.utils.error_logger import log_error
-            log_error(f"Error loading CSV segment from {filepath}: {e}", f"Segment: {start_idx}-{end_idx}")
+            print(f"Error loading CSV segment from {filepath}: {e}, Segment: {start_idx}-{end_idx}")
             return pd.DataFrame()
 
     def _load_parquet_segment(self, filepath: str, start_idx: int, end_idx: int) -> pd.DataFrame:
@@ -304,12 +302,10 @@ class DataLoader:
             if self._validate_chunk(segment, require_datetime=require_datetime):
                 return segment
             else:
-                from src.utils.error_logger import log_warning
-                log_warning(f"Invalid data segment in {filepath}", f"Segment: {start_idx}-{end_idx}")
+                print(f"Warning: Invalid data segment in {filepath}, Segment: {start_idx}-{end_idx}")
                 return pd.DataFrame()
         except Exception as e:
-            from src.utils.error_logger import log_error
-            log_error(f"Error loading Parquet segment from {filepath}: {e}", f"Segment: {start_idx}-{end_idx}")
+            print(f"Error loading Parquet segment from {filepath}: {e}, Segment: {start_idx}-{end_idx}")
             return pd.DataFrame()
 
     def get_data_length(self, symbol: str, data_type: str = "raw") -> int:

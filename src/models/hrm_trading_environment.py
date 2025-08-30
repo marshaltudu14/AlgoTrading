@@ -32,11 +32,12 @@ class HRMTradingEnvironment(TradingEnv):
         self.hrm_config = self._load_hrm_config(hrm_config_path)
         self.device = torch.device(device)
         
-        # Initialize base trading environment
+        # Initialize base trading environment with smart action filtering enabled
         super().__init__(
             data_loader=data_loader,
             symbol=symbol,
             initial_capital=initial_capital,
+            smart_action_filtering=True,  # Enable smart filtering to prevent invalid actions
             **kwargs
         )
         
@@ -250,11 +251,18 @@ class HRMTradingEnvironment(TradingEnv):
         instrument_tensor = torch.tensor([self.current_instrument_id], dtype=torch.long, device=self.device)
         timeframe_tensor = torch.tensor([self.current_timeframe_id], dtype=torch.long, device=self.device)
         
-        # Deep supervision loop - multiple forward passes for enhanced learning
+        # Deep supervision loop - multiple forward passes on SAME data point for enhanced learning
         segment_rewards = []
         segment_actions = []
         
+        # Store original step to prevent data advancement during deep supervision
+        original_step = self.current_step
+        final_action = None
+        
         for segment in range(self.max_segments):
+            # Reset to original step for each segment (same data point)
+            self.current_step = original_step
+            
             # Forward pass through HRM with market context
             self.current_carry, outputs = self.hrm_agent.forward(
                 self.current_carry, 
@@ -269,26 +277,37 @@ class HRMTradingEnvironment(TradingEnv):
             action = (trading_decision['action_idx'], trading_decision['quantity'])
             segment_actions.append(action)
             
-            # Execute trade in environment
-            next_observation, reward, done, info = super().step(action)
-            segment_rewards.append(reward)
+            # Store the final action (last segment's decision)
+            final_action = action
             
-            # Update performance metrics in HRM agent
-            if hasattr(self, 'reward_calculator'):
-                total_return = (self.engine.get_account_state()['capital'] - self.initial_capital) / self.initial_capital
-                sharpe_ratio = self._calculate_sharpe_ratio()
-                max_drawdown = self.termination_manager.get_current_drawdown()
-                
-                self.hrm_agent.update_performance_metrics(
-                    self.current_carry, reward, total_return, sharpe_ratio, max_drawdown
-                )
+            # Don't execute step yet - just simulate reward for this segment
+            # Temporary reward calculation (will be overridden by actual step)
+            segment_reward = 0.0  # Placeholder for segment reward
+            segment_rewards.append(segment_reward)
             
             # Track hierarchical metrics
-            self._track_hierarchical_metrics(outputs, action, reward)
+            self._track_hierarchical_metrics(outputs, action, segment_reward)
             
             # Check if computation should halt
             if self.current_carry.halted.all():
                 break
+        
+        # Now execute ONE step with the final action (advance data by 1 step only)
+        self.current_step = original_step  # Reset to original step
+        next_observation, reward, done, info = super().step(final_action)
+        
+        # Update segment rewards with actual reward
+        segment_rewards = [reward] * len(segment_rewards)  # Use actual reward for all segments
+        
+        # Update performance metrics with actual results
+        if hasattr(self, 'reward_calculator'):
+            total_return = (self.engine.get_account_state()['capital'] - self.initial_capital) / self.initial_capital
+            sharpe_ratio = self._calculate_sharpe_ratio()
+            max_drawdown = self.termination_manager.get_current_drawdown()
+            
+            self.hrm_agent.update_performance_metrics(
+                self.current_carry, reward, total_return, sharpe_ratio, max_drawdown
+            )
         
         # Aggregate results from deep supervision
         final_observation = next_observation
@@ -300,6 +319,7 @@ class HRMTradingEnvironment(TradingEnv):
         final_info.update(self._get_hrm_insights(outputs))
         final_info['hrm_segments_used'] = segment + 1
         final_info['segment_rewards'] = segment_rewards
+        final_info['segment_actions'] = segment_actions  # Add actions for debug logging
         
         self.steps_since_strategic_update += 1
         
