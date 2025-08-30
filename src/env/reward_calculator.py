@@ -7,21 +7,33 @@ class RewardCalculator:
     
     def __init__(self, reward_function: str = "pnl", symbol: str = None):
         self.reward_function = reward_function
-        self.reward_normalization_factor = self._calculate_reward_normalization_factor(symbol)
+        # No instrument-specific normalization - universal scaling only
+        self.reward_normalization_factor = 1.0
+        
+        # Load action and reward configuration for efficient access
+        from src.utils.config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        self.config = config_loader.get_config()  # Store config for later use
+        action_config = self.config.get('actions', {})
+        self.action_types = action_config.get('action_types', {
+            'BUY_LONG': 0, 'SELL_SHORT': 1, 'CLOSE_LONG': 2, 'CLOSE_SHORT': 3, 'HOLD': 4
+        })
+        
+        # Load reward scaling configuration
+        reward_config = self.config.get('rewards', {})
+        self.global_scaling_factor = reward_config.get('global_scaling_factor', 1.0)
+        self.scale_reward_shaping = reward_config.get('scale_reward_shaping', True)
         
         # Track for reward shaping
         self.idle_steps = 0
         self.trade_count = 0
-        self.last_action_type = 4  # Start with HOLD
+        self.last_action_type = self.action_types.get('HOLD', 4)  # Start with HOLD
         self.previous_trailing_stop = 0.0  # Track trailing stop improvement
         
         # Track returns for sophisticated reward calculations
         self.returns_history = []
         self.equity_history = []
         
-        # Track quantity prediction for reward calculation
-        self._last_predicted_quantity = 0.0
-        self._last_max_affordable = 0
     
     def reset(self, initial_capital: float):
         """Reset reward calculator state."""
@@ -31,11 +43,8 @@ class RewardCalculator:
         self.trade_count = 0
         self.last_action_type = 4
         self.previous_trailing_stop = 0.0
-        self._last_predicted_quantity = 0.0
-        self._last_max_affordable = 0
     
-    def update_tracking_data(self, action_type: int, current_capital: float, 
-                           predicted_quantity: float = 0.0, max_affordable: int = 0):
+    def update_tracking_data(self, action_type: int, current_capital: float):
         """Update tracking data for reward calculation."""
         # Update equity history and returns
         self.equity_history.append(current_capital)
@@ -44,15 +53,13 @@ class RewardCalculator:
             self.returns_history.append(step_return)
         
         # Track action for reward shaping
-        if action_type == 4:  # HOLD
+        if action_type == self.action_types.get('HOLD', 4):  # HOLD
             self.idle_steps += 1
         else:
             self.idle_steps = 0
             self.trade_count += 1
         
         self.last_action_type = action_type
-        self._last_predicted_quantity = predicted_quantity
-        self._last_max_affordable = max_affordable
     
     def calculate_reward(self, current_capital: float, prev_capital: float, 
                         engine) -> float:
@@ -84,20 +91,24 @@ class RewardCalculator:
         """Apply reward shaping to guide agent behavior."""
         shaped_reward = base_reward
 
-        # Penalty for idleness (holding no position for too long)
-        if action_type == 4 and self.idle_steps > 10:  # HOLD for more than 10 steps
+        # Calculate shaping scale factor - if global scaling is enabled, scale shaping factors too
+        shaping_scale = self.global_scaling_factor if self.scale_reward_shaping else 1.0
+
+        # Penalty for idleness (holding no position for too long) 
+        if action_type == self.action_types.get('HOLD', 4) and self.idle_steps > 10:  # HOLD for more than 10 steps
             if not engine.get_account_state()['is_position_open']:
-                shaped_reward -= 0.1 * (self.idle_steps - 10)  # Increasing penalty
+                shaped_reward -= (0.1 * shaping_scale) * (self.idle_steps - 10)  # Increasing penalty
 
         # Enhanced bonus/penalty for trade outcomes
-        if action_type in [2, 3]:  # CLOSE_LONG or CLOSE_SHORT
+        close_actions = [self.action_types.get('CLOSE_LONG', 2), self.action_types.get('CLOSE_SHORT', 3)]
+        if action_type in close_actions:  # CLOSE_LONG or CLOSE_SHORT
             pnl_change = current_capital - prev_capital
             if pnl_change > 0:
                 # Larger bonus for profitable trades to encourage winning
-                shaped_reward += min(pnl_change * 0.01, 5.0)  # Scale with profit, cap at 5
+                shaped_reward += min(pnl_change * 0.01, 5.0 * shaping_scale)  # Scale with profit, cap scaled
             else:
                 # Penalty for losing trades to discourage bad exits
-                shaped_reward += max(pnl_change * 0.005, -2.0)  # Scale with loss, cap at -2
+                shaped_reward += max(pnl_change * 0.005, -2.0 * shaping_scale)  # Scale with loss, cap scaled
 
         # Penalty for over-trading (too many trades in short period)
         if self.trade_count > 0:
@@ -105,15 +116,15 @@ class RewardCalculator:
             current_step = getattr(self, 'current_step', 0)
             recent_trade_rate = self.trade_count / max(1, current_step - lookback_window + 1)
             if recent_trade_rate > 0.3:  # More than 30% of steps are trades
-                shaped_reward -= 0.5 * (recent_trade_rate - 0.3)  # Scaled over-trading penalty
+                shaped_reward -= (0.5 * shaping_scale) * (recent_trade_rate - 0.3)  # Scaled over-trading penalty
 
         # Bonus for maintaining profitable positions
         account_state = engine.get_account_state()
-        if account_state['is_position_open'] and action_type == 4:  # HOLD with open position
+        if account_state['is_position_open'] and action_type == self.action_types.get('HOLD', 4):  # HOLD with open position
             unrealized_pnl = account_state['unrealized_pnl']
             if unrealized_pnl > 0:
                 # Small bonus for holding profitable positions
-                shaped_reward += min(unrealized_pnl * 0.001, 0.5)  # Scale with unrealized profit
+                shaped_reward += min(unrealized_pnl * 0.001, 0.5 * shaping_scale)  # Scale with unrealized profit
 
         # Trailing stop reward shaping
         if current_price is not None:
@@ -127,65 +138,60 @@ class RewardCalculator:
 
         return shaped_reward
     
-    def calculate_quantity_feedback_reward(self, action, available_capital: float) -> float:
-        """Calculate reward feedback for quantity predictions."""
-        if isinstance(action, (list, np.ndarray, tuple)) and len(action) >= 2:
-            action_type = int(action[0])
-            predicted_quantity = float(action[1])
-        else:
-            return 0.0
-
-        # Only provide feedback for trading actions (not HOLD)
-        if action_type == 4:  # HOLD action
-            return 0.0
-
-        if predicted_quantity <= 0:
-            return 0.0
-
-        max_affordable = self._last_max_affordable
-
-        if max_affordable <= 0:
-            # No capital available - penalize non-zero quantity requests
-            return -0.05 if predicted_quantity > 0 else 0.0
-
-        # Calculate utilization ratio for reward calculation
-        utilization_ratio = min(predicted_quantity / max_affordable, 1.0)
-
-        # Reward efficient quantity selection
-        # Optimal range: 60-90% of available capacity
-        if 0.6 <= utilization_ratio <= 0.9:
-            quantity_reward = 0.1 * utilization_ratio  # Reward efficient utilization
-        elif utilization_ratio > 0.9:
-            quantity_reward = 0.05  # Slightly less reward for being too aggressive
-        elif utilization_ratio >= 0.3:
-            quantity_reward = 0.03 * utilization_ratio  # Small reward for moderate approach
-        else:
-            quantity_reward = 0.01 * utilization_ratio  # Minimal reward for very conservative approach
-
-        return quantity_reward
     
-    def normalize_reward(self, reward: float) -> float:
-        """Apply normalization to make rewards consistent across different instruments."""
-        return reward * self.reward_normalization_factor
-    
-    def _calculate_reward_normalization_factor(self, symbol: str) -> float:
-        """Calculate normalization factor based on instrument type and typical price ranges."""
-        if symbol is None:
-            return 0.001
+    def normalize_reward(self, reward: float, capital_pct_change: float = None) -> float:
+        """
+        Normalize reward to -100 to +100 range using percentage-based approach.
+        
+        Args:
+            reward: Raw reward (usually P&L change)
+            capital_pct_change: Percentage change in capital for context-aware scaling
             
-        symbol_lower = symbol.lower()
-
-        # Index instruments (typically higher values, more volatile)
-        if any(keyword in symbol_lower for keyword in ['nifty', 'sensex', 'bank_nifty', 'fin_nifty']):
-            return 0.0001  # Scale down large index movements
-
-        # Stock instruments (typically lower values per share but higher lot sizes)
-        elif any(keyword in symbol_lower for keyword in ['reliance', 'sbi', 'hdfc', 'icici', 'tcs', 'infy']):
-            return 0.001  # Moderate scaling for stocks
-
-        # Default for unknown instruments
+        Returns:
+            Normalized reward in -100 to +100 range
+        """
+        # Load reward configuration
+        reward_config = self.config.get('rewards', {})
+        reward_range = reward_config.get('reward_range', {'min': -100.0, 'max': 100.0})
+        clipping_config = reward_config.get('reward_clipping', {'enabled': True, 'clip_percentile': 95})
+        
+        # If we have percentage capital change, use it for more meaningful scaling
+        if capital_pct_change is not None:
+            # Scale percentage change to reward range
+            # 10% gain = +100 reward, 10% loss = -100 reward
+            # This creates meaningful rewards regardless of instrument price levels
+            scaled_reward = capital_pct_change * 10  # 1% = 10 reward points
+            
+            # Apply clipping to prevent extreme outliers from dominating
+            if clipping_config.get('enabled', True):
+                clip_value = reward_range['max']  # Use max range as clip value
+                scaled_reward = np.clip(scaled_reward, -clip_value, clip_value)
         else:
-            return 0.001  # Conservative default scaling
+            # Fallback: normalize raw reward using global scaling factor
+            scaled_reward = reward * self.global_scaling_factor
+            
+        # Final clipping to reward range
+        normalized_reward = np.clip(scaled_reward, reward_range['min'], reward_range['max'])
+        
+        return float(normalized_reward)
+    
+    def calculate_percentage_pnl(self, current_capital: float, previous_capital: float) -> float:
+        """
+        Calculate percentage-based P&L change.
+        This is instrument-agnostic and provides meaningful reward scaling.
+        
+        Args:
+            current_capital: Current capital amount
+            previous_capital: Previous capital amount
+            
+        Returns:
+            Percentage change in capital
+        """
+        if previous_capital == 0:
+            return 0.0
+            
+        pct_change = ((current_capital - previous_capital) / previous_capital) * 100
+        return float(pct_change)
     
     def _calculate_sharpe_ratio(self) -> float:
         """Calculate Sharpe ratio based on recent returns."""
@@ -408,7 +414,7 @@ class RewardCalculator:
         reward_adjustment = 0.0
 
         # Bonus for holding profitable position as trailing stop improves
-        if action_type == 4:  # HOLD action
+        if action_type == self.action_types.get('HOLD', 4):  # HOLD action
             if self.previous_trailing_stop > 0 and current_trailing_stop > 0:
                 # For long positions, trailing stop moving up is good
                 if engine._current_position_quantity > 0:
@@ -467,7 +473,7 @@ class RewardCalculator:
                 reward_adjustment += 0.5  # Larger bonus for closing very close to SL
 
         # If the agent is holding when very close to stop loss, give a small penalty
-        elif action_type == 4:  # HOLD action
+        elif action_type == self.action_types.get('HOLD', 4):  # HOLD action
             # If we're very close to stop loss (within 1%), give a small penalty for not closing
             if 0 < distance_to_sl < 0.01:  # Within 1% of stop loss
                 reward_adjustment -= 0.1  # Small penalty for holding when close to SL

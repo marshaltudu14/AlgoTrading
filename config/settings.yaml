@@ -9,12 +9,12 @@
 environment:
   initial_capital: 100000.0
   trailing_stop_percentage: 0.015
-  episode_length: 1500  # Number of sequential rows per episode
+  episode_length: 1500 # Number of sequential rows per episode
 
 # Risk Management Configuration - Used by BacktestingEngine
-risk_management: 
-  risk_multiplier: 1.5
-  reward_multiplier: 3.0
+risk_management:
+  risk_multiplier: 1.0
+  reward_multiplier: 2.0
 
 # Trading Configuration - Used by BacktestingEngine
 trading:
@@ -70,7 +70,46 @@ paths:
   raw_data_dir: "data/raw"
   final_data_dir: "data/final"
 
-# Data Processing Configuration - Used by FeatureGenerator
+# Action Configuration - Used by all components that handle trading actions
+actions:
+  # Trading action types and their mappings
+  action_types:
+    BUY_LONG: 0
+    SELL_SHORT: 1
+    CLOSE_LONG: 2
+    CLOSE_SHORT: 3
+    HOLD: 4
+  action_names: ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
+  num_actions: 5
+
+# Reward Configuration - Used by RewardCalculator
+rewards:
+  # Unified reward scaling for all instruments (-100 to +100 range)
+  # No instrument-specific discrimination - model learns from percentage-based P&L
+  reward_range:
+    min: -100.0      # Maximum penalty
+    max: 100.0       # Maximum reward
+  
+  # Base scaling factor - rewards will be normalized to the above range
+  global_scaling_factor: 1.0  # Will be dynamically adjusted based on percentage P&L
+  
+  # Whether to apply scaling to reward shaping components
+  scale_reward_shaping: true
+  
+  # Reward capping to prevent extreme values from dominating learning
+  reward_clipping:
+    enabled: true
+    clip_percentile: 95  # Clip rewards beyond 95th percentile
+
+# Data Processing Configuration - Used by FeatureGenerator and UniversalDataNormalizer
 data_processing:
   input_folder: "data/raw"
   output_folder: "data/final"
+  
+  # Universal Data Normalization - No instrument bias
+  normalization:
+    # Feature normalization range (0-100 scale for all features)
+    feature_range: [0, 100]
+    
+    # Normalization method - Single method for all features for consistency  
+    method: "minmax"  # MinMax scaling (0-100) for ALL features passed to model

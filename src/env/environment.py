@@ -105,16 +105,18 @@ class TradingEnv(gym.Env):
                 self.use_streaming = False
 
         # Define action and observation space
-        # Action space: [action_type, quantity]
-        # action_type: 0=BUY_LONG, 1=SELL_SHORT, 2=CLOSE_LONG, 3=CLOSE_SHORT, 4=HOLD
-        # quantity: continuous value representing desired number of lots to trade
-        # Environment will clamp to actual max_affordable based on capital and price
-        self.max_theoretical_quantity = 100000  # Consistent upper bound across codebase
-        self.action_space = gym.spaces.Box(
-            low=np.array([0, 1]),
-            high=np.array([4, self.max_theoretical_quantity]),
-            dtype=np.float32
-        )
+        # Action space: action_type only (no quantity prediction)
+        # Get number of actions from configuration
+        num_actions = config.get('actions', {}).get('num_actions', 5)
+        self.action_space = gym.spaces.Discrete(num_actions)
+        
+        # Load action configuration
+        self.action_config = config.get('actions', {})
+        self.action_names = self.action_config.get('action_names', 
+            ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"])
+        self.action_types = self.action_config.get('action_types', {
+            'BUY_LONG': 0, 'SELL_SHORT': 1, 'CLOSE_LONG': 2, 'CLOSE_SHORT': 3, 'HOLD': 4
+        })
         
         # Observation space will be initialized by ObservationHandler
         self.observation_space = None
@@ -262,8 +264,15 @@ class TradingEnv(gym.Env):
 
         return info
 
-    def step(self, action: Tuple[int, float]) -> Tuple[np.ndarray, float, bool, Dict]:
+    def step(self, action: int) -> Tuple[np.ndarray, float, bool, Dict]:
         try:
+            # Get action indices from configuration for consistent use throughout step
+            buy_long_idx = self.action_types.get('BUY_LONG', 0)
+            sell_short_idx = self.action_types.get('SELL_SHORT', 1)
+            close_long_idx = self.action_types.get('CLOSE_LONG', 2)
+            close_short_idx = self.action_types.get('CLOSE_SHORT', 3)
+            hold_action_idx = self.action_types.get('HOLD', 4)
+            
             self.current_step += 1
 
             if self.current_step >= len(self.data):
@@ -294,43 +303,34 @@ class TradingEnv(gym.Env):
             # Direct price for index trading - no option premium complexity
             proxy_premium = current_price
 
-            # Action is now directly from agent.select_action: (action_type, quantity)
-            action_type, predicted_quantity = action
+            # Action is now directly an integer representing the action type
+            action_type = action
 
-            # Adjust predicted quantity to available capital for trading actions (not HOLD)
-            if action_type != 4 and predicted_quantity > 0:
+            # Use fixed quantity of 1 for all trading actions (except HOLD)
+            if action_type != hold_action_idx:
                 available_capital = prev_capital
 
-                # Import capital-aware quantity calculation
+                # Import capital-aware quantity calculation to check if trade is affordable
                 from src.utils.capital_aware_quantity import CapitalAwareQuantitySelector
                 selector = CapitalAwareQuantitySelector()
 
-                # Calculate maximum affordable quantity (no artificial limits)
+                # Calculate maximum affordable quantity to check if trade is possible
                 max_affordable_quantity = selector.get_max_affordable_quantity(
                     available_capital=available_capital,
                     current_price=current_price,
                     instrument=self.instrument
                 )
 
-                # Clamp predicted quantity to what's actually affordable
-                if max_affordable_quantity > 0:
-                    # Use the smaller of predicted quantity or max affordable
-                    actual_quantity = min(int(predicted_quantity), max_affordable_quantity)
-                    actual_quantity = max(1, actual_quantity)  # Ensure at least 1 lot
-
-                    # Store values for reward calculation
-                    self._last_predicted_quantity = predicted_quantity
+                # Use quantity of 1 if affordable, otherwise 0
+                if max_affordable_quantity >= 1:
+                    quantity = 1.0
                     self._last_max_affordable = max_affordable_quantity
-
-                    quantity = float(actual_quantity)
                 else:
                     # No capital available for trading
                     quantity = 0.0
-                    self._last_predicted_quantity = predicted_quantity
                     self._last_max_affordable = 0
             else:
                 quantity = 0.0
-                self._last_predicted_quantity = 0.0
                 self._last_max_affordable = 0
 
             # Get current position state to validate actions
@@ -339,45 +339,43 @@ class TradingEnv(gym.Env):
 
             # Smart action filtering to prevent redundant position attempts and invalid closes
             if self.smart_action_filtering:
-                if action_type == 0 and current_position != 0:  # BUY_LONG when already have position
-                    action_type = 4  # Convert to HOLD
-                elif action_type == 1 and current_position != 0:  # SELL_SHORT when already have position
-                    action_type = 4  # Convert to HOLD
-                elif action_type == 2 and current_position <= 0: # CLOSE_LONG when not long
-                    action_type = 4 # Convert to HOLD
-                elif action_type == 3 and current_position >= 0: # CLOSE_SHORT when not short
-                    action_type = 4 # Convert to HOLD
+                if action_type == buy_long_idx and current_position != 0:  # BUY_LONG when already have position
+                    action_type = hold_action_idx  # Convert to HOLD
+                elif action_type == sell_short_idx and current_position != 0:  # SELL_SHORT when already have position
+                    action_type = hold_action_idx  # Convert to HOLD
+                elif action_type == close_long_idx and current_position <= 0: # CLOSE_LONG when not long
+                    action_type = hold_action_idx # Convert to HOLD
+                elif action_type == close_short_idx and current_position >= 0: # CLOSE_SHORT when not short
+                    action_type = hold_action_idx # Convert to HOLD
 
-            if action_type == 0: # BUY_LONG
+            # Execute trade based on action type using configuration
+            if action_type == buy_long_idx:
                 self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)
-            elif action_type == 1: # SELL_SHORT
+            elif action_type == sell_short_idx:
                 self.engine.execute_trade("SELL_SHORT", current_price, quantity, current_atr, proxy_premium)
-            elif action_type == 2: # CLOSE_LONG
+            elif action_type == close_long_idx:
                 # Only execute if we have a long position to close
                 if current_position > 0:
                     self.engine.execute_trade("CLOSE_LONG", current_price, quantity, current_atr, proxy_premium)
                 else:
                     # Convert invalid action to HOLD to reduce warnings
                     self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
-            elif action_type == 3: # CLOSE_SHORT
+            elif action_type == close_short_idx:
                 # Only execute if we have a short position to close
                 if current_position < 0:
                     self.engine.execute_trade("CLOSE_SHORT", current_price, quantity, current_atr, proxy_premium)
                 else:
                     # Convert invalid action to HOLD to reduce warnings
                     self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
-            elif action_type == 4: # HOLD
+            elif action_type == hold_action_idx:
                 self.engine.execute_trade("HOLD", current_price, 0, current_atr, proxy_premium)
 
             # Calculate reward using RewardCalculator
             current_capital = self.engine.get_account_state(current_price=current_price)['capital']
             
             # Update tracking data in reward calculator
-            self.reward_calculator.update_tracking_data(
-                action_type, current_capital, predicted_quantity, 
-                getattr(self, '_last_max_affordable', 0)
-            )
-
+            self.reward_calculator.update_tracking_data(action_type, current_capital)
+            
             # Calculate base reward
             base_reward = self.reward_calculator.calculate_reward(current_capital, prev_capital, self.engine)
             
@@ -386,12 +384,11 @@ class TradingEnv(gym.Env):
                 base_reward, action_type, current_capital, prev_capital, self.engine, current_price
             )
 
-            # Add quantity prediction feedback reward
-            quantity_reward = self.reward_calculator.calculate_quantity_feedback_reward(action, prev_capital)
-            shaped_reward += quantity_reward
-
-            # Apply normalization for universal model training
-            reward = self.reward_calculator.normalize_reward(shaped_reward)
+            # Calculate percentage-based P&L for universal reward scaling
+            capital_pct_change = self.reward_calculator.calculate_percentage_pnl(current_capital, prev_capital)
+            
+            # Apply normalization using percentage-based approach
+            reward = self.reward_calculator.normalize_reward(shaped_reward, capital_pct_change)
 
             self.reward_calculator.last_action_type = action_type
 
@@ -412,9 +409,11 @@ class TradingEnv(gym.Env):
             # Add comprehensive trading information for debug logging
             account_state = self.engine.get_account_state(current_price=current_price)
             
-            # Add action mapping
-            action_mapping = {0: 'BUY_LONG', 1: 'SELL_SHORT', 2: 'CLOSE_LONG', 3: 'CLOSE_SHORT', 4: 'HOLD'}
-            info['action'] = action_mapping.get(action_type, 'UNKNOWN')
+            # Add action mapping using configured action names
+            if action_type < len(self.action_names):
+                info['action'] = self.action_names[action_type]
+            else:
+                info['action'] = 'UNKNOWN'
             info['action_idx'] = action_type
             info['quantity'] = quantity
             
@@ -427,18 +426,28 @@ class TradingEnv(gym.Env):
             info['current_price'] = current_price
             try:
                 safe_step = min(self.current_step, len(self.data) - 1)
-                if hasattr(self.data.index, 'strftime'):
+                if hasattr(self.data.index, 'strftime') or pd.api.types.is_datetime64_any_dtype(self.data.index):
                     # DatetimeIndex
                     info['datetime'] = self.data.index[safe_step]
+                elif self.data.index.name == 'datetime_readable':
+                    # Regular index with datetime_readable name - convert to datetime
+                    datetime_str = self.data.index[safe_step]
+                    info['datetime'] = pd.to_datetime(datetime_str)
+                elif 'datetime_readable' in self.data.columns:
+                    # Use datetime_readable column
+                    datetime_val = self.data['datetime_readable'].iloc[safe_step]
+                    info['datetime'] = pd.to_datetime(datetime_val)
                 elif 'datetime' in self.data.columns:
-                    # DateTime column
+                    # DateTime column (fallback)
                     datetime_val = self.data['datetime'].iloc[safe_step]
                     info['datetime'] = pd.to_datetime(datetime_val)
                 else:
-                    # Fallback to creating datetime from index
-                    info['datetime'] = pd.to_datetime(f"2024-01-01 09:{safe_step*5:02d}:00")
+                    # Fallback datetime calculation
+                    total_minutes = safe_step * 5  # 5-minute intervals
+                    hours = 9 + (total_minutes // 60)  # Start at 9 AM
+                    minutes = total_minutes % 60
+                    info['datetime'] = pd.to_datetime(f"2024-01-01 {hours:02d}:{minutes:02d}:00")
             except Exception as e:
-                # Final fallback
                 info['datetime'] = pd.to_datetime("2024-01-01 09:00:00")
                 
             # Add engine decision log information

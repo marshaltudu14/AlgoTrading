@@ -3,30 +3,30 @@
 # Model Architecture Configuration
 model_architecture:
   name: "HRMTradingAgent"
-  
-  # Core HRM Parameters
-  hidden_dim: 256
-  H_cycles: 2          # High-level strategic cycles per forward pass
-  L_cycles: 5          # Low-level tactical cycles per H-cycle
-  H_layers: 4          # Number of transformer layers in H-module
-  L_layers: 3          # Number of transformer layers in L-module
-  num_heads: 8         # Multi-head attention heads
+
+  # Core HRM Parameters - Enhanced for deeper pattern recognition
+  hidden_dim: 512 # Increased from 256 for richer representations
+  H_cycles: 2 # High-level strategic cycles per forward pass
+  L_cycles: 6 # Increased from 5 for more tactical refinement
+  H_layers: 8 # Increased from 4 for deeper strategic reasoning
+  L_layers: 6 # Increased from 3 for deeper tactical processing
+  num_heads: 16 # Increased from 8 for more attention mechanisms
   dropout: 0.1
-  
-  # Adaptive Computation Time (ACT)
-  halt_max_steps: 8
+
+  # Adaptive Computation Time (ACT) - Enhanced for complex reasoning
+  halt_max_steps: 12 # Increased from 8 for more complex decision chains
   halt_exploration_prob: 0.1
-  
-  # Deep Supervision
-  deep_supervision_segments: 4
-  segment_weights: [0.4, 0.3, 0.2, 0.1]  # Weights for different supervision segments
+
+  # Deep Supervision - Enhanced for richer learning
+  deep_supervision_segments: 6 # Increased from 4 for more granular supervision
+  segment_weights: [0.3, 0.25, 0.2, 0.15, 0.08, 0.02] # Weights for different supervision segments
 
 # Hierarchical Processing Configuration - SIMPLIFIED
 hierarchical_processing:
   # Lookback windows - key difference between modules
-  high_level_lookback: 100        # H-module sees 100 candles for strategic context
-  low_level_lookback: 15          # L-module sees 15 candles for tactical decisions
-  
+  high_level_lookback: 100 # H-module sees 100 candles for strategic context
+  low_level_lookback: 15 # L-module sees 15 candles for tactical decisions
+
   # Both modules see ALL available features - no hardcoded column filtering
   # The HRM will naturally learn which features are relevant for each module
   # Market regime detection emerges from the data and lookback windows
@@ -44,48 +44,48 @@ training:
       H_cycles: 1
       L_cycles: 3
       tasks: ["trend_following"]
-      
+
     phase_2:
       name: "advanced_strategies"
       episodes: 2000
       H_cycles: 2
       L_cycles: 5
       tasks: ["trend_following", "mean_reversion"]
-      
+
     phase_3:
       name: "full_hrm_trading"
       episodes: 3000
       H_cycles: 2
       L_cycles: 5
       tasks: ["trend_following", "mean_reversion", "breakout_trading"]
-  
+
   # Multi-Task Learning
   task_distribution:
     trend_following: 0.4
     mean_reversion: 0.3
     breakout_trading: 0.2
     risk_management_scenarios: 0.1
-  
+
   # Loss Function Weights
   loss_weights:
-    strategic_loss: 0.3       # H-module strategic decisions
-    tactical_loss: 0.4        # L-module tactical decisions
-    act_loss: 0.1            # Adaptive computation time
-    consistency_loss: 0.1     # H-L coordination
-    performance_loss: 0.1     # Overall trading performance
-  
+    strategic_loss: 0.3 # H-module strategic decisions
+    tactical_loss: 0.4 # L-module tactical decisions
+    act_loss: 0.1 # Adaptive computation time
+    consistency_loss: 0.1 # H-L coordination
+    performance_loss: 0.1 # Overall trading performance
+
   # Learning Rates
   learning_rates:
     base_lr: 0.0001
-    strategic_lr: 0.00005     # Slower learning for strategic decisions
-    tactical_lr: 0.0001       # Faster learning for tactical decisions
-    act_lr: 0.0002           # Fast adaptation for ACT
-  
+    strategic_lr: 0.00005 # Slower learning for strategic decisions
+    tactical_lr: 0.0001 # Faster learning for tactical decisions
+    act_lr: 0.0002 # Fast adaptation for ACT
+
   # Optimization
   optimizer: "AdamW"
   weight_decay: 0.01
   gradient_clip: 1.0
-  
+
   # Training Schedule
   warmup_episodes: 100
   lr_schedule: "cosine"
@@ -95,8 +95,8 @@ training:
 environment:
   # HRM-specific environment settings
   enable_hierarchical_observations: true
-  strategic_update_frequency: 10   # Update strategic context every N steps
-  
+  strategic_update_frequency: 10 # Update strategic context every N steps
+
   # Observation Processing - Dynamic feature handling
   observation_preprocessing:
     normalize_features: true
@@ -111,7 +111,7 @@ monitoring:
     l_module_precision: true
     h_l_coordination: true
     act_efficiency: true
-    
+
   # Traditional trading metrics
   trading_metrics:
     sharpe_ratio: true
@@ -119,11 +119,11 @@ monitoring:
     win_rate: true
     profit_factor: true
     calmar_ratio: true
-    
+
   # Real-time monitoring
-  log_frequency: 100           # Log every N episodes
-  save_frequency: 1000         # Save model every N episodes
-  
+  log_frequency: 100 # Log every N episodes
+  save_frequency: 1000 # Save model every N episodes
+
   # Performance thresholds
   performance_thresholds:
     min_sharpe_ratio: 1.0
@@ -137,22 +137,22 @@ deployment:
   save_best_model: true
   save_intermediate_checkpoints: true
   checkpoint_frequency: 500
-  
+
   # Model versioning
   model_version: "1.0.0"
   experiment_name: "HRM_Trading_v1"
-  
+
   # Production deployment
   production_config:
-    enable_act: true             # Use adaptive computation time in production
-    max_computation_time: 100    # Maximum computation time (ms)
-    fallback_to_simple: true     # Fallback to simple model if HRM fails
-    
+    enable_act: true # Use adaptive computation time in production
+    max_computation_time: 100 # Maximum computation time (ms)
+    fallback_to_simple: true # Fallback to simple model if HRM fails
+
   # Risk controls
   production_risk_controls:
-    max_single_trade_risk: 0.02  # Maximum risk per single trade
-    max_daily_trades: 10         # Maximum trades per day
-    emergency_stop_loss: 0.05    # Emergency stop if losses exceed this threshold
+    max_single_trade_risk: 0.02 # Maximum risk per single trade
+    max_daily_trades: 10 # Maximum trades per day
+    emergency_stop_loss: 0.05 # Emergency stop if losses exceed this threshold
 
 # Debugging and Development
 debug:
@@ -164,23 +164,23 @@ debug:
 
 # Hardware Configuration
 hardware:
-  device: "cuda"               # cuda, cpu, mps
-  mixed_precision: true        # Use mixed precision training
-  compile_model: false         # Use torch.compile (requires PyTorch 2.0+)
-  
+  device: "cuda" # cuda, cpu, mps
+  mixed_precision: true # Use mixed precision training
+  compile_model: false # Use torch.compile (requires PyTorch 2.0+)
+
 # Data Configuration
 data:
   # HRM-specific data requirements
-  min_sequence_length: 200     # Minimum sequence length for hierarchical reasoning
+  min_sequence_length: 200 # Minimum sequence length for hierarchical reasoning
   strategic_sequence_length: 100
   tactical_sequence_length: 50
-  
+
   # Feature engineering for HRM
   feature_engineering:
-    hierarchical_features: true  # Generate features for different levels
-    regime_indicators: true      # Include regime classification features
-    multi_timeframe: true        # Include multiple timeframe analysis
-    
+    hierarchical_features: true # Generate features for different levels
+    regime_indicators: true # Include regime classification features
+    multi_timeframe: true # Include multiple timeframe analysis
+
   # Data validation
   validation:
     check_hierarchical_consistency: true

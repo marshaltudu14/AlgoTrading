@@ -53,22 +53,21 @@ class LowLevelModule(HierarchicalReasoningModule):
     def _init_output_heads(self, hidden_dim: int):
         """Initialize tactical output heads"""
         
-        # Trading action prediction (5 actions: BUY_LONG, SELL_SHORT, CLOSE_LONG, CLOSE_SHORT, HOLD)
+        # Trading action prediction - get number of actions from config
+        from src.utils.config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        config = config_loader.get_config()
+        self.num_actions = config.get('actions', {}).get('num_actions', 5)
+        self.action_names = config.get('actions', {}).get('action_names', 
+            ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"])
+        
         self.action_head = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
             nn.Dropout(0.1),
-            nn.Linear(hidden_dim // 2, 5)
+            nn.Linear(hidden_dim // 2, self.num_actions)
         )
         
-        # Position quantity estimation (relative to available capital)
-        self.quantity_head = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim // 2),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(hidden_dim // 2, 1),
-            nn.Softplus()  # Ensure positive quantity
-        )
         
         # Tactical confidence estimation
         self.confidence_head = nn.Sequential(
@@ -155,7 +154,6 @@ class LowLevelModule(HierarchicalReasoningModule):
             
         # Generate tactical outputs
         action_logits = self.action_head(tactical_repr)
-        quantity = self.quantity_head(tactical_repr)
         confidence = self.confidence_head(tactical_repr)
         entry_timing = self.entry_timing(tactical_repr)
         exit_urgency = self.exit_urgency(tactical_repr)
@@ -166,7 +164,6 @@ class LowLevelModule(HierarchicalReasoningModule):
         outputs = {
             'action_logits': action_logits,
             'action_probabilities': F.softmax(action_logits, dim=-1),
-            'quantity': quantity,
             'confidence': confidence,
             'entry_timing_quality': entry_timing,
             'exit_urgency': exit_urgency,
@@ -206,19 +203,12 @@ class LowLevelModule(HierarchicalReasoningModule):
         else:
             action_idx = torch.argmax(action_probs, dim=-1)
         
-        # Action mapping
-        action_names = ['BUY_LONG', 'SELL_SHORT', 'CLOSE_LONG', 'CLOSE_SHORT', 'HOLD']
-        action_name = action_names[action_idx.item()]
+        # Action mapping using configured action names
+        action_name = self.action_names[action_idx.item()] if action_idx.item() < len(self.action_names) else 'UNKNOWN'
         
-        # Adjust quantity based on strategic and tactical factors
-        base_quantity = outputs['quantity'].item()
+        # Use a fixed quantity of 1 since we no longer predict quantity
         confidence = outputs['confidence'].item()
-        strategic_strength = strategic_outputs['signal_strength'].item()
-        risk_factor = strategic_outputs['risk_parameters'][0, 1].item()  # position_size_factor
-        
-        # Final quantity calculation
-        final_quantity = base_quantity * confidence * strategic_strength * risk_factor
-        final_quantity = max(1.0, min(final_quantity, available_capital * 0.1))  # Reasonable bounds
+        final_quantity = 1.0  # Always use 1 lot
         
         # Risk management levels
         stop_loss_factor = outputs['stop_loss_factor'].item()

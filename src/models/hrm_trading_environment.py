@@ -274,7 +274,7 @@ class HRMTradingEnvironment(TradingEnv):
             
             # Extract trading decision from HRM outputs
             trading_decision = self.hrm_agent.extract_trading_decision(outputs)
-            action = (trading_decision['action_idx'], trading_decision['quantity'])
+            action = trading_decision['action_idx']  # Just the action index, no quantity
             segment_actions.append(action)
             
             # Store the final action (last segment's decision)

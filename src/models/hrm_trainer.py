@@ -52,14 +52,6 @@ class HRMLossFunction:
             losses['tactical_loss'] = action_loss
             total_loss = total_loss + self.loss_weights['tactical_loss'] * action_loss
         
-        # Quantity prediction loss
-        if 'quantity' in outputs and 'true_quantity' in targets:
-            quantity_loss = nn.MSELoss()(
-                outputs['quantity'],
-                targets['true_quantity']
-            )
-            losses['quantity_loss'] = quantity_loss
-            total_loss = total_loss + 0.1 * quantity_loss
         
         # ACT loss (adaptive computation time)
         if 'halt_logits' in outputs and 'continue_logits' in outputs:
@@ -123,10 +115,20 @@ class HRMTrainer:
     def __init__(self, 
                  config_path: str = "config/hrm_config.yaml",
                  data_path: str = "data/final",
-                 device: str = "cuda" if torch.cuda.is_available() else "cpu",
+                 device: str = None,  # Auto-detect if None
                  debug_mode: bool = False):
         
-        self.device = torch.device(device)
+        # Initialize device using automatic TPU/GPU/CPU detection
+        from src.utils.device_manager import get_device_manager
+        self.device_manager = get_device_manager()
+        
+        if device is None:
+            # Use automatic device selection
+            self.device = self.device_manager.get_device()
+            self.device_manager.print_device_summary()
+        else:
+            # Use user-specified device
+            self.device = torch.device(device)
         self.config_path = config_path
         self.debug_mode = debug_mode
         
@@ -497,14 +499,15 @@ class HRMTrainer:
         
         targets = {}
         
+        # Get number of actions from configuration
+        num_actions = self.config.get('actions', {}).get('num_actions', 5)
+        
         # Dummy regime target (would be derived from market analysis)
         targets['true_regime'] = torch.randint(0, 5, (1,)).to(self.device)
         
-        # Dummy action target (would be from expert demonstrations)
-        targets['true_action'] = torch.randint(0, 5, (1,)).to(self.device)
+        # Dummy action target (would be from expert demonstrations) 
+        targets['true_action'] = torch.randint(0, num_actions, (1,)).to(self.device)
         
-        # Dummy quantity target
-        targets['true_quantity'] = torch.rand(1, 1).to(self.device)
         
         return targets
     

@@ -26,9 +26,9 @@ class ObservationHandler:
         
     def initialize_observation_space(self, data: pd.DataFrame, config: Dict = None):
         """Initialize observation space dimensions based on actual data."""
-        # CRITICAL: Exclude raw OHLC prices for universal model - only use derived features
-        # NOTE: datetime_epoch is INCLUDED as a feature for temporal learning
-        excluded_columns = ['datetime', 'date', 'time', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
+        # Exclude only non-numerical datetime column - include ALL other features including OHLC
+        # datetime_epoch is kept as it's numerical and useful for temporal patterns
+        excluded_columns = ['datetime_readable']
         feature_columns = [col for col in data.columns if col.lower() not in [x.lower() for x in excluded_columns]]
         self.features_per_step = len(feature_columns)
         
@@ -63,9 +63,9 @@ class ObservationHandler:
         start_index = current_step - self.lookback_window + 1
         end_index = current_step + 1
 
-        # Use ALL available columns for RL training (except datetime if present)
-        # NOTE: datetime_epoch is INCLUDED as a feature for temporal learning
-        feature_columns = [col for col in data.columns if col.lower() not in ['datetime', 'date', 'time', 'timestamp']]
+        # Use ALL available columns except non-numerical datetime_readable
+        # datetime_epoch is INCLUDED as it's numerical and useful for temporal patterns
+        feature_columns = [col for col in data.columns if col.lower() not in ['datetime_readable']]
 
         # Ensure we don't go out of bounds
         if start_index < 0:
@@ -187,7 +187,7 @@ class ObservationHandler:
         """Get indices of datetime_epoch features in the flattened observation."""
         try:
             # Find datetime_epoch column index in feature_columns
-            excluded_columns = ['datetime', 'date', 'time', 'timestamp', 'open', 'high', 'low', 'close', 'volume']
+            excluded_columns = ['datetime_readable']
             feature_columns = [col for col in data.columns if col.lower() not in [x.lower() for x in excluded_columns]]
 
             datetime_epoch_indices = []
