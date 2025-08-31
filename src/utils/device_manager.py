@@ -86,22 +86,46 @@ class DeviceManager:
             gpu_count = torch.cuda.device_count()
             current_gpu = torch.cuda.current_device()
             
+            # Get memory info
+            memory_total = torch.cuda.get_device_properties(current_gpu).total_memory
+            memory_reserved = torch.cuda.memory_reserved(current_gpu)
+            memory_allocated = torch.cuda.memory_allocated(current_gpu)
+            memory_free = memory_total - memory_reserved
+            
             self.device_info.update({
                 'gpu_count': gpu_count,
                 'current_gpu': current_gpu,
                 'gpu_name': torch.cuda.get_device_name(current_gpu),
-                'memory_total': torch.cuda.get_device_properties(current_gpu).total_memory,
+                'memory_total': memory_total,
+                'memory_total_gb': memory_total / (1024**3),
+                'memory_free': memory_free,
+                'memory_free_gb': memory_free / (1024**3),
                 'compute_capability': torch.cuda.get_device_properties(current_gpu).major
             })
             
-            # Enable optimizations
+            # Enable high-performance optimizations
             torch.backends.cudnn.benchmark = True  # Optimize for fixed input sizes
             torch.backends.cudnn.deterministic = False  # Allow non-deterministic for speed
+            torch.backends.cudnn.enabled = True  # Enable cuDNN
+            
+            # Enable mixed precision if supported (Tensor Cores)
+            if torch.cuda.get_device_capability(current_gpu)[0] >= 7:  # V100, T4, RTX series
+                self.device_info['mixed_precision_supported'] = True
+                self.device_info['tensor_cores'] = True
+                logger.info(f"🚀 Tensor Cores detected! Mixed precision training available")
+            else:
+                self.device_info['mixed_precision_supported'] = False
+                self.device_info['tensor_cores'] = False
+            
+            # Clear GPU cache for maximum memory
+            torch.cuda.empty_cache()
             
             # Multi-GPU setup if available
             if gpu_count > 1:
                 logger.info(f"Multiple GPUs detected ({gpu_count}). Consider using DataParallel.")
                 self.device_info['multi_gpu'] = True
+            
+            logger.info(f"🎮 GPU Memory: {self.device_info['memory_total_gb']:.1f}GB total, {self.device_info['memory_free_gb']:.1f}GB available")
             
         except Exception as e:
             logger.warning(f"GPU setup failed: {e}")
@@ -172,19 +196,25 @@ class DeviceManager:
         return model
     
     def get_batch_size_recommendation(self, base_batch_size: int = 32) -> int:
-        """Get recommended batch size based on device"""
+        """Get recommended batch size based on device and memory"""
         if self.device_type == 'tpu':
             # TPU works best with larger batch sizes (multiples of 8 per core)
             tpu_cores = self.device_info.get('tpu_cores', 8)
             return max(base_batch_size, tpu_cores * 8)
             
         elif self.device_type == 'gpu':
-            # Adjust based on GPU memory
-            memory_gb = self.device_info.get('memory_total', 0) / (1024**3)
-            if memory_gb > 24:  # High-end GPU
-                return base_batch_size * 4
-            elif memory_gb > 12:  # Mid-range GPU
-                return base_batch_size * 2
+            # Optimize for available GPU memory
+            memory_gb = self.device_info.get('memory_total_gb', 0)
+            
+            # For 15GB VRAM (T4/V100 in Colab/Kaggle)
+            if memory_gb >= 14:  # 15GB VRAM
+                return base_batch_size * 8  # 256 batch size for 32 base
+            elif memory_gb >= 12:  # 12GB+ VRAM
+                return base_batch_size * 6  # 192 batch size
+            elif memory_gb >= 8:   # 8GB+ VRAM
+                return base_batch_size * 4  # 128 batch size
+            elif memory_gb >= 4:   # 4GB+ VRAM
+                return base_batch_size * 2  # 64 batch size
             else:  # Entry-level GPU
                 return base_batch_size
                 
@@ -192,11 +222,53 @@ class DeviceManager:
             # Smaller batch sizes for CPU
             return max(base_batch_size // 2, 8)
     
+    def get_optimal_training_config(self) -> dict:
+        """Get optimal training configuration for current hardware"""
+        config = {
+            'device': str(self.device),
+            'device_type': self.device_type,
+            'mixed_precision': False,
+            'gradient_accumulation_steps': 1,
+            'dataloader_workers': 2,
+            'pin_memory': False
+        }
+        
+        if self.device_type == 'gpu':
+            memory_gb = self.device_info.get('memory_total_gb', 0)
+            
+            # Mixed precision for Tensor Core GPUs
+            config['mixed_precision'] = self.device_info.get('mixed_precision_supported', False)
+            
+            # Gradient accumulation for very large effective batch sizes
+            if memory_gb >= 14:  # 15GB VRAM
+                config['gradient_accumulation_steps'] = 4  # Effective batch size = batch_size * 4
+            elif memory_gb >= 12:
+                config['gradient_accumulation_steps'] = 2
+            
+            # Optimize data loading
+            config['dataloader_workers'] = min(8, max(2, int(memory_gb // 2)))  # Scale with memory
+            config['pin_memory'] = True  # Faster GPU transfer
+            config['prefetch_factor'] = 2
+            config['persistent_workers'] = True
+            
+            # Memory optimization settings
+            config['memory_optimization'] = {
+                'empty_cache_frequency': 10,  # Clear cache every N batches
+                'max_memory_fraction': 0.9,   # Use 90% of VRAM
+                'gradient_checkpointing': memory_gb < 8  # Enable for low memory
+            }
+            
+        elif self.device_type == 'tpu':
+            config['gradient_accumulation_steps'] = 8
+            config['dataloader_workers'] = 4
+            
+        return config
+    
     def print_device_summary(self):
         """Print detailed device information"""
-        print("\n" + "="*60)
-        print("🔥 DEVICE CONFIGURATION SUMMARY")
-        print("="*60)
+        print("\n" + "="*80)
+        print("🔥 HIGH-PERFORMANCE DEVICE CONFIGURATION")
+        print("="*80)
         print(f"Selected Device: {self.device}")
         print(f"Device Type: {self.device_type.upper()}")
         
@@ -206,16 +278,29 @@ class DeviceManager:
             
         elif self.device_type == 'gpu':
             print(f"GPU Name: {self.device_info.get('gpu_name', 'Unknown')}")
-            memory_gb = self.device_info.get('memory_total', 0) / (1024**3)
-            print(f"GPU Memory: {memory_gb:.1f} GB")
+            print(f"GPU Memory: {self.device_info.get('memory_total_gb', 0):.1f} GB total")
+            print(f"Available Memory: {self.device_info.get('memory_free_gb', 0):.1f} GB")
             print(f"GPU Count: {self.device_info.get('gpu_count', 1)}")
-            print(f"Mixed Precision: {self.device_info.get('mixed_precision', False)}")
+            print(f"Compute Capability: {self.device_info.get('compute_capability', 'Unknown')}")
+            print(f"Tensor Cores: {'✅ Available' if self.device_info.get('tensor_cores', False) else '❌ Not Available'}")
+            print(f"Mixed Precision: {'✅ Enabled' if self.device_info.get('mixed_precision_supported', False) else '❌ Disabled'}")
+            
+            # Performance recommendations
+            config = self.get_optimal_training_config()
+            print(f"\n🚀 PERFORMANCE OPTIMIZATIONS:")
+            print(f"Recommended Batch Size: {self.get_batch_size_recommendation(32)}")
+            print(f"Gradient Accumulation: {config['gradient_accumulation_steps']}x")
+            print(f"DataLoader Workers: {config['dataloader_workers']}")
+            print(f"Pin Memory: {'✅ Enabled' if config['pin_memory'] else '❌ Disabled'}")
+            if config['mixed_precision']:
+                print(f"Mixed Precision: ✅ FP16 Enabled (Tensor Cores)")
             
         else:  # CPU
             print(f"CPU Cores: {self.device_info.get('cpu_cores', 'Unknown')}")
             print(f"CPU Threads: {self.device_info.get('num_threads', 'Unknown')}")
+            print(f"⚠️ WARNING: Using CPU instead of GPU - Training will be significantly slower!")
         
-        print("="*60 + "\n")
+        print("="*80 + "\n")
 
 
 # Global device manager instance

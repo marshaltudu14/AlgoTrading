@@ -4,6 +4,8 @@ numpy
 scikit-learn
 transformers
 torch
+torchvision
+torchaudio
 joblib
 sentence-transformers
 gymnasium
@@ -21,6 +23,7 @@ matplotlib
 seaborn
 plotly
 ipywidgets
+kaleido
 
 # Web Framework & API Libraries
 fastapi
@@ -40,6 +43,10 @@ httpx
 psutil
 tqdm
 ruff
+rich
+memory-profiler
+pyyaml
+omegaconf
 
 # Utility Libraries
 anyio
@@ -49,6 +56,13 @@ h11
 sniffio
 typing_extensions
 
-# TPU Support (for Google Colab)
+# High-Performance Training (Colab/Kaggle)
+gpustat
+py3nvml
+prefetch-generator
+jupyterlab
+notebook
+
+# TPU Support (for Google Colab TPU)
 # torch_xla  # Uncomment when using TPU
 # cloud-tpu-client  # Uncomment when using TPU

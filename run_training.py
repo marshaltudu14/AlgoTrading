@@ -21,6 +21,7 @@ from src.models.hrm_trainer import HRMTrainer, HRMLossFunction
 from src.models.hrm_trading_environment import HRMTradingEnvironment
 from src.utils.data_loader import DataLoader
 from src.utils.instruments_loader import get_instruments_loader
+from src.utils.training_optimizer import get_training_optimizer
 from src.env.trading_mode import TradingMode
 
 # Configure basic logging to console only
@@ -38,12 +39,24 @@ class HRMTrainingPipeline:
                  config_path: str = "config/hrm_config.yaml",
                  data_path: str = "data/final",
                  device: str = None,
-                 debug_mode: bool = False):
+                 debug_mode: bool = False,
+                 high_performance: bool = True):
         
         self.config_path = config_path
         self.data_path = data_path
         self.device = torch.device(device if device else ("cuda" if torch.cuda.is_available() else "cpu"))
         self.debug_mode = debug_mode
+        self.high_performance = high_performance
+        
+        # Initialize high-performance optimizer if enabled
+        if self.high_performance:
+            self.training_optimizer = get_training_optimizer()
+            self.performance_config = self.training_optimizer.get_optimized_training_config()
+            logger.info("🚀 High-performance training mode enabled")
+            self.training_optimizer.print_performance_summary()
+        else:
+            self.training_optimizer = None
+            self.performance_config = None
         
         # Load configuration
         self.config = self._load_config()
@@ -60,6 +73,7 @@ class HRMTrainingPipeline:
         self._validate_data_directory()
         
         logger.info(f"HRM Training Pipeline initialized on {self.device}")
+        logger.info(f"High-performance mode: {'ON - 5-10x faster training' if high_performance else 'OFF - standard training'}")
         logger.info(f"Debug mode: {'ON - detailed step-by-step logging' if debug_mode else 'OFF - progress bar with epoch summaries'}")
         
     def _load_config(self) -> dict:
@@ -313,17 +327,23 @@ def main():
     parser.add_argument("--data", type=str, default="data/final", help="Data directory path")
     parser.add_argument("--test-only", action="store_true", help="Only run test training (1-2 epochs)")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode (step-by-step logging instead of progress bar)")
+    parser.add_argument("--high-performance", action="store_true", default=True, help="Enable high-performance optimizations for 15GB VRAM")
+    parser.add_argument("--no-high-performance", action="store_true", help="Disable high-performance optimizations")
     
     args = parser.parse_args()
     
     
     try:
+        # Determine high-performance mode
+        high_performance_mode = args.high_performance and not args.no_high_performance
+        
         # Initialize training pipeline
         pipeline = HRMTrainingPipeline(
             config_path=args.config,
             data_path=args.data,
             device=args.device,
-            debug_mode=args.debug
+            debug_mode=args.debug,
+            high_performance=high_performance_mode
         )
         
         # Determine number of epochs

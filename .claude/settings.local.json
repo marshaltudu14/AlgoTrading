@@ -42,7 +42,8 @@
       "Bash(cat:*)",
       "Bash(del:*)",
       "Read(c:\\AlgoTrading/**)",
-      "Read(c:\\AlgoTrading/**)"
+      "Read(c:\\AlgoTrading/**)",
+      "Bash(nvidia-smi:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
