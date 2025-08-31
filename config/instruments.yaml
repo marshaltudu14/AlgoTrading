@@ -3,29 +3,41 @@ timeframes:
     name: "1"
     description: "1 minute"
   - id: 1
+    name: "2"
+    description: "2 minutes"
+  - id: 2
     name: "3"
     description: "3 minutes"
-  - id: 2
+  - id: 3
     name: "5"
     description: "5 minutes"
-  - id: 3
+  - id: 4
+    name: "10"
+    description: "10 minutes"
+  - id: 5
     name: "15"
     description: "15 minutes"
-  - id: 4
+  - id: 6
+    name: "20"
+    description: "20 minutes"
+  - id: 7
     name: "30"
     description: "30 minutes"
-  - id: 5
+  - id: 8
+    name: "45"
+    description: "45 minutes"
+  - id: 9
     name: "60"
     description: "1 hour"
-  - id: 6
+  - id: 10
     name: "120"
     description: "2 hours"
-  - id: 7
+  - id: 11
+    name: "180"
+    description: "3 hours"
+  - id: 12
     name: "240"
     description: "4 hours"
-  - id: 8
-    name: "D"
-    description: "Daily"
 
 instruments:
   # Index instruments (treated as options with premium calculation)

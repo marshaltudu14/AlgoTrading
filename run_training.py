@@ -144,7 +144,7 @@ class HRMTrainingPipeline:
         raise FileNotFoundError(f"No data files found for instrument {instrument_symbol} with timeframe {timeframe}")
     
     def setup_training(self, instrument_symbol: str = None, timeframe: str = "5"):
-        """Setup training for a specific instrument or auto-select"""
+        """Setup training for all available instruments"""
         
         logger.info(f"setup_training called with: {instrument_symbol}, timeframe: {timeframe}")
         logger.info(f"Available instruments: {self.available_instruments}")
@@ -152,15 +152,30 @@ class HRMTrainingPipeline:
         if not self.available_instruments:
             raise ValueError("No instruments available for training")
         
-        if instrument_symbol is None:
-            # Auto-select first available instrument
-            instrument_symbol = self.available_instruments[0]
-            logger.info(f"Auto-selected instrument: {instrument_symbol}")
-        elif instrument_symbol not in self.available_instruments:
-            raise ValueError(f"Instrument {instrument_symbol} not available. Available: {self.available_instruments}")
+        # Build list of actual symbols with timeframes for all available instruments
+        available_symbols_with_timeframe = []
         
-        # Find the actual data file with timeframe suffix
-        actual_symbol_with_timeframe = self._find_actual_data_file(instrument_symbol, timeframe)
+        if instrument_symbol is not None:
+            # Train on specific instrument only
+            if instrument_symbol not in self.available_instruments:
+                raise ValueError(f"Instrument {instrument_symbol} not available. Available: {self.available_instruments}")
+            
+            actual_symbol_with_timeframe = self._find_actual_data_file(instrument_symbol, timeframe)
+            available_symbols_with_timeframe.append(actual_symbol_with_timeframe)
+            logger.info(f"Training on specific instrument: {instrument_symbol}")
+        else:
+            # Train on all available instruments
+            for instr in self.available_instruments:
+                try:
+                    actual_symbol_with_timeframe = self._find_actual_data_file(instr, timeframe)
+                    available_symbols_with_timeframe.append(actual_symbol_with_timeframe)
+                    logger.info(f"Added instrument to training set: {instr} -> {actual_symbol_with_timeframe}")
+                except FileNotFoundError as e:
+                    logger.warning(f"Skipping instrument {instr}: {e}")
+                    continue
+            
+            if not available_symbols_with_timeframe:
+                raise ValueError("No valid data files found for any available instruments")
         
         # Initialize data loader
         self.data_loader = DataLoader(final_data_dir=self.data_path)
@@ -173,10 +188,10 @@ class HRMTrainingPipeline:
             debug_mode=self.debug_mode
         )
         
-        # Store symbol for later use in training
-        self.selected_symbol = actual_symbol_with_timeframe
+        # Store symbols for multi-data training
+        self.selected_symbols = available_symbols_with_timeframe
         
-        logger.info(f"Trainer initialized for {instrument_symbol}")
+        logger.info(f"Trainer initialized for {len(available_symbols_with_timeframe)} instruments: {available_symbols_with_timeframe}")
         # Model setup will happen during train() call
     
     def train(self, 
@@ -185,33 +200,33 @@ class HRMTrainingPipeline:
               save_frequency: int = 25,
               log_frequency: int = 5,
               validation_frequency: int = 10):
-        """Run training with production-grade monitoring"""
+        """Run training with production-grade monitoring across all available data"""
         
         # Setup training
         self.setup_training(instrument_symbol)
         
-        logger.info(f"Starting HRM training for {epochs} epochs on {instrument_symbol or 'auto-selected'}")
+        logger.info(f"Starting HRM multi-data training for {epochs} epochs")
+        logger.info(f"Training instruments: {self.selected_symbols}")
         logger.info(f"Device: {self.device}")
-        # Skip parameter counting to avoid hang - it's already logged in model summary
-        logger.info("Model loaded and ready for training")
+        logger.info("Model loaded and ready for multi-data training")
         
         try:
-            # Run training with selected symbol
+            # Run multi-data training
             training_history = self.trainer.train(
-                episodes=epochs,
-                symbol=self.selected_symbol,
+                epochs=epochs,
+                available_instruments=self.selected_symbols,
                 save_frequency=save_frequency,
                 log_frequency=log_frequency
             )
             
-            # Final evaluation
+            # Final evaluation on first instrument
             logger.info("Running final evaluation...")
-            eval_results = self.trainer.evaluate(episodes=20)
+            eval_results = self.trainer.evaluate(episodes=20, symbol=self.selected_symbols[0])
             
             # Save training results
             self._save_training_results(training_history, eval_results)
             
-            logger.info("Training completed successfully!")
+            logger.info("Multi-data training completed successfully!")
             return training_history, eval_results
             
         except Exception as e:

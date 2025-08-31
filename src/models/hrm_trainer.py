@@ -134,8 +134,8 @@ class HRMTrainer:
         self.optimizer = None
         self.scheduler = None
         
-    def setup_training_complete(self, symbol: str = "Bank_Nifty_5"):
-        """Complete training setup in one centralized place - no resets, no hanging"""
+    def setup_training_complete(self, available_instruments: List[str] = None):
+        """Complete training setup for multi-data training - no resets, no hanging"""
         
         # Load configuration to get initial capital and episode length
         from src.utils.config_loader import ConfigLoader
@@ -144,18 +144,26 @@ class HRMTrainer:
         initial_capital = config.get('environment', {}).get('initial_capital', 100000.0)
         episode_length = config.get('environment', {}).get('episode_length', 1500)
         
-        # 1. Load full data first
-        self.full_data = self.data_loader.load_final_data_for_symbol(symbol)
+        # Store available instruments for multi-data training
+        self.available_instruments = available_instruments or ["Bank_Nifty_5"]
+        self.current_instrument_idx = 0
+        self.episode_length = episode_length
+        
+        # Initialize with first instrument
+        first_symbol = self.available_instruments[0]
+        self.current_symbol = first_symbol
+        
+        # 1. Load full data for first instrument
+        self.full_data = self.data_loader.load_final_data_for_symbol(first_symbol)
         
         # 2. Initialize episode tracking
         self.current_episode_start = 0
-        self.episode_length = episode_length
         self.total_data_length = len(self.full_data)
         
         # 3. Create environment with episode length config
         self.env = HRMTradingEnvironment(
             data_loader=self.data_loader,
-            symbol=symbol,
+            symbol=first_symbol,
             initial_capital=initial_capital,
             mode=TradingMode.TRAINING,
             hrm_config_path=self.config_path,
@@ -186,7 +194,8 @@ class HRMTrainer:
         # 6. Setup optimizer
         self._setup_optimizer()
         
-        logger.info("Training setup completed successfully")
+        logger.info(f"Training setup completed for {len(self.available_instruments)} instruments")
+        logger.info("Memory-efficient mode: Data files loaded one at a time during training")
     
     def _setup_current_episode(self):
         """Set up data for current episode - sequential feeding"""
@@ -209,21 +218,20 @@ class HRMTrainer:
             logger.info(f"Time range: {start_time} to {end_time}")
     
     def _advance_to_next_episode(self):
-        """Move to next sequential episode"""
+        """Move to next sequential episode within current data file"""
         
-        # Move to next episode segment
+        # Move to next episode segment within current data file
         self.current_episode_start += self.episode_length
         
-        # Check if we've reached end of data
+        # Check if we've reached end of current data file
         if self.current_episode_start >= self.total_data_length - self.episode_length:
-            # Reset to beginning for next epoch
-            self.current_episode_start = 0
-            logger.info("End of data reached, resetting to beginning for next epoch")
+            # Move to next data file
+            return self._advance_to_next_data_file()
         
-        # Set up next episode data
+        # Set up next episode data within same file
         self._setup_current_episode()
         
-        # Reset environment state for new episode
+        # Reset environment state for new episode (but keep model parameters)
         self.env.engine.reset()
         self.env.reward_calculator.reset(self.env.initial_capital)
         self.env.observation_handler.reset()
@@ -232,6 +240,50 @@ class HRMTrainer:
         # Reset HRM carry state for new episode
         if hasattr(self.env, 'current_carry') and self.model:
             self.env.current_carry = self.model.create_initial_carry(batch_size=1)
+        
+        return False  # Not end of epoch
+    
+    def _advance_to_next_data_file(self):
+        """Move to next data file in the training sequence"""
+        
+        # Move to next instrument
+        self.current_instrument_idx += 1
+        
+        # Check if we've finished all instruments (end of epoch)
+        if self.current_instrument_idx >= len(self.available_instruments):
+            # Reset to first instrument for next epoch
+            self.current_instrument_idx = 0
+            logger.info("End of epoch reached - processed all data files")
+            return True  # End of epoch
+        
+        # Load next data file
+        next_symbol = self.available_instruments[self.current_instrument_idx]
+        self.current_symbol = next_symbol
+        
+        logger.info(f"Advancing to next data file: {next_symbol} ({self.current_instrument_idx + 1}/{len(self.available_instruments)})")
+        
+        # Note: Data will be loaded in main training loop to avoid memory bloating
+        # Just reset episode tracking here
+        self.current_episode_start = 0
+        
+        # Update environment symbol (data will be loaded in main loop)
+        self.env.symbol = next_symbol
+        self.env._resolve_market_context()
+        
+        # Set up first episode of new data file
+        self._setup_current_episode()
+        
+        # Reset environment for new data file (but keep model parameters)
+        self.env.engine.reset()
+        self.env.reward_calculator.reset(self.env.initial_capital)
+        self.env.observation_handler.reset()
+        self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
+        
+        # Reset HRM carry state for new data file
+        if hasattr(self.env, 'current_carry') and self.model:
+            self.env.current_carry = self.model.create_initial_carry(batch_size=1)
+        
+        return False  # Not end of epoch
     
     def _setup_optimizer(self):
         """Setup optimizer and scheduler"""
@@ -510,101 +562,175 @@ class HRMTrainer:
         return targets
     
     def train(self, 
-              episodes: int = 1000, 
-              symbol: str = None,
-              save_frequency: int = 100,
-              log_frequency: int = 10):
-        """Main training loop with enhanced progress tracking"""
+              epochs: int = 100, 
+              available_instruments: List[str] = None,
+              save_frequency: int = 25,
+              log_frequency: int = 5):
+        """Main training loop with multi-data per epoch architecture"""
         
         # Setup training only if not already done
         if self.model is None:
-            if symbol is None:
-                raise ValueError("Symbol must be provided for initial setup")
-            self.setup_training_complete(symbol)
+            if available_instruments is None:
+                raise ValueError("Available instruments must be provided for initial setup")
+            self.setup_training_complete(available_instruments)
         
-        self.total_epochs = episodes
-        logger.info(f"Starting HRM training for {episodes} episodes")
+        self.total_epochs = epochs
+        logger.info(f"Starting HRM training for {epochs} epochs")
+        logger.info(f"Training on {len(self.available_instruments)} instruments per epoch")
         logger.info(f"Debug mode: {'ON' if self.debug_mode else 'OFF'}")
         logger.info(f"Device: {self.device}")
-        logger.info(f"Progress tracking: {'Step-by-step' if self.debug_mode else 'Epoch-level progress bar'}")
         
-        # Initialize metrics tracking for progress bar
+        # Calculate total steps for progress tracking (memory-efficient)
+        total_episodes = 0
+        logger.info("Calculating total episodes (loading data headers only)...")
+        for symbol in self.available_instruments:
+            # Load only to get length, then immediately release memory
+            data = self.data_loader.load_final_data_for_symbol(symbol)
+            episodes_per_file = max(1, (len(data) - 1) // self.episode_length)
+            total_episodes += episodes_per_file
+            del data  # Immediately free memory
+        
+        total_steps = epochs * total_episodes
+        logger.info(f"Total training steps: {epochs} epochs × {total_episodes} episodes = {total_steps} steps")
+        logger.info("Memory-efficient training: Loading only one data file at a time")
+        
+        # Initialize metrics tracking
         running_metrics = {
             'reward': [],
             'loss': [],
             'best_reward': float('-inf'),
-            'total_time': 0
+            'total_time': 0,
+            'current_epoch': 0,
+            'current_file': 0,
+            'current_episode_in_file': 0
         }
         
         # Create progress bar
         if not self.debug_mode:
             progress_bar = tqdm(
-                total=episodes,
+                total=total_steps,
                 desc="Training Progress",
-                unit="epoch",
-                ncols=120,
+                unit="step",
+                ncols=150,
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}"
             )
         
         start_time = time.time()
+        global_step = 0
         
-        for episode in range(episodes):
-            self.current_episode = episode
+        for epoch in range(epochs):
+            running_metrics['current_epoch'] = epoch + 1
             epoch_start_time = time.time()
+            epoch_metrics = {'reward': [], 'loss': []}
             
-            # Train episode
-            metrics = self.train_episode()
-            self.training_history.append(metrics)
+            logger.info(f"Starting Epoch {epoch + 1}/{epochs}")
             
-            # Advance to next sequential episode after training
-            self._advance_to_next_episode()
+            # Reset to first instrument for each epoch
+            self.current_instrument_idx = 0
             
-            # Update learning rate
-            if self.scheduler:
-                self.scheduler.step()
+            # Process all data files in this epoch
+            while True:
+                # Load current data file (memory-efficient: only one at a time)
+                current_symbol = self.available_instruments[self.current_instrument_idx]
+                self.current_symbol = current_symbol
+                
+                logger.info(f"Loading data file: {current_symbol}")
+                
+                # Free previous data from memory if exists
+                if hasattr(self, 'full_data'):
+                    del self.full_data
+                
+                # Load only current data file
+                self.full_data = self.data_loader.load_final_data_for_symbol(current_symbol)
+                self.total_data_length = len(self.full_data)
+                episodes_in_current_file = max(1, (self.total_data_length - 1) // self.episode_length)
+                
+                logger.info(f"Processing {current_symbol}: {episodes_in_current_file} episodes ({len(self.full_data)} rows)")
+                logger.info(f"Memory usage: One data file loaded ({self.full_data.memory_usage(deep=True).sum() / 1024**2:.1f} MB)")
+                
+                # Update environment for current data file
+                self.env.symbol = current_symbol
+                self.env._resolve_market_context()
+                
+                # Process all episodes in current data file
+                self.current_episode_start = 0
+                
+                for episode_in_file in range(episodes_in_current_file):
+                    # Setup current episode
+                    self._setup_current_episode()
+                    
+                    # Reset environment for new episode
+                    self.env.engine.reset()
+                    self.env.reward_calculator.reset(self.env.initial_capital)
+                    self.env.observation_handler.reset()
+                    self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
+                    
+                    # Reset HRM carry state for new episode
+                    if hasattr(self.env, 'current_carry') and self.model:
+                        self.env.current_carry = self.model.create_initial_carry(batch_size=1)
+                    
+                    # Train episode
+                    metrics = self.train_episode()
+                    self.training_history.append(metrics)
+                    
+                    # Track metrics
+                    epoch_metrics['reward'].append(metrics['avg_reward'])
+                    epoch_metrics['loss'].append(metrics['avg_loss'])
+                    
+                    # Update running metrics
+                    running_metrics['reward'].append(metrics['avg_reward'])
+                    running_metrics['loss'].append(metrics['avg_loss'])
+                    if metrics['avg_reward'] > running_metrics['best_reward']:
+                        running_metrics['best_reward'] = metrics['avg_reward']
+                    
+                    global_step += 1
+                    
+                    # Update progress bar
+                    if not self.debug_mode:
+                        progress_bar.set_postfix({
+                            'Epoch': f"{epoch+1}/{epochs}",
+                            'File': f"{self.current_instrument_idx+1}/{len(self.available_instruments)}",
+                            'Symbol': current_symbol.split('_')[0] if '_' in current_symbol else current_symbol,
+                            'Reward': f"{metrics['avg_reward']:.4f}",
+                            'Best': f"{running_metrics['best_reward']:.4f}"
+                        })
+                        progress_bar.update(1)
+                    
+                    # Move to next episode within file
+                    self.current_episode_start += self.episode_length
+                
+                # Finished current data file - free memory before moving to next
+                logger.info(f"Completed processing {current_symbol}, freeing memory...")
+                del self.full_data  # Free current data file from memory
+                
+                # Move to next data file
+                end_of_epoch = self._advance_to_next_data_file()
+                if end_of_epoch:
+                    break
             
-            # Track running metrics
-            running_metrics['reward'].append(metrics['avg_reward'])
-            running_metrics['loss'].append(metrics['avg_loss'])
-            if metrics['avg_reward'] > running_metrics['best_reward']:
-                running_metrics['best_reward'] = metrics['avg_reward']
-            
-            # Calculate epoch time
+            # Epoch completed - calculate epoch metrics
             epoch_time = time.time() - epoch_start_time
             running_metrics['total_time'] += epoch_time
             
-            if self.debug_mode:
-                # Detailed logging for debug mode
-                self._log_training_progress_debug(episode, metrics, epoch_time)
-            else:
-                # Update progress bar
-                if episode >= 5:  # Calculate running averages after first 5 episodes
-                    avg_reward = np.mean(running_metrics['reward'][-5:])
-                    avg_loss = np.mean(running_metrics['loss'][-5:])
-                else:
-                    avg_reward = metrics['avg_reward']
-                    avg_loss = metrics['avg_loss']
-                
-                # Update progress bar postfix
-                progress_bar.set_postfix({
-                    'Reward': f"{avg_reward:.4f}",
-                    'Loss': f"{avg_loss:.4f}",
-                    'Best': f"{running_metrics['best_reward']:.4f}",
-                    'Time': f"{epoch_time:.1f}s"
-                })
-                progress_bar.update(1)
-                
-                # Log summary every log_frequency episodes
-                if (episode + 1) % log_frequency == 0 or episode == 0:
-                    self._log_epoch_summary(episode + 1, running_metrics, episodes)
+            epoch_avg_reward = np.mean(epoch_metrics['reward']) if epoch_metrics['reward'] else 0.0
+            epoch_avg_loss = np.mean(epoch_metrics['loss']) if epoch_metrics['loss'] else 0.0
             
-            # Save latest checkpoint (overwrites previous)
-            if episode % save_frequency == 0:
-                self._save_latest_checkpoint(episode)
+            # Update learning rate after each epoch
+            if self.scheduler:
+                self.scheduler.step()
             
-            # Check for improvement and save best model
-            if metrics['avg_reward'] > self.best_performance:
-                self.best_performance = metrics['avg_reward']
+            # Log epoch summary
+            if self.debug_mode or (epoch + 1) % log_frequency == 0:
+                logger.info(f"Epoch {epoch + 1} completed: Avg Reward: {epoch_avg_reward:.4f}, "
+                           f"Avg Loss: {epoch_avg_loss:.4f}, Time: {epoch_time:.1f}s")
+            
+            # Save checkpoint
+            if (epoch + 1) % save_frequency == 0:
+                self._save_latest_checkpoint(epoch)
+            
+            # Save best model if improved
+            if epoch_avg_reward > self.best_performance:
+                self.best_performance = epoch_avg_reward
                 self._save_best_model()
                 if not self.debug_mode:
                     progress_bar.write(f"🎯 New best model saved! Reward: {self.best_performance:.4f}")
@@ -615,9 +741,9 @@ class HRMTrainer:
         
         # Final summary
         total_time = time.time() - start_time
-        self._log_training_summary(episodes, running_metrics, total_time)
+        self._log_training_summary(epochs, running_metrics, total_time)
         
-        logger.info("Training completed")
+        logger.info("Multi-data training completed")
         return self.training_history
     
     def _log_training_progress_debug(self, episode: int, metrics: Dict, epoch_time: float):
