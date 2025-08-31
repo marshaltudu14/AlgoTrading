@@ -29,51 +29,55 @@ class HRMLossFunction:
                       outputs: Dict[str, torch.Tensor], 
                       targets: Dict[str, torch.Tensor],
                       segment_rewards: List[float]) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """Calculate multi-component HRM loss"""
+        """Calculate multi-component HRM loss with expert targets"""
         
         losses = {}
         total_loss = torch.tensor(0.0, requires_grad=True)
         
-        # Strategic loss (H-module decisions)
-        if 'regime_probabilities' in outputs and 'true_regime' in targets:
-            regime_loss = nn.CrossEntropyLoss()(
-                outputs['regime_probabilities'], 
-                targets['true_regime']
-            )
-            losses['strategic_loss'] = regime_loss
-            total_loss = total_loss + self.loss_weights['strategic_loss'] * regime_loss
+        # ONLY market understanding guidance loss (help model interpret market context)
+        if 'market_understanding_outputs' in outputs and 'market_understanding' in targets:
+            if targets['market_understanding'].numel() > 0:
+                model_output = outputs['market_understanding_outputs']
+                target_tensor = targets['market_understanding']
+                
+                # Market understanding loss to guide market context interpretation
+                understanding_loss = nn.MSELoss()(model_output, target_tensor)
+                losses['market_understanding_loss'] = understanding_loss
+                total_loss = total_loss + self.loss_weights.get('tactical_loss', 1.0) * understanding_loss
         
-        # Tactical loss (L-module decisions)  
-        if 'action_logits' in outputs and 'true_action' in targets:
-            action_loss = nn.CrossEntropyLoss()(
-                outputs['action_logits'],
-                targets['true_action']
-            )
-            losses['tactical_loss'] = action_loss
-            total_loss = total_loss + self.loss_weights['tactical_loss'] * action_loss
+        # REMOVED: regime loss - let H-module learn regimes from 100 historical candles naturally  
+        # REMOVED: risk context loss - let model learn risk management from environment rewards
         
-        
-        # ACT loss (adaptive computation time)
-        if 'halt_logits' in outputs and 'continue_logits' in outputs:
-            # Reward-based ACT loss
-            q_targets = self._calculate_act_targets(segment_rewards)
+        # ACT loss - use the Q-learning targets from the ACT module
+        if 'halt_logits' in outputs and 'continue_logits' in outputs and 'q_halt_target' in outputs:
+            # Ensure proper tensor shapes for MSE loss
+            halt_logits = outputs['halt_logits']
+            continue_logits = outputs['continue_logits']
+            halt_target = outputs['q_halt_target'].detach()
+            continue_target = outputs['q_continue_target'].detach()
             
-            halt_loss = nn.MSELoss()(
-                outputs['halt_logits'].squeeze(),
-                q_targets['halt']
-            )
-            continue_loss = nn.MSELoss()(
-                outputs['continue_logits'].squeeze(),
-                q_targets['continue']
-            )
+            # Reshape tensors to ensure compatibility
+            if halt_logits.dim() > halt_target.dim():
+                halt_logits = halt_logits.view_as(halt_target)
+            elif halt_target.dim() > halt_logits.dim():
+                halt_target = halt_target.view_as(halt_logits)
+                
+            if continue_logits.dim() > continue_target.dim():
+                continue_logits = continue_logits.view_as(continue_target)
+            elif continue_target.dim() > continue_logits.dim():
+                continue_target = continue_target.view_as(continue_logits)
+            
+            halt_loss = nn.MSELoss()(halt_logits, halt_target)
+            continue_loss = nn.MSELoss()(continue_logits, continue_target)
             
             act_loss = halt_loss + continue_loss
             losses['act_loss'] = act_loss
             total_loss = total_loss + self.loss_weights['act_loss'] * act_loss
         
-        # Performance-based loss
+        # Performance-based loss (primary signal)
         if segment_rewards:
-            performance_loss = -torch.tensor(np.mean(segment_rewards))  # Maximize rewards
+            # Convert rewards to loss (we want to maximize rewards, so minimize negative rewards)
+            performance_loss = -torch.tensor(np.mean(segment_rewards))
             losses['performance_loss'] = performance_loss
             total_loss = total_loss + self.loss_weights['performance_loss'] * performance_loss
         
@@ -82,31 +86,6 @@ class HRMLossFunction:
         loss_values['total_loss'] = total_loss.item()
         
         return total_loss, loss_values
-    
-    def _calculate_act_targets(self, segment_rewards: List[float]) -> Dict[str, torch.Tensor]:
-        """Calculate Q-learning targets for ACT"""
-        
-        if not segment_rewards:
-            return {
-                'halt': torch.tensor([0.0]),
-                'continue': torch.tensor([0.0])
-            }
-        
-        # Simple reward-based targets
-        cumulative_reward = sum(segment_rewards)
-        
-        # Encourage halting when rewards are good, continuing when they're not
-        if cumulative_reward > 0:
-            halt_target = torch.sigmoid(torch.tensor([cumulative_reward]))
-            continue_target = 1 - halt_target
-        else:
-            halt_target = torch.sigmoid(torch.tensor([cumulative_reward]))
-            continue_target = 1 - halt_target
-            
-        return {
-            'halt': halt_target,
-            'continue': continue_target
-        }
 
 
 class HRMTrainer:
@@ -321,8 +300,8 @@ class HRMTrainer:
                     timeframe = f"{parts[-1]}min"
             
             print(f"\nEPOCH {getattr(self, 'current_episode', 0) + 1} STEP-BY-STEP: {instrument_name} ({timeframe})")
-            print("Step | Instrument     | Timeframe | DateTime           | Initial Cap | Current Cap | Action   | Win%  | P&L      | Entry   | Target Price(Pts) | SL Price(Pts)   | Reward | Reason")
-            print("-" * 165)
+            print("Step | Instrument     | Timeframe | DateTime           | Initial Cap | Current Cap | Action   | Win%  | P&L      | Current Price | Entry   | Target Price(Pts) | SL Price(Pts)   | Reward | Reason")
+            print("-" * 175)
         
         # Environment is already initialized in setup_training_complete, no reset needed
         
@@ -350,16 +329,14 @@ class HRMTrainer:
             
             # Extract loss information if available in info
             if 'segment_rewards' in info:
-                # Create dummy targets for loss calculation
-                # In practice, these would come from expert demonstrations or previous experience
-                targets = self._create_dummy_targets(info)
-                
-                # Get the last outputs from the environment
-                # This is a simplified version - real implementation would need proper output tracking
-                if hasattr(self.env, 'current_carry') and hasattr(self.env.hrm_agent, '_last_outputs'):
+                # Create self-supervised targets from model outputs
+                # This enables the model to learn from its own behavior and outcomes
+                if hasattr(self.env, 'hrm_agent') and hasattr(self.env.hrm_agent, '_last_outputs'):
                     outputs = getattr(self.env.hrm_agent, '_last_outputs', {})
                     
                     if outputs:
+                        targets = self._create_training_targets(info, outputs)
+                        
                         loss, loss_components = self.loss_function.calculate_loss(
                             outputs, 
                             targets, 
@@ -415,6 +392,7 @@ class HRMTrainer:
         current_capital = account_state.get('capital', 100000.0)
         is_position_open = account_state.get('is_position_open', False)
         entry_price = account_state.get('current_position_entry_price', 0.0)
+        current_price = info.get('current_price', 0.0)  # Get current price from info
         
         # Get win rate from environment calculation
         win_rate = info.get('win_rate', 0.0) * 100  # Convert to percentage
@@ -442,6 +420,7 @@ class HRMTrainer:
         # Format price displays using environment data
         if is_position_open and entry_price > 0:
             entry_display = f"Rs{entry_price:7.2f}"
+            current_price_display = f"Rs{current_price:7.2f}"  # Format current price
             pnl_display = f"Rs{profit_loss:+8.0f}"
             
             # Get risk management prices from environment info
@@ -460,6 +439,7 @@ class HRMTrainer:
         else:
             # No position - show dashes or total P&L if we just closed
             entry_display = "     -     "
+            current_price_display = f"Rs{current_price:7.2f}"  # Show current price even when no position
             if profit_loss != 0:
                 pnl_display = f"Rs{profit_loss:+8.0f}"
             else:
@@ -485,29 +465,47 @@ class HRMTrainer:
                 reason = "MODEL_EXIT"
         # For all other cases (no position change, holds, rejected actions), reason stays "-"
         
-        # Format single line log
+        # Format single line log with current price added before entry price
         log_line = (f"{step_num:4d} | {instrument_name:14s} | {timeframe:9s} | {datetime_readable} | "
                    f"Rs{initial_capital:,.0f} | Rs{current_capital:,.0f} | "
                    f"{action_str:8s} | {win_rate:5.1f}% | "
-                   f"{pnl_display} | {entry_display} | "
+                   f"{pnl_display} | {current_price_display} | {entry_display} | "
                    f"{target_display} | {sl_display} | {reward:+6.3f} | {reason}")
         
         print(log_line)
     
-    def _create_dummy_targets(self, info: Dict) -> Dict[str, torch.Tensor]:
-        """Create dummy targets for training - replace with real targets in production"""
+    def _create_training_targets(self, info: Dict, model_outputs: Dict) -> Dict[str, torch.Tensor]:
+        """
+        Create training targets for HRM loss function
+        Uses expert targets from technical indicators when available, falls back to self-supervised
+        """
+        from src.utils.target_generator import create_training_targets
         
-        targets = {}
+        # Try to get current data row from environment for expert targets
+        data_row = None
+        try:
+            if (hasattr(self, 'env') and 
+                hasattr(self.env, 'data') and 
+                hasattr(self.env, 'current_step') and
+                self.env.data is not None and
+                len(self.env.data) > 0):
+                safe_step = max(0, min(self.env.current_step, len(self.env.data) - 1))
+                if safe_step >= 0 and safe_step < len(self.env.data):
+                    data_row = self.env.data.iloc[safe_step]
+                    # Check if data_row is valid
+                    if data_row is None or data_row.empty:
+                        data_row = None
+        except Exception as e:
+            # If we can't get the data row, fall back to self-supervised targets
+            data_row = None
         
-        # Get number of actions from configuration
-        num_actions = self.config.get('actions', {}).get('num_actions', 5)
+        targets = create_training_targets(info, model_outputs, data_row)
         
-        # Dummy regime target (would be derived from market analysis)
-        targets['true_regime'] = torch.randint(0, 5, (1,)).to(self.device)
-        
-        # Dummy action target (would be from expert demonstrations) 
-        targets['true_action'] = torch.randint(0, num_actions, (1,)).to(self.device)
-        
+        # Ensure targets are on the correct device
+        device = next(iter(model_outputs.values())).device if model_outputs else torch.device('cpu')
+        for key, value in targets.items():
+            if isinstance(value, torch.Tensor):
+                targets[key] = value.to(device)
         
         return targets
     
@@ -600,13 +598,9 @@ class HRMTrainer:
                 if (episode + 1) % log_frequency == 0 or episode == 0:
                     self._log_epoch_summary(episode + 1, running_metrics, episodes)
             
-            # Save checkpoints
-            if episode > 0 and episode % save_frequency == 0:
-                self._save_checkpoint(episode)
-            
-            # Save checkpoint (including first episode)
+            # Save latest checkpoint (overwrites previous)
             if episode % save_frequency == 0:
-                self._save_checkpoint(episode)
+                self._save_latest_checkpoint(episode)
             
             # Check for improvement and save best model
             if metrics['avg_reward'] > self.best_performance:
@@ -679,8 +673,8 @@ class HRMTrainer:
         
         logger.info("=" * 80)
     
-    def _save_checkpoint(self, episode: int):
-        """Save training checkpoint"""
+    def _save_latest_checkpoint(self, episode: int):
+        """Save latest training checkpoint (overwrites previous)"""
         
         checkpoint_dir = Path("checkpoints/hrm")
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -695,9 +689,10 @@ class HRMTrainer:
             'training_history': self.training_history[-100:]  # Keep last 100 episodes
         }
         
-        filepath = checkpoint_dir / f"hrm_checkpoint_episode_{episode}.pt"
+        # Use fixed filename to overwrite previous checkpoint
+        filepath = checkpoint_dir / "latest_checkpoint.pt"
         torch.save(checkpoint, filepath)
-        logger.info(f"Checkpoint saved: {filepath}")
+        logger.info(f"Latest checkpoint saved: {filepath}")
     
     def _save_best_model(self):
         """Save the best performing model"""

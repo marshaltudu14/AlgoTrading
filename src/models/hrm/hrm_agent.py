@@ -85,6 +85,9 @@ class HRMTradingAgent(nn.Module):
         # Move to device
         self.to(self.device)
         
+        # Initialize last outputs storage
+        self._last_outputs = {}
+        
         logger.info(f"HRM Agent initialized: H-lookback={h_lookback}, L-lookback={l_lookback}, "
                    f"Hidden={hidden_dim}, H-cycles={H_cycles}, L-cycles={L_cycles}")
     
@@ -129,6 +132,10 @@ class HRMTradingAgent(nn.Module):
             segment_weights=[0.4, 0.3, 0.2, 0.1],
             hidden_dim=self.hidden_dim
         )
+        
+        # Market understanding head (help model interpret market context only)
+        self.market_understanding_head = nn.Linear(self.hidden_dim, 5)  # 5 market understanding signals
+        # REMOVED: risk_context_head - let model learn risk management from environment rewards
         
         # Initialize hidden states
         self.register_buffer('initial_H_state', torch.randn(1, self.hidden_dim, dtype=torch.float32) * 0.1)
@@ -176,20 +183,30 @@ class HRMTradingAgent(nn.Module):
         # Calculate actual lookback from market features
         max_lookback = market_features_dim // self.feature_dim
         
-        # Ensure we only use features that divide evenly
+        # Use whatever historical data is available - NO PADDING OR ARTIFICIAL DATA
         usable_features = max_lookback * self.feature_dim
         market_features_clean = market_features[:, :usable_features]
         
-        # Reshape market features to [batch_size, max_lookback, feature_dim]
-        reshaped = market_features_clean.view(batch_size, max_lookback, self.feature_dim)
-        
-        # Extract H-module input (strategic lookback) - keep as 3D sequence
-        h_candles = min(self.h_lookback, max_lookback)
-        h_sequence = reshaped[:, :h_candles, :]  # [batch, h_candles, feature_dim]
-        
-        # Extract L-module input (tactical lookback) - keep as 3D sequence
-        l_candles = min(self.l_lookback, max_lookback)
-        l_sequence = reshaped[:, :l_candles, :]  # [batch, l_candles, feature_dim]
+        if max_lookback > 0:
+            reshaped = market_features_clean.view(batch_size, max_lookback, self.feature_dim)
+            
+            # Use available data up to the requested lookback (natural truncation)
+            h_candles = min(self.h_lookback, max_lookback)
+            l_candles = min(self.l_lookback, max_lookback) 
+            
+            h_sequence = reshaped[:, :h_candles, :]  # [batch, available_h_candles, feature_dim]
+            l_sequence = reshaped[:, :l_candles, :]  # [batch, available_l_candles, feature_dim]
+            
+            # Log when using less data than requested (only in early training)
+            if h_candles < self.h_lookback:
+                logger.info(f"H-module using {h_candles}/{self.h_lookback} available candles (early training)")
+            if l_candles < self.l_lookback:
+                logger.info(f"L-module using {l_candles}/{self.l_lookback} available candles (early training)")
+        else:
+            # Absolutely no historical data - this should be very rare
+            h_sequence = torch.empty(batch_size, 0, self.feature_dim, device=self.device)
+            l_sequence = torch.empty(batch_size, 0, self.feature_dim, device=self.device)
+            logger.warning("No historical data available - using empty sequences")
         
         # H and L modules will process market features only
         # Account state will be handled separately in the trading decision logic
@@ -327,15 +344,23 @@ class HRMTradingAgent(nn.Module):
             performance_history=carry.performance_history
         )
         
+        # Generate ONLY market understanding predictions (use L-module for tactical context)
+        market_understanding_outputs = torch.tanh(self.market_understanding_head(z_L))
+        
         # Combine all outputs
         outputs = {
             **strategic_outputs,
             **tactical_outputs,
             **act_outputs,
             **supervision_outputs,
+            'market_understanding_outputs': market_understanding_outputs,
             'final_z_H': z_H,
             'final_z_L': z_L
         }
+        # REMOVED: risk_context_outputs - let model learn risk from environment rewards
+        
+        # Store outputs for training loss calculation
+        self._last_outputs = outputs
         
         return new_carry, outputs
     
