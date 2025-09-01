@@ -10,6 +10,7 @@ environment:
   initial_capital: 100000.0
   trailing_stop_percentage: 0.015
   episode_length: 1500 # Number of sequential rows per episode
+  parallel_environments: 10 # Number of environments to run in parallel (GPU/TPU only)
 
 # Risk Management Configuration - Used by BacktestingEngine
 risk_management:

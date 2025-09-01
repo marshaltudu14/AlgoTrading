@@ -12,8 +12,10 @@ import time
 
 from src.models.hrm import HRMTradingAgent, HRMCarry
 from src.models.hrm_trading_environment import HRMTradingEnvironment, HRMTradingWrapper
+from src.models.parallel_env_manager import ParallelEnvironmentManager
 from src.utils.data_loader import DataLoader
 from src.env.trading_mode import TradingMode
+from src.utils.config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 
@@ -143,59 +145,144 @@ class HRMTrainer:
         config = config_loader.get_config()
         initial_capital = config.get('environment', {}).get('initial_capital', 100000.0)
         episode_length = config.get('environment', {}).get('episode_length', 1500)
+        parallel_envs = config.get('environment', {}).get('parallel_environments', 10)
         
         # Store available instruments for multi-data training
         self.available_instruments = available_instruments or ["Bank_Nifty_5"]
         self.current_instrument_idx = 0
         self.episode_length = episode_length
+        self.parallel_envs = parallel_envs
         
-        # Initialize with first instrument
-        first_symbol = self.available_instruments[0]
-        self.current_symbol = first_symbol
+        # Check if we should use parallel environments (only on GPU/TPU)
+        self.use_parallel_envs = self._should_use_parallel_envs()
         
-        # 1. Load full data for first instrument
-        self.full_data = self.data_loader.load_final_data_for_symbol(first_symbol)
+        if self.use_parallel_envs:
+            # Create parallel environment manager
+            logger.info(f"Initializing parallel environment manager with {parallel_envs} environments")
+            self.parallel_env_manager = ParallelEnvironmentManager(
+                data_loader=self.data_loader,
+                symbols=self.available_instruments,
+                config_path=self.config_path,
+                device=str(self.device),
+                max_parallel_envs=parallel_envs
+            )
+            
+            # Log which instruments are being used in parallel
+            parallel_symbols = self.parallel_env_manager.get_environment_symbols()
+            logger.info(f"ParallelGroup Training: {len(parallel_symbols)} instruments - {', '.join(parallel_symbols)}")
+            
+            # Initialize with first environment's data for compatibility
+            first_symbol = self.parallel_env_manager.get_environment_symbols()[0]
+            self.current_symbol = first_symbol
+            self.full_data = self.data_loader.load_final_data_for_symbol(first_symbol)
+            self.total_data_length = len(self.full_data)
+            self.current_episode_start = 0
+            
+            # Create a dummy environment for compatibility with existing methods
+            self.env = HRMTradingEnvironment(
+                data_loader=self.data_loader,
+                symbol=first_symbol,
+                initial_capital=initial_capital,
+                mode=TradingMode.TRAINING,
+                hrm_config_path=self.config_path,
+                device=self.device,
+                episode_length=episode_length
+            )
+            
+            # Set up first episode data segment
+            self._setup_current_episode()
+            
+            # Initialize observation space using the dummy environment
+            feature_columns = self.env.observation_handler.initialize_observation_space(self.env.data, config)
+            self.env.observation_space = self.env.observation_handler.observation_space
+            
+            # Initialize HRM agent using the dummy environment
+            self.env._initialize_hrm_agent()
+            self.model = self.env.hrm_agent
+            
+            # Initialize all components manually
+            self.env.engine.reset()
+            self.env.reward_calculator.reset(self.env.initial_capital)
+            self.env.observation_handler.reset()
+            self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
+            
+        else:
+            # Fall back to sequential training (CPU mode)
+            logger.info("Using sequential training (CPU mode)")
+            
+            # Initialize with first instrument
+            first_symbol = self.available_instruments[0]
+            self.current_symbol = first_symbol
+            
+            # 1. Load full data for first instrument
+            self.full_data = self.data_loader.load_final_data_for_symbol(first_symbol)
+            
+            # 2. Initialize episode tracking
+            self.current_episode_start = 0
+            self.total_data_length = len(self.full_data)
+            
+            # 3. Create environment with episode length config
+            self.env = HRMTradingEnvironment(
+                data_loader=self.data_loader,
+                symbol=first_symbol,
+                initial_capital=initial_capital,
+                mode=TradingMode.TRAINING,
+                hrm_config_path=self.config_path,
+                device=self.device,
+                episode_length=episode_length
+            )
+            
+            # 4. Set up first episode data segment
+            self._setup_current_episode()
+            
+            # 5. Initialize observation space
+            feature_columns = self.env.observation_handler.initialize_observation_space(self.env.data, config)
+            self.env.observation_space = self.env.observation_handler.observation_space
+            
+            # Initialize all components manually
+            self.env.engine.reset()
+            self.env.reward_calculator.reset(self.env.initial_capital)
+            self.env.observation_handler.reset()
+            self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
+            
+            # 4. Initialize HRM agent
+            self.env._initialize_hrm_agent()
+            self.model = self.env.hrm_agent
+            
+            # 5. Initialize HRM carry state
+            self.env.current_carry = self.model.create_initial_carry(batch_size=1)
         
-        # 2. Initialize episode tracking
-        self.current_episode_start = 0
-        self.total_data_length = len(self.full_data)
-        
-        # 3. Create environment with episode length config
-        self.env = HRMTradingEnvironment(
-            data_loader=self.data_loader,
-            symbol=first_symbol,
-            initial_capital=initial_capital,
-            mode=TradingMode.TRAINING,
-            hrm_config_path=self.config_path,
-            device=self.device,
-            episode_length=episode_length
-        )
-        
-        # 4. Set up first episode data segment
-        self._setup_current_episode()
-        
-        # 5. Initialize observation space
-        feature_columns = self.env.observation_handler.initialize_observation_space(self.env.data, config)
-        self.env.observation_space = self.env.observation_handler.observation_space
-        
-        # Initialize all components manually
-        self.env.engine.reset()
-        self.env.reward_calculator.reset(self.env.initial_capital)
-        self.env.observation_handler.reset()
-        self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
-        
-        # 4. Initialize HRM agent
-        self.env._initialize_hrm_agent()
-        self.model = self.env.hrm_agent
-        
-        # 5. Initialize HRM carry state
-        self.env.current_carry = self.model.create_initial_carry(batch_size=1)
-        
-        # 6. Setup optimizer
+        # 6. Setup optimizer (same for both modes)
         self._setup_optimizer()
         
         logger.info(f"Training setup completed for {len(self.available_instruments)} instruments")
+        logger.info(f"Parallel environments: {'ENABLED' if self.use_parallel_envs else 'DISABLED (CPU mode)'}")
         logger.info("Memory-efficient mode: Data files loaded one at a time during training")
+    
+    def _should_use_parallel_envs(self) -> bool:
+        """Check if parallel environments should be used based on device type and configuration"""
+        # Only use parallel environments on GPU or TPU
+        device_type = self.device_manager.get_device_type()
+        if device_type not in ['gpu', 'tpu']:
+            logger.info("Parallel environments disabled: Not running on GPU/TPU")
+            return False
+        
+        # Check if parallel environments are configured
+        config_loader = ConfigLoader()
+        config = config_loader.get_config()
+        parallel_envs = config.get('environment', {}).get('parallel_environments', 10)
+        
+        # Disable parallel environments in debug mode to avoid output conflicts
+        if self.debug_mode and parallel_envs > 1:
+            logger.info("Parallel environments disabled: Debug mode enabled")
+            return False
+        
+        if parallel_envs <= 1:
+            logger.info("Parallel environments disabled: Configuration set to 1 or less")
+            return False
+        
+        logger.info(f"Parallel environments enabled: {parallel_envs} environments on {device_type.upper()}")
+        return True
     
     def _setup_current_episode(self):
         """Set up data for current episode - sequential feeding"""
@@ -367,57 +454,146 @@ class HRMTrainer:
         done = False
         step_count = 0
         
-        while not done and step_count < 1000:  # Max steps per episode
+        if self.use_parallel_envs:
+            # Parallel environment training
+            return self._train_episode_parallel()
+        else:
+            # Sequential environment training (original method)
+            while not done and step_count < 1000:  # Max steps per episode
+                
+                # Environment step (HRM handles the reasoning internally)
+                observation, reward, done, info = self.env.step()
+                
+                episode_metrics['total_reward'] += reward
+                step_count += 1
+                
+                # Debug step logging if enabled
+                if self.debug_mode:
+                    self._log_step_debug(step_count, reward, info)
+                
+                # Extract loss information if available in info
+                if 'segment_rewards' in info:
+                    # Create self-supervised targets from model outputs
+                    # This enables the model to learn from its own behavior and outcomes
+                    if hasattr(self.env, 'hrm_agent') and hasattr(self.env.hrm_agent, '_last_outputs'):
+                        outputs = getattr(self.env.hrm_agent, '_last_outputs', {})
+                        
+                        if outputs:
+                            targets = self._create_training_targets(info, outputs)
+                            
+                            loss, loss_components = self.loss_function.calculate_loss(
+                                outputs, 
+                                targets, 
+                                info['segment_rewards']
+                            )
+                            
+                            # Backward pass
+                            self.optimizer.zero_grad()
+                            loss.backward()
+                            
+                            # Gradient clipping
+                            if self.config['training']['gradient_clip'] > 0:
+                                torch.nn.utils.clip_grad_norm_(
+                                    self.model.parameters(),
+                                    self.config['training']['gradient_clip']
+                                )
+                            
+                            self.optimizer.step()
+                            
+                            episode_metrics['total_loss'] += loss.item()
             
-            # Environment step (HRM handles the reasoning internally)
-            observation, reward, done, info = self.env.step()
+            episode_metrics['steps'] = step_count
+            episode_metrics['avg_reward'] = episode_metrics['total_reward'] / max(step_count, 1)
+            episode_metrics['avg_loss'] = episode_metrics['total_loss'] / max(step_count, 1)
             
-            episode_metrics['total_reward'] += reward
+            # Get hierarchical performance metrics
+            episode_metrics['hierarchical_metrics'] = self.env.get_hierarchical_performance_metrics()
+            
+            return episode_metrics
+    
+    def _train_episode_parallel(self) -> Dict[str, float]:
+        """Train for one episode using parallel environments"""
+        
+        episode_metrics = {
+            'total_reward': 0.0,
+            'total_loss': 0.0,
+            'steps': 0,
+            'hierarchical_metrics': {}
+        }
+        
+        done = False
+        step_count = 0
+        max_steps = 1000
+        
+        # Reset all parallel environments
+        batch_obs = self.parallel_env_manager.reset_all()
+        
+        while not done and step_count < max_steps:
+            # Step all environments in parallel
+            batch_obs, batch_rewards, batch_dones, batch_infos = self.parallel_env_manager.step_all()
+            
+            # Process batch rewards and infos
+            episode_metrics['total_reward'] += batch_rewards.mean().item()
             step_count += 1
             
-            # Debug step logging if enabled
-            if self.debug_mode:
-                self._log_step_debug(step_count, reward, info)
-            
-            # Extract loss information if available in info
-            if 'segment_rewards' in info:
-                # Create self-supervised targets from model outputs
-                # This enables the model to learn from its own behavior and outcomes
-                if hasattr(self.env, 'hrm_agent') and hasattr(self.env.hrm_agent, '_last_outputs'):
-                    outputs = getattr(self.env.hrm_agent, '_last_outputs', {})
-                    
-                    if outputs:
-                        targets = self._create_training_targets(info, outputs)
+            # Process each environment's info for loss calculation
+            for i, info in enumerate(batch_infos):
+                if 'segment_rewards' in info:
+                    # For parallel training, we'll use the first environment's outputs for loss calculation
+                    # In a more advanced implementation, we could calculate loss for all environments
+                    if i == 0 and hasattr(self.env, 'hrm_agent') and hasattr(self.env.hrm_agent, '_last_outputs'):
+                        outputs = getattr(self.env.hrm_agent, '_last_outputs', {})
                         
-                        loss, loss_components = self.loss_function.calculate_loss(
-                            outputs, 
-                            targets, 
-                            info['segment_rewards']
-                        )
-                        
-                        # Backward pass
-                        self.optimizer.zero_grad()
-                        loss.backward()
-                        
-                        # Gradient clipping
-                        if self.config['training']['gradient_clip'] > 0:
-                            torch.nn.utils.clip_grad_norm_(
-                                self.model.parameters(),
-                                self.config['training']['gradient_clip']
+                        if outputs:
+                            targets = self._create_training_targets(info, outputs)
+                            
+                            loss, loss_components = self.loss_function.calculate_loss(
+                                outputs, 
+                                targets, 
+                                info['segment_rewards']
                             )
-                        
-                        self.optimizer.step()
-                        
-                        episode_metrics['total_loss'] += loss.item()
+                            
+                            # Backward pass
+                            self.optimizer.zero_grad()
+                            loss.backward()
+                            
+                            # Gradient clipping
+                            if self.config['training']['gradient_clip'] > 0:
+                                torch.nn.utils.clip_grad_norm_(
+                                    self.model.parameters(),
+                                    self.config['training']['gradient_clip']
+                                )
+                            
+                            self.optimizer.step()
+                            
+                            episode_metrics['total_loss'] += loss.item()
+            
+            # Check if all environments are done
+            done = batch_dones.all().item()
         
         episode_metrics['steps'] = step_count
         episode_metrics['avg_reward'] = episode_metrics['total_reward'] / max(step_count, 1)
         episode_metrics['avg_loss'] = episode_metrics['total_loss'] / max(step_count, 1)
         
-        # Get hierarchical performance metrics
+        # For parallel environments, we'll return metrics from the first environment
+        # In a more advanced implementation, we could aggregate metrics from all environments
         episode_metrics['hierarchical_metrics'] = self.env.get_hierarchical_performance_metrics()
         
         return episode_metrics
+    
+    def _log_parallel_step_debug(self, step_num: int, batch_rewards: torch.Tensor, batch_infos: List[Dict]):
+        """Log debug information for parallel environment step"""
+        env_symbols = self.parallel_env_manager.get_environment_symbols()
+        
+        # Show header every 10 steps
+        if step_num == 1 or step_num % 10 == 1:
+            print(f"\nStep | {' | '.join([f'{sym:12s}' for sym in env_symbols[:4]])} | Avg Reward")
+            print("-" * (8 + 15 * min(4, len(env_symbols)) + 12))
+        
+        # Show rewards for each environment (limit to first 4 for readability)
+        reward_strs = [f"{batch_rewards[i].item():+8.3f}" for i in range(min(4, len(env_symbols)))]
+        avg_reward = batch_rewards.mean().item()
+        print(f"{step_num:4d} | {' | '.join(reward_strs)} | {avg_reward:+8.3f}")
     
     def _log_step_debug(self, step_num: int, reward: float, info: Dict):
         """Log detailed step information using environment as single source of truth."""
