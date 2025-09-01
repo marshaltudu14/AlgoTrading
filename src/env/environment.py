@@ -394,7 +394,7 @@ class TradingEnv(gym.Env):
 
             # Check termination conditions using TerminationManager
             done, termination_reason = self.termination_manager.check_termination_conditions(
-                self.current_step, len(self.data), current_capital
+                self.current_step, len(self.data), current_capital, info.get('datetime')
             )
 
             # Force close any open positions if episode is ending

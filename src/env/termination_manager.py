@@ -1,9 +1,14 @@
 from typing import Tuple, Optional
+from datetime import time
+import pandas as pd
 from .trading_mode import TradingMode
 
 
 class TerminationManager:
     """Handles termination conditions for the trading environment."""
+    
+    # Market closing time: 3:15 PM
+    MARKET_CLOSING_TIME = time(15, 15)
     
     def __init__(self, mode: TradingMode, max_drawdown_pct: float = 0.20):
         self.mode = mode
@@ -25,13 +30,40 @@ class TerminationManager:
         """Get current drawdown percentage."""
         return self.max_drawdown_pct
     
+    def _is_market_closed(self, current_datetime: pd.Timestamp) -> bool:
+        """
+        Check if the market is closed (after 3:15 PM).
+        
+        Args:
+            current_datetime: Current timestamp
+            
+        Returns:
+            bool: True if market is closed
+        """
+        if not isinstance(current_datetime, pd.Timestamp):
+            return False
+            
+        # Extract time component
+        current_time = current_datetime.time()
+        
+        # Check if we're past market closing time (3:15 PM)
+        if current_time >= self.MARKET_CLOSING_TIME:
+            return True
+            
+        return False
+    
     def check_termination_conditions(self, current_step: int, data_length: int, 
-                                   current_capital: float) -> Tuple[bool, Optional[str]]:
+                                   current_capital: float, current_datetime: Optional[pd.Timestamp] = None) -> Tuple[bool, Optional[str]]:
         """Check if episode should terminate due to risk management conditions or strategic episode end."""
 
         # Check if we've reached the end of available data
         if current_step >= data_length - 1:
             return True, f"end_of_data_step_{current_step}"
+
+        # Check if market is closed (only for BACKTESTING/LIVE modes)
+        if self.mode != TradingMode.TRAINING and current_datetime is not None:
+            if self._is_market_closed(current_datetime):
+                return True, f"market_closed_{current_datetime.time()}"
 
         if self.mode == TradingMode.TRAINING:
             # TRAINING mode: Use episode-based termination
@@ -50,7 +82,7 @@ class TerminationManager:
             # No capital constraints for index trading - removed insufficient capital check
 
         else:
-            # BACKTESTING/LIVE modes: No early termination, process all data
+            # BACKTESTING/LIVE modes: No early termination except for market closing
             # Update peak equity for tracking
             self.update_peak_equity(current_capital)
 
