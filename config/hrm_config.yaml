@@ -5,27 +5,27 @@ model_architecture:
   name: "HRMTradingAgent"
 
   # Core HRM Parameters - Enhanced for deeper pattern recognition
-  hidden_dim: 512 # Increased from 256 for richer representations
+  hidden_dim: 256 # Increased from 256 for richer representations
   H_cycles: 2 # High-level strategic cycles per forward pass
-  L_cycles: 6 # Increased from 5 for more tactical refinement
-  H_layers: 8 # Increased from 4 for deeper strategic reasoning
-  L_layers: 6 # Increased from 3 for deeper tactical processing
-  num_heads: 16 # Increased from 8 for more attention mechanisms
+  L_cycles: 5 # Increased from 5 for more tactical refinement
+  H_layers: 4 # Increased from 4 for deeper strategic reasoning
+  L_layers: 3 # Increased from 3 for deeper tactical processing
+  num_heads: 8 # Increased from 8 for more attention mechanisms
   dropout: 0.1
 
   # Adaptive Computation Time (ACT) - Enhanced for complex reasoning
-  halt_max_steps: 12 # Increased from 8 for more complex decision chains
+  halt_max_steps: 8 # Increased from 8 for more complex decision chains
   halt_exploration_prob: 0.1
 
   # Deep Supervision - Enhanced for richer learning
-  deep_supervision_segments: 6 # Increased from 4 for more granular supervision
+  deep_supervision_segments: 4 # Increased from 4 for more granular supervision
   segment_weights: [0.3, 0.25, 0.2, 0.15, 0.08, 0.02] # Weights for different supervision segments
 
 # Hierarchical Processing Configuration - SIMPLIFIED
 hierarchical_processing:
   # Lookback windows - key difference between modules
   high_level_lookback: 100 # H-module sees 100 candles for strategic context
-  low_level_lookback: 15 # L-module sees 15 candles for tactical decisions
+  low_level_lookback: 30 # L-module sees 30 candles for tactical decisions
 
   # Both modules see ALL available features - no hardcoded column filtering
   # The HRM will naturally learn which features are relevant for each module
