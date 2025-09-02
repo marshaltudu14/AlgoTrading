@@ -43,7 +43,8 @@
       "Bash(del:*)",
       "Read(c:\\AlgoTrading/**)",
       "Read(c:\\AlgoTrading/**)",
-      "Bash(nvidia-smi:*)"
+      "Bash(nvidia-smi:*)",
+      "Bash(rg:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

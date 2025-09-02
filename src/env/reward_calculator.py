@@ -63,12 +63,10 @@ class RewardCalculator:
     
     def calculate_reward(self, current_capital: float, prev_capital: float, 
                         engine) -> float:
-        """Calculate reward based on selected reward function."""
+        """Calculate reward based on selected reward function using percentage returns."""
         if self.reward_function == "pnl":
-            # Include unrealized P&L in reward calculation
-            account_state = engine.get_account_state()
-            total_pnl_change = (current_capital + account_state['unrealized_pnl']) - prev_capital
-            return total_pnl_change
+            # Use percentage-based P&L for instrument-agnostic rewards
+            return self._calculate_percentage_pnl_reward(current_capital, prev_capital, engine)
         elif self.reward_function == "sharpe":
             return self._calculate_sharpe_ratio()
         elif self.reward_function == "sortino":
@@ -76,14 +74,12 @@ class RewardCalculator:
         elif self.reward_function == "profit_factor":
             return self._calculate_profit_factor()
         elif self.reward_function == "trading_focused":
-            return self._calculate_trading_focused_reward(current_capital, prev_capital, engine)
+            return self._calculate_enhanced_trading_focused_reward(current_capital, prev_capital, engine)
         elif self.reward_function == "enhanced_trading_focused":
             return self._calculate_enhanced_trading_focused_reward(current_capital, prev_capital, engine)
         else:
-            # Default to P&L including unrealized gains/losses
-            account_state = engine.get_account_state()
-            total_pnl_change = (current_capital + account_state['unrealized_pnl']) - prev_capital
-            return total_pnl_change
+            # Default to percentage-based P&L including unrealized gains/losses
+            return self._calculate_percentage_pnl_reward(current_capital, prev_capital, engine)
     
     def apply_reward_shaping(self, base_reward: float, action_type: int, 
                            current_capital: float, prev_capital: float, 
@@ -141,39 +137,80 @@ class RewardCalculator:
     
     def normalize_reward(self, reward: float, capital_pct_change: float = None) -> float:
         """
-        Normalize reward to -100 to +100 range using percentage-based approach.
+        Return percentage-based reward without clipping.
+        True percentage-based rewards don't need artificial limits.
         
         Args:
-            reward: Raw reward (usually P&L change)
-            capital_pct_change: Percentage change in capital for context-aware scaling
+            reward: Percentage-based reward (1% = 10 points)
+            capital_pct_change: Percentage change in capital (optional, for compatibility)
             
         Returns:
-            Normalized reward in -100 to +100 range
+            Raw percentage-based reward (no clipping)
         """
-        # Load reward configuration
-        reward_config = self.config.get('rewards', {})
-        reward_range = reward_config.get('reward_range', {'min': -100.0, 'max': 100.0})
-        clipping_config = reward_config.get('reward_clipping', {'enabled': True, 'clip_percentile': 95})
+        # With percentage-based rewards, no normalization/clipping needed
+        # Large moves should get proportionally large rewards
+        return float(reward)
+    
+    def _calculate_percentage_pnl_reward(self, current_capital: float, prev_capital: float, engine) -> float:
+        """
+        Calculate simple percentage-based reward using entry and exit prices.
+        Reward = ((exit_price - entry_price) / entry_price) * 100 * 10
         
-        # If we have percentage capital change, use it for more meaningful scaling
-        if capital_pct_change is not None:
-            # Scale percentage change to reward range
-            # 10% gain = +100 reward, 10% loss = -100 reward
-            # This creates meaningful rewards regardless of instrument price levels
-            scaled_reward = capital_pct_change * 10  # 1% = 10 reward points
+        Args:
+            current_capital: Current capital amount
+            prev_capital: Previous capital amount  
+            engine: Trading engine for trade history
             
-            # Apply clipping to prevent extreme outliers from dominating
-            if clipping_config.get('enabled', True):
-                clip_value = reward_range['max']  # Use max range as clip value
-                scaled_reward = np.clip(scaled_reward, -clip_value, clip_value)
-        else:
-            # Fallback: normalize raw reward using global scaling factor
-            scaled_reward = reward * self.global_scaling_factor
-            
-        # Final clipping to reward range
-        normalized_reward = np.clip(scaled_reward, reward_range['min'], reward_range['max'])
+        Returns:
+            Percentage-based reward (1% price move = 10 reward points)
+        """
+        # Get the latest trade to extract entry and exit prices
+        trade_history = engine.get_trade_history()
         
-        return float(normalized_reward)
+        if not trade_history:
+            # No trades yet, return zero
+            return 0.0
+            
+        latest_trade = trade_history[-1]
+        
+        # Check if this is a closing trade
+        action = latest_trade.get('action')
+        if action in ['CLOSE_LONG', 'CLOSE_SHORT']:
+            exit_price = latest_trade.get('price')  # Current price (exit price)
+            
+            # Find the corresponding opening trade to get entry price
+            entry_price = None
+            for trade in reversed(trade_history[:-1]):  # Look backwards, exclude current trade
+                if trade.get('action') in ['BUY_LONG', 'SELL_SHORT']:
+                    entry_price = trade.get('price')
+                    break
+            
+            if entry_price and exit_price and entry_price > 0:
+                if action == 'CLOSE_LONG':
+                    # Long position: profit when exit > entry
+                    price_pct_change = ((exit_price - entry_price) / entry_price) * 100
+                elif action == 'CLOSE_SHORT':
+                    # Short position: profit when exit < entry  
+                    price_pct_change = ((entry_price - exit_price) / entry_price) * 100
+                else:
+                    # Fallback
+                    price_pct_change = ((exit_price - entry_price) / entry_price) * 100
+                
+                # Return percentage change as reward (1% move = 1.0 reward)
+                # Clean and intuitive: percentage directly maps to reward magnitude
+                return float(price_pct_change)
+        
+        # For non-closing trades or missing price info, fallback to capital-based
+        step_pnl = current_capital - prev_capital
+        if abs(step_pnl) < 0.01:
+            return 0.0
+            
+        # Simple capital percentage for opening trades, holds, etc.
+        initial_capital = getattr(engine, '_initial_capital', 100000.0)
+        capital_pct_change = (step_pnl / initial_capital) * 100
+        
+        # Return consistent with price-based rewards (1% = 1.0 reward)
+        return float(capital_pct_change)
     
     def calculate_percentage_pnl(self, current_capital: float, previous_capital: float) -> float:
         """
@@ -241,77 +278,58 @@ class RewardCalculator:
         profit_factor = gross_profit / gross_loss
         return (profit_factor - 1.0) * 5  # Center around 0 and scale
 
-    def _calculate_trading_focused_reward(self, current_capital: float, prev_capital: float, engine) -> float:
-        """Calculate reward focused on key trading metrics: profit factor, drawdown, win rate."""
-        # Include unrealized P&L in base reward calculation
-        account_state = engine.get_account_state()
-        base_reward = (current_capital + account_state['unrealized_pnl']) - prev_capital
-
-        # Get current trade history for real-time metrics
+    def _calculate_streak_bonus(self, engine) -> float:
+        """Calculate bonus/penalty based on current winning/losing streaks"""
         trade_history = engine.get_trade_history()
-
-        if len(trade_history) < 2:
-            return base_reward  # Not enough trades for metrics
-
-        # Calculate real-time profit factor (only for closing trades)
-        recent_trades = trade_history[-20:]  # Last 20 trades for better sample size
-        closing_trades = [trade for trade in recent_trades if trade.get('trade_type') == 'CLOSE']
-
-        profit_factor_bonus = 0.0
-        if len(closing_trades) >= 5:  # Need minimum trades for meaningful PF
-            gross_profit = sum(trade['pnl'] for trade in closing_trades if trade['pnl'] > 0)
-            gross_loss = abs(sum(trade['pnl'] for trade in closing_trades if trade['pnl'] < 0))
-
-            if gross_loss > 0:
-                pf = gross_profit / gross_loss
-                # ENHANCED: Much stronger focus on profit factor since profits matter most
-                if pf > 3.0:  # Exceptional profit factor
-                    profit_factor_bonus = (pf - 1.0) * 100  # Massive bonus for exceptional performance
-                elif pf > 2.0:  # Excellent profit factor
-                    profit_factor_bonus = (pf - 1.0) * 75   # Very high bonus
-                elif pf > 1.5:  # Good profit factor
-                    profit_factor_bonus = (pf - 1.0) * 50   # High bonus
-                elif pf > 1.2:  # Decent profit factor
-                    profit_factor_bonus = (pf - 1.0) * 30   # Moderate bonus
-                elif pf > 1.0:  # Barely profitable
-                    profit_factor_bonus = (pf - 1.0) * 15   # Small bonus
-                elif pf < 0.5:  # Terrible profit factor
-                    profit_factor_bonus = (pf - 1.0) * 80   # Severe penalty
-                elif pf < 0.7:  # Very poor profit factor
-                    profit_factor_bonus = (pf - 1.0) * 60   # High penalty
-                else:  # Poor profit factor
-                    profit_factor_bonus = (pf - 1.0) * 40   # Moderate penalty
-
-        # Calculate real-time win rate (only for closing trades)
-        closing_trades = [trade for trade in recent_trades if trade.get('trade_type') == 'CLOSE']
-        win_rate_bonus = 0.0
-        if closing_trades:
-            win_rate = sum(1 for trade in closing_trades if trade['pnl'] > 0) / len(closing_trades)
-            # REDUCED: Lower emphasis on win rate since profit factor matters more
-            if win_rate > 0.7:  # Excellent win rate
-                win_rate_bonus = (win_rate - 0.5) * 30  # Moderate bonus
-            elif win_rate > 0.6:  # Good win rate
-                win_rate_bonus = (win_rate - 0.5) * 20  # Small bonus
-            elif win_rate > 0.5:  # Decent win rate
-                win_rate_bonus = (win_rate - 0.5) * 10  # Very small bonus
-            elif win_rate < 0.3:  # Very poor win rate
-                win_rate_bonus = (win_rate - 0.5) * 25  # Moderate penalty
-            elif win_rate < 0.4:  # Poor win rate
-                win_rate_bonus = (win_rate - 0.5) * 15  # Small penalty
-
-        # Calculate drawdown penalty using existing equity_history
-        drawdown_penalty = 0.0
-        if len(self.equity_history) > 5:
-            recent_capitals = self.equity_history[-20:]  # Last 20 steps
-            peak = max(recent_capitals)
-            current_dd = (peak - current_capital) / peak if peak > 0 else 0
-            drawdown_penalty = -current_dd * 100 if current_dd > 0.05 else 0  # Penalty if DD > 5%
-
-        total_reward = base_reward + profit_factor_bonus + win_rate_bonus + drawdown_penalty
-        return total_reward
+        if not trade_history:
+            return 0.0
+        
+        # Get only closing trades
+        closing_trades = [trade for trade in trade_history if trade.get('trade_type') == 'CLOSE']
+        if len(closing_trades) < 2:
+            return 0.0
+        
+        # Calculate current streak (looking backwards from most recent trade)
+        current_streak = 0
+        streak_type = None  # 'win' or 'loss'
+        
+        for trade in reversed(closing_trades):
+            trade_pnl = trade.get('pnl', 0)
+            is_win = trade_pnl > 0
+            
+            if streak_type is None:
+                # First trade sets the streak type
+                streak_type = 'win' if is_win else 'loss'
+                current_streak = 1
+            elif (streak_type == 'win' and is_win) or (streak_type == 'loss' and not is_win):
+                # Streak continues
+                current_streak += 1
+            else:
+                # Streak broken
+                break
+        
+        # Apply streak bonuses/penalties
+        if streak_type == 'win':
+            # Winning streak bonuses (exponential growth to encourage consistency)
+            if current_streak >= 5:
+                return min(15.0 * (current_streak - 4), 50.0)  # Cap at +50
+            elif current_streak >= 3:
+                return 5.0 * (current_streak - 2)  # +5 for 3rd win, +10 for 4th
+            else:
+                return 0.0  # No bonus for streaks < 3
+        else:
+            # Losing streak penalties (motivate to break the pattern)
+            if current_streak >= 4:
+                return max(-10.0 * (current_streak - 3), -40.0)  # Cap at -40
+            elif current_streak >= 2:
+                return -3.0 * (current_streak - 1)  # -3 for 2nd loss, -6 for 3rd
+            else:
+                return 0.0  # No penalty for single loss
+        
+        return 0.0
 
     def _calculate_enhanced_trading_focused_reward(self, current_capital: float, prev_capital: float, engine) -> float:
-        """Enhanced reward function targeting 70%+ win rate with better profit factor."""
+        """Enhanced reward function targeting 50%+ win rate with better profit factor (realistic with 1:2 RR)."""
         # Include unrealized P&L in base reward calculation
         account_state = engine.get_account_state()
         base_reward = (current_capital + account_state['unrealized_pnl']) - prev_capital
@@ -333,45 +351,45 @@ class RewardCalculator:
 
             if gross_loss > 0:
                 pf = gross_profit / gross_loss
-                # ULTRA-ENHANCED: Massive focus on profit factor for 70%+ performance
+                # BALANCED: Strong focus on profit factor with reasonable multipliers
                 if pf > 4.0:  # Exceptional profit factor
-                    profit_factor_bonus = (pf - 1.0) * 200  # Massive bonus
+                    profit_factor_bonus = (pf - 1.0) * 50   # High bonus (PF=4.5 → +150)
                 elif pf > 3.0:  # Excellent profit factor
-                    profit_factor_bonus = (pf - 1.0) * 150  # Very high bonus
+                    profit_factor_bonus = (pf - 1.0) * 40   # Good bonus (PF=3.5 → +100)
                 elif pf > 2.5:  # Very good profit factor
-                    profit_factor_bonus = (pf - 1.0) * 120  # High bonus
+                    profit_factor_bonus = (pf - 1.0) * 30   # Moderate bonus (PF=3.0 → +60)
                 elif pf > 2.0:  # Good profit factor
-                    profit_factor_bonus = (pf - 1.0) * 100  # Good bonus
+                    profit_factor_bonus = (pf - 1.0) * 25   # Small bonus (PF=2.5 → +37.5)
                 elif pf > 1.5:  # Decent profit factor
-                    profit_factor_bonus = (pf - 1.0) * 80   # Moderate bonus
+                    profit_factor_bonus = (pf - 1.0) * 20   # Tiny bonus (PF=2.0 → +20)
                 elif pf > 1.2:  # Barely good
-                    profit_factor_bonus = (pf - 1.0) * 50   # Small bonus
+                    profit_factor_bonus = (pf - 1.0) * 15   # Minimal bonus (PF=1.5 → +7.5)
                 elif pf > 1.0:  # Barely profitable
-                    profit_factor_bonus = (pf - 1.0) * 25   # Tiny bonus
+                    profit_factor_bonus = (pf - 1.0) * 10   # Very small bonus (PF=1.2 → +2)
                 elif pf < 0.4:  # Terrible profit factor
-                    profit_factor_bonus = (pf - 1.0) * 150  # Severe penalty
+                    profit_factor_bonus = (pf - 1.0) * 60   # Severe penalty (PF=0.3 → -42)
                 elif pf < 0.6:  # Very poor profit factor
-                    profit_factor_bonus = (pf - 1.0) * 100  # High penalty
-                else:  # Poor profit factor
-                    profit_factor_bonus = (pf - 1.0) * 75   # Moderate penalty
+                    profit_factor_bonus = (pf - 1.0) * 40   # High penalty (PF=0.5 → -20)
+                else:  # Poor profit factor (0.6-1.0)
+                    profit_factor_bonus = (pf - 1.0) * 25   # Moderate penalty (PF=0.8 → -5)
 
-        # Enhanced win rate calculation targeting 70%+
+        # Enhanced win rate calculation targeting 50%+ (realistic with 1:2 RR)
         win_rate_bonus = 0.0
         if closing_trades:
             win_rate = sum(1 for trade in closing_trades if trade['pnl'] > 0) / len(closing_trades)
-            # ENHANCED: Strong bonuses for high win rates (targeting 70%+)
-            if win_rate >= 0.8:  # Exceptional win rate (80%+)
-                win_rate_bonus = (win_rate - 0.5) * 100  # Massive bonus
-            elif win_rate >= 0.7:  # Target win rate (70%+)
-                win_rate_bonus = (win_rate - 0.5) * 80   # High bonus
-            elif win_rate >= 0.6:  # Good win rate
-                win_rate_bonus = (win_rate - 0.5) * 60   # Moderate bonus
-            elif win_rate >= 0.5:  # Decent win rate
-                win_rate_bonus = (win_rate - 0.5) * 40   # Small bonus
-            elif win_rate < 0.3:  # Very poor win rate
-                win_rate_bonus = (win_rate - 0.5) * 60   # High penalty
-            elif win_rate < 0.4:  # Poor win rate
-                win_rate_bonus = (win_rate - 0.5) * 40   # Moderate penalty
+            # ENHANCED: Strong bonuses for high win rates (50%+ profitable with 1:2 RR)
+            if win_rate >= 0.7:  # Exceptional win rate (70%+)
+                win_rate_bonus = (win_rate - 0.5) * 50  # Massive bonus for exceptional accuracy
+            elif win_rate >= 0.6:  # Excellent win rate (60-69%)
+                win_rate_bonus = (win_rate - 0.5) * 40  # High bonus
+            elif win_rate >= 0.5:  # Good win rate (50-59%) - profitable with 1:2 RR
+                win_rate_bonus = (win_rate - 0.5) * 30  # Moderate bonus
+            elif win_rate >= 0.4:  # Decent win rate (40-49%)
+                win_rate_bonus = (win_rate - 0.5) * 10  # Small bonus
+            elif win_rate < 0.3:  # Very poor win rate (<30%)
+                win_rate_bonus = (win_rate - 0.5) * 40  # High penalty
+            elif win_rate < 0.4:  # Poor win rate (30-39%)
+                win_rate_bonus = (win_rate - 0.5) * 25  # Moderate penalty
 
         # Enhanced drawdown penalty for better risk management
         drawdown_penalty = 0.0
@@ -402,7 +420,10 @@ class RewardCalculator:
                 elif risk_reward_ratio > 1.5:  # Decent risk-reward
                     risk_reward_bonus = risk_reward_ratio * 10
 
-        total_reward = base_reward + profit_factor_bonus + win_rate_bonus + drawdown_penalty + risk_reward_bonus
+        # Calculate streak bonus/penalty
+        streak_bonus = self._calculate_streak_bonus(engine)
+
+        total_reward = base_reward + profit_factor_bonus + win_rate_bonus + drawdown_penalty + risk_reward_bonus + streak_bonus
         return total_reward
 
     def _calculate_trailing_stop_reward_shaping(self, action_type: int, engine, current_price: float) -> float:
@@ -489,6 +510,10 @@ class RewardCalculator:
         if trailing_stop_price == 0:
             return 0.0  # No trailing stop set
 
+        # Check for invalid current price
+        if current_price <= 0:
+            return 0.0
+            
         # Calculate distance as percentage of current price
         if engine._current_position_quantity > 0:  # Long position
             distance = (current_price - trailing_stop_price) / current_price

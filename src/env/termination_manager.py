@@ -9,6 +9,8 @@ class TerminationManager:
     
     # Market closing time: 3:15 PM
     MARKET_CLOSING_TIME = time(15, 15)
+    # New position restriction time: 3:30 PM (no new positions between 3:15-3:30 PM)
+    POSITION_RESTRICTION_END_TIME = time(15, 30)
     
     def __init__(self, mode: TradingMode, max_drawdown_pct: float = 0.20):
         self.mode = mode
@@ -48,6 +50,29 @@ class TerminationManager:
         
         # Check if we're past market closing time (3:15 PM)
         if current_time >= self.MARKET_CLOSING_TIME:
+            return True
+            
+        return False
+    
+    def is_new_position_blocked(self, current_datetime: pd.Timestamp) -> bool:
+        """
+        Check if new positions should be blocked (between 3:15-3:30 PM).
+        Existing positions can still be closed, but no new positions allowed.
+        
+        Args:
+            current_datetime: Current timestamp
+            
+        Returns:
+            bool: True if new positions should be blocked
+        """
+        if not isinstance(current_datetime, pd.Timestamp):
+            return False
+            
+        # Extract time component
+        current_time = current_datetime.time()
+        
+        # Block new positions between 3:15 PM and 3:30 PM
+        if self.MARKET_CLOSING_TIME <= current_time < self.POSITION_RESTRICTION_END_TIME:
             return True
             
         return False

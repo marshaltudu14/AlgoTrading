@@ -348,6 +348,43 @@ class TradingEnv(gym.Env):
                 elif action_type == close_short_idx and current_position >= 0: # CLOSE_SHORT when not short
                     action_type = hold_action_idx # Convert to HOLD
 
+            # Get datetime early for position blocking logic
+            try:
+                safe_step = min(self.current_step, len(self.data) - 1)
+                if hasattr(self.data.index, 'strftime') or pd.api.types.is_datetime64_any_dtype(self.data.index):
+                    # DatetimeIndex
+                    current_datetime = self.data.index[safe_step]
+                elif self.data.index.name == 'datetime_readable':
+                    # Regular index with datetime_readable name - convert to datetime
+                    datetime_str = self.data.index[safe_step]
+                    current_datetime = pd.to_datetime(datetime_str)
+                elif 'datetime_readable' in self.data.columns:
+                    # Use datetime_readable column
+                    datetime_val = self.data['datetime_readable'].iloc[safe_step]
+                    current_datetime = pd.to_datetime(datetime_val)
+                elif 'datetime' in self.data.columns:
+                    # DateTime column (fallback)
+                    datetime_val = self.data['datetime'].iloc[safe_step]
+                    current_datetime = pd.to_datetime(datetime_val)
+                else:
+                    # Fallback datetime calculation
+                    total_minutes = safe_step * 5  # 5-minute intervals
+                    hours = 9 + (total_minutes // 60)  # Start at 9 AM
+                    minutes = total_minutes % 60
+                    current_datetime = pd.to_datetime(f"2024-01-01 {hours:02d}:{minutes:02d}:00")
+            except Exception as e:
+                current_datetime = pd.to_datetime("2024-01-01 09:00:00")
+            
+            # Market timing filter: Prevent new positions between 3:15-3:30 PM
+            # Allow closing existing positions but block opening new ones
+            if self.termination_manager.is_new_position_blocked(current_datetime):
+                if action_type in [buy_long_idx, sell_short_idx]:  # New position actions
+                    action_type = hold_action_idx  # Convert to HOLD
+                    # Note: CLOSE_LONG and CLOSE_SHORT are still allowed to close existing positions
+
+            # Increment candle counter for position lock mechanism
+            self.engine.increment_candle()
+            
             # Execute trade based on action type using configuration
             if action_type == buy_long_idx:
                 self.engine.execute_trade("BUY_LONG", current_price, quantity, current_atr, proxy_premium)
@@ -392,17 +429,18 @@ class TradingEnv(gym.Env):
 
             self.reward_calculator.last_action_type = action_type
 
+            # Create comprehensive info dictionary with all debug information
+            info = {}
+            info['datetime'] = current_datetime  # Use datetime calculated earlier
+
             # Check termination conditions using TerminationManager
             done, termination_reason = self.termination_manager.check_termination_conditions(
-                self.current_step, len(self.data), current_capital, info.get('datetime')
+                self.current_step, len(self.data), current_capital, current_datetime
             )
 
             # Force close any open positions if episode is ending
             if done:
                 self.termination_manager.force_close_positions(self.engine, self.data, self.current_step)
-
-            # Create comprehensive info dictionary with all debug information
-            info = {}
             if termination_reason:
                 info["termination_reason"] = termination_reason
 
@@ -422,33 +460,8 @@ class TradingEnv(gym.Env):
             info['initial_capital'] = self.initial_capital
             info['current_step'] = self.current_step
             
-            # Add current price and datetime information
+            # Add current price information (datetime already set above)
             info['current_price'] = current_price
-            try:
-                safe_step = min(self.current_step, len(self.data) - 1)
-                if hasattr(self.data.index, 'strftime') or pd.api.types.is_datetime64_any_dtype(self.data.index):
-                    # DatetimeIndex
-                    info['datetime'] = self.data.index[safe_step]
-                elif self.data.index.name == 'datetime_readable':
-                    # Regular index with datetime_readable name - convert to datetime
-                    datetime_str = self.data.index[safe_step]
-                    info['datetime'] = pd.to_datetime(datetime_str)
-                elif 'datetime_readable' in self.data.columns:
-                    # Use datetime_readable column
-                    datetime_val = self.data['datetime_readable'].iloc[safe_step]
-                    info['datetime'] = pd.to_datetime(datetime_val)
-                elif 'datetime' in self.data.columns:
-                    # DateTime column (fallback)
-                    datetime_val = self.data['datetime'].iloc[safe_step]
-                    info['datetime'] = pd.to_datetime(datetime_val)
-                else:
-                    # Fallback datetime calculation
-                    total_minutes = safe_step * 5  # 5-minute intervals
-                    hours = 9 + (total_minutes // 60)  # Start at 9 AM
-                    minutes = total_minutes % 60
-                    info['datetime'] = pd.to_datetime(f"2024-01-01 {hours:02d}:{minutes:02d}:00")
-            except Exception as e:
-                info['datetime'] = pd.to_datetime("2024-01-01 09:00:00")
                 
             # Add engine decision log information
             if self.engine._decision_log:

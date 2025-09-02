@@ -118,11 +118,32 @@ class BacktestingEngine:
         # Real-time trade decision logging
         self._current_step = 0
         self._decision_log = []  # Detailed log of all decisions
+        
+        # Position lock mechanism - prevent closing within 5 candles of entry
+        self._position_entry_candle = 0  # Candle number when position was opened
+        self._current_candle = 0  # Current candle counter
+        self.POSITION_LOCK_CANDLES = 5  # Minimum candles to hold position
 
     def _load_config(self) -> dict:
         """Load configuration from settings.yaml"""
         config_loader = ConfigLoader()
         return config_loader.get_config()
+    
+    def increment_candle(self):
+        """Increment candle counter - should be called at each time step"""
+        self._current_candle += 1
+    
+    def can_close_position(self, is_sl_hit: bool = False) -> bool:
+        """Check if position can be closed based on candle lock"""
+        if not self._is_position_open:
+            return True  # No position to close
+        
+        # SL hits are always allowed to override position lock
+        if is_sl_hit:
+            return True
+        
+        candles_held = self._current_candle - self._position_entry_candle
+        return candles_held >= self.POSITION_LOCK_CANDLES
 
     def reset(self, verbose: bool = False):
         if verbose:
@@ -224,10 +245,12 @@ class BacktestingEngine:
 
         # Check for SL/Trailing Stop hit if a position is open (removed TP check when using trailing stops)
         exit_reason = None
+        is_automatic_close = False  # Flag to track if this is an automatic SL/trail hit
         if self._is_position_open:
             if self._current_position_quantity > 0: # Long position
                 if price <= self._stop_loss_price:
                     exit_reason = f"STOP_LOSS_HIT"
+                    is_automatic_close = True
                     if detailed_logging:
                         logger.info(f"🛑 Step {self._current_step}: SL hit for LONG position at ₹{price:.2f} (SL: ₹{self._stop_loss_price:.2f})")
                     action = "CLOSE_LONG"
@@ -235,6 +258,7 @@ class BacktestingEngine:
                     price = self._stop_loss_price  # Use SL price for execution, not market price
                 elif price <= self._trailing_stop_price:
                     exit_reason = f"TRAILING_STOP_HIT"
+                    is_automatic_close = True
                     if detailed_logging:
                         logger.info(f"📉 Step {self._current_step}: Trailing SL hit for LONG position at ₹{price:.2f} (Trail: ₹{self._trailing_stop_price:.2f})")
                     action = "CLOSE_LONG"
@@ -243,6 +267,7 @@ class BacktestingEngine:
             elif self._current_position_quantity < 0: # Short position
                 if price >= self._stop_loss_price:
                     exit_reason = f"STOP_LOSS_HIT"
+                    is_automatic_close = True
                     if detailed_logging:
                         logger.info(f"🛑 Step {self._current_step}: SL hit for SHORT position at ₹{price:.2f} (SL: ₹{self._stop_loss_price:.2f})")
                     action = "CLOSE_SHORT"
@@ -250,6 +275,7 @@ class BacktestingEngine:
                     price = self._stop_loss_price  # Use SL price for execution, not market price
                 elif price >= self._trailing_stop_price:
                     exit_reason = f"TRAILING_STOP_HIT"
+                    is_automatic_close = True
                     if detailed_logging:
                         logger.info(f"📈 Step {self._current_step}: Trailing SL hit for SHORT position at ₹{price:.2f} (Trail: ₹{self._trailing_stop_price:.2f})")
                     action = "CLOSE_SHORT"
@@ -275,6 +301,8 @@ class BacktestingEngine:
             self._is_position_open = True
             self._position_entry_time = self._last_decision_timestamp
             self._position_entry_reason = f"BUY_LONG signal at step {self._current_step}"
+            # Record entry candle for position lock
+            self._position_entry_candle = self._current_candle
 
             # Use centralized risk-reward configuration
             risk_multiplier = self.risk_multiplier
@@ -322,7 +350,8 @@ class BacktestingEngine:
             self._current_position_quantity = -quantity # Negative for short position
             self._current_position_entry_price = price
             self._is_position_open = True
-
+            # Record entry candle for position lock
+            self._position_entry_candle = self._current_candle
 
 
             # Use centralized risk-reward configuration
@@ -353,6 +382,14 @@ class BacktestingEngine:
                     logging.warning(f"No long position to CLOSE_LONG. Current position: {self._current_position_quantity}. Trade not executed.")
                     _warning_cache.add(warning_key)
                 return 0.0, self._unrealized_pnl
+            
+            # Position lock check - prevent manual closing within 5 candles (SL hits are allowed)
+            if not self.can_close_position(is_sl_hit=is_automatic_close):
+                candles_held = self._current_candle - self._position_entry_candle
+                if detailed_logging:
+                    logging.info(f"Position lock active: held for {candles_held} candles, need {self.POSITION_LOCK_CANDLES}. Manual close blocked.")
+                return 0.0, self._unrealized_pnl
+            
             if quantity > self._current_position_quantity:
                 logging.warning(f"Attempted to close {quantity} long, but only {self._current_position_quantity} held. Closing full position.")
                 quantity = self._current_position_quantity
@@ -391,6 +428,14 @@ class BacktestingEngine:
                     logging.warning(f"No short position to CLOSE_SHORT. Current position: {self._current_position_quantity}. Trade not executed.")
                     _warning_cache.add(warning_key)
                 return 0.0, self._unrealized_pnl
+            
+            # Position lock check - prevent manual closing within 5 candles (SL hits are allowed)
+            if not self.can_close_position(is_sl_hit=is_automatic_close):
+                candles_held = self._current_candle - self._position_entry_candle
+                if detailed_logging:
+                    logging.info(f"Position lock active: held for {candles_held} candles, need {self.POSITION_LOCK_CANDLES}. Manual close blocked.")
+                return 0.0, self._unrealized_pnl
+            
             if quantity > abs(self._current_position_quantity):
                 logging.warning(f"Attempted to close {quantity} short, but only {abs(self._current_position_quantity)} held. Closing full position.")
                 quantity = abs(self._current_position_quantity)

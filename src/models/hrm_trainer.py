@@ -76,6 +76,16 @@ class HRMLossFunction:
             losses['act_loss'] = act_loss
             total_loss = total_loss + self.loss_weights['act_loss'] * act_loss
         
+        # Action entropy regularization for exploration (encourage diverse action selection)
+        if 'action_probabilities' in outputs:
+            action_probs = outputs['action_probabilities']
+            # Calculate entropy: -sum(p * log(p))
+            entropy = -torch.sum(action_probs * torch.log(action_probs + 1e-8), dim=-1)
+            # We want to maximize entropy (encourage exploration), so minimize negative entropy
+            entropy_loss = -torch.mean(entropy)
+            losses['entropy_loss'] = entropy_loss
+            total_loss = total_loss + self.loss_weights.get('entropy_loss', 0.01) * entropy_loss
+        
         # Performance-based loss (primary signal)
         if segment_rewards:
             # Convert rewards to loss (we want to maximize rewards, so minimize negative rewards)
@@ -272,10 +282,10 @@ class HRMTrainer:
         config = config_loader.get_config()
         parallel_envs = config.get('environment', {}).get('parallel_environments', 10)
         
-        # Disable parallel environments in debug mode to avoid output conflicts
+        # In debug mode, use parallel envs but modify logging behavior
         if self.debug_mode and parallel_envs > 1:
-            logger.info("Parallel environments disabled: Debug mode enabled")
-            return False
+            logger.info(f"Debug mode with {parallel_envs} parallel environments: Detailed logs will show parallel instrument names")
+            # Don't disable parallel envs in debug mode, just change logging behavior
         
         if parallel_envs <= 1:
             logger.info("Parallel environments disabled: Configuration set to 1 or less")
@@ -358,7 +368,8 @@ class HRMTrainer:
         self.env._resolve_market_context()
         
         # Set up first episode of new data file
-        self._setup_current_episode()
+        # Note: _setup_current_episode will be called after data is loaded in main loop
+        self.current_episode_start = 0
         
         # Reset environment for new data file (but keep model parameters)
         self.env.engine.reset()
@@ -427,20 +438,29 @@ class HRMTrainer:
     def train_episode(self) -> Dict[str, float]:
         """Train for one episode"""
         
-        # Print step debug header if in debug mode
+        # Print debug header based on training mode
         if self.debug_mode:
-            # Get instrument and timeframe info
-            instrument_name = getattr(self.env, 'symbol', 'Unknown')
-            timeframe = 'Unknown'
-            if hasattr(self.env, 'symbol'):
-                parts = self.env.symbol.split('_')
-                if len(parts) >= 2:
-                    instrument_name = '_'.join(parts[:-1])
-                    timeframe = f"{parts[-1]}min"
-            
-            print(f"\nEPOCH {getattr(self, 'current_episode', 0) + 1} STEP-BY-STEP: {instrument_name} ({timeframe})")
-            print("Step | Instrument     | Timeframe | DateTime           | Initial Cap | Current Cap | Action   | Win%  | P&L      | Current Price | Entry   | Target Price(Pts) | SL Price(Pts)   | Reward | Reason")
-            print("-" * 175)
+            if self.use_parallel_envs:
+                # For parallel training, show instrument names being trained
+                parallel_symbols = self.parallel_env_manager.get_environment_symbols()
+                instrument_list = ', '.join([sym.split('_')[0] for sym in parallel_symbols])
+                print(f"\nEPOCH {getattr(self, 'current_episode', 0) + 1} PARALLEL TRAINING: {len(parallel_symbols)} instruments")
+                print(f"Instruments: {instrument_list}")
+                print("Parallel training in progress - detailed step logs not shown to avoid output conflicts")
+                print("-" * 100)
+            else:
+                # For single instrument training, show detailed step-by-step logs
+                instrument_name = getattr(self.env, 'symbol', 'Unknown')
+                timeframe = 'Unknown'
+                if hasattr(self.env, 'symbol'):
+                    parts = self.env.symbol.split('_')
+                    if len(parts) >= 2:
+                        instrument_name = '_'.join(parts[:-1])
+                        timeframe = f"{parts[-1]}min"
+                
+                print(f"\nEPOCH {getattr(self, 'current_episode', 0) + 1} STEP-BY-STEP: {instrument_name} ({timeframe})")
+                print("Step | Instrument     | Timeframe | DateTime           | Initial Cap | Current Cap | Action   | Win%  | P&L      | Current Price | Entry   | Target Price(Pts) | SL Price(Pts)   | Reward | Reason")
+                print("-" * 175)
         
         # Environment is already initialized in setup_training_complete, no reset needed
         
@@ -582,21 +602,55 @@ class HRMTrainer:
         return episode_metrics
     
     def _log_parallel_step_debug(self, step_num: int, batch_rewards: torch.Tensor, batch_infos: List[Dict]):
-        """Log debug information for parallel environment step"""
+        """Log minimal step-by-step info for parallel training showing capital and win rate for each instrument every step"""
         env_symbols = self.parallel_env_manager.get_environment_symbols()
         
-        # Show header every 10 steps
-        if step_num == 1 or step_num % 10 == 1:
-            print(f"\nStep | {' | '.join([f'{sym:12s}' for sym in env_symbols[:4]])} | Avg Reward")
-            print("-" * (8 + 15 * min(4, len(env_symbols)) + 12))
+        # Show header every 20 steps for readability
+        if step_num == 1 or step_num % 20 == 1:
+            print(f"\n{'='*140}")
+            print(f"PARALLEL TRAINING - Instruments: {', '.join([sym.split('_')[0] for sym in env_symbols])}")
+            print(f"{'='*140}")
+            print(f"{'Step':<5} {'Instrument':<12} {'TF':<4} {'Initial':<10} {'Current':<10} {'P&L%':<6} {'Win%':<5} {'Reward':<8}")
+            print("-" * 140)
         
-        # Show rewards for each environment (limit to first 4 for readability)
-        reward_strs = [f"{batch_rewards[i].item():+8.3f}" for i in range(min(4, len(env_symbols)))]
+        # Show minimal info for each instrument every step
+        for i, (symbol, info) in enumerate(zip(env_symbols, batch_infos)):
+            # Extract instrument and timeframe
+            parts = symbol.split('_')
+            if len(parts) >= 2:
+                instrument = '_'.join(parts[:-1])[:11]  # Truncate for display
+                timeframe = parts[-1]
+            else:
+                instrument = symbol[:11]
+                timeframe = "?"
+            
+            # Extract performance info
+            initial_cap = info.get('initial_capital', 100000.0)
+            account_state = info.get('account_state', {})
+            current_cap = account_state.get('capital', initial_cap)
+            
+            # Calculate P&L percentage
+            pnl_pct = ((current_cap - initial_cap) / initial_cap * 100) if initial_cap > 0 else 0.0
+            
+            # Get win rate
+            win_rate = info.get('win_rate', 0.0) * 100
+            
+            # Get reward
+            reward = batch_rewards[i].item() if i < len(batch_rewards) else 0.0
+            
+            print(f"{step_num:<5} {instrument:<12} {timeframe:<4} {initial_cap:<10,.0f} {current_cap:<10,.0f} {pnl_pct:<6.2f} {win_rate:<5.1f} {reward:<8.3f}")
+        
+        # Show average after all instruments
         avg_reward = batch_rewards.mean().item()
-        print(f"{step_num:4d} | {' | '.join(reward_strs)} | {avg_reward:+8.3f}")
+        print(f"{'':>5} {'AVG':<12} {'':>4} {'':>10} {'':>10} {'':>6} {'':>5} {avg_reward:<8.3f}")
     
     def _log_step_debug(self, step_num: int, reward: float, info: Dict):
-        """Log detailed step information using environment as single source of truth."""
+        """Log detailed step information using environment as single source of truth.
+        Only logs for single instrument training to avoid conflicts during parallel training."""
+        
+        # Skip detailed logging for parallel training to avoid conflicts
+        if self.use_parallel_envs:
+            return
         
         # Extract all information from environment's info dict
         instrument_name = getattr(self.env, 'symbol', 'Unknown')

@@ -68,6 +68,12 @@ class LowLevelModule(HierarchicalReasoningModule):
             nn.Linear(hidden_dim // 2, self.num_actions)
         )
         
+        # Initialize final action layer with small uniform weights to prevent action bias
+        with torch.no_grad():
+            final_layer = self.action_head[-1]
+            nn.init.uniform_(final_layer.weight, -0.1, 0.1)  # Small uniform initialization
+            nn.init.zeros_(final_layer.bias)  # Zero bias to start with equal probabilities
+        
         
         # Tactical confidence estimation
         self.confidence_head = nn.Sequential(
@@ -197,10 +203,18 @@ class LowLevelModule(HierarchicalReasoningModule):
         # Get action probabilities
         action_probs = outputs['action_probabilities']
         
-        # Sample action based on probabilities (can be deterministic in production)
+        # Sample action based on probabilities
         if self.training:
-            action_idx = torch.multinomial(action_probs, 1).squeeze(-1)
+            # Reduced epsilon-greedy exploration for better convergence
+            epsilon = 0.05  # 5% chance to explore random action (reduced from 15%)
+            if torch.rand(1).item() < epsilon:
+                # Force random action selection to encourage exploration
+                action_idx = torch.randint(0, self.num_actions, (1,)).to(action_probs.device)
+            else:
+                # Use multinomial sampling to respect learned probabilities
+                action_idx = torch.multinomial(action_probs, 1).squeeze(-1)
         else:
+            # Fully deterministic in evaluation mode
             action_idx = torch.argmax(action_probs, dim=-1)
         
         # Action mapping using configured action names

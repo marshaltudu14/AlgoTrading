@@ -68,11 +68,12 @@ training:
 
   # Loss Function Weights
   loss_weights:
-    strategic_loss: 0.3 # H-module strategic decisions
-    tactical_loss: 0.4 # L-module tactical decisions
+    strategic_loss: 0.25 # H-module strategic decisions
+    tactical_loss: 0.35 # L-module tactical decisions
     act_loss: 0.1 # Adaptive computation time
     consistency_loss: 0.1 # H-L coordination
-    performance_loss: 0.1 # Overall trading performance
+    performance_loss: 0.15 # Overall trading performance
+    entropy_loss: 0.05 # Action exploration encouragement (NEW)
 
   # Learning Rates
   learning_rates:

@@ -85,22 +85,15 @@ actions:
 
 # Reward Configuration - Used by RewardCalculator
 rewards:
-  # Unified reward scaling for all instruments (-100 to +100 range)
-  # No instrument-specific discrimination - model learns from percentage-based P&L
-  reward_range:
-    min: -100.0      # Maximum penalty
-    max: 100.0       # Maximum reward
+  # Percentage-based reward scaling with no artificial limits
+  # 1% price move = 10 reward points (uncapped for true percentage representation)
+  # Large moves get proportionally large rewards - no clipping needed
   
-  # Base scaling factor - rewards will be normalized to the above range
-  global_scaling_factor: 1.0  # Will be dynamically adjusted based on percentage P&L
+  # Base scaling factor for percentage-based rewards
+  global_scaling_factor: 1.0
   
   # Whether to apply scaling to reward shaping components
   scale_reward_shaping: true
-  
-  # Reward capping to prevent extreme values from dominating learning
-  reward_clipping:
-    enabled: true
-    clip_percentile: 95  # Clip rewards beyond 95th percentile
 
 # Data Processing Configuration - Used by FeatureGenerator and UniversalDataNormalizer
 data_processing:
