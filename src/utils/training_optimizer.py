@@ -29,8 +29,8 @@ class HighPerformanceTrainingOptimizer:
         self.memory_config = self.config.get('memory_optimization', {})
         self.batch_counter = 0
         
-        logger.info(f"🚀 High-Performance Training Optimizer initialized")
-        logger.info(f"Mixed Precision: {'✅ Enabled' if self.use_mixed_precision else '❌ Disabled'}")
+        logger.info(f"High-Performance Training Optimizer initialized")
+        logger.info(f"Mixed Precision: {'Enabled' if self.use_mixed_precision else 'Disabled'}")
         logger.info(f"Gradient Accumulation: {self.config.get('gradient_accumulation_steps', 1)}x")
     
     def get_optimized_training_config(self) -> Dict[str, Any]:
@@ -234,19 +234,19 @@ class HighPerformanceTrainingOptimizer:
         config = self.get_optimized_training_config()
         
         print("\n" + "="*80)
-        print("🚀 HIGH-PERFORMANCE TRAINING CONFIGURATION")
+        print("HIGH-PERFORMANCE TRAINING CONFIGURATION")
         print("="*80)
         print(f"Target Hardware: 15GB VRAM + 12GB RAM (Colab/Kaggle)")
         print(f"Device: {config['device']}")
         print(f"Batch Size: {config['batch_size']} (8x larger for 15GB VRAM)")
         print(f"Gradient Accumulation: {config['gradient_accumulation_steps']}x")
         print(f"Effective Batch Size: {config['effective_batch_size']} (massive training batches)")
-        print(f"Mixed Precision: {'✅ FP16 Enabled' if config['mixed_precision'] else '❌ Disabled'}")
+        print(f"Mixed Precision: {'FP16 Enabled' if config['mixed_precision'] else 'Disabled'}")
         print(f"DataLoader Workers: {config['dataloader_config']['num_workers']}")
-        print(f"Pin Memory: {'✅ Enabled' if config['dataloader_config']['pin_memory'] else '❌ Disabled'}")
-        print(f"Model Compilation: {'✅ Enabled' if config.get('compile_model') else '❌ Disabled'}")
+        print(f"Pin Memory: {'Enabled' if config['dataloader_config']['pin_memory'] else 'Disabled'}")
+        print(f"Model Compilation: {'Enabled' if config.get('compile_model') else 'Disabled'}")
         
-        print(f"\n⚡ EXPECTED PERFORMANCE IMPROVEMENTS:")
+        print(f"\nEXPECTED PERFORMANCE IMPROVEMENTS:")
         print(f"• 8x larger batch sizes = Better gradient estimates")
         print(f"• Mixed precision = 1.5-2x speed boost with Tensor Cores")
         print(f"• Optimized data loading = 2-3x faster data pipeline")
@@ -256,7 +256,7 @@ class HighPerformanceTrainingOptimizer:
         if torch.cuda.is_available():
             memory_stats = self.get_memory_stats()
             gpu_mem = memory_stats.get('gpu_memory', {})
-            print(f"\n📊 CURRENT MEMORY USAGE:")
+            print(f"\nCURRENT MEMORY USAGE:")
             print(f"GPU Memory: {gpu_mem.get('allocated', 0):.1f}GB allocated, {gpu_mem.get('reserved', 0):.1f}GB reserved")
         
         print("="*80)

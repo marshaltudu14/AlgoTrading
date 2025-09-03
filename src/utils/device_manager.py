@@ -27,21 +27,21 @@ class DeviceManager:
             self.device = torch.device('xla')
             self.device_type = 'tpu'
             self._setup_tpu()
-            logger.info("🚀 TPU detected and selected for training")
+            logger.info("TPU detected and selected for training")
             
         # Check for GPU (second priority)
         elif torch.cuda.is_available():
             self.device = torch.device('cuda')
             self.device_type = 'gpu'
             self._setup_gpu()
-            logger.info(f"🎮 GPU detected and selected: {torch.cuda.get_device_name()}")
+            logger.info(f"GPU detected and selected: {torch.cuda.get_device_name()}")
             
         # Fallback to CPU
         else:
             self.device = torch.device('cpu')
             self.device_type = 'cpu'
             self._setup_cpu()
-            logger.info("💻 Using CPU for training (TPU/GPU not available)")
+            logger.info("Using CPU for training (TPU/GPU not available)")
     
     def _check_tpu_available(self) -> bool:
         """Check if TPU is available"""
@@ -112,7 +112,7 @@ class DeviceManager:
             if torch.cuda.get_device_capability(current_gpu)[0] >= 7:  # V100, T4, RTX series
                 self.device_info['mixed_precision_supported'] = True
                 self.device_info['tensor_cores'] = True
-                logger.info(f"🚀 Tensor Cores detected! Mixed precision training available")
+                logger.info(f"Tensor Cores detected! Mixed precision training available")
             else:
                 self.device_info['mixed_precision_supported'] = False
                 self.device_info['tensor_cores'] = False
@@ -125,7 +125,7 @@ class DeviceManager:
                 logger.info(f"Multiple GPUs detected ({gpu_count}). Consider using DataParallel.")
                 self.device_info['multi_gpu'] = True
             
-            logger.info(f"🎮 GPU Memory: {self.device_info['memory_total_gb']:.1f}GB total, {self.device_info['memory_free_gb']:.1f}GB available")
+            logger.info(f"GPU Memory: {self.device_info['memory_total_gb']:.1f}GB total, {self.device_info['memory_free_gb']:.1f}GB available")
             
         except Exception as e:
             logger.warning(f"GPU setup failed: {e}")
@@ -267,7 +267,7 @@ class DeviceManager:
     def print_device_summary(self):
         """Print detailed device information"""
         print("\n" + "="*80)
-        print("🔥 HIGH-PERFORMANCE DEVICE CONFIGURATION")
+        print("HIGH-PERFORMANCE DEVICE CONFIGURATION")
         print("="*80)
         print(f"Selected Device: {self.device}")
         print(f"Device Type: {self.device_type.upper()}")
@@ -282,23 +282,23 @@ class DeviceManager:
             print(f"Available Memory: {self.device_info.get('memory_free_gb', 0):.1f} GB")
             print(f"GPU Count: {self.device_info.get('gpu_count', 1)}")
             print(f"Compute Capability: {self.device_info.get('compute_capability', 'Unknown')}")
-            print(f"Tensor Cores: {'✅ Available' if self.device_info.get('tensor_cores', False) else '❌ Not Available'}")
-            print(f"Mixed Precision: {'✅ Enabled' if self.device_info.get('mixed_precision_supported', False) else '❌ Disabled'}")
+            print(f"Tensor Cores: {'Available' if self.device_info.get('tensor_cores', False) else 'Not Available'}")
+            print(f"Mixed Precision: {'Enabled' if self.device_info.get('mixed_precision_supported', False) else 'Disabled'}")
             
             # Performance recommendations
             config = self.get_optimal_training_config()
-            print(f"\n🚀 PERFORMANCE OPTIMIZATIONS:")
+            print(f"\nPERFORMANCE OPTIMIZATIONS:")
             print(f"Recommended Batch Size: {self.get_batch_size_recommendation(32)}")
             print(f"Gradient Accumulation: {config['gradient_accumulation_steps']}x")
             print(f"DataLoader Workers: {config['dataloader_workers']}")
-            print(f"Pin Memory: {'✅ Enabled' if config['pin_memory'] else '❌ Disabled'}")
+            print(f"Pin Memory: {'Enabled' if config['pin_memory'] else 'Disabled'}")
             if config['mixed_precision']:
-                print(f"Mixed Precision: ✅ FP16 Enabled (Tensor Cores)")
+                print(f"Mixed Precision: FP16 Enabled (Tensor Cores)")
             
         else:  # CPU
             print(f"CPU Cores: {self.device_info.get('cpu_cores', 'Unknown')}")
             print(f"CPU Threads: {self.device_info.get('num_threads', 'Unknown')}")
-            print(f"⚠️ WARNING: Using CPU instead of GPU - Training will be significantly slower!")
+            print(f"WARNING: Using CPU instead of GPU - Training will be significantly slower!")
         
         print("="*80 + "\n")
 

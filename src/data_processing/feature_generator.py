@@ -453,10 +453,10 @@ class DynamicFileProcessor:
                 # Process the dataframe
                 processed_df = self.process_dataframe(df)
 
-                # Save processed file (replace existing)
-                output_path = self.processed_folder / f"features_{file_path.name}"
+                # Save processed file as Parquet (replace existing)
+                output_path = self.processed_folder / f"features_{file_path.stem}.parquet"
                 # CRITICAL: Save with index=True to preserve datetime index
-                processed_df.to_csv(output_path, index=True)
+                processed_df.to_parquet(output_path, index=True)
 
                 results[file_path.name] = f"Success: {len(processed_df)} rows, {len(processed_df.columns)} features"
                 logger.info(f"Processed {file_path.name}: {len(processed_df)} rows, {len(processed_df.columns)} features")

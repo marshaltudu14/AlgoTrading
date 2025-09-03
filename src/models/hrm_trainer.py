@@ -552,6 +552,10 @@ class HRMTrainer:
             # Step all environments in parallel
             batch_obs, batch_rewards, batch_dones, batch_infos = self.parallel_env_manager.step_all()
             
+            # Log step-by-step instrument data if in debug mode
+            if self.debug_mode:
+                self._log_parallel_step_debug(step_count, batch_rewards, batch_infos)
+            
             # Process batch rewards and infos
             episode_metrics['total_reward'] += batch_rewards.mean().item()
             step_count += 1

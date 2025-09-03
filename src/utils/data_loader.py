@@ -84,13 +84,7 @@ class DataLoader:
             if os.path.exists(parquet_path):
                 yield from self._load_parquet_chunks(parquet_path)
             else:
-                # Convert CSV to Parquet first
-                csv_path = os.path.join(data_dir, f"{symbol}.csv")
-                if os.path.exists(csv_path):
-                    self._convert_csv_to_parquet(csv_path, parquet_path)
-                    yield from self._load_parquet_chunks(parquet_path)
-                else:
-                    logging.error(f"No data found for symbol: {symbol}")
+                logging.error(f"No data found for symbol: {symbol}")
         else:
             csv_path = os.path.join(data_dir, f"{symbol}.csv")
             yield from self._load_csv_chunks(csv_path)
@@ -166,217 +160,7 @@ class DataLoader:
 
         return True
 
-    def _convert_csv_to_parquet(self, csv_path: str, parquet_path: str) -> None:
-        """Convert CSV file to Parquet format for faster loading."""
-        try:
-            logging.info(f"Converting {csv_path} to Parquet format...")
-            df = pd.read_csv(csv_path)
-
-            # Determine if this is a features file (no datetime required)
-            is_features_file = 'features_' in os.path.basename(csv_path)
-            require_datetime = not is_features_file
-
-            # Basic data cleaning and validation
-            if self._validate_chunk(df, require_datetime=require_datetime):
-                # Convert datetime column to proper datetime type if present
-                if 'datetime' in df.columns:
-                    df['datetime'] = pd.to_datetime(df['datetime'])
-
-                # Ensure parquet directory exists
-                os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
-
-                # Save as Parquet
-                df.to_parquet(parquet_path, index=False, engine='pyarrow')
-                logging.info(f"Successfully converted to {parquet_path}")
-            else:
-                logging.error(f"Invalid data in {csv_path}, skipping conversion")
-        except Exception as e:
-            logging.error(f"Error converting {csv_path} to Parquet: {e}")
-
-    def load_data_segment(self, symbol: str, start_idx: int, end_idx: int,
-                         data_type: str = "raw") -> pd.DataFrame:
-        """
-        Load a specific segment of data for on-demand loading.
-
-        Args:
-            symbol: Symbol to load
-            start_idx: Starting row index
-            end_idx: Ending row index
-            data_type: "raw" or "final" data directory
-
-        Returns:
-            pd.DataFrame: Data segment
-        """
-        data_dir = self.raw_data_dir if data_type == "raw" else self.final_data_dir
-        parquet_dir = self.parquet_raw_dir if data_type == "raw" else self.parquet_final_dir
-
-        if self.use_parquet:
-            parquet_path = os.path.join(parquet_dir, f"{symbol}.parquet")
-            if not os.path.exists(parquet_path):
-                # Convert CSV to Parquet first - try different filename patterns
-                possible_files = [
-                    f"{symbol}.csv",
-                    f"features_{symbol}.csv",
-                    f"processed_{symbol}.csv"
-                ]
-
-                # Also try to find files with timeframe suffixes
-                for filename in os.listdir(data_dir):
-                    if filename.endswith(".csv"):
-                        base_name = filename.replace(".csv", "")
-                        if (base_name.startswith(f"features_{symbol}_") or
-                            base_name.startswith(f"processed_{symbol}_") or
-                            base_name.startswith(f"{symbol}_")):
-                            possible_files.append(filename)
-
-                csv_found = False
-                for filename in possible_files:
-                    csv_path = os.path.join(data_dir, filename)
-                    if os.path.exists(csv_path):
-                        self._convert_csv_to_parquet(csv_path, parquet_path)
-                        csv_found = True
-                        break
-
-                if not csv_found:
-                    logging.error(f"No CSV data found for symbol: {symbol} in {data_dir}")
-                    return pd.DataFrame()
-
-            return self._load_parquet_segment(parquet_path, start_idx, end_idx)
-        else:
-            # Try different filename patterns for CSV
-            possible_files = [
-                f"{symbol}.csv",
-                f"features_{symbol}.csv",
-                f"processed_{symbol}.csv"
-            ]
-
-            # Also try to find files with timeframe suffixes
-            for filename in os.listdir(data_dir):
-                if filename.endswith(".csv"):
-                    base_name = filename.replace(".csv", "")
-                    if (base_name.startswith(f"features_{symbol}_") or
-                        base_name.startswith(f"processed_{symbol}_") or
-                        base_name.startswith(f"{symbol}_")):
-                        possible_files.append(filename)
-
-            for filename in possible_files:
-                csv_path = os.path.join(data_dir, filename)
-                if os.path.exists(csv_path):
-                    return self._load_csv_segment(csv_path, start_idx, end_idx)
-
-            logging.error(f"No CSV data file found for symbol: {symbol} in {data_dir}")
-            return pd.DataFrame()
-
-    def _load_csv_segment(self, filepath: str, start_idx: int, end_idx: int) -> pd.DataFrame:
-        """Load a specific segment from CSV file."""
-        try:
-            # Determine if this is a features file (no datetime required)
-            is_features_file = 'features_' in os.path.basename(filepath)
-            require_datetime = not is_features_file
-
-            # Use skiprows and nrows for efficient segment loading
-            nrows = end_idx - start_idx
-            # CRITICAL: Set datetime_readable as index when loading processed features
-            df = pd.read_csv(filepath, skiprows=range(1, start_idx + 1), nrows=nrows, index_col=0)
-
-            if self._validate_chunk(df, require_datetime=require_datetime):
-                return df
-            else:
-                print(f"Warning: Invalid data segment in {filepath}, Segment: {start_idx}-{end_idx}")
-                return pd.DataFrame()
-        except Exception as e:
-            print(f"Error loading CSV segment from {filepath}: {e}, Segment: {start_idx}-{end_idx}")
-            return pd.DataFrame()
-
-    def _load_parquet_segment(self, filepath: str, start_idx: int, end_idx: int) -> pd.DataFrame:
-        """Load a specific segment from Parquet file."""
-        try:
-            # Determine if this is a features file (no datetime required)
-            is_features_file = 'features_' in os.path.basename(filepath)
-            require_datetime = not is_features_file
-
-            # Parquet allows efficient row-level access
-            df = pd.read_parquet(filepath, engine='pyarrow')
-            segment = df.iloc[start_idx:end_idx]
-
-            if self._validate_chunk(segment, require_datetime=require_datetime):
-                return segment
-            else:
-                print(f"Warning: Invalid data segment in {filepath}, Segment: {start_idx}-{end_idx}")
-                return pd.DataFrame()
-        except Exception as e:
-            print(f"Error loading Parquet segment from {filepath}: {e}, Segment: {start_idx}-{end_idx}")
-            return pd.DataFrame()
-
-    def get_data_length(self, symbol: str, data_type: str = "raw") -> int:
-        """Get the total number of rows for a symbol."""
-        # If in testing mode and requesting final data, return in-memory data length
-        if self.testing_mode and data_type == "final" and symbol in self.in_memory_data:
-            return len(self.in_memory_data[symbol])
-
-        data_dir = self.raw_data_dir if data_type == "raw" else self.final_data_dir
-        parquet_dir = self.parquet_raw_dir if data_type == "raw" else self.parquet_final_dir
-
-        if self.use_parquet:
-            parquet_path = os.path.join(parquet_dir, f"{symbol}.parquet")
-            if os.path.exists(parquet_path):
-                try:
-                    parquet_file = pq.ParquetFile(parquet_path)
-                    return parquet_file.metadata.num_rows
-                except Exception as e:
-                    logging.error(f"Error reading Parquet metadata: {e}")
-                    return 0
-
-        # Fallback to CSV - try different filename patterns
-        possible_files = [
-            f"{symbol}.csv",
-            f"features_{symbol}.csv",
-            f"processed_{symbol}.csv"
-        ]
-
-        # Also try to find files with timeframe suffixes
-        for filename in os.listdir(data_dir):
-            if filename.endswith(".csv"):
-                base_name = filename.replace(".csv", "")
-                if (base_name.startswith(f"features_{symbol}_") or
-                    base_name.startswith(f"processed_{symbol}_") or
-                    base_name.startswith(f"{symbol}_")):
-                    possible_files.append(filename)
-
-        for filename in possible_files:
-            csv_path = os.path.join(data_dir, filename)
-            if os.path.exists(csv_path):
-                try:
-                    # Count lines efficiently
-                    with open(csv_path, 'r') as f:
-                        return sum(1 for _ in f) - 1  # Subtract header
-                except Exception as e:
-                    logging.error(f"Error counting CSV rows in {filename}: {e}")
-                    continue
-
-        logging.error(f"No data file found for symbol: {symbol} in {data_dir}")
-        return 0
-
-    def convert_all_csv_to_parquet(self, data_type: str = "raw") -> None:
-        """Convert all CSV files to Parquet format for better performance."""
-        data_dir = self.raw_data_dir if data_type == "raw" else self.final_data_dir
-        parquet_dir = self.parquet_raw_dir if data_type == "raw" else self.parquet_final_dir
-
-        csv_files = list(Path(data_dir).glob("*.csv"))
-        if not csv_files:
-            logging.info(f"No CSV files found in {data_dir}")
-            return
-
-        logging.info(f"Converting {len(csv_files)} CSV files to Parquet format...")
-
-        for csv_file in csv_files:
-            parquet_file = os.path.join(parquet_dir, f"{csv_file.stem}.parquet")
-            if not os.path.exists(parquet_file):
-                self._convert_csv_to_parquet(str(csv_file), parquet_file)
-            else:
-                logging.info(f"Parquet file already exists: {parquet_file}")
-
-        logging.info("Parquet conversion completed")
+    
 
     def get_storage_info(self) -> Dict:
         """Get information about data storage formats and sizes."""
@@ -457,16 +241,16 @@ class DataLoader:
         """Load processed final data for a specific symbol."""
         logging.info(f"Looking for data for symbol: {symbol} in directory: {self.final_data_dir}")
 
-        # Only look for the correct pattern: features_{symbol}.csv
-        filename = f"features_{symbol}.csv"
+        # Only look for the correct pattern: features_{symbol}.parquet
+        filename = f"features_{symbol}.parquet"
         filepath = os.path.join(self.final_data_dir, filename)
         
         logging.info(f"Checking file: {filepath}")
         if os.path.exists(filepath):
             logging.info(f"File exists: {filepath}")
             try:
-                # CRITICAL: Set datetime_readable as index when loading processed features
-                df = pd.read_csv(filepath, index_col=0)
+                # Load from Parquet file
+                df = pd.read_parquet(filepath)
                 
                 # Ensure all numeric columns are float32 to prevent dtype mismatches
                 numeric_columns = df.select_dtypes(include=[np.number]).columns
@@ -485,6 +269,27 @@ class DataLoader:
 
         logging.error(f"No final data found for symbol: {symbol}")
         return pd.DataFrame()
+
+    def get_data_length(self, symbol: str, data_type: str = "final") -> int:
+        """Get the total number of rows for a symbol from its Parquet file."""
+        if data_type != "final":
+            logging.warning("get_data_length is optimized for final Parquet data and should not be used for raw data.")
+            return 0
+
+        # The file path is constructed based on the symbol.
+        # e.g., symbol 'Bank_Nifty_5' -> 'features_Bank_Nifty_5.parquet'
+        parquet_path = os.path.join(self.final_data_dir, f"features_{symbol}.parquet")
+
+        if os.path.exists(parquet_path):
+            try:
+                parquet_file = pq.ParquetFile(parquet_path)
+                return parquet_file.metadata.num_rows
+            except Exception as e:
+                logging.error(f"Error reading Parquet metadata for {parquet_path}: {e}")
+                return 0
+        else:
+            logging.error(f"No Parquet data file found for symbol: {symbol} at {parquet_path}")
+            return 0
 
     def get_base_symbol(self, symbol: str) -> str:
         """

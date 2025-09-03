@@ -52,7 +52,7 @@ class HRMTrainingPipeline:
         if self.high_performance:
             self.training_optimizer = get_training_optimizer()
             self.performance_config = self.training_optimizer.get_optimized_training_config()
-            logger.info("🚀 High-performance training mode enabled")
+            logger.info("High-performance training mode enabled")
             self.training_optimizer.print_performance_summary()
         else:
             self.training_optimizer = None
@@ -94,7 +94,7 @@ class HRMTrainingPipeline:
             raise FileNotFoundError(f"Data directory not found: {data_dir}")
         
         # Find available feature files
-        feature_files = list(data_dir.glob("features_*.csv"))
+        feature_files = list(data_dir.glob("features_*.parquet"))
         if not feature_files:
             raise FileNotFoundError(f"No feature files found in {data_dir}")
         
@@ -133,8 +133,8 @@ class HRMTrainingPipeline:
         """Find the actual data file with instrument+timeframe combination"""
         data_dir = Path(self.data_path)
         
-        # Look for files matching the pattern: features_{instrument}_{timeframe}.csv
-        expected_filename = f"features_{instrument_symbol}_{timeframe}.csv"
+        # Look for files matching the pattern: features_{instrument}_{timeframe}.parquet
+        expected_filename = f"features_{instrument_symbol}_{timeframe}.parquet"
         expected_path = data_dir / expected_filename
         
         if expected_path.exists():
@@ -142,7 +142,7 @@ class HRMTrainingPipeline:
             return f"{instrument_symbol}_{timeframe}"
         
         # If exact match not found, list available files for this instrument
-        available_files = list(data_dir.glob(f"features_{instrument_symbol}_*.csv"))
+        available_files = list(data_dir.glob(f"features_{instrument_symbol}_*.parquet"))
         if available_files:
             logger.warning(f"Exact file {expected_filename} not found. Available files:")
             for file in available_files:
