@@ -173,8 +173,8 @@ class HRMTrainer:
                 data_loader=self.data_loader,
                 symbols=self.available_instruments,
                 config_path=self.config_path,
-                device=str(self.device),
-                max_parallel_envs=parallel_envs
+                device=str(self.device)
+                # max_parallel_envs will be determined automatically based on device type and config
             )
             
             # Log which instruments are being used in parallel
@@ -217,8 +217,8 @@ class HRMTrainer:
             self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
             
         else:
-            # Fall back to sequential training (CPU mode)
-            logger.info("Using sequential training (CPU mode)")
+            # Fall back to single environment training (CPU mode without parallel environments)
+            logger.info("Using single environment training (CPU mode)")
             
             # Initialize with first instrument
             first_symbol = self.available_instruments[0]
@@ -271,16 +271,28 @@ class HRMTrainer:
     
     def _should_use_parallel_envs(self) -> bool:
         """Check if parallel environments should be used based on device type and configuration"""
-        # Only use parallel environments on GPU or TPU
+        # Use parallel environments on GPU, TPU, and CPU
         device_type = self.device_manager.get_device_type()
-        if device_type not in ['gpu', 'tpu']:
-            logger.info("Parallel environments disabled: Not running on GPU/TPU")
+        if device_type not in ['gpu', 'tpu', 'cpu']:
+            logger.info("Parallel environments disabled: Unsupported device type")
             return False
         
         # Check if parallel environments are configured
         config_loader = ConfigLoader()
         config = config_loader.get_config()
-        parallel_envs = config.get('environment', {}).get('parallel_environments', 10)
+        
+        # Get parallel environments setting based on device type
+        parallel_envs_config = config.get('environment', {}).get('parallel_environments', {})
+        if isinstance(parallel_envs_config, dict):
+            # New format with separate settings for CPU and GPU/TPU
+            if device_type == 'cpu':
+                parallel_envs = parallel_envs_config.get('cpu', 5)
+            else:  # gpu or tpu
+                parallel_envs = parallel_envs_config.get('gpu_tpu', 10)
+        else:
+            # Old format - fallback to default values
+            parallel_envs = 5 if device_type == 'cpu' else 10
+            logger.warning("Using legacy parallel environments configuration. Please update settings.yaml")
         
         # In debug mode, use parallel envs but modify logging behavior
         if self.debug_mode and parallel_envs > 1:
@@ -295,7 +307,7 @@ class HRMTrainer:
         return True
     
     def _setup_current_episode(self):
-        """Set up data for current episode - sequential feeding"""
+        """Set up data for current episode - single environment feeding"""
         
         # Calculate episode boundaries
         episode_end = min(self.current_episode_start + self.episode_length, self.total_data_length)
@@ -315,7 +327,7 @@ class HRMTrainer:
             logger.info(f"Time range: {start_time} to {end_time}")
     
     def _advance_to_next_episode(self):
-        """Move to next sequential episode within current data file"""
+        """Move to next episode within current data file (single environment mode)"""
         
         # Move to next episode segment within current data file
         self.current_episode_start += self.episode_length
@@ -478,7 +490,7 @@ class HRMTrainer:
             # Parallel environment training
             return self._train_episode_parallel()
         else:
-            # Sequential environment training (original method)
+            # Single environment training (original method)
             while not done and step_count < 1000:  # Max steps per episode
                 
                 # Environment step (HRM handles the reasoning internally)

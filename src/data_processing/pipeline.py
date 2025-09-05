@@ -95,7 +95,9 @@ class DataProcessingPipeline:
             logger.debug(f"Ensured directory exists: {directory}")
     
     def run_complete_pipeline(self, input_dir: str = None,
-                            output_dir: str = None) -> Dict[str, Any]:
+                            output_dir: str = None,
+                            parallel: bool = True,
+                            max_workers: int = None) -> Dict[str, Any]:
         paths_config = self.config.get('paths', {})
         input_dir = input_dir or paths_config.get('raw_data_dir', 'data/raw')
         output_dir = output_dir or paths_config.get('final_data_dir', 'data/final')
@@ -105,6 +107,8 @@ class DataProcessingPipeline:
         Args:
             input_dir: Directory containing raw historical CSV files
             output_dir: Directory to save final processed data
+            parallel: Whether to use parallel processing
+            max_workers: Maximum number of worker processes (None = CPU count)
             
         Returns:
             Pipeline execution summary
@@ -120,7 +124,7 @@ class DataProcessingPipeline:
             logger.info("STEP 1: FEATURE GENERATION")
             logger.info("-" * 40)
 
-            feature_results = self.run_feature_generation(input_dir, output_dir)
+            feature_results = self.run_feature_generation(input_dir, output_dir, parallel, max_workers)
             
             if not feature_results['success']:
                 return {
@@ -161,13 +165,15 @@ class DataProcessingPipeline:
                 'step_failed': 'unknown'
             }
     
-    def run_feature_generation(self, input_dir: str, output_dir: str) -> Dict[str, Any]:
+    def run_feature_generation(self, input_dir: str, output_dir: str, parallel: bool = True, max_workers: int = None) -> Dict[str, Any]:
         """
         Run feature generation step.
 
         Args:
             input_dir: Directory with raw historical data
             output_dir: Directory to save feature data
+            parallel: Whether to use parallel processing
+            max_workers: Maximum number of worker processes (None = CPU count)
 
         Returns:
             Feature generation results
@@ -184,7 +190,7 @@ class DataProcessingPipeline:
 
             # Get the processor class and run it
             processor = feature_module.DynamicFileProcessor()
-            results = processor.process_all_files()
+            results = processor.process_all_files(parallel=parallel, max_workers=max_workers)
 
             if results:
                 logger.info("Feature generator completed successfully")
@@ -355,6 +361,10 @@ def main():
                        help='Run only feature generation step')
     parser.add_argument('--config-file',
                        help='Custom configuration file path')
+    parser.add_argument('--no-parallel', action='store_true',
+                       help='Disable parallel processing')
+    parser.add_argument('--max-workers', type=int, default=None,
+                       help='Maximum number of worker processes (default: CPU count)')
     
     args = parser.parse_args()
     
@@ -370,45 +380,54 @@ def main():
 
         if args.features_only:
             print("Running FEATURES ONLY mode...")
-            result = pipeline.run_feature_generation(args.input_dir, args.output_dir)
+            result = pipeline.run_feature_generation(
+                args.input_dir, 
+                args.output_dir,
+                parallel=not args.no_parallel,
+                max_workers=args.max_workers
+            )
 
         
-            
         else:
             print("Running COMPLETE PIPELINE...")
-            result = pipeline.run_complete_pipeline(args.input_dir, args.output_dir)
-        
-        # Display results
-        if result['success']:
-            print("\n" + "=" * 80)
-            print("PIPELINE COMPLETED SUCCESSFULLY!")
-            print("=" * 80)
-            
-            if not args.features_only:
-                print(f"Total processing time: {result.get('total_time_formatted', 'Unknown')}")
-                print(f"Files processed: {result.get('total_files_processed', 0)}")
-                print(f"Rows processed: {result.get('total_rows_processed', 0):,}")
-                print(f"Average quality score: {result.get('average_quality_score', 0):.1f}")
-                print(f"Final data location: {result.get('output_directory', 'Unknown')}")
+            result = pipeline.run_complete_pipeline(
+                args.input_dir, 
+                args.output_dir,
+                parallel=not args.no_parallel,
+                max_workers=args.max_workers
+            )
+
+            # Display results
+            if result['success']:
+                print("\n" + "=" * 80)
+                print("PIPELINE COMPLETED SUCCESSFULLY!")
+                print("=" * 80)
+                
+                if not args.features_only:
+                    print(f"Total processing time: {result.get('total_time_formatted', 'Unknown')}")
+                    print(f"Files processed: {result.get('total_files_processed', 0)}")
+                    print(f"Rows processed: {result.get('total_rows_processed', 0):,}")
+                    print(f"Average quality score: {result.get('average_quality_score', 0):.1f}")
+                    print(f"Final data location: {result.get('output_directory', 'Unknown')}")
+                else:
+                    print(f"Files processed: {result.get('files_processed', 0)}")
+                    if 'total_rows' in result:
+                        print(f"Rows processed: {result.get('total_rows', 0):,}")
+                
+                print("\nYour data is now ready for model training!")
+                
             else:
-                print(f"Files processed: {result.get('files_processed', 0)}")
-                if 'total_rows' in result:
-                    print(f"Rows processed: {result.get('total_rows', 0):,}")
+                print("\n" + "=" * 80)
+                print("PIPELINE FAILED")
+                print("=" * 80)
+                print(f"Error: {result.get('error', 'Unknown error')}")
+                if 'step_failed' in result:
+                    print(f"Failed at step: {result['step_failed']}")
+                
+                print("\nCheck the log files for detailed error information.")
             
-            print("\nYour data is now ready for model training!")
-            
-        else:
-            print("\n" + "=" * 80)
-            print("PIPELINE FAILED")
             print("=" * 80)
-            print(f"Error: {result.get('error', 'Unknown error')}")
-            if 'step_failed' in result:
-                print(f"Failed at step: {result['step_failed']}")
             
-            print("\nCheck the log files for detailed error information.")
-        
-        print("=" * 80)
-        
     except Exception as e:
         logger.error(f"Pipeline execution failed: {str(e)}")
         print(f"\nFatal Error: {str(e)}")

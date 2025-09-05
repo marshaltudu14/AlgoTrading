@@ -440,6 +440,81 @@ class DataLoader:
         logging.info(f"Created {len(fallback_tasks)} fallback tasks: {fallback_tasks}")
         return fallback_tasks
 
+    def load_data_segment(self, symbol: str, start_idx: int, end_idx: int, data_type: str = "final") -> pd.DataFrame:
+        """
+        Load a segment of data for a specific symbol between start_idx and end_idx.
+        
+        Args:
+            symbol: The symbol to load data for
+            start_idx: Starting index (inclusive)
+            end_idx: Ending index (exclusive)
+            data_type: "final" or "raw" data directory
+            
+        Returns:
+            pd.DataFrame: The data segment
+        """
+        try:
+            if data_type == "final":
+                # For final data, look for features_{symbol}.parquet or features_{symbol}.csv
+                parquet_path = os.path.join(self.final_data_dir, f"features_{symbol}.parquet")
+                csv_path = os.path.join(self.final_data_dir, f"features_{symbol}.csv")
+                
+                if self.use_parquet and os.path.exists(parquet_path):
+                    # Load from Parquet file with row selection
+                    parquet_file = pq.ParquetFile(parquet_path)
+                    # Calculate how many rows to skip and how many to read
+                    rows_to_skip = start_idx
+                    rows_to_read = end_idx - start_idx
+                    
+                    # Read only the required rows
+                    if rows_to_skip + rows_to_read <= parquet_file.metadata.num_rows:
+                        # Use PyArrow to read specific row groups
+                        df = parquet_file.read(skip_rows=rows_to_skip, num_rows=rows_to_read).to_pandas()
+                    else:
+                        # If we're asking for more rows than available, read from start_idx to end
+                        df = parquet_file.read(skip_rows=rows_to_skip).to_pandas()
+                elif os.path.exists(csv_path):
+                    # Load from CSV file with row selection
+                    # Read only the required rows using skiprows and nrows
+                    df = pd.read_csv(csv_path, index_col=0, skiprows=range(1, start_idx+1), nrows=end_idx-start_idx)
+                else:
+                    logging.error(f"No final data found for symbol: {symbol}")
+                    return pd.DataFrame()
+            else:
+                # For raw data, look for {symbol}.parquet or {symbol}.csv
+                parquet_path = os.path.join(self.parquet_raw_dir, f"{symbol}.parquet")
+                csv_path = os.path.join(self.raw_data_dir, f"{symbol}.csv")
+                
+                if self.use_parquet and os.path.exists(parquet_path):
+                    # Load from Parquet file with row selection
+                    parquet_file = pq.ParquetFile(parquet_path)
+                    # Calculate how many rows to skip and how many to read
+                    rows_to_skip = start_idx
+                    rows_to_read = end_idx - start_idx
+                    
+                    # Read only the required rows
+                    if rows_to_skip + rows_to_read <= parquet_file.metadata.num_rows:
+                        df = parquet_file.read(skip_rows=rows_to_skip, num_rows=rows_to_read).to_pandas()
+                    else:
+                        # If we're asking for more rows than available, read from start_idx to end
+                        df = parquet_file.read(skip_rows=rows_to_skip).to_pandas()
+                elif os.path.exists(csv_path):
+                    # Load from CSV file with row selection
+                    df = pd.read_csv(csv_path, skiprows=range(1, start_idx+1), nrows=end_idx-start_idx)
+                else:
+                    logging.error(f"No raw data found for symbol: {symbol}")
+                    return pd.DataFrame()
+            
+            # Ensure all numeric columns are float32 to prevent dtype mismatches
+            numeric_columns = df.select_dtypes(include=[np.number]).columns
+            df[numeric_columns] = df[numeric_columns].astype(np.float32)
+            
+            logging.info(f"Loaded data segment for {symbol}: rows {start_idx}-{end_idx} ({len(df)} rows)")
+            return df
+        except Exception as e:
+            logging.error(f"Error loading data segment for {symbol} [{start_idx}:{end_idx}]: {e}")
+            return pd.DataFrame()
+
     def get_task_data(self, instrument_type: str, timeframe: str) -> pd.DataFrame:
         filename = f"{instrument_type}_{timeframe}.csv"
         filepath = os.path.join(self.final_data_dir, filename)

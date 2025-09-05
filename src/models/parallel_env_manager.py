@@ -23,7 +23,7 @@ class ParallelEnvironmentManager:
                  symbols: List[str],
                  config_path: str = "config/hrm_config.yaml",
                  device: str = "cuda" if torch.cuda.is_available() else "cpu",
-                 max_parallel_envs: int = 10):
+                 max_parallel_envs: int = None):
         """
         Initialize parallel environment manager
         
@@ -32,13 +32,12 @@ class ParallelEnvironmentManager:
             symbols: List of symbols to create environments for
             config_path: Path to HRM configuration
             device: Device to run environments on
-            max_parallel_envs: Maximum number of environments to run in parallel
+            max_parallel_envs: Maximum number of environments to run in parallel (if None, use config value)
         """
         self.data_loader = data_loader
         self.symbols = symbols
         self.config_path = config_path
         self.device = torch.device(device)
-        self.max_parallel_envs = max_parallel_envs
         
         # Load configuration
         self.config_loader = ConfigLoader()
@@ -49,11 +48,37 @@ class ParallelEnvironmentManager:
         self.initial_capital = env_config.get('initial_capital', 100000.0)
         self.episode_length = env_config.get('episode_length', 1500)
         
+        # Determine max parallel environments based on device type and config
+        if max_parallel_envs is not None:
+            self.max_parallel_envs = max_parallel_envs
+        else:
+            # Get parallel environments setting based on device type
+            parallel_envs_config = env_config.get('parallel_environments', {})
+            device_type = self._get_device_type()
+            if isinstance(parallel_envs_config, dict):
+                # New format with separate settings for CPU and GPU/TPU
+                if device_type == 'cpu':
+                    self.max_parallel_envs = parallel_envs_config.get('cpu', 5)
+                else:  # gpu or tpu
+                    self.max_parallel_envs = parallel_envs_config.get('gpu_tpu', 10)
+            else:
+                # Old format - fallback to default values
+                self.max_parallel_envs = 5 if device_type == 'cpu' else 10
+        
         # Initialize environments
         self.environments = []
         self._create_environments()
         
-        logger.info(f"Parallel Environment Manager initialized with {len(self.environments)} environments")
+        logger.info(f"Parallel Environment Manager initialized with {len(self.environments)} environments on {self._get_device_type().upper()}")
+    
+    def _get_device_type(self) -> str:
+        """Get device type string"""
+        if self.device.type == 'cuda':
+            return 'gpu'
+        elif self.device.type == 'xla':
+            return 'tpu'
+        else:
+            return 'cpu'
     
     def _create_environments(self):
         """Create parallel environments"""

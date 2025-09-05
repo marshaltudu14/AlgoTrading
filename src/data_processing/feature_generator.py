@@ -22,6 +22,7 @@ from pathlib import Path
 import logging
 from pytz import timezone
 import sys
+import multiprocessing as mp
 sys.path.append(str(Path(__file__).parent.parent))
 from src.config.settings import get_settings
 
@@ -436,8 +437,13 @@ class DynamicFileProcessor:
         logger.info(f"Generated {len(features_df.columns)} features for DataFrame")
         return result_df
 
-    def process_all_files(self) -> Dict[str, str]:
-        """Process all files and return summary"""
+    def process_all_files(self, parallel: bool = True, max_workers: int = None) -> Dict[str, str]:
+        """Process all files and return summary
+        
+        Args:
+            parallel: Whether to use parallel processing
+            max_workers: Maximum number of worker processes (None = CPU count)
+        """
         files = self.scan_data_files()
         results = {}
 
@@ -445,6 +451,16 @@ class DynamicFileProcessor:
             logger.warning("No CSV files found in the historical_data folder")
             return results
 
+        if parallel and len(files) > 1:
+            results = self._process_files_parallel(files, max_workers)
+        else:
+            results = self._process_files_sequential(files)
+
+        return results
+
+    def _process_files_sequential(self, files: List[Path]) -> Dict[str, str]:
+        """Process files sequentially (original method)"""
+        results = {}
         for file_path in files:
             try:
                 # Load and validate data from file
@@ -467,6 +483,93 @@ class DynamicFileProcessor:
                 logger.error(f"✗ Failed to process {file_path.name}: {str(e)}")
 
         return results
+
+    def _process_files_parallel(self, files: List[Path], max_workers: int = None) -> Dict[str, str]:
+        """Process files in parallel using multiprocessing"""
+        import multiprocessing as mp
+        from functools import partial
+
+        # Use CPU count if max_workers not specified
+        if max_workers is None:
+            max_workers = min(len(files), mp.cpu_count())
+        
+        # Limit to 1 worker if only 1 file
+        if len(files) <= 1:
+            max_workers = 1
+            
+        logger.info(f"Processing {len(files)} files in parallel using {max_workers} workers")
+
+        # If only 1 worker or 1 file, fallback to sequential
+        if max_workers <= 1:
+            logger.info("Falling back to sequential processing")
+            return self._process_files_sequential(files)
+
+        # Create a partial function with the parameters needed for processing
+        process_func = partial(
+            self._process_single_file_standalone,
+            processed_folder=str(self.processed_folder),
+            config=self.config
+        )
+
+        results = {}
+        try:
+            with mp.Pool(processes=max_workers) as pool:
+                # Submit all tasks
+                file_paths = [str(f) for f in files]
+                process_results = pool.map(process_func, file_paths)
+
+                # Collect results
+                for filename, result in process_results:
+                    results[filename] = result
+
+        except Exception as e:
+            logger.error(f"Parallel processing failed: {str(e)}")
+            logger.info("Falling back to sequential processing")
+            return self._process_files_sequential(files)
+
+        return results
+
+    @staticmethod
+    def _process_single_file_standalone(file_path: str, processed_folder: str, config: Dict) -> Tuple[str, str]:
+        """Standalone function for processing a single file (pickleable)"""
+        try:
+            import pandas as pd
+            import logging
+            from pathlib import Path
+            
+            # Setup logging for this process
+            logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+            logger = logging.getLogger(__name__)
+            
+            # Recreate the processor instance
+            processor = DynamicFileProcessor.__new__(DynamicFileProcessor)
+            processor.config = config
+            processor.processed_folder = Path(processed_folder)
+            processor.feature_config = config.get('feature_generation', {})
+            processor.market_structure = MarketStructureAnalyzer()
+            
+            # Load and validate data from file
+            df = processor.load_and_validate_data(Path(file_path))
+
+            # Process the dataframe
+            processed_df = processor.process_dataframe(df)
+
+            # Save processed file as Parquet (replace existing)
+            output_path = processor.processed_folder / f"features_{Path(file_path).stem}.parquet"
+            # CRITICAL: Save with index=True to preserve datetime index
+            processed_df.to_parquet(output_path, index=True)
+
+            result = f"Success: {len(processed_df)} rows, {len(processed_df.columns)} features"
+            logger.info(f"Processed {Path(file_path).name}: {len(processed_df)} rows, {len(processed_df.columns)} features")
+            logger.info(f"Replaced existing file: {output_path}")
+            return Path(file_path).name, result
+
+        except Exception as e:
+            import traceback
+            result = f"Error: {str(e)}"
+            logging.error(f"✗ Failed to process {Path(file_path).name}: {str(e)}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            return Path(file_path).name, result
 
 
 if __name__ == "__main__":
