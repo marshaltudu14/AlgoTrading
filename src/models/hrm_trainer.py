@@ -456,29 +456,14 @@ class HRMTrainer:
     def train_episode(self) -> Dict[str, float]:
         """Train for one episode"""
         
-        # Print debug header based on training mode
-        if self.debug_mode:
-            if self.use_parallel_envs:
-                # For parallel training, show instrument names being trained
-                parallel_symbols = self.parallel_env_manager.get_environment_symbols()
-                instrument_list = ', '.join([sym.split('_')[0] for sym in parallel_symbols])
-                print(f"\nEPOCH {getattr(self, 'current_episode', 0) + 1} PARALLEL TRAINING: {len(parallel_symbols)} instruments")
-                print(f"Instruments: {instrument_list}")
-                print("Parallel training in progress - detailed step logs not shown to avoid output conflicts")
-                print("-" * 100)
-            else:
-                # For single instrument training, show detailed step-by-step logs
-                instrument_name = getattr(self.env, 'symbol', 'Unknown')
-                timeframe = 'Unknown'
-                if hasattr(self.env, 'symbol'):
-                    parts = self.env.symbol.split('_')
-                    if len(parts) >= 2:
-                        instrument_name = '_'.join(parts[:-1])
-                        timeframe = f"{parts[-1]}min"
-                
-                print(f"\nEPOCH {getattr(self, 'current_episode', 0) + 1} STEP-BY-STEP: {instrument_name} ({timeframe})")
-                print("Step | Instrument     | Timeframe | DateTime           | Initial Cap | Current Cap | Action   | Win%  | P&L      | Current Price | Entry   | Target Price(Pts) | SL Price(Pts)   | Reward | Reason")
-                print("-" * 175)
+        # Print debug header for parallel training only
+        if self.debug_mode and self.use_parallel_envs:
+            # For parallel training, show instrument names being trained
+            parallel_symbols = self.parallel_env_manager.get_environment_symbols()
+            instrument_list = ', '.join([sym.split('_')[0] for sym in parallel_symbols])
+            print(f"\nEPOCH {getattr(self, 'current_episode', 0) + 1} PARALLEL TRAINING: {len(parallel_symbols)} instruments")
+            print(f"Instruments: {instrument_list}")
+            print("-" * 100)
         
         # Environment is already initialized in setup_training_complete, no reset needed
         
@@ -505,9 +490,7 @@ class HRMTrainer:
                 episode_metrics['total_reward'] += reward
                 step_count += 1
                 
-                # Debug step logging if enabled
-                if self.debug_mode:
-                    self._log_step_debug(step_count, reward, info)
+                # Single environment debug logging removed as requested
                 
                 # Extract loss information if available in info
                 if 'segment_rewards' in info:
@@ -624,7 +607,7 @@ class HRMTrainer:
         return episode_metrics
     
     def _log_parallel_step_debug(self, step_num: int, batch_rewards: torch.Tensor, batch_infos: List[Dict]):
-        """Log minimal step-by-step info for parallel training showing capital and win rate for each instrument every step"""
+        """Log minimal step-by-step info for parallel training showing actual PnL in rupees instead of percentage"""
         env_symbols = self.parallel_env_manager.get_environment_symbols()
         
         # Show header every 20 steps for readability
@@ -632,7 +615,7 @@ class HRMTrainer:
             print(f"\n{'='*140}")
             print(f"PARALLEL TRAINING - Instruments: {', '.join([sym.split('_')[0] for sym in env_symbols])}")
             print(f"{'='*140}")
-            print(f"{'Step':<5} {'Instrument':<12} {'TF':<4} {'Initial':<10} {'Current':<10} {'P&L%':<6} {'Win%':<5} {'Reward':<8}")
+            print(f"{'Step':<5} {'Instrument':<12} {'TF':<4} {'Initial':<10} {'Current':<10} {'P&L(Rs)':<10} {'Win%':<5} {'Reward':<8}")
             print("-" * 140)
         
         # Show minimal info for each instrument every step
@@ -651,8 +634,8 @@ class HRMTrainer:
             account_state = info.get('account_state', {})
             current_cap = account_state.get('capital', initial_cap)
             
-            # Calculate P&L percentage
-            pnl_pct = ((current_cap - initial_cap) / initial_cap * 100) if initial_cap > 0 else 0.0
+            # Calculate actual PnL in rupees instead of percentage
+            pnl_rupees = current_cap - initial_cap
             
             # Get win rate
             win_rate = info.get('win_rate', 0.0) * 100
@@ -660,11 +643,12 @@ class HRMTrainer:
             # Get reward
             reward = batch_rewards[i].item() if i < len(batch_rewards) else 0.0
             
-            print(f"{step_num:<5} {instrument:<12} {timeframe:<4} {initial_cap:<10,.0f} {current_cap:<10,.0f} {pnl_pct:<6.2f} {win_rate:<5.1f} {reward:<8.3f}")
+            print(f"{step_num:<5} {instrument:<12} {timeframe:<4} {initial_cap:<10,.0f} {current_cap:<10,.0f} ₹{pnl_rupees:<+9,.0f} {win_rate:<5.1f} {reward:<8.3f}")
         
         # Show average after all instruments
         avg_reward = batch_rewards.mean().item()
-        print(f"{'':>5} {'AVG':<12} {'':>4} {'':>10} {'':>10} {'':>6} {'':>5} {avg_reward:<8.3f}")
+        avg_pnl = sum((info.get('account_state', {}).get('capital', 100000.0) - info.get('initial_capital', 100000.0)) for info in batch_infos) / max(1, len(batch_infos))
+        print(f"{'':>5} {'AVG':<12} {'':>4} {'':>10} {'':>10} ₹{avg_pnl:<+9,.0f} {'':>5} {avg_reward:<8.3f}")
     
     def _log_step_debug(self, step_num: int, reward: float, info: Dict):
         """Log detailed step information using environment as single source of truth.
