@@ -59,15 +59,36 @@ class ParallelEnvironmentManager:
                 # New format with separate settings for CPU and GPU/TPU
                 if device_type == 'cpu':
                     self.max_parallel_envs = parallel_envs_config.get('cpu', 5)
-                else:  # gpu or tpu
-                    self.max_parallel_envs = parallel_envs_config.get('gpu_tpu', 10)
+                else:  # gpu or tpu - MAXIMIZE GPU UTILIZATION
+                    self.max_parallel_envs = parallel_envs_config.get('gpu_tpu', 25)
             else:
-                # Old format - fallback to default values
-                self.max_parallel_envs = 5 if device_type == 'cpu' else 10
+                # Old format - fallback to GPU-optimized values
+                self.max_parallel_envs = 5 if device_type == 'cpu' else 25
+        
+        # GPU-specific optimizations
+        if device_type == 'gpu':
+            # Force maximum GPU utilization
+            self.max_parallel_envs = max(self.max_parallel_envs, 25)
+            logger.info(f"GPU OPTIMIZATION: Forcing {self.max_parallel_envs} parallel environments for maximum VRAM utilization")
+            
+            # Enable GPU memory optimizations
+            torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.deterministic = False
+            torch.backends.cudnn.enabled = True
+            
+            # Clear cache and pre-allocate memory
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
         
         # Initialize environments
         self.environments = []
         self._create_environments()
+        
+        # GPU memory tracking
+        if device_type == 'gpu':
+            memory_allocated = torch.cuda.memory_allocated() / 1024**3  # GB
+            memory_reserved = torch.cuda.memory_reserved() / 1024**3   # GB
+            logger.info(f"GPU Memory After Environment Creation: {memory_allocated:.2f}GB allocated, {memory_reserved:.2f}GB reserved")
         
         logger.info(f"Parallel Environment Manager initialized with {len(self.environments)} environments on {self._get_device_type().upper()}")
     
@@ -107,23 +128,28 @@ class ParallelEnvironmentManager:
     
     def reset_all(self) -> torch.Tensor:
         """
-        Reset all environments and return initial observations
+        Reset all environments and return initial observations with GPU optimization
         
         Returns:
             Batched observations tensor [batch_size, obs_dim]
         """
         observations = []
-        for env in self.environments:
-            obs = env.reset()
-            observations.append(torch.tensor(obs, dtype=torch.float32))
         
-        # Stack into batch
-        batch_obs = torch.stack(observations).to(self.device)
+        # Pre-allocate on GPU for better performance
+        with torch.no_grad():
+            for env in self.environments:
+                obs = env.reset()
+                # Create tensor directly on GPU to avoid CPU-GPU transfer overhead
+                obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
+                observations.append(obs_tensor)
+        
+        # Stack into batch - already on GPU
+        batch_obs = torch.stack(observations)  # Already on device
         return batch_obs
     
     def step_all(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List[Dict]]:
         """
-        Step all environments in parallel
+        Step all environments in parallel with GPU optimization
         
         Returns:
             Tuple of (observations, rewards, dones, infos)
@@ -133,25 +159,30 @@ class ParallelEnvironmentManager:
         dones = []
         infos = []
         
-        for env in self.environments:
-            try:
-                obs, reward, done, info = env.step()
-                observations.append(torch.tensor(obs, dtype=torch.float32))
-                rewards.append(float(reward))
-                dones.append(bool(done))
-                infos.append(info)
-            except Exception as e:
-                logger.error(f"Error stepping environment: {e}")
-                # Return default values for failed environment
-                observations.append(torch.zeros_like(torch.tensor(obs, dtype=torch.float32)))
-                rewards.append(0.0)
-                dones.append(True)
-                infos.append({"error": str(e)})
+        # Use torch.no_grad() for inference to save GPU memory
+        with torch.no_grad():
+            for env in self.environments:
+                try:
+                    obs, reward, done, info = env.step()
+                    # Pre-allocate tensors on GPU for better performance
+                    obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
+                    observations.append(obs_tensor)
+                    rewards.append(float(reward))
+                    dones.append(bool(done))
+                    infos.append(info)
+                except Exception as e:
+                    logger.error(f"Error stepping environment: {e}")
+                    # Return default values for failed environment
+                    default_obs = torch.zeros(obs.shape if 'obs' in locals() else (100,), dtype=torch.float32, device=self.device)
+                    observations.append(default_obs)
+                    rewards.append(0.0)
+                    dones.append(True)
+                    infos.append({"error": str(e)})
         
-        # Stack into batches
-        batch_obs = torch.stack(observations).to(self.device)
-        batch_rewards = torch.tensor(rewards, dtype=torch.float32).to(self.device)
-        batch_dones = torch.tensor(dones, dtype=torch.bool).to(self.device)
+        # Stack into batches - already on GPU
+        batch_obs = torch.stack(observations)  # Already on device
+        batch_rewards = torch.tensor(rewards, dtype=torch.float32, device=self.device)
+        batch_dones = torch.tensor(dones, dtype=torch.bool, device=self.device)
         
         return batch_obs, batch_rewards, batch_dones, infos
     

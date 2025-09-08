@@ -166,22 +166,65 @@ class DeviceManager:
             return tensor_or_model.to(self.device)
     
     def optimize_model(self, model):
-        """Apply device-specific optimizations to model"""
+        """Apply device-specific optimizations to model with aggressive GPU utilization"""
         model = self.move_to_device(model)
         
         if self.device_type == 'gpu':
-            # GPU-specific optimizations
+            # AGGRESSIVE GPU-specific optimizations
+            
+            # Enable all cuDNN optimizations
+            torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.deterministic = False
+            torch.backends.cudnn.enabled = True
+            torch.backends.cudnn.allow_tf32 = True  # Enable TensorFloat-32
+            
+            # Model compilation for maximum speed
             if hasattr(torch, 'compile') and torch.cuda.is_available():
                 try:
-                    model = torch.compile(model)  # PyTorch 2.0+ optimization
-                    logger.info("Model compiled for GPU optimization")
+                    # Aggressive compilation mode for maximum performance
+                    model = torch.compile(model, mode='max-autotune')  # Most aggressive optimization
+                    logger.info("Model compiled with maximum optimization for GPU acceleration")
                 except Exception as e:
-                    logger.warning(f"Model compilation failed: {e}")
+                    try:
+                        # Fallback to default compilation
+                        model = torch.compile(model)
+                        logger.info("Model compiled for GPU optimization (default mode)")
+                    except Exception as e2:
+                        logger.warning(f"Model compilation failed: {e2}")
             
-            # Mixed precision support
-            if torch.cuda.is_available() and torch.cuda.get_device_capability()[0] >= 7:
-                logger.info("Mixed precision training supported")
-                self.device_info['mixed_precision'] = True
+            # Enable channels-last memory format for better GPU utilization
+            try:
+                model = model.to(memory_format=torch.channels_last)
+                logger.info("Channels-last memory format enabled for better GPU performance")
+            except Exception as e:
+                logger.debug(f"Channels-last optimization not applicable: {e}")
+            
+            # Mixed precision support (FORCE enable for performance)
+            if torch.cuda.is_available():
+                device_cap = torch.cuda.get_device_capability()[0]
+                if device_cap >= 7:  # V100, T4, RTX series
+                    logger.info("Tensor Cores detected! Forcing mixed precision training for maximum speed")
+                    self.device_info['mixed_precision'] = True
+                    self.device_info['tensor_cores'] = True
+                    
+                    # Enable Tensor Core optimizations
+                    torch.backends.cuda.matmul.allow_tf32 = True
+                    torch.backends.cudnn.allow_tf32 = True
+                elif device_cap >= 6:  # GTX 10 series, P100
+                    logger.info("Mixed precision training supported")
+                    self.device_info['mixed_precision'] = True
+            
+            # Pre-allocate GPU memory for consistent performance
+            try:
+                torch.cuda.empty_cache()
+                # Pre-warm the GPU
+                dummy_tensor = torch.randn(1000, 1000, device=self.device)
+                dummy_tensor = dummy_tensor @ dummy_tensor
+                del dummy_tensor
+                torch.cuda.synchronize()
+                logger.info("GPU pre-warmed for optimal performance")
+            except Exception as e:
+                logger.debug(f"GPU pre-warming failed: {e}")
         
         elif self.device_type == 'tpu':
             # TPU-specific optimizations
@@ -203,27 +246,27 @@ class DeviceManager:
             return max(base_batch_size, tpu_cores * 8)
             
         elif self.device_type == 'gpu':
-            # Optimize for available GPU memory
+            # AGGRESSIVE GPU memory optimization for maximum utilization
             memory_gb = self.device_info.get('memory_total_gb', 0)
             
-            # For 15GB VRAM (T4/V100 in Colab/Kaggle)
+            # For 15GB VRAM (T4/V100 in Colab) - MAXIMIZE USAGE
             if memory_gb >= 14:  # 15GB VRAM
-                return base_batch_size * 8  # 256 batch size for 32 base
+                return base_batch_size * 16  # 512 batch size for maximum GPU saturation
             elif memory_gb >= 12:  # 12GB+ VRAM
-                return base_batch_size * 6  # 192 batch size
+                return base_batch_size * 12  # 384 batch size
             elif memory_gb >= 8:   # 8GB+ VRAM
-                return base_batch_size * 4  # 128 batch size
+                return base_batch_size * 8   # 256 batch size
             elif memory_gb >= 4:   # 4GB+ VRAM
-                return base_batch_size * 2  # 64 batch size
+                return base_batch_size * 4   # 128 batch size
             else:  # Entry-level GPU
-                return base_batch_size
+                return base_batch_size * 2
                 
         else:  # CPU
             # Smaller batch sizes for CPU
             return max(base_batch_size // 2, 8)
     
     def get_optimal_training_config(self) -> dict:
-        """Get optimal training configuration for current hardware"""
+        """Get optimal training configuration for current hardware with aggressive GPU optimization"""
         config = {
             'device': str(self.device),
             'device_type': self.device_type,
@@ -236,26 +279,47 @@ class DeviceManager:
         if self.device_type == 'gpu':
             memory_gb = self.device_info.get('memory_total_gb', 0)
             
-            # Mixed precision for Tensor Core GPUs
-            config['mixed_precision'] = self.device_info.get('mixed_precision_supported', False)
+            # AGGRESSIVE GPU OPTIMIZATION FOR MAXIMUM UTILIZATION
+            # Mixed precision for Tensor Core GPUs (ALWAYS enable for speed)
+            config['mixed_precision'] = self.device_info.get('mixed_precision_supported', True)  # Force enable
             
-            # Gradient accumulation for very large effective batch sizes
-            if memory_gb >= 14:  # 15GB VRAM
-                config['gradient_accumulation_steps'] = 4  # Effective batch size = batch_size * 4
+            # MASSIVE gradient accumulation for maximum effective batch sizes
+            if memory_gb >= 14:  # 15GB VRAM - MAXIMIZE UTILIZATION
+                config['gradient_accumulation_steps'] = 8  # Massive effective batch size
+                config['parallel_environments'] = 32      # Force high parallelization
             elif memory_gb >= 12:
+                config['gradient_accumulation_steps'] = 6
+                config['parallel_environments'] = 25
+            elif memory_gb >= 8:
+                config['gradient_accumulation_steps'] = 4
+                config['parallel_environments'] = 20
+            else:
                 config['gradient_accumulation_steps'] = 2
+                config['parallel_environments'] = 15
             
-            # Optimize data loading
-            config['dataloader_workers'] = min(8, max(2, int(memory_gb // 2)))  # Scale with memory
+            # AGGRESSIVE data loading optimization
+            config['dataloader_workers'] = min(16, max(4, int(memory_gb)))  # Scale aggressively with memory
             config['pin_memory'] = True  # Faster GPU transfer
-            config['prefetch_factor'] = 2
+            config['prefetch_factor'] = 4  # Aggressive prefetching
             config['persistent_workers'] = True
+            config['non_blocking'] = True  # Non-blocking transfers
             
-            # Memory optimization settings
+            # MAXIMUM memory utilization settings
             config['memory_optimization'] = {
-                'empty_cache_frequency': 10,  # Clear cache every N batches
-                'max_memory_fraction': 0.9,   # Use 90% of VRAM
-                'gradient_checkpointing': memory_gb < 8  # Enable for low memory
+                'empty_cache_frequency': 5,   # More frequent cache clearing
+                'max_memory_fraction': 0.95,  # Use 95% of VRAM aggressively
+                'gradient_checkpointing': False,  # Disable to use more memory for speed
+                'compile_model': True,        # Enable torch.compile for speed
+                'cudnn_benchmark': True,      # Enable cuDNN benchmarking
+                'tensor_cores': True          # Force Tensor Core usage
+            }
+            
+            # GPU-specific performance settings
+            config['gpu_optimizations'] = {
+                'use_amp': True,              # Automatic Mixed Precision
+                'channels_last': True,        # Memory layout optimization
+                'fused_optimizer': True,      # Fused optimizer operations
+                'max_batch_size': self.get_batch_size_recommendation(32)
             }
             
         elif self.device_type == 'tpu':
@@ -265,9 +329,9 @@ class DeviceManager:
         return config
     
     def print_device_summary(self):
-        """Print detailed device information"""
+        """Print detailed device information with GPU utilization optimization"""
         print("\n" + "="*80)
-        print("HIGH-PERFORMANCE DEVICE CONFIGURATION")
+        print("MAXIMUM GPU UTILIZATION CONFIGURATION")
         print("="*80)
         print(f"Selected Device: {self.device}")
         print(f"Device Type: {self.device_type.upper()}")
@@ -285,15 +349,25 @@ class DeviceManager:
             print(f"Tensor Cores: {'Available' if self.device_info.get('tensor_cores', False) else 'Not Available'}")
             print(f"Mixed Precision: {'Enabled' if self.device_info.get('mixed_precision_supported', False) else 'Disabled'}")
             
-            # Performance recommendations
+            # AGGRESSIVE performance recommendations
             config = self.get_optimal_training_config()
-            print(f"\nPERFORMANCE OPTIMIZATIONS:")
-            print(f"Recommended Batch Size: {self.get_batch_size_recommendation(32)}")
-            print(f"Gradient Accumulation: {config['gradient_accumulation_steps']}x")
-            print(f"DataLoader Workers: {config['dataloader_workers']}")
+            print(f"\nMAXIMUM PERFORMANCE OPTIMIZATIONS:")
+            print(f"Recommended Batch Size: {self.get_batch_size_recommendation(32)} (AGGRESSIVE)")
+            print(f"Gradient Accumulation: {config['gradient_accumulation_steps']}x (MAXIMUM EFFECTIVE BATCH)")
+            print(f"Parallel Environments: {config.get('parallel_environments', 25)}")
+            print(f"DataLoader Workers: {config['dataloader_workers']} (HIGH-THROUGHPUT)")
             print(f"Pin Memory: {'Enabled' if config['pin_memory'] else 'Disabled'}")
+            print(f"Non-blocking Transfers: {'Enabled' if config.get('non_blocking', False) else 'Disabled'}")
+            print(f"Memory Usage Target: {config['memory_optimization']['max_memory_fraction']*100:.0f}% of VRAM")
+            
             if config['mixed_precision']:
-                print(f"Mixed Precision: FP16 Enabled (Tensor Cores)")
+                print(f"Mixed Precision: FP16 Enabled (Tensor Cores Accelerated)")
+            
+            # GPU utilization estimate
+            estimated_memory_usage = self.get_batch_size_recommendation(32) * config.get('parallel_environments', 25) * 0.1  # MB estimate
+            print(f"\nESTIMATED GPU UTILIZATION:")
+            print(f"Memory Usage: {estimated_memory_usage/1024:.1f} GB (Target: {config['memory_optimization']['max_memory_fraction']*100:.0f}%)")
+            print(f"Expected VRAM Utilization: {min(95, (estimated_memory_usage/1024) / self.device_info.get('memory_total_gb', 15) * 100):.0f}%")
             
         else:  # CPU
             print(f"CPU Cores: {self.device_info.get('cpu_cores', 'Unknown')}")

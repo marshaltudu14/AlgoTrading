@@ -11,7 +11,7 @@ environment:
   trailing_stop_percentage: 0.015
   episode_length: 1500 # Number of sequential rows per episode
   parallel_environments:
-    gpu_tpu: 25 # Number of environments to run in parallel on GPU/TPU
+    gpu_tpu: 32 # MAXIMIZED: Number of environments to run in parallel on GPU/TPU for full VRAM utilization
     cpu: 5 # Number of environments to run in parallel on CPU
 
 # Risk Management Configuration - Used by BacktestingEngine
@@ -91,8 +91,8 @@ rewards:
   # 1% price move = 10 reward points (uncapped for true percentage representation)
   # Large moves get proportionally large rewards - no clipping needed
 
-  # Base scaling factor for percentage-based rewards
-  global_scaling_factor: 1.0
+  # Base scaling factor for percentage-based rewards - ENHANCED 10X SCALING
+  global_scaling_factor: 10.0
 
   # Whether to apply scaling to reward shaping components
   scale_reward_shaping: true

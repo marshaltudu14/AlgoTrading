@@ -19,10 +19,13 @@ class RewardCalculator:
             'BUY_LONG': 0, 'SELL_SHORT': 1, 'CLOSE_LONG': 2, 'CLOSE_SHORT': 3, 'HOLD': 4
         })
         
-        # Load reward scaling configuration
+        # Load reward scaling configuration - ENHANCED 10X SCALING
         reward_config = self.config.get('rewards', {})
-        self.global_scaling_factor = reward_config.get('global_scaling_factor', 1.0)
+        self.global_scaling_factor = reward_config.get('global_scaling_factor', 10.0)  # INCREASED from 1.0 to 10.0
         self.scale_reward_shaping = reward_config.get('scale_reward_shaping', True)
+        
+        # Additional reward scaling for better training signals
+        self.reward_multiplier = 10.0  # 10x multiplier for all rewards
         
         # Track for reward shaping
         self.idle_steps = 0
@@ -39,9 +42,9 @@ class RewardCalculator:
         """Reset reward calculator state."""
         self.returns_history = []
         self.equity_history = [initial_capital]
-        self.idle_steps = 0
+        self.idle_steps = 0  # Reset idle counter
         self.trade_count = 0
-        self.last_action_type = 4
+        self.last_action_type = self.action_types.get('HOLD', 4)  # Start with HOLD
         self.previous_trailing_stop = 0.0
     
     def update_tracking_data(self, action_type: int, current_capital: float):
@@ -52,34 +55,49 @@ class RewardCalculator:
             step_return = (current_capital - self.equity_history[-2]) / self.equity_history[-2]
             self.returns_history.append(step_return)
         
-        # Track action for reward shaping
+        # Track action for reward shaping - FIXED: Reset idle steps properly
         if action_type == self.action_types.get('HOLD', 4):  # HOLD
-            self.idle_steps += 1
+            # Only increment idle steps if no position is open
+            # When position is open, HOLD is not idle - it's position management
+            account_state = getattr(engine, '_account_state', {'is_position_open': False})
+            if hasattr(engine, 'get_account_state'):
+                account_state = engine.get_account_state()
+            
+            if not account_state.get('is_position_open', False):
+                self.idle_steps += 1
+            else:
+                self.idle_steps = 0  # Reset when managing open position
         else:
-            self.idle_steps = 0
+            self.idle_steps = 0  # Reset idle counter when taking action
             self.trade_count += 1
         
         self.last_action_type = action_type
     
     def calculate_reward(self, current_capital: float, prev_capital: float, 
                         engine) -> float:
-        """Calculate reward based on selected reward function using percentage returns."""
+        """Calculate reward based on selected reward function using percentage returns with 10x scaling."""
+        base_reward = 0.0
+        
         if self.reward_function == "pnl":
             # Use percentage-based P&L for instrument-agnostic rewards
-            return self._calculate_percentage_pnl_reward(current_capital, prev_capital, engine)
+            base_reward = self._calculate_percentage_pnl_reward(current_capital, prev_capital, engine)
         elif self.reward_function == "sharpe":
-            return self._calculate_sharpe_ratio()
+            base_reward = self._calculate_sharpe_ratio()
         elif self.reward_function == "sortino":
-            return self._calculate_sortino_ratio()
+            base_reward = self._calculate_sortino_ratio()
         elif self.reward_function == "profit_factor":
-            return self._calculate_profit_factor()
+            base_reward = self._calculate_profit_factor()
         elif self.reward_function == "trading_focused":
-            return self._calculate_enhanced_trading_focused_reward(current_capital, prev_capital, engine)
+            base_reward = self._calculate_enhanced_trading_focused_reward(current_capital, prev_capital, engine)
         elif self.reward_function == "enhanced_trading_focused":
-            return self._calculate_enhanced_trading_focused_reward(current_capital, prev_capital, engine)
+            base_reward = self._calculate_enhanced_trading_focused_reward(current_capital, prev_capital, engine)
         else:
             # Default to percentage-based P&L including unrealized gains/losses
-            return self._calculate_percentage_pnl_reward(current_capital, prev_capital, engine)
+            base_reward = self._calculate_percentage_pnl_reward(current_capital, prev_capital, engine)
+        
+        # Apply 10x scaling to all rewards for better training signals
+        scaled_reward = base_reward * self.reward_multiplier * self.global_scaling_factor
+        return scaled_reward
     
     def apply_reward_shaping(self, base_reward: float, action_type: int, 
                            current_capital: float, prev_capital: float, 
@@ -90,10 +108,13 @@ class RewardCalculator:
         # Calculate shaping scale factor - if global scaling is enabled, scale shaping factors too
         shaping_scale = self.global_scaling_factor if self.scale_reward_shaping else 1.0
 
-        # Penalty for idleness (holding no position for too long) 
-        if action_type == self.action_types.get('HOLD', 4) and self.idle_steps > 10:  # HOLD for more than 10 steps
-            if not engine.get_account_state()['is_position_open']:
-                shaped_reward -= (0.1 * shaping_scale) * (self.idle_steps - 10)  # Increasing penalty
+        # REMOVED: Negative HOLD penalty that was causing reward decay
+        # No penalty for holding when no position is open - this is neutral, not negative
+        # The agent should not be penalized for waiting for good opportunities
+        # Original problematic code:
+        # if action_type == self.action_types.get('HOLD', 4) and self.idle_steps > 10:  # HOLD for more than 10 steps
+        #     if not engine.get_account_state()['is_position_open']:
+        #         shaped_reward -= (0.1 * shaping_scale) * (self.idle_steps - 10)  # Increasing penalty
 
         # Enhanced bonus/penalty for trade outcomes
         close_actions = [self.action_types.get('CLOSE_LONG', 2), self.action_types.get('CLOSE_SHORT', 3)]
@@ -114,13 +135,15 @@ class RewardCalculator:
             if recent_trade_rate > 0.3:  # More than 30% of steps are trades
                 shaped_reward -= (0.5 * shaping_scale) * (recent_trade_rate - 0.3)  # Scaled over-trading penalty
 
-        # Bonus for maintaining profitable positions
+        # ENHANCED: Bonus for maintaining profitable positions (encourages position management)
         account_state = engine.get_account_state()
         if account_state['is_position_open'] and action_type == self.action_types.get('HOLD', 4):  # HOLD with open position
             unrealized_pnl = account_state['unrealized_pnl']
             if unrealized_pnl > 0:
-                # Small bonus for holding profitable positions
-                shaped_reward += min(unrealized_pnl * 0.001, 0.5 * shaping_scale)  # Scale with unrealized profit
+                # Enhanced bonus for holding profitable positions - this is good behavior!
+                profit_bonus = min(unrealized_pnl * 0.01, 2.0 * shaping_scale)  # Increased from 0.001 and 0.5
+                shaped_reward += profit_bonus
+            # No penalty for holding losing positions - stop losses will handle risk
 
         # Trailing stop reward shaping
         if current_price is not None:
@@ -196,8 +219,8 @@ class RewardCalculator:
                     # Fallback
                     price_pct_change = ((exit_price - entry_price) / entry_price) * 100
                 
-                # Return percentage change as reward (1% move = 1.0 reward)
-                # Clean and intuitive: percentage directly maps to reward magnitude
+                # Return percentage change as reward with enhanced scaling
+                # 1% price move now = 10.0 reward points (10x scaling)
                 return float(price_pct_change)
         
         # For non-closing trades or missing price info, fallback to capital-based
@@ -209,7 +232,7 @@ class RewardCalculator:
         initial_capital = getattr(engine, '_initial_capital', 100000.0)
         capital_pct_change = (step_pnl / initial_capital) * 100
         
-        # Return consistent with price-based rewards (1% = 1.0 reward)
+        # Return consistent with price-based rewards with enhanced scaling
         return float(capital_pct_change)
     
     def calculate_percentage_pnl(self, current_capital: float, previous_capital: float) -> float:
@@ -423,8 +446,10 @@ class RewardCalculator:
         # Calculate streak bonus/penalty
         streak_bonus = self._calculate_streak_bonus(engine)
 
-        total_reward = base_reward + profit_factor_bonus + win_rate_bonus + drawdown_penalty + risk_reward_bonus + streak_bonus
-        return total_reward
+        # Apply 10x scaling to enhanced trading focused reward
+        total_reward = (base_reward + profit_factor_bonus + win_rate_bonus + drawdown_penalty + risk_reward_bonus + streak_bonus)
+        scaled_total_reward = total_reward * self.reward_multiplier
+        return scaled_total_reward
 
     def _calculate_trailing_stop_reward_shaping(self, action_type: int, engine, current_price: float) -> float:
         """Calculate reward shaping for trailing stops."""

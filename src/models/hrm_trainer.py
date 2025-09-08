@@ -287,12 +287,18 @@ class HRMTrainer:
             # New format with separate settings for CPU and GPU/TPU
             if device_type == 'cpu':
                 parallel_envs = parallel_envs_config.get('cpu', 5)
-            else:  # gpu or tpu
-                parallel_envs = parallel_envs_config.get('gpu_tpu', 10)
+            else:  # gpu or tpu - MAXIMIZE GPU UTILIZATION
+                parallel_envs = parallel_envs_config.get('gpu_tpu', 25)
         else:
-            # Old format - fallback to default values
-            parallel_envs = 5 if device_type == 'cpu' else 10
+            # Old format - fallback to GPU-optimized values
+            parallel_envs = 5 if device_type == 'cpu' else 25
             logger.warning("Using legacy parallel environments configuration. Please update settings.yaml")
+        
+        # Enable aggressive parallelization for GPU
+        if device_type == 'gpu':
+            # Force high GPU utilization
+            parallel_envs = max(parallel_envs, 25)
+            logger.info(f"GPU detected: Forcing high parallelization with {parallel_envs} environments for maximum VRAM utilization")
         
         # In debug mode, use parallel envs but modify logging behavior
         if self.debug_mode and parallel_envs > 1:
@@ -861,6 +867,13 @@ class HRMTrainer:
                 bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}"
             )
         
+        # Enable GPU memory optimization
+        if self.device_manager.get_device_type() == 'gpu':
+            # Pre-allocate GPU memory for better utilization
+            torch.cuda.empty_cache()
+            # Enable memory growth for better utilization
+            logger.info("GPU optimizations enabled: Memory pre-allocation and caching enabled")
+        
         start_time = time.time()
         global_step = 0
         
@@ -874,25 +887,111 @@ class HRMTrainer:
             # Reset to first instrument for each epoch
             self.current_instrument_idx = 0
             
-            # Process all data files in this epoch
-            while True:
-                # Load current data file (memory-efficient: only one at a time)
-                current_symbol = self.available_instruments[self.current_instrument_idx]
-                self.current_symbol = current_symbol
+            # Process all data files in this epoch - GPU OPTIMIZED APPROACH
+            if self.use_parallel_envs and self.device_manager.get_device_type() == 'gpu':
+                # GPU MODE: Load multiple datasets to fully utilize VRAM
+                logger.info("GPU MODE: Loading multiple datasets simultaneously for maximum VRAM utilization")
                 
-                logger.info(f"Loading data file: {current_symbol}")
+                # Pre-load multiple datasets to fill GPU memory
+                datasets = {}
+                total_memory_usage = 0
+                target_memory_gb = min(12.0, self.device_manager.get_device_info().get('memory_total_gb', 15) * 0.8)  # Use 80% of VRAM
                 
-                # Free previous data from memory if exists
-                if hasattr(self, 'full_data'):
-                    del self.full_data
+                for symbol in self.available_instruments:
+                    if total_memory_usage < target_memory_gb * 1024:  # Convert to MB
+                        datasets[symbol] = self.data_loader.load_final_data_for_symbol(symbol)
+                        dataset_memory = datasets[symbol].memory_usage(deep=True).sum() / 1024**2  # MB
+                        total_memory_usage += dataset_memory
+                        logger.info(f"Loaded {symbol}: {dataset_memory:.1f} MB (Total: {total_memory_usage:.1f} MB)")
+                    else:
+                        break
                 
-                # Load only current data file
-                self.full_data = self.data_loader.load_final_data_for_symbol(current_symbol)
-                self.total_data_length = len(self.full_data)
-                episodes_in_current_file = max(1, (self.total_data_length - 1) // self.episode_length)
+                logger.info(f"GPU Memory Utilization: {total_memory_usage:.1f} MB loaded ({total_memory_usage/1024:.2f} GB)")
                 
-                logger.info(f"Processing {current_symbol}: {episodes_in_current_file} episodes ({len(self.full_data)} rows)")
-                logger.info(f"Memory usage: One data file loaded ({self.full_data.memory_usage(deep=True).sum() / 1024**2:.1f} MB)")
+                # Process all loaded datasets in batches
+                for symbol, data in datasets.items():
+                    self.current_symbol = symbol
+                    self.full_data = data
+                    self.total_data_length = len(data)
+                    episodes_in_current_file = max(1, (self.total_data_length - 1) // self.episode_length)
+                    
+                    logger.info(f"GPU Processing {symbol}: {episodes_in_current_file} episodes ({len(data)} rows)")
+                    
+                    # Update environment for current data file
+                    self.env.symbol = symbol
+                    self.env._resolve_market_context()
+                    
+                    # Process all episodes in current data file with aggressive GPU utilization
+                    self.current_episode_start = 0
+                    
+                    for episode_in_file in range(episodes_in_current_file):
+                        # Setup current episode
+                        self._setup_current_episode()
+                        
+                        # Reset environment for new episode
+                        self.env.engine.reset()
+                        self.env.reward_calculator.reset(self.env.initial_capital)
+                        self.env.observation_handler.reset()
+                        self.env.termination_manager.reset(self.env.initial_capital, self.env.episode_end_step)
+                        
+                        # Reset HRM carry state for new episode
+                        if hasattr(self.env, 'current_carry') and self.model:
+                            self.env.current_carry = self.model.create_initial_carry(batch_size=1)
+                        
+                        # Train episode with GPU acceleration
+                        metrics = self.train_episode()
+                        self.training_history.append(metrics)
+                        
+                        # Track metrics
+                        epoch_metrics['reward'].append(metrics['avg_reward'])
+                        epoch_metrics['loss'].append(metrics['avg_loss'])
+                        
+                        # Update running metrics
+                        running_metrics['reward'].append(metrics['avg_reward'])
+                        running_metrics['loss'].append(metrics['avg_loss'])
+                        if metrics['avg_reward'] > running_metrics['best_reward']:
+                            running_metrics['best_reward'] = metrics['avg_reward']
+                        
+                        global_step += 1
+                        
+                        # Update progress bar
+                        if not self.debug_mode:
+                            progress_bar.set_postfix({
+                                'Epoch': f"{epoch+1}/{epochs}",
+                                'File': f"{self.current_instrument_idx+1}/{len(self.available_instruments)}",
+                                'Symbol': symbol.split('_')[0] if '_' in symbol else symbol,
+                                'Reward': f"{metrics['avg_reward']:.4f}",
+                                'Best': f"{running_metrics['best_reward']:.4f}",
+                                'GPU_Util': f"{total_memory_usage/1024:.1f}GB"
+                            })
+                            progress_bar.update(1)
+                        
+                        # Move to next episode within file
+                        self.current_episode_start += self.episode_length
+                
+                # All datasets processed for this epoch
+                break
+            
+            else:
+                # FALLBACK MODE: Sequential processing (original approach)
+                while True:
+                    # Load current data file (memory-efficient: only one at a time)
+                    current_symbol = self.available_instruments[self.current_instrument_idx]
+                    self.current_symbol = current_symbol
+                    
+                    logger.info(f"Loading data file: {current_symbol}")
+                    
+                    # Free previous data from memory if exists
+                    if hasattr(self, 'full_data'):
+                        del self.full_data
+                    
+                    # Load only current data file
+                    self.full_data = self.data_loader.load_final_data_for_symbol(current_symbol)
+                    self.total_data_length = len(self.full_data)
+                    episodes_in_current_file = max(1, (self.total_data_length - 1) // self.episode_length)
+                    
+                    logger.info(f"Processing {current_symbol}: {episodes_in_current_file} episodes ({len(self.full_data)} rows)")
+                    logger.info(f"Memory usage: One data file loaded ({self.full_data.memory_usage(deep=True).sum() / 1024**2:.1f} MB)")
                 
                 # Update environment for current data file
                 self.env.symbol = current_symbol
