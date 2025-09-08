@@ -212,16 +212,55 @@ class DynamicFileProcessor:
         bb_std_dev = self.feature_config.get('bb_std_dev', 2.0)
         bb_data = ta.bbands(close_prices, length=bb_period, std=bb_std_dev)
         if bb_data is not None and not bb_data.empty:
-            bb_upper_col = f'BBU_{bb_period}_{bb_std_dev}'
-            bb_middle_col = f'BBM_{bb_period}_{bb_std_dev}'
-            bb_lower_col = f'BBL_{bb_period}_{bb_std_dev}'
-            features.update({
-                'bb_upper': bb_data[bb_upper_col],
-                'bb_middle': bb_data[bb_middle_col],
-                'bb_lower': bb_data[bb_lower_col],
-                'bb_width': (bb_data[bb_upper_col] - bb_data[bb_lower_col]) / bb_data[bb_middle_col] * 100,
-                'bb_position': (close_prices - bb_data[bb_lower_col]) / (bb_data[bb_upper_col] - bb_data[bb_lower_col]) * 100
-            })
+            bb_upper_col = None
+            bb_middle_col = None
+            bb_lower_col = None
+            
+            # Try multiple naming patterns
+            expected_upper = f'BBU_{bb_period}_{bb_std_dev}'
+            expected_middle = f'BBM_{bb_period}_{bb_std_dev}'
+            expected_lower = f'BBL_{bb_period}_{bb_std_dev}'
+            
+            int_upper = f'BBU_{bb_period}_{int(bb_std_dev)}'
+            int_middle = f'BBM_{bb_period}_{int(bb_std_dev)}'
+            int_lower = f'BBL_{bb_period}_{int(bb_std_dev)}'
+            
+            for col in bb_data.columns:
+                col_upper = col.upper()
+                if col in [expected_upper, int_upper] or 'BBU' in col_upper:
+                    bb_upper_col = col
+                elif col in [expected_middle, int_middle] or 'BBM' in col_upper:
+                    bb_middle_col = col
+                elif col in [expected_lower, int_lower] or 'BBL' in col_upper:
+                    bb_lower_col = col
+            
+            # Fallback to positional indexing
+            if bb_upper_col is None or bb_middle_col is None or bb_lower_col is None:
+                cols = list(bb_data.columns)
+                if len(cols) >= 3:
+                    bb_lower_col = cols[0] if bb_lower_col is None else bb_lower_col
+                    bb_middle_col = cols[1] if bb_middle_col is None else bb_middle_col
+                    bb_upper_col = cols[2] if bb_upper_col is None else bb_upper_col
+            
+            try:
+                if bb_upper_col and bb_middle_col and bb_lower_col and all(col in bb_data.columns for col in [bb_upper_col, bb_middle_col, bb_lower_col]):
+                    features.update({
+                        'bb_upper': bb_data[bb_upper_col],
+                        'bb_middle': bb_data[bb_middle_col],
+                        'bb_lower': bb_data[bb_lower_col],
+                        'bb_width': (bb_data[bb_upper_col] - bb_data[bb_lower_col]) / bb_data[bb_middle_col] * 100,
+                        'bb_position': (close_prices - bb_data[bb_lower_col]) / (bb_data[bb_upper_col] - bb_data[bb_lower_col]) * 100
+                    })
+                else:
+                    raise ValueError("Could not identify Bollinger Bands columns")
+            except Exception:
+                features.update({
+                    'bb_upper': pd.Series([np.nan] * len(close_prices), index=close_prices.index),
+                    'bb_middle': pd.Series([np.nan] * len(close_prices), index=close_prices.index),
+                    'bb_lower': pd.Series([np.nan] * len(close_prices), index=close_prices.index),
+                    'bb_width': pd.Series([np.nan] * len(close_prices), index=close_prices.index),
+                    'bb_position': pd.Series([np.nan] * len(close_prices), index=close_prices.index)
+                })
         trend_data = self.market_structure.trend_strength(close_prices)
         features.update(trend_data)
         features['price_change'] = close_prices.pct_change() * 100
