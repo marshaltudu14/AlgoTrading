@@ -129,11 +129,14 @@ class ObservationHandler:
 
         except Exception as e:
             print(f"Error creating observation: {e}")
-            # Return a zero observation with correct shape
-            if self.observation_dim is not None:
-                return np.zeros(self.observation_dim, dtype=np.float32)
-            else:
-                return np.zeros(1246, dtype=np.float32)  # Default fallback
+            return self.get_fallback_observation()
+
+    def get_fallback_observation(self):
+        """Return a safe fallback observation when errors occur."""
+        if self.observation_dim is not None:
+            return np.zeros(self.observation_dim, dtype=np.float32)
+        else:
+            return np.zeros(1246, dtype=np.float32)  # Default fallback
 
     def _apply_selective_zscore_normalization(self, observation: np.ndarray, data: pd.DataFrame) -> np.ndarray:
         """Apply z-score normalization to observation, excluding datetime_epoch features."""

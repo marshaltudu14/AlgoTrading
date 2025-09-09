@@ -414,12 +414,27 @@ class TradingEnv(gym.Env):
             self.reward_calculator.update_tracking_data(action_type, current_capital)
             
             # Calculate base reward
-            base_reward = self.reward_calculator.calculate_reward(current_capital, prev_capital, self.engine)
+            try:
+                base_reward = self.reward_calculator.calculate_reward(current_capital, prev_capital, self.engine)
+            except NameError as ne:
+                logger.error(f"NameError in calculate_reward: {ne}")
+                logger.error(f"Parameters: current_capital={current_capital}, prev_capital={prev_capital}")
+                logger.error(f"Engine type: {type(self.engine)}")
+                import traceback
+                logger.error(f"Full traceback: {traceback.format_exc()}")
+                base_reward = 0.0  # Fallback to no reward
             
             # Apply reward shaping
-            shaped_reward = self.reward_calculator.apply_reward_shaping(
-                base_reward, action_type, current_capital, prev_capital, self.engine, current_price
-            )
+            try:
+                shaped_reward = self.reward_calculator.apply_reward_shaping(
+                    base_reward, action_type, current_capital, prev_capital, self.engine, current_price
+                )
+            except NameError as ne:
+                logger.error(f"NameError in apply_reward_shaping: {ne}")
+                logger.error(f"Parameters: base_reward={base_reward}, action_type={action_type}")
+                import traceback
+                logger.error(f"Full traceback: {traceback.format_exc()}")
+                shaped_reward = base_reward  # Fallback to base reward
 
             # Calculate percentage-based P&L for universal reward scaling
             capital_pct_change = self.reward_calculator.calculate_percentage_pnl(current_capital, prev_capital)
@@ -520,9 +535,29 @@ class TradingEnv(gym.Env):
 
             # Return 4 values as expected by standard gym environments
             return self.observation_handler.get_observation(self.data, self.current_step, self.engine, current_price), reward, done, info
+        except NameError as ne:
+            if "'engine' is not defined" in str(ne):
+                logger.error(f"SPECIFIC ENGINE ERROR: {ne}")
+                logger.error(f"self.engine exists: {hasattr(self, 'engine')}")
+                logger.error(f"self.engine type: {type(getattr(self, 'engine', 'NOT_FOUND'))}")
+                import traceback
+                logger.error(f"Full traceback: {traceback.format_exc()}")
+                # Return safe fallback
+                obs = self.observation_handler.get_fallback_observation()
+                return obs, 0.0, True, {"error": f"Engine NameError: {str(ne)}"}
+            else:
+                raise  # Re-raise if it's a different NameError
         except Exception as e:
             logger.error(f"Error in step: {e}")
-            return self.observation_handler.get_observation(self.data, self.current_step, self.engine), 0.0, True, {"error": str(e)}
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            # Return a safe observation in case of error
+            try:
+                obs = self.observation_handler.get_observation(self.data, self.current_step, self.engine)
+            except:
+                # Fallback observation if engine access fails
+                obs = self.observation_handler.get_fallback_observation()
+            return obs, 0.0, True, {"error": str(e)}
 
     def get_backtest_results(self) -> Dict:
         """Get comprehensive backtesting results for BACKTESTING/LIVE modes."""
