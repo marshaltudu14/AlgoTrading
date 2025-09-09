@@ -258,12 +258,23 @@ class RewardCalculator:
         if len(self.returns_history) < 10:  # Need minimum history
             return 0.0
 
-        returns = np.array(self.returns_history[-30:])  # Use last 30 returns
-        if np.std(returns) == 0:
-            return 0.0
-
-        mean_return = np.mean(returns)
-        std_return = np.std(returns)
+        # GPU-optimized computation when available
+        import torch
+        if torch.cuda.is_available():
+            # GPU: Use tensor operations
+            returns = torch.tensor(self.returns_history[-30:], dtype=torch.float32, device='cuda')
+            if torch.std(returns).item() == 0:
+                return 0.0
+            mean_return = torch.mean(returns).item()
+            std_return = torch.std(returns).item()
+        else:
+            # CPU: Use numpy when GPU unavailable
+            import numpy as np
+            returns = np.array(self.returns_history[-30:])
+            if np.std(returns) == 0:
+                return 0.0
+            mean_return = np.mean(returns)
+            std_return = np.std(returns)
         sharpe = mean_return / std_return
         return sharpe * 10  # Scale for RL training
 
@@ -272,14 +283,25 @@ class RewardCalculator:
         if len(self.returns_history) < 10:
             return 0.0
 
-        returns = np.array(self.returns_history[-30:])
-        mean_return = np.mean(returns)
-        downside_returns = returns[returns < 0]
-
-        if len(downside_returns) == 0:
-            return mean_return * 10  # No downside, return scaled mean
-
-        downside_std = np.std(downside_returns)
+        # GPU-optimized computation when available
+        import torch
+        if torch.cuda.is_available():
+            # GPU: Use tensor operations
+            returns = torch.tensor(self.returns_history[-30:], dtype=torch.float32, device='cuda')
+            mean_return = torch.mean(returns).item()
+            downside_returns = returns[returns < 0]
+            if len(downside_returns) == 0:
+                return mean_return * 10
+            downside_std = torch.std(downside_returns).item()
+        else:
+            # CPU: Use numpy when GPU unavailable
+            import numpy as np
+            returns = np.array(self.returns_history[-30:])
+            mean_return = np.mean(returns)
+            downside_returns = returns[returns < 0]
+            if len(downside_returns) == 0:
+                return mean_return * 10
+            downside_std = np.std(downside_returns)
         if downside_std == 0:
             return 0.0
 
@@ -291,9 +313,19 @@ class RewardCalculator:
         if len(self.returns_history) < 5:
             return 0.0
 
-        returns = np.array(self.returns_history[-30:])
-        gross_profit = np.sum(returns[returns > 0])
-        gross_loss = abs(np.sum(returns[returns < 0]))
+        # GPU-optimized computation when available
+        import torch
+        if torch.cuda.is_available():
+            # GPU: Use tensor operations
+            returns = torch.tensor(self.returns_history[-30:], dtype=torch.float32, device='cuda')
+            gross_profit = torch.sum(returns[returns > 0]).item()
+            gross_loss = abs(torch.sum(returns[returns < 0]).item())
+        else:
+            # CPU: Use numpy when GPU unavailable
+            import numpy as np
+            returns = np.array(self.returns_history[-30:])
+            gross_profit = np.sum(returns[returns > 0])
+            gross_loss = abs(np.sum(returns[returns < 0]))
 
         if gross_loss == 0:
             return gross_profit * 10 if gross_profit > 0 else 0.0
@@ -431,8 +463,20 @@ class RewardCalculator:
         # Risk-reward ratio bonus
         risk_reward_bonus = 0.0
         if len(closing_trades) >= 3:
-            avg_win = np.mean([trade['pnl'] for trade in closing_trades if trade['pnl'] > 0]) if any(trade['pnl'] > 0 for trade in closing_trades) else 0
-            avg_loss = abs(np.mean([trade['pnl'] for trade in closing_trades if trade['pnl'] < 0])) if any(trade['pnl'] < 0 for trade in closing_trades) else 1
+            # GPU-optimized computation when available
+            import torch
+            winning_trades = [trade['pnl'] for trade in closing_trades if trade['pnl'] > 0]
+            losing_trades = [trade['pnl'] for trade in closing_trades if trade['pnl'] < 0]
+            
+            if torch.cuda.is_available():
+                # GPU: Use tensor operations
+                avg_win = torch.tensor(winning_trades, device='cuda').mean().item() if winning_trades else 0
+                avg_loss = abs(torch.tensor(losing_trades, device='cuda').mean().item()) if losing_trades else 1
+            else:
+                # CPU: Use numpy when GPU unavailable
+                import numpy as np
+                avg_win = np.mean(winning_trades) if winning_trades else 0
+                avg_loss = abs(np.mean(losing_trades)) if losing_trades else 1
 
             if avg_loss > 0:
                 risk_reward_ratio = avg_win / avg_loss

@@ -245,8 +245,16 @@ class AdaptiveComputationTime(nn.Module):
             complex_episodes = [i for i, (halt, comp) in enumerate(zip(halt_decisions, complexities)) if comp > 0.7]
             simple_episodes = [i for i, (halt, comp) in enumerate(zip(halt_decisions, complexities)) if comp < 0.3]
             
-            avg_steps_complex = np.mean(complex_episodes) if complex_episodes else 0
-            avg_steps_simple = np.mean(simple_episodes) if simple_episodes else 0
+            # GPU-optimized computation when available
+            import torch
+            if torch.cuda.is_available() and complex_episodes and simple_episodes:
+                # GPU: Use tensor operations
+                avg_steps_complex = torch.tensor(complex_episodes, dtype=torch.float32, device='cuda').mean().item() if complex_episodes else 0
+                avg_steps_simple = torch.tensor(simple_episodes, dtype=torch.float32, device='cuda').mean().item() if simple_episodes else 0
+            else:
+                # CPU: Use numpy when GPU unavailable or small datasets
+                avg_steps_complex = np.mean(complex_episodes) if complex_episodes else 0
+                avg_steps_simple = np.mean(simple_episodes) if simple_episodes else 0
         else:
             avg_steps_complex = avg_steps_simple = 0
         

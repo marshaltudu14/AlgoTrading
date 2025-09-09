@@ -221,6 +221,7 @@ class HighLevelModule(HierarchicalReasoningModule):
         return {
             'dominant_regime_idx': dominant_regime_idx.item(),
             'regime_confidence': confidence.item(),
-            'regime_distribution': regime_probs.detach().cpu().numpy().tolist(),
+            # GPU-optimized: only transfer to CPU when necessary
+            'regime_distribution': regime_probs.detach().cpu().numpy().tolist() if regime_probs.device.type == 'cuda' else regime_probs.detach().numpy().tolist(),
             'regime_enum': MarketRegime(dominant_regime_idx.item())
         }

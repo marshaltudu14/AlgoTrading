@@ -347,22 +347,29 @@ class HRMTradingEnvironment(TradingEnv):
         """Track HRM-specific performance metrics"""
         
         # Extract and store strategic decisions
+        # GPU-optimized metric collection - avoid unnecessary CPU transfers
         if 'regime_probabilities' in outputs:
-            regime_probs = outputs['regime_probabilities'].detach().cpu().numpy()[0]
+            regime_probs_tensor = outputs['regime_probabilities'].detach()
+            # Only transfer to CPU when absolutely necessary for storage
+            regime_probs = regime_probs_tensor.cpu().numpy()[0] if regime_probs_tensor.device.type == 'cuda' else regime_probs_tensor.numpy()[0]
             self.hierarchical_metrics['regime_classifications'].append(regime_probs)
         
-        # Track strategic vs tactical decision quality
+        # Track strategic vs tactical decision quality - GPU optimized
         if 'signal_strength' in outputs:
-            signal_strength = outputs['signal_strength'].detach().cpu().numpy()[0]
+            signal_tensor = outputs['signal_strength'].detach()
+            signal_strength = signal_tensor.cpu().numpy()[0] if signal_tensor.device.type == 'cuda' else signal_tensor.numpy()[0]
             self.hierarchical_metrics['strategic_decisions'].append(signal_strength)
         
         if 'confidence' in outputs:
-            confidence = outputs['confidence'].detach().cpu().numpy()[0]
+            confidence_tensor = outputs['confidence'].detach()
+            confidence = confidence_tensor.cpu().numpy()[0] if confidence_tensor.device.type == 'cuda' else confidence_tensor.numpy()[0]
             self.hierarchical_metrics['tactical_decisions'].append(confidence)
         
-        # Track ACT efficiency
+        # Track ACT efficiency - GPU optimized computation
         if 'halt_logits' in outputs and 'continue_logits' in outputs:
-            halt_prob = torch.sigmoid(outputs['halt_logits'] - outputs['continue_logits']).detach().cpu().numpy()[0]
+            # Keep computation on GPU as long as possible
+            halt_prob_tensor = torch.sigmoid(outputs['halt_logits'] - outputs['continue_logits']).detach()
+            halt_prob = halt_prob_tensor.cpu().numpy()[0] if halt_prob_tensor.device.type == 'cuda' else halt_prob_tensor.numpy()[0]
             self.hierarchical_metrics['act_computations'].append(halt_prob)
         
         # Store reward for analysis

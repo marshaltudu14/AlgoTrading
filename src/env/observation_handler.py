@@ -155,19 +155,40 @@ class ObservationHandler:
             if len(recent_observations) < 5:  # Need minimum valid history
                 return observation
 
-            recent_history = np.stack(recent_observations, axis=0)
+            # GPU-optimized feature processing when available
+            import torch
+            if torch.cuda.is_available():
+                # GPU: Use tensor operations for feature processing
+                recent_history_tensor = torch.tensor(np.stack(recent_observations, axis=0), dtype=torch.float32, device='cuda')
+                observation_tensor = torch.tensor(observation, dtype=torch.float32, device='cuda')
+                
+                # Calculate mean and std for each feature
+                means = torch.mean(recent_history_tensor, dim=0)
+                stds = torch.std(recent_history_tensor, dim=0)
+                
+                # Avoid division by zero
+                stds = torch.where(stds == 0, 1.0, stds)
+                
+                # Apply z-score normalization
+                normalized_tensor = (observation_tensor - means) / stds
+                
+                # Transfer back to CPU for further processing
+                normalized = normalized_tensor.cpu().numpy()
+            else:
+                # CPU: Use numpy when GPU unavailable
+                recent_history = np.stack(recent_observations, axis=0)
+                
+                # Calculate mean and std for each feature
+                means = np.mean(recent_history, axis=0)
+                stds = np.std(recent_history, axis=0)
+                
+                # Avoid division by zero
+                stds = np.where(stds == 0, 1.0, stds)
+                
+                # Apply z-score normalization
+                normalized = (observation - means) / stds
 
-            # Calculate mean and std for each feature
-            means = np.mean(recent_history, axis=0)
-            stds = np.std(recent_history, axis=0)
-
-            # Avoid division by zero
-            stds = np.where(stds == 0, 1.0, stds)
-
-            # Apply z-score normalization
-            normalized = (observation - means) / stds
-
-            # CRITICAL: Keep datetime_epoch features unnormalized
+            # CRITICAL: Keep datetime_epoch features unnormalized (same for both GPU/CPU)
             for idx in datetime_epoch_indices:
                 if idx < len(normalized):
                     normalized[idx] = observation[idx]  # Keep original datetime_epoch value

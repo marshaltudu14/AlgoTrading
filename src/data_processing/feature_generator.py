@@ -94,8 +94,19 @@ class MarketStructureAnalyzer:
             try:
                 slope, intercept = np.polyfit(x, series, 1)
                 y_pred = slope * x + intercept
-                ss_res = np.sum((series - y_pred) ** 2)
-                ss_tot = np.sum((series - np.mean(series)) ** 2)
+                # GPU-optimized computation when available
+                import torch
+                if torch.cuda.is_available() and len(series) > 100:
+                    # GPU: Use tensor operations for large datasets
+                    series_tensor = torch.tensor(series, dtype=torch.float32, device='cuda')
+                    y_pred_tensor = torch.tensor(y_pred, dtype=torch.float32, device='cuda')
+                    
+                    ss_res = torch.sum((series_tensor - y_pred_tensor) ** 2).item()
+                    ss_tot = torch.sum((series_tensor - torch.mean(series_tensor)) ** 2).item()
+                else:
+                    # CPU: Use numpy for small datasets or when GPU unavailable
+                    ss_res = np.sum((series - y_pred) ** 2)
+                    ss_tot = np.sum((series - np.mean(series)) ** 2)
                 return 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
             except:
                 return 0
@@ -267,8 +278,24 @@ class DynamicFileProcessor:
         features['price_change_abs'] = np.abs(features['price_change'])
         features['hl_range'] = (high_prices - low_prices) / close_prices * 100
         features['body_size'] = np.abs(close_prices - open_prices) / close_prices * 100
-        features['upper_shadow'] = (high_prices - np.maximum(open_prices, close_prices)) / close_prices * 100
-        features['lower_shadow'] = (np.minimum(open_prices, close_prices) - low_prices) / close_prices * 100
+        # GPU-optimized candlestick pattern calculations
+        import torch
+        if torch.cuda.is_available() and len(close_prices) > 1000:
+            # GPU: Use tensor operations for large datasets
+            high_tensor = torch.tensor(high_prices.values, dtype=torch.float32, device='cuda')
+            low_tensor = torch.tensor(low_prices.values, dtype=torch.float32, device='cuda')
+            open_tensor = torch.tensor(open_prices.values, dtype=torch.float32, device='cuda')
+            close_tensor = torch.tensor(close_prices.values, dtype=torch.float32, device='cuda')
+            
+            upper_shadow_tensor = (high_tensor - torch.maximum(open_tensor, close_tensor)) / close_tensor * 100
+            lower_shadow_tensor = (torch.minimum(open_tensor, close_tensor) - low_tensor) / close_tensor * 100
+            
+            features['upper_shadow'] = pd.Series(upper_shadow_tensor.cpu().numpy(), index=close_prices.index)
+            features['lower_shadow'] = pd.Series(lower_shadow_tensor.cpu().numpy(), index=close_prices.index)
+        else:
+            # CPU: Use numpy for small datasets or when GPU unavailable
+            features['upper_shadow'] = (high_prices - np.maximum(open_prices, close_prices)) / close_prices * 100
+            features['lower_shadow'] = (np.minimum(open_prices, close_prices) - low_prices) / close_prices * 100
         if ('sma_5' in features and 'sma_20' in features and
             features['sma_5'] is not None and features['sma_20'] is not None):
             features['sma_5_20_cross'] = np.where(features['sma_5'] > features['sma_20'], 1, -1)
@@ -287,9 +314,40 @@ class DynamicFileProcessor:
             features['price_vs_ema_20'] = (close_prices - features['ema_20']) / features['ema_20'] * 100
         else:
             features['price_vs_ema_20'] = np.zeros(len(close_prices))
+        # GPU-optimized volatility calculations
         volatility_periods = self.feature_config.get('volatility_periods', [10, 20])
-        for period in volatility_periods:
-            features[f'volatility_{period}'] = close_prices.rolling(period).std() / close_prices.rolling(period).mean() * 100
+        import torch
+        
+        if torch.cuda.is_available() and len(close_prices) > 1000:
+            # GPU: Use vectorized rolling operations for large datasets
+            close_tensor = torch.tensor(close_prices.values, dtype=torch.float32, device='cuda')
+            
+            for period in volatility_periods:
+                # Vectorized rolling window computation
+                if len(close_tensor) >= period:
+                    # Pad tensor for rolling windows
+                    padded = torch.nn.functional.pad(close_tensor, (period-1, 0), value=float('nan'))
+                    # Create rolling windows using unfold
+                    windows = padded.unfold(0, period, 1)
+                    
+                    # Compute std and mean for all windows at once
+                    vol_std = torch.std(windows, dim=1)
+                    vol_mean = torch.mean(windows, dim=1)
+                    
+                    # Avoid division by zero
+                    volatility_tensor = torch.where(vol_mean != 0, (vol_std / vol_mean * 100), torch.tensor(0.0, device='cuda'))
+                    
+                    # Handle initial NaN values for periods without enough data
+                    volatility_values = volatility_tensor.cpu().numpy()
+                    volatility_values[:period-1] = float('nan')
+                    
+                    features[f'volatility_{period}'] = pd.Series(volatility_values, index=close_prices.index)
+                else:
+                    features[f'volatility_{period}'] = pd.Series([float('nan')] * len(close_prices), index=close_prices.index)
+        else:
+            # CPU: Use pandas rolling for small datasets or when GPU unavailable
+            for period in volatility_periods:
+                features[f'volatility_{period}'] = close_prices.rolling(period).std() / close_prices.rolling(period).mean() * 100
         features_df = pd.DataFrame(features)
         if len(features_df) != len(close_prices):
             logger.warning(f"Features length mismatch: {len(features_df)} vs {len(close_prices)}")

@@ -130,9 +130,16 @@ class DeepSupervision(nn.Module):
                 losses['immediate_loss'] = immediate_loss
                 total_loss = total_loss + self.segment_weights[0] * immediate_loss
         
-        # Short-term supervision (Segment 1)
+        # Short-term supervision (Segment 1) - GPU optimized
         if len(actual_rewards) >= 5:
-            short_term_reward = torch.tensor(np.mean(actual_rewards[:5])).float()
+            if torch.cuda.is_available():
+                # GPU: Use tensor operations directly
+                rewards_tensor = torch.tensor(actual_rewards[:5], dtype=torch.float32, device='cuda')
+                short_term_reward = torch.mean(rewards_tensor)
+            else:
+                # CPU: Use numpy when GPU unavailable
+                short_term_reward = torch.tensor(np.mean(actual_rewards[:5])).float()
+            
             if len(outputs_history) > 1 and 'current_segment_reward' in outputs_history[1]:
                 short_term_loss = nn.MSELoss()(
                     outputs_history[1]['current_segment_reward'].squeeze(),
@@ -141,9 +148,16 @@ class DeepSupervision(nn.Module):
                 losses['short_term_loss'] = short_term_loss
                 total_loss = total_loss + self.segment_weights[1] * short_term_loss
         
-        # Medium-term supervision (Segment 2)
+        # Medium-term supervision (Segment 2) - GPU optimized
         if len(actual_rewards) >= 20:
-            medium_term_reward = torch.tensor(np.mean(actual_rewards[:20])).float()
+            if torch.cuda.is_available():
+                # GPU: Use tensor operations directly
+                rewards_tensor = torch.tensor(actual_rewards[:20], dtype=torch.float32, device='cuda')
+                medium_term_reward = torch.mean(rewards_tensor)
+            else:
+                # CPU: Use numpy when GPU unavailable
+                medium_term_reward = torch.tensor(np.mean(actual_rewards[:20])).float()
+            
             if len(outputs_history) > 2 and 'current_segment_reward' in outputs_history[2]:
                 medium_term_loss = nn.MSELoss()(
                     outputs_history[2]['current_segment_reward'].squeeze(),
@@ -152,9 +166,15 @@ class DeepSupervision(nn.Module):
                 losses['medium_term_loss'] = medium_term_loss
                 total_loss = total_loss + self.segment_weights[2] * medium_term_loss
         
-        # Long-term supervision (Segment 3)
+        # Long-term supervision (Segment 3) - GPU optimized
         if len(actual_rewards) >= 50:
-            long_term_reward = torch.tensor(np.mean(actual_rewards)).float()  # All rewards
+            if torch.cuda.is_available():
+                # GPU: Use tensor operations directly
+                rewards_tensor = torch.tensor(actual_rewards, dtype=torch.float32, device='cuda')
+                long_term_reward = torch.mean(rewards_tensor)
+            else:
+                # CPU: Use numpy when GPU unavailable
+                long_term_reward = torch.tensor(np.mean(actual_rewards)).float()
             if len(outputs_history) > 3 and 'current_segment_reward' in outputs_history[3]:
                 long_term_loss = nn.MSELoss()(
                     outputs_history[3]['current_segment_reward'].squeeze(),

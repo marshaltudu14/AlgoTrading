@@ -243,7 +243,8 @@ class LowLevelModule(HierarchicalReasoningModule):
             'take_profit_factor': take_profit_factor,
             'expected_slippage': expected_slippage,
             'market_impact': market_impact,
-            'action_probabilities': action_probs.detach().cpu().numpy().tolist()
+            # GPU-optimized: only transfer to CPU when necessary
+            'action_probabilities': action_probs.detach().cpu().numpy().tolist() if action_probs.device.type == 'cuda' else action_probs.detach().numpy().tolist()
         }
     
     def should_act(self, 

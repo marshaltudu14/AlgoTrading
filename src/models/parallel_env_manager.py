@@ -177,10 +177,17 @@ class ParallelEnvironmentManager:
                 all_dones.append(True)
                 all_infos.append({"error": str(e)})
         
-        # Create batched tensors directly on GPU (much faster)
-        batch_obs = torch.tensor(np.stack(all_obs), dtype=torch.float32, device=self.device)
-        batch_rewards = torch.tensor(all_rewards, dtype=torch.float32, device=self.device)
-        batch_dones = torch.tensor(all_dones, dtype=torch.bool, device=self.device)
+        # GPU-optimized batching: minimize memory transfers and maximize GPU utilization
+        if self.device.type == 'cuda':
+            # GPU: Use memory-efficient batching with pre-allocation
+            batch_obs = torch.stack([torch.tensor(obs, dtype=torch.float32, device=self.device, non_blocking=True) for obs in all_obs])
+            batch_rewards = torch.tensor(all_rewards, dtype=torch.float32, device=self.device, non_blocking=True)
+            batch_dones = torch.tensor(all_dones, dtype=torch.bool, device=self.device, non_blocking=True)
+        else:
+            # CPU: Standard approach
+            batch_obs = torch.stack([torch.tensor(obs, dtype=torch.float32) for obs in all_obs])
+            batch_rewards = torch.tensor(all_rewards, dtype=torch.float32)
+            batch_dones = torch.tensor(all_dones, dtype=torch.bool)
         
         return batch_obs, batch_rewards, batch_dones, all_infos
     
