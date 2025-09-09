@@ -130,14 +130,7 @@ class HRMTrainer:
             self.config = yaml.safe_load(f)
         
         # Initialize components
-        self.data_loader = DataLoader(
-            final_data_dir=data_path,
-            batch_size=64,  # Increase batch size for better GPU utilization
-            num_workers=8,  # More workers for faster loading
-            pin_memory=True,  # Faster GPU transfer
-            prefetch_factor=4,  # Prefetch more data
-            persistent_workers=True
-        )
+        self.data_loader = DataLoader(final_data_dir=data_path)
         self.loss_function = HRMLossFunction(self.config)
         
         # Training state
