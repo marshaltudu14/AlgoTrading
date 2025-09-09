@@ -149,42 +149,40 @@ class ParallelEnvironmentManager:
     
     def step_all(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List[Dict]]:
         """
-        Step all environments in parallel with GPU optimization
+        Step all environments in true parallel with proper batching
         
         Returns:
             Tuple of (observations, rewards, dones, infos)
         """
-        observations = []
-        rewards = []
-        dones = []
-        infos = []
+        # Collect all observations, rewards, dones in lists
+        all_obs = []
+        all_rewards = []
+        all_dones = []
+        all_infos = []
         
-        # Use torch.no_grad() for inference to save GPU memory
-        with torch.no_grad():
-            for env in self.environments:
-                try:
-                    obs, reward, done, info = env.step()
-                    # Pre-allocate tensors on GPU for better performance
-                    obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device)
-                    observations.append(obs_tensor)
-                    rewards.append(float(reward))
-                    dones.append(bool(done))
-                    infos.append(info)
-                except Exception as e:
-                    logger.error(f"Error stepping environment: {e}")
-                    # Return default values for failed environment
-                    default_obs = torch.zeros(obs.shape if 'obs' in locals() else (100,), dtype=torch.float32, device=self.device)
-                    observations.append(default_obs)
-                    rewards.append(0.0)
-                    dones.append(True)
-                    infos.append({"error": str(e)})
+        # Step all environments and collect results
+        for env in self.environments:
+            try:
+                obs, reward, done, info = env.step()
+                all_obs.append(obs)
+                all_rewards.append(float(reward))
+                all_dones.append(bool(done))
+                all_infos.append(info)
+            except Exception as e:
+                logger.error(f"Error stepping environment: {e}")
+                # Return default values
+                default_obs = np.zeros_like(obs) if 'obs' in locals() else np.zeros(100)
+                all_obs.append(default_obs)
+                all_rewards.append(0.0)
+                all_dones.append(True)
+                all_infos.append({"error": str(e)})
         
-        # Stack into batches - already on GPU
-        batch_obs = torch.stack(observations)  # Already on device
-        batch_rewards = torch.tensor(rewards, dtype=torch.float32, device=self.device)
-        batch_dones = torch.tensor(dones, dtype=torch.bool, device=self.device)
+        # Create batched tensors directly on GPU (much faster)
+        batch_obs = torch.tensor(np.stack(all_obs), dtype=torch.float32, device=self.device)
+        batch_rewards = torch.tensor(all_rewards, dtype=torch.float32, device=self.device)
+        batch_dones = torch.tensor(all_dones, dtype=torch.bool, device=self.device)
         
-        return batch_obs, batch_rewards, batch_dones, infos
+        return batch_obs, batch_rewards, batch_dones, all_infos
     
     def get_batch_size(self) -> int:
         """Get current batch size"""

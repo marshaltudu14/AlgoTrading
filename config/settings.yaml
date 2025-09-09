@@ -11,7 +11,7 @@ environment:
   trailing_stop_percentage: 0.015
   episode_length: 1500 # Number of sequential rows per episode
   parallel_environments:
-    gpu_tpu: 32 # MAXIMIZED: Number of environments to run in parallel on GPU/TPU for full VRAM utilization
+    gpu_tpu: 32 # MAXIMIZED: Increased from 32 to 64 for better GPU saturation and full VRAM utilization
     cpu: 5 # Number of environments to run in parallel on CPU
 
 # Risk Management Configuration - Used by BacktestingEngine

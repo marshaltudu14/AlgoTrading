@@ -108,6 +108,10 @@ class DeviceManager:
             torch.backends.cudnn.deterministic = False  # Allow non-deterministic for speed
             torch.backends.cudnn.enabled = True  # Enable cuDNN
             
+            # Enable TensorFloat-32 for better performance on modern GPUs
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            
             # Enable mixed precision if supported (Tensor Cores)
             if torch.cuda.get_device_capability(current_gpu)[0] >= 7:  # V100, T4, RTX series
                 self.device_info['mixed_precision_supported'] = True

@@ -26,12 +26,13 @@ class HRMLossFunction:
     def __init__(self, config: Dict):
         self.config = config
         self.loss_weights = config['training']['loss_weights']
+        self.scaler = torch.cuda.amp.GradScaler() if torch.cuda.is_available() else None
         
     def calculate_loss(self, 
                       outputs: Dict[str, torch.Tensor], 
                       targets: Dict[str, torch.Tensor],
                       segment_rewards: List[float]) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """Calculate multi-component HRM loss with expert targets"""
+        """Calculate multi-component HRM loss with expert targets using mixed precision"""
         
         losses = {}
         total_loss = torch.tensor(0.0, requires_grad=True)
@@ -129,7 +130,14 @@ class HRMTrainer:
             self.config = yaml.safe_load(f)
         
         # Initialize components
-        self.data_loader = DataLoader(final_data_dir=data_path)
+        self.data_loader = DataLoader(
+            final_data_dir=data_path,
+            batch_size=64,  # Increase batch size for better GPU utilization
+            num_workers=8,  # More workers for faster loading
+            pin_memory=True,  # Faster GPU transfer
+            prefetch_factor=4,  # Prefetch more data
+            persistent_workers=True
+        )
         self.loss_function = HRMLossFunction(self.config)
         
         # Training state
@@ -264,6 +272,14 @@ class HRMTrainer:
         
         # 6. Setup optimizer (same for both modes)
         self._setup_optimizer()
+        
+        # Enable Torch.Compile for maximum performance
+        if hasattr(torch, 'compile') and self.device_manager.get_device_type() == 'gpu':
+            try:
+                self.model = torch.compile(self.model, mode='max-autotune')
+                logger.info("Model compiled with max-autotune for maximum GPU performance")
+            except Exception as e:
+                logger.warning(f"Model compilation failed: {e}")
         
         logger.info(f"Training setup completed for {len(self.available_instruments)} instruments")
         logger.info(f"Parallel environments: {'ENABLED' if self.use_parallel_envs else 'DISABLED (CPU mode)'}")
@@ -494,6 +510,10 @@ class HRMTrainer:
                 
                 # Extract loss information if available in info
                 if 'segment_rewards' in info:
+                    # Collect losses for batched processing
+                    if not hasattr(self, '_loss_buffer'):
+                        self._loss_buffer = []
+                    
                     # Create self-supervised targets from model outputs
                     # This enables the model to learn from its own behavior and outcomes
                     if hasattr(self.env, 'hrm_agent') and hasattr(self.env.hrm_agent, '_last_outputs'):
@@ -508,20 +528,26 @@ class HRMTrainer:
                                 info['segment_rewards']
                             )
                             
-                            # Backward pass
-                            self.optimizer.zero_grad()
-                            loss.backward()
-                            
-                            # Gradient clipping
-                            if self.config['training']['gradient_clip'] > 0:
-                                torch.nn.utils.clip_grad_norm_(
-                                    self.model.parameters(),
-                                    self.config['training']['gradient_clip']
-                                )
-                            
-                            self.optimizer.step()
-                            
-                            episode_metrics['total_loss'] += loss.item()
+                            self._loss_buffer.append(loss)
+            
+            # Batch process accumulated losses
+            if hasattr(self, '_loss_buffer') and self._loss_buffer:
+                # Single backward pass for all collected losses
+                self.optimizer.zero_grad()
+                total_loss = torch.stack(self._loss_buffer).mean()
+                total_loss.backward()
+                
+                # Gradient clipping
+                if self.config['training']['gradient_clip'] > 0:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(),
+                        self.config['training']['gradient_clip']
+                    )
+                
+                self.optimizer.step()
+                
+                episode_metrics['total_loss'] += total_loss.item()
+                self._loss_buffer = []  # Clear buffer
             
             episode_metrics['steps'] = step_count
             episode_metrics['avg_reward'] = episode_metrics['total_reward'] / max(step_count, 1)
@@ -561,37 +587,42 @@ class HRMTrainer:
             episode_metrics['total_reward'] += batch_rewards.mean().item()
             step_count += 1
             
-            # Process each environment's info for loss calculation
+            # Batch process all environment losses together for better GPU utilization
+            total_loss = torch.tensor(0.0, device=self.device)
+            loss_count = 0
+            
+            # Collect all losses from environments
             for i, info in enumerate(batch_infos):
-                if 'segment_rewards' in info:
-                    # For parallel training, we'll use the first environment's outputs for loss calculation
-                    # In a more advanced implementation, we could calculate loss for all environments
-                    if i == 0 and hasattr(self.env, 'hrm_agent') and hasattr(self.env.hrm_agent, '_last_outputs'):
-                        outputs = getattr(self.env.hrm_agent, '_last_outputs', {})
+                if 'segment_rewards' in info and hasattr(self.env, 'hrm_agent') and hasattr(self.env.hrm_agent, '_last_outputs'):
+                    outputs = getattr(self.env.hrm_agent, '_last_outputs', {})
+                    
+                    if outputs:
+                        targets = self._create_training_targets(info, outputs)
                         
-                        if outputs:
-                            targets = self._create_training_targets(info, outputs)
-                            
-                            loss, loss_components = self.loss_function.calculate_loss(
-                                outputs, 
-                                targets, 
-                                info['segment_rewards']
-                            )
-                            
-                            # Backward pass
-                            self.optimizer.zero_grad()
-                            loss.backward()
-                            
-                            # Gradient clipping
-                            if self.config['training']['gradient_clip'] > 0:
-                                torch.nn.utils.clip_grad_norm_(
-                                    self.model.parameters(),
-                                    self.config['training']['gradient_clip']
-                                )
-                            
-                            self.optimizer.step()
-                            
-                            episode_metrics['total_loss'] += loss.item()
+                        loss, loss_components = self.loss_function.calculate_loss(
+                            outputs, 
+                            targets, 
+                            info['segment_rewards']
+                        )
+                        
+                        total_loss = total_loss + loss
+                        loss_count += 1
+            
+            # Single backward pass for all environments
+            if loss_count > 0:
+                self.optimizer.zero_grad()
+                (total_loss / max(1, loss_count)).backward()
+                
+                # Gradient clipping
+                if self.config['training']['gradient_clip'] > 0:
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(),
+                        self.config['training']['gradient_clip']
+                    )
+                
+                self.optimizer.step()
+                
+                episode_metrics['total_loss'] += (total_loss / max(1, loss_count)).item()
             
             # Check if all environments are done
             done = batch_dones.all().item()
