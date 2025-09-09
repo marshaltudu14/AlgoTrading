@@ -118,8 +118,8 @@ def fetch_candle_data(fyers, symbol, timeframe, start_date, end_date):
         if response.get("s") == "ok":
             candles = response.get("candles", [])
             if candles:
-                # Convert to DataFrame - keep timestamp as raw epoch
-                df = pd.DataFrame(candles, columns=["timestamp", "open", "high", "low", "close", "volume"])
+                # Convert to DataFrame - let Fyers API provide the column structure
+                df = pd.DataFrame(candles)
                 return df
             else:
                 print(f"No data returned for {symbol} timeframe {timeframe}")
