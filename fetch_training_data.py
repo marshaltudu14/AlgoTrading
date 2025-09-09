@@ -181,6 +181,10 @@ async def main():
                 df = fetch_candles(fyers, symbol, timeframe, target_count=1000)
                 
                 if not df.empty:
+                    # Set proper column names for the feature generator
+                    # Fyers API returns: [timestamp, open, high, low, close, volume]
+                    df.columns = ['datetime', 'open', 'high', 'low', 'close', 'volume']
+                    
                     # Save to CSV file with the specified naming convention
                     filename = f"{instrument_name}_{timeframe}.csv"
                     filepath = os.path.join(data_dir, filename)

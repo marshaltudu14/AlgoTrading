@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import pandas as pd
 import logging
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
@@ -313,6 +314,11 @@ class HRMTrainer:
             # Old format - fallback to GPU-optimized values
             parallel_envs = 5 if device_type == 'cpu' else 25
             logger.warning("Using legacy parallel environments configuration. Please update settings.yaml")
+        
+        # Ensure parallel_envs is an integer
+        if not isinstance(parallel_envs, int):
+            logger.warning(f"parallel_envs value {parallel_envs} is not an integer, defaulting to 5")
+            parallel_envs = 5
         
         # Enable aggressive parallelization for GPU
         if device_type == 'gpu':
@@ -953,7 +959,9 @@ class HRMTrainer:
             max_episodes_per_dataset[symbol] = episodes_count
         
         total_episodes = sum(max_episodes_per_dataset.values())
-        batch_size = min(len(all_datasets), self.parallel_envs)  # Use available parallel environments
+        # Ensure parallel_envs is an integer
+        parallel_envs = self.parallel_envs if isinstance(self.parallel_envs, int) else 4
+        batch_size = min(len(all_datasets), parallel_envs)  # Use available parallel environments
         
         logger.info(f"Creating batched episodes: {total_episodes} total episodes across {len(all_datasets)} datasets")
         
@@ -1021,7 +1029,10 @@ class HRMTrainer:
             env.observation_handler.reset()
             env.termination_manager.reset(env.initial_capital, env.episode_end_step)
             
-            # Initialize HRM agent if needed
+            # Reset the environment to initialize observation space
+            env.reset()
+            
+            # Initialize HRM agent if needed (after reset to ensure observation space is set)
             if not hasattr(env, 'hrm_agent') or env.hrm_agent is None:
                 env._initialize_hrm_agent()
             
