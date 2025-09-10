@@ -250,77 +250,104 @@ class ObservationHandler:
                                    current_price: float = None) -> Dict[str, np.ndarray]:
         """Generate hierarchical observations for HRM agent with different lookback windows."""
         
-        # Get feature columns (all features except datetime/OHLC)
-        feature_columns = [col for col in data.columns if col.lower() not in ['datetime', 'date', 'time', 'timestamp']]
+        import pandas as pd
         
-        # Get account state
-        if current_price is None:
-            safe_step = min(current_step, len(data) - 1)
-            current_price = data['close'].iloc[safe_step]
+        try:
+            # Check if data is on GPU (common issue after GPU migration)
+            if hasattr(data, 'values') and hasattr(data.values, 'device') and hasattr(data.values, 'cpu'):
+                # Fix GPU issue: Convert GPU tensors back to CPU for pandas operations
+                data = pd.DataFrame(data.values.cpu().detach().numpy(), columns=data.columns)
+            
+            # Ensure we have a proper pandas DataFrame on CPU
+            if not isinstance(data, pd.DataFrame):
+                raise ValueError(f"Expected pandas DataFrame, got {type(data)}")
+            
+            # Get feature columns (all features except datetime/OHLC)
+            feature_columns = [col for col in data.columns if col.lower() not in ['datetime', 'date', 'time', 'timestamp']]
         
-        account_state = engine.get_account_state(current_price=current_price)
-        distance_to_trail = self._calculate_distance_to_trail(current_price, engine)
-        
-        # Create account state features
-        account_features = np.array([
-            float(account_state['capital']),
-            float(account_state['current_position_quantity']),
-            float(account_state['current_position_entry_price']),
-            float(account_state['unrealized_pnl']),
-            1.0 if account_state['is_position_open'] else 0.0,
-            float(distance_to_trail)
-        ], dtype=np.float32)
-        
-        # High-level observation (100 candles for strategic context)
-        h_start = current_step - self.high_level_lookback + 1
-        h_end = current_step + 1
-        
-        if h_start < 0:
-            # Pad with zeros if not enough history
-            padding_needed = abs(h_start)
-            h_market_data = np.zeros((self.high_level_lookback, len(feature_columns)))
-            if h_end > 0:
-                actual_data = data[feature_columns].iloc[0:h_end].values
-                h_market_data[padding_needed:] = actual_data
-        else:
-            h_market_data = data[feature_columns].iloc[h_start:h_end].values
-        
-        # Low-level observation (15 candles for tactical decisions)  
-        l_start = current_step - self.low_level_lookback + 1
-        l_end = current_step + 1
-        
-        if l_start < 0:
-            # Pad with zeros if not enough history
-            padding_needed = abs(l_start)
-            l_market_data = np.zeros((self.low_level_lookback, len(feature_columns)))
-            if l_end > 0:
-                actual_data = data[feature_columns].iloc[0:l_end].values
-                l_market_data[padding_needed:] = actual_data
-        else:
-            l_market_data = data[feature_columns].iloc[l_start:l_end].values
-        
-        # Create hierarchical observations
-        h_observation = np.concatenate([
-            h_market_data.flatten().astype(np.float32),
-            account_features
-        ])
-        
-        l_observation = np.concatenate([
-            l_market_data.flatten().astype(np.float32),
-            account_features
-        ])
-        
-        # Apply normalization if available
-        if len(self.observation_history) >= 10:
-            h_observation = self._apply_selective_zscore_normalization(h_observation, data)
-            l_observation = self._apply_selective_zscore_normalization(l_observation, data)
-        
-        # Ensure no invalid values
-        h_observation = np.where(np.isfinite(h_observation), h_observation, 0.0)
-        l_observation = np.where(np.isfinite(l_observation), l_observation, 0.0)
-        
-        return {
-            'high_level': h_observation.astype(np.float32),
-            'low_level': l_observation.astype(np.float32),
-            'feature_columns': feature_columns
-        }
+            # Get account state
+            if current_price is None:
+                safe_step = min(current_step, len(data) - 1)
+                current_price = data['close'].iloc[safe_step]
+            
+            account_state = engine.get_account_state(current_price=current_price)
+            distance_to_trail = self._calculate_distance_to_trail(current_price, engine)
+            
+            # Create account state features
+            account_features = np.array([
+                float(account_state['capital']),
+                float(account_state['current_position_quantity']),
+                float(account_state['current_position_entry_price']),
+                float(account_state['unrealized_pnl']),
+                1.0 if account_state['is_position_open'] else 0.0,
+                float(distance_to_trail)
+            ], dtype=np.float32)
+            
+            # High-level observation (100 candles for strategic context)
+            h_start = current_step - self.high_level_lookback + 1
+            h_end = current_step + 1
+            
+            if h_start < 0:
+                # Pad with zeros if not enough history
+                padding_needed = abs(h_start)
+                h_market_data = np.zeros((self.high_level_lookback, len(feature_columns)))
+                if h_end > 0:
+                    actual_data = data[feature_columns].iloc[0:h_end].values
+                    h_market_data[padding_needed:] = actual_data
+            else:
+                h_market_data = data[feature_columns].iloc[h_start:h_end].values
+            
+            # Low-level observation (15 candles for tactical decisions)  
+            l_start = current_step - self.low_level_lookback + 1
+            l_end = current_step + 1
+            
+            if l_start < 0:
+                # Pad with zeros if not enough history
+                padding_needed = abs(l_start)
+                l_market_data = np.zeros((self.low_level_lookback, len(feature_columns)))
+                if l_end > 0:
+                    actual_data = data[feature_columns].iloc[0:l_end].values
+                    l_market_data[padding_needed:] = actual_data
+            else:
+                l_market_data = data[feature_columns].iloc[l_start:l_end].values
+            
+            # Create hierarchical observations
+            h_observation = np.concatenate([
+                h_market_data.flatten().astype(np.float32),
+                account_features
+            ])
+            
+            l_observation = np.concatenate([
+                l_market_data.flatten().astype(np.float32),
+                account_features
+            ])
+            
+            # Apply normalization if available
+            if len(self.observation_history) >= 10:
+                h_observation = self._apply_selective_zscore_normalization(h_observation, data)
+                l_observation = self._apply_selective_zscore_normalization(l_observation, data)
+            
+            # Ensure no invalid values
+            h_observation = np.where(np.isfinite(h_observation), h_observation, 0.0)
+            l_observation = np.where(np.isfinite(l_observation), l_observation, 0.0)
+            
+            result = {
+                'high_level': h_observation.astype(np.float32),
+                'low_level': l_observation.astype(np.float32),
+                'feature_columns': feature_columns
+            }
+            
+            return result
+            
+        except Exception as e:
+            # Return a proper fallback observation with correct dimensions
+            
+            # Calculate expected dimensions for fallback
+            expected_high_level_dim = self.high_level_lookback * 53 + 6  # 53 features + 6 account features
+            expected_low_level_dim = self.low_level_lookback * 53 + 6
+            
+            return {
+                'high_level': np.zeros(expected_high_level_dim, dtype=np.float32),  # Proper array, not scalar!
+                'low_level': np.zeros(expected_low_level_dim, dtype=np.float32),
+                'feature_columns': []
+            }

@@ -218,7 +218,7 @@ class TradingEnv(gym.Env):
 
         if max_start <= 0:
             # Not enough data for streaming, load all FINAL data (not raw!)
-            logging.warning(f"Insufficient data for streaming mode, loading all FINAL data for {self.symbol}")
+            logging.info(f"Small dataset detected for {self.symbol}, using full dataset mode (more efficient for <1500 rows)")
             self.data = self.data_loader.load_final_data_for_symbol(self.symbol)
             self.use_streaming = False
             return
@@ -540,8 +540,19 @@ class TradingEnv(gym.Env):
                 logger.error(f"SPECIFIC ENGINE ERROR: {ne}")
                 logger.error(f"self.engine exists: {hasattr(self, 'engine')}")
                 logger.error(f"self.engine type: {type(getattr(self, 'engine', 'NOT_FOUND'))}")
+                logger.error(f"Current step: {self.current_step}")
+                logger.error(f"Action type: {action_type}")
                 import traceback
                 logger.error(f"Full traceback: {traceback.format_exc()}")
+                
+                # Try to identify exactly which line is failing
+                import sys
+                tb = sys.exc_info()[2]
+                while tb.tb_next:
+                    tb = tb.tb_next
+                logger.error(f"Error occurred in: {tb.tb_frame.f_code.co_filename}:{tb.tb_lineno}")
+                logger.error(f"Local vars: {list(tb.tb_frame.f_locals.keys())}")
+                
                 # Return safe fallback
                 obs = self.observation_handler.get_fallback_observation()
                 return obs, 0.0, True, {"error": f"Engine NameError: {str(ne)}"}

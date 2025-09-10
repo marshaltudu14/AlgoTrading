@@ -226,23 +226,26 @@ class HRMTradingEnvironment(TradingEnv):
         
         logger.info(f"HRM Trading Agent initialized with {sum(p.numel() for p in self.hrm_agent.parameters())} parameters")
     
-    def step(self, raw_observation: np.ndarray = None) -> Tuple[np.ndarray, float, bool, Dict]:
+    def step(self, action: int = None) -> Tuple[np.ndarray, float, bool, Dict]:
         """
         Enhanced step function with HRM reasoning
         
         Args:
-            raw_observation: If provided, use this observation instead of generating one
+            action: Trading action to execute (not used in HRM - agent generates its own actions)
         """
         
-        # Get current observation if not provided
-        if raw_observation is None:
-            # Use hierarchical observation for HRM agent
-            hierarchical_obs = self.observation_handler.get_hierarchical_observation(
-                self.data, self.current_step, self.engine
-            )
-            # For now, use the high-level observation as the main observation
-            # This will be further processed by the HRM agent for hierarchical reasoning
-            raw_observation = hierarchical_obs['high_level']
+        # HRM agent generates its own actions through hierarchical reasoning
+        # The action parameter is ignored as HRM does internal action selection
+        
+        # Get current observation for HRM processing  
+        # Use hierarchical observation for HRM agent
+        hierarchical_obs = self.observation_handler.get_hierarchical_observation(
+            self.data, self.current_step, self.engine
+        )
+        
+        # For now, use the high-level observation as the main observation
+        # This will be further processed by the HRM agent for hierarchical reasoning
+        raw_observation = hierarchical_obs['high_level']
         
         # Convert to torch tensor with explicit float32 dtype
         observation_tensor = torch.tensor(raw_observation, dtype=torch.float32).unsqueeze(0).to(self.device)
@@ -295,6 +298,12 @@ class HRMTradingEnvironment(TradingEnv):
         # Now execute ONE step with the final action (advance data by 1 step only)
         self.current_step = original_step  # Reset to original step
         next_observation, reward, done, info = super().step(final_action)
+        
+        # Replace with hierarchical observation for consistency
+        hierarchical_next_obs = self.observation_handler.get_hierarchical_observation(
+            self.data, self.current_step, self.engine
+        )
+        next_observation = hierarchical_next_obs['high_level']
         
         # Update segment rewards with actual reward
         segment_rewards = [reward] * len(segment_rewards)  # Use actual reward for all segments

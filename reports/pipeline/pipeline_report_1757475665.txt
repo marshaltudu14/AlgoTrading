@@ -2,14 +2,14 @@ DATA PROCESSING PIPELINE REPORT
 ==================================================
 
 Pipeline Status: SUCCESS
-Total Processing Time: 12.0 minutes
-Files Processed: 0
-Rows Processed: 0
+Total Processing Time: 8.9 seconds
+Files Processed: 5
+Rows Processed: 9,967
 Output Directory: data\final
 
 FEATURE GENERATION:
   Status: SUCCESS
-  Files Processed: 0
-  Total Rows: 0
+  Files Processed: 5
+  Total Rows: 9,967
 
-Report generated: 2025-09-03 15:48:59
+Report generated: 2025-09-10 09:11:05

@@ -178,7 +178,7 @@ async def main():
                 logger.info(f"  Fetching {timeframe_desc} data...")
                 
                 # Fetch exactly target number of candles (or as close as possible)  
-                df = fetch_candles(fyers, symbol, timeframe, target_count=1000)
+                df = fetch_candles(fyers, symbol, timeframe, target_count=2500)
                 
                 if not df.empty:
                     # Set proper column names for the feature generator

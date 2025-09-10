@@ -170,10 +170,20 @@ class HRMTradingAgent(nn.Module):
             l_input: Tactical input (L lookback candles)
         """
         
+        # Ensure we have at least 2D tensor
+        if full_observation.dim() == 1:
+            full_observation = full_observation.unsqueeze(0)
+        elif full_observation.dim() == 0:
+            raise ValueError("Observation cannot be a scalar tensor")
+        
         batch_size = full_observation.size(0)
         
         # Account features are at the end (6 features)
         account_features = 6
+        
+        if full_observation.size(1) < account_features:
+            raise ValueError(f"Observation dimension {full_observation.size(1)} is smaller than required account features {account_features}")
+            
         market_features_dim = full_observation.size(1) - account_features
         
         # Extract market features and account features

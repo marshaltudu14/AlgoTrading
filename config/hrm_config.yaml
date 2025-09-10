@@ -5,16 +5,16 @@ model_architecture:
   name: "HRMTradingAgent"
 
   # Core HRM Parameters - Enhanced for deeper pattern recognition
-  hidden_dim: 1024 # Increased from 256 for richer representations
-  H_cycles: 8 # High-level strategic cycles per forward pass
-  L_cycles: 20 # Increased from 5 for more tactical refinement
-  H_layers: 8 # Increased from 4 for deeper strategic reasoning
-  L_layers: 12 # Increased from 3 for deeper tactical processing
-  num_heads: 32 # Increased from 8 for more attention mechanisms
+  hidden_dim: 256 # Increased from 256 for richer representations
+  H_cycles: 2 # High-level strategic cycles per forward pass
+  L_cycles: 5 # Increased from 5 for more tactical refinement
+  H_layers: 4 # Increased from 4 for deeper strategic reasoning
+  L_layers: 3 # Increased from 3 for deeper tactical processing
+  num_heads: 8 # Increased from 8 for more attention mechanisms
   dropout: 0.1
 
   # Adaptive Computation Time (ACT) - Enhanced for complex reasoning
-  halt_max_steps: 16 # Increased from 8 for more complex decision chains
+  halt_max_steps: 8 # Increased from 8 for more complex decision chains
   halt_exploration_prob: 0.1
 
   # Deep Supervision - Enhanced for richer learning

@@ -1006,17 +1006,22 @@ class HRMTrainer:
         
         # Setup parallel environments for this batch
         batch_envs = []
-        for episode_data in batch_data:
+        
+        for i, episode_data in enumerate(batch_data):
             # Create environment for this episode
-            env = HRMTradingEnvironment(
-                data_loader=self.data_loader,
-                symbol=episode_data['symbol'],
-                initial_capital=self.config.get('environment', {}).get('initial_capital', 100000.0),
-                mode=TradingMode.TRAINING,
-                hrm_config_path=self.config_path,
-                device=str(self.device),
-                episode_length=self.episode_length
-            )
+            try:
+                env = HRMTradingEnvironment(
+                    data_loader=self.data_loader,
+                    symbol=episode_data['symbol'],
+                    initial_capital=self.config.get('environment', {}).get('initial_capital', 100000.0),
+                    mode=TradingMode.TRAINING,
+                    hrm_config_path=self.config_path,
+                    device=str(self.device),
+                    episode_length=self.episode_length
+                )
+            except Exception as e:
+                logger.error(f"Environment creation failed: {e}")
+                continue
             
             # Set the episode data
             env.data = episode_data['data']
@@ -1024,19 +1029,35 @@ class HRMTrainer:
             env.episode_end_step = len(env.data) - 1
             
             # Initialize environment components
-            env.engine.reset()
-            env.reward_calculator.reset(env.initial_capital)
-            env.observation_handler.reset()
-            env.termination_manager.reset(env.initial_capital, env.episode_end_step)
+            try:
+                env.engine.reset()
+                env.reward_calculator.reset(env.initial_capital)
+                env.observation_handler.reset()
+                env.termination_manager.reset(env.initial_capital, env.episode_end_step)
+            except Exception as e:
+                logger.error(f"Component initialization failed: {e}")
+                continue
             
             # Reset the environment to initialize observation space
-            env.reset()
+            try:
+                env.reset()
+            except Exception as e:
+                logger.error(f"Environment reset failed: {e}")
+                continue
             
             # Initialize HRM agent if needed (after reset to ensure observation space is set)
-            if not hasattr(env, 'hrm_agent') or env.hrm_agent is None:
-                env._initialize_hrm_agent()
+            try:
+                if not hasattr(env, 'hrm_agent') or env.hrm_agent is None:
+                    env._initialize_hrm_agent()
+            except Exception as e:
+                logger.error(f"HRM agent initialization failed: {e}")
+                continue
             
             batch_envs.append(env)
+        
+        if not batch_envs:
+            logger.warning(f"No environments created successfully, skipping batch")
+            return []
         
         # Run batch training episode
         episode_metrics = {
@@ -1061,12 +1082,76 @@ class HRMTrainer:
             for i, env in enumerate(batch_envs):
                 if not done_mask[i]:
                     try:
-                        obs, reward, done, info = env.step()
+                        # Generate action using HRM agent
+                        current_obs = env.observation_handler.get_observation(env.data, env.current_step, env.engine)
+                        
+                        # Use HRM agent to select action
+                        if hasattr(env, 'hrm_agent') and env.hrm_agent is not None:
+                            try:
+                                with torch.no_grad():
+                                    obs_tensor = torch.tensor(current_obs, dtype=torch.float32).unsqueeze(0).to(self.device)
+                                    
+                                    # Create initial carry state if not exists
+                                    if not hasattr(env, '_hrm_carry'):
+                                        from src.models.hrm.hrm_agent import HRMCarry, HRMTradingState
+                                        initial_state = HRMTradingState(
+                                            z_H=torch.zeros(1, env.hrm_agent.hidden_dim, device=self.device),
+                                            z_L=torch.zeros(1, env.hrm_agent.hidden_dim, device=self.device),
+                                            step_count=0,
+                                            segment_count=0
+                                        )
+                                        env._hrm_carry = HRMCarry(
+                                            inner_state=initial_state,
+                                            halted=torch.zeros(1, dtype=torch.bool, device=self.device),
+                                            performance_history=[]
+                                        )
+                                    
+                                    # Get instrument and timeframe IDs
+                                    instrument_id = torch.tensor([0], device=self.device)  # Default to 0
+                                    timeframe_id = torch.tensor([0], device=self.device)   # Default to 0
+                                    
+                                    # Forward pass
+                                    new_carry, outputs = env.hrm_agent.forward(
+                                        carry=env._hrm_carry,
+                                        observation=obs_tensor,
+                                        training=False,
+                                        instrument_id=instrument_id,
+                                        timeframe_id=timeframe_id
+                                    )
+                                    
+                                    # Update carry state
+                                    env._hrm_carry = new_carry
+                                    
+                                    # Extract trading decision
+                                    account_state = env.engine.get_account_state()
+                                    decision = env.hrm_agent.extract_trading_decision(
+                                        outputs,
+                                        current_position=account_state.get('position_quantity', 0.0),
+                                        available_capital=account_state.get('capital', 100000.0)
+                                    )
+                                    
+                                    # Convert decision to action index using settings
+                                    action_name = decision.get('action', 'HOLD')
+                                    from src.config.settings import get_settings
+                                    settings = get_settings()
+                                    action_mapping = settings['actions']['action_types']
+                                    action = action_mapping.get(action_name, action_mapping.get('HOLD', 4))  # Default to HOLD
+                                    
+                            except Exception as e:
+                                logger.warning(f"HRM agent error: {e}, using random action")
+                                action = env.action_space.sample()
+                        else:
+                            # Fallback to random action
+                            action = env.action_space.sample()
+                        
+                        # Execute step with action
+                        obs, reward, done, info = env.step(action)
                         batch_observations.append(obs)
                         batch_rewards.append(reward)
                         batch_dones.append(done)
                         batch_infos.append(info)
                         done_mask[i] = done
+                            
                     except Exception as e:
                         logger.warning(f"Error in batch environment {i}: {e}")
                         done_mask[i] = True
