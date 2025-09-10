@@ -411,7 +411,7 @@ class TradingEnv(gym.Env):
             current_capital = self.engine.get_account_state(current_price=current_price)['capital']
             
             # Update tracking data in reward calculator
-            self.reward_calculator.update_tracking_data(action_type, current_capital)
+            self.reward_calculator.update_tracking_data(action_type, current_capital, self.engine)
             
             # Calculate base reward
             try:

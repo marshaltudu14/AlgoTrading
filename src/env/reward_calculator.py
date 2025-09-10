@@ -47,7 +47,7 @@ class RewardCalculator:
         self.last_action_type = self.action_types.get('HOLD', 4)  # Start with HOLD
         self.previous_trailing_stop = 0.0
     
-    def update_tracking_data(self, action_type: int, current_capital: float):
+    def update_tracking_data(self, action_type: int, current_capital: float, engine):
         """Update tracking data for reward calculation."""
         # Update equity history and returns
         self.equity_history.append(current_capital)
