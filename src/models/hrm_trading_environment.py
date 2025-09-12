@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as F
 import numpy as np
 import gymnasium as gym
 from typing import Dict, Tuple, Optional, List
@@ -26,11 +27,13 @@ class HRMTradingEnvironment(TradingEnv):
                  initial_capital=None,
                  hrm_config_path="config/hrm_config.yaml",
                  device="cuda" if torch.cuda.is_available() else "cpu",
+                 enable_gpu_batch_processing=False,
                  **kwargs):
         
         # Load HRM configuration
         self.hrm_config = self._load_hrm_config(hrm_config_path)
         self.device = torch.device(device)
+        self.enable_gpu_batch_processing = enable_gpu_batch_processing and (device != "cpu")
         
         # Initialize base trading environment with smart action filtering enabled
         super().__init__(
@@ -333,6 +336,129 @@ class HRMTradingEnvironment(TradingEnv):
         self.steps_since_strategic_update += 1
         
         return final_observation, final_reward, final_done, final_info
+    
+    def batch_forward_pass(self, batch_observations: torch.Tensor, 
+                          batch_carry_states: List[HRMCarry]) -> Tuple[List[HRMCarry], torch.Tensor]:
+        """Perform batch forward pass through HRM for GPU optimization"""
+        if not self.enable_gpu_batch_processing:
+            raise NotImplementedError("Batch processing not enabled")
+        
+        batch_size = batch_observations.shape[0]
+        
+        # Stack carry states for batch processing
+        batch_outputs = []
+        new_carry_states = []
+        
+        # Process batch through HRM agent
+        for i in range(batch_size):
+            obs_tensor = batch_observations[i].unsqueeze(0)  # Add batch dimension
+            carry_state = batch_carry_states[i]
+            
+            # Prepare market context tensors
+            instrument_tensor = torch.tensor([self.current_instrument_id], 
+                                           dtype=torch.long, device=self.device)
+            timeframe_tensor = torch.tensor([self.current_timeframe_id], 
+                                          dtype=torch.long, device=self.device)
+            
+            # Forward pass
+            new_carry, outputs = self.hrm_agent.forward(
+                carry_state, 
+                obs_tensor, 
+                training=self.mode == TradingMode.TRAINING,
+                instrument_id=instrument_tensor,
+                timeframe_id=timeframe_tensor
+            )
+            
+            new_carry_states.append(new_carry)
+            batch_outputs.append(outputs)
+        
+        # Stack outputs for vectorized processing
+        stacked_outputs = self._stack_batch_outputs(batch_outputs)
+        
+        return new_carry_states, stacked_outputs
+    
+    def _stack_batch_outputs(self, batch_outputs: List[Dict]) -> Dict[str, torch.Tensor]:
+        """Stack individual outputs into batch tensors"""
+        if not batch_outputs:
+            return {}
+        
+        stacked = {}
+        
+        # Get keys from first output
+        keys = batch_outputs[0].keys()
+        
+        for key in keys:
+            try:
+                # Stack tensors for this key across batch
+                tensors = [outputs[key] for outputs in batch_outputs if key in outputs]
+                if tensors and all(isinstance(t, torch.Tensor) for t in tensors):
+                    # Ensure all tensors have same shape
+                    if all(t.shape == tensors[0].shape for t in tensors):
+                        stacked[key] = torch.stack(tensors)
+                    else:
+                        # Handle different shapes by padding or truncating
+                        max_shape = tuple(max(t.shape[i] for t in tensors) 
+                                        for i in range(len(tensors[0].shape)))
+                        padded_tensors = []
+                        for t in tensors:
+                            if t.shape != max_shape:
+                                # Simple padding with zeros
+                                pad_amount = [max_shape[i] - t.shape[i] for i in range(len(t.shape))]
+                                pad_list = []
+                                for p in reversed(pad_amount):
+                                    pad_list.extend([0, p])
+                                t = F.pad(t, pad_list)
+                            padded_tensors.append(t)
+                        stacked[key] = torch.stack(padded_tensors)
+            except Exception as e:
+                logger.warning(f"Failed to stack outputs for key {key}: {e}")
+        
+        return stacked
+    
+    def vectorized_trading_decisions(self, batch_outputs: Dict[str, torch.Tensor]) -> List[Dict]:
+        """Extract trading decisions from batch outputs"""
+        batch_size = next(iter(batch_outputs.values())).shape[0]
+        decisions = []
+        
+        for i in range(batch_size):
+            # Extract individual outputs for this batch element
+            individual_outputs = {}
+            for key, tensor in batch_outputs.items():
+                if tensor.dim() > 0:  # Ensure tensor has batch dimension
+                    individual_outputs[key] = tensor[i]
+                else:
+                    individual_outputs[key] = tensor
+            
+            # Use existing decision extraction method
+            decision = self.hrm_agent.extract_trading_decision(individual_outputs)
+            decisions.append(decision)
+        
+        return decisions
+    
+    def precompute_episode_segments(self, episode_data: torch.Tensor, 
+                                  segment_length: int = 100) -> List[torch.Tensor]:
+        """Precompute episode segments for offline RL processing"""
+        if not self.enable_gpu_batch_processing:
+            return [episode_data]
+        
+        episode_length = episode_data.shape[0]
+        segments = []
+        
+        for start_idx in range(0, episode_length, segment_length):
+            end_idx = min(start_idx + segment_length, episode_length)
+            segment = episode_data[start_idx:end_idx]
+            
+            # Pad segment if needed
+            if segment.shape[0] < segment_length and start_idx + segment_length < episode_length:
+                padding_size = segment_length - segment.shape[0]
+                padding = torch.zeros((padding_size, *segment.shape[1:]), 
+                                    device=segment.device, dtype=segment.dtype)
+                segment = torch.cat([segment, padding], dim=0)
+            
+            segments.append(segment)
+        
+        logger.debug(f"Precomputed {len(segments)} segments from episode of length {episode_length}")
+        return segments
     
     def _aggregate_segment_rewards(self, segment_rewards: List[float]) -> float:
         """Aggregate rewards from multiple supervision segments"""

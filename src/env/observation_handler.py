@@ -1,17 +1,23 @@
 import gymnasium as gym
 import numpy as np
 import pandas as pd
-from typing import List, Optional, Dict
+import torch
+import torch.nn.functional as F
+from typing import List, Optional, Dict, Union
 
 
 class ObservationHandler:
     """Handles observation generation and normalization for the trading environment."""
     
-    def __init__(self, lookback_window: int = 100):
+    def __init__(self, lookback_window: int = 100, device: str = "cpu", enable_gpu_optimization: bool = False):
         # Use the maximum lookback window needed for hierarchical processing
         self.lookback_window = lookback_window
         self.high_level_lookback = 100  # H-module sees 100 candles for strategic context
         self.low_level_lookback = 15   # L-module sees 15 candles for tactical decisions
+        
+        # GPU optimization setup
+        self.device = torch.device(device)
+        self.enable_gpu_optimization = enable_gpu_optimization and (device != "cpu")
         
         # Track statistics for z-score normalization
         self.feature_stats = {}
@@ -23,6 +29,14 @@ class ObservationHandler:
         self.trailing_features = 1  # distance_to_trail
         self.observation_dim = None
         self.observation_space = None
+        
+        # GPU-optimized feature cache
+        if self.enable_gpu_optimization:
+            self._gpu_cache = {
+                'feature_data': None,
+                'normalized_features': None,
+                'batch_observations': None
+            }
         
     def initialize_observation_space(self, data: pd.DataFrame, config: Dict = None):
         """Initialize observation space dimensions based on actual data."""
@@ -50,6 +64,175 @@ class ObservationHandler:
         self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(self.observation_dim,), dtype=np.float32)
         
         return feature_columns
+    
+    def precompute_batch_observations(self, datasets: Dict[str, pd.DataFrame], 
+                                    episode_length: int = 1000) -> Dict[str, torch.Tensor]:
+        """Precompute observations for multiple datasets on GPU (Offline RL)"""
+        if not self.enable_gpu_optimization:
+            return {}
+        
+        batch_observations = {}
+        
+        for symbol, data in datasets.items():
+            try:
+                # Exclude datetime columns
+                excluded_columns = ['datetime_readable']
+                feature_columns = [col for col in data.columns 
+                                 if col.lower() not in [x.lower() for x in excluded_columns]]
+                
+                # Convert entire dataset to GPU tensor
+                feature_data = torch.tensor(data[feature_columns].values, 
+                                          dtype=torch.float32, device=self.device)
+                
+                # Precompute all possible observations for this dataset
+                observations_list = []
+                num_episodes = max(1, (len(data) - self.lookback_window) // episode_length)
+                
+                for episode_idx in range(num_episodes):
+                    start_idx = episode_idx * episode_length
+                    end_idx = min(start_idx + episode_length + self.lookback_window, len(data))
+                    
+                    episode_observations = self._vectorized_episode_observations(
+                        feature_data[start_idx:end_idx], 
+                        self.lookback_window, 
+                        episode_length
+                    )
+                    
+                    observations_list.append(episode_observations)
+                
+                if observations_list:
+                    # Stack all episode observations
+                    batch_observations[symbol] = torch.stack(observations_list)
+                    
+                    logger.info(f"Precomputed observations for {symbol}: {batch_observations[symbol].shape}")
+                
+            except Exception as e:
+                logger.error(f"Failed to precompute observations for {symbol}: {e}")
+        
+        return batch_observations
+    
+    def _vectorized_episode_observations(self, feature_data: torch.Tensor, 
+                                       lookback_window: int, 
+                                       episode_length: int) -> torch.Tensor:
+        """Vectorized computation of observations for an episode"""
+        
+        # Use sliding window approach for vectorized computation
+        # feature_data shape: [total_steps, num_features]
+        # output shape: [episode_steps, lookback_window * num_features + account_features]
+        
+        total_steps = feature_data.shape[0]
+        num_features = feature_data.shape[1]
+        
+        # Create sliding windows using unfold (vectorized)
+        if total_steps >= lookback_window:
+            # Use unfold to create sliding windows efficiently
+            windowed_data = feature_data.unfold(0, lookback_window, 1)
+            # windowed_data shape: [num_windows, num_features, lookback_window]
+            
+            # Reshape to flatten each window
+            windowed_data = windowed_data.transpose(1, 2).reshape(windowed_data.shape[0], -1)
+            # Shape: [num_windows, lookback_window * num_features]
+            
+            # Limit to episode length
+            max_steps = min(episode_length, windowed_data.shape[0])
+            windowed_data = windowed_data[:max_steps]
+            
+            # Add placeholder account state features (zeros for precomputation)
+            batch_size = windowed_data.shape[0]
+            account_features = torch.zeros((batch_size, self.account_state_features + self.trailing_features), 
+                                         device=self.device, dtype=torch.float32)
+            
+            # Concatenate market features with account features
+            episode_observations = torch.cat([windowed_data, account_features], dim=1)
+            
+            return episode_observations
+        else:
+            # Fallback for insufficient data
+            obs_dim = lookback_window * num_features + self.account_state_features + self.trailing_features
+            return torch.zeros((1, obs_dim), device=self.device, dtype=torch.float32)
+    
+    def batch_normalize_observations(self, batch_observations: torch.Tensor) -> torch.Tensor:
+        """Vectorized batch normalization on GPU"""
+        if not self.enable_gpu_optimization:
+            return batch_observations
+        
+        # Compute statistics across the batch dimension
+        mean = torch.mean(batch_observations, dim=0, keepdim=True)
+        std = torch.std(batch_observations, dim=0, keepdim=True)
+        
+        # Avoid division by zero
+        std = torch.where(std > 1e-8, std, torch.ones_like(std))
+        
+        # Z-score normalization
+        normalized = (batch_observations - mean) / std
+        
+        # Clamp to reasonable range
+        normalized = torch.clamp(normalized, -10.0, 10.0)
+        
+        return normalized
+    
+    def get_batch_observations(self, batch_data: List[pd.DataFrame], 
+                             current_steps: List[int], 
+                             engines: List = None) -> torch.Tensor:
+        """Get observations for a batch of environments (GPU vectorized)"""
+        if not self.enable_gpu_optimization or not batch_data:
+            # Fallback to individual processing
+            observations = []
+            for i, data in enumerate(batch_data):
+                step = current_steps[i] if i < len(current_steps) else self.lookback_window - 1
+                engine = engines[i] if engines and i < len(engines) else None
+                obs = self.get_observation(data, step, engine)
+                observations.append(torch.tensor(obs, dtype=torch.float32, device=self.device))
+            
+            return torch.stack(observations) if observations else torch.empty(0)
+        
+        # GPU vectorized batch processing
+        batch_observations = []
+        
+        for i, data in enumerate(batch_data):
+            try:
+                current_step = current_steps[i] if i < len(current_steps) else self.lookback_window - 1
+                
+                # Extract features (excluding datetime)
+                excluded_columns = ['datetime_readable']
+                feature_columns = [col for col in data.columns 
+                                 if col.lower() not in [x.lower() for x in excluded_columns]]
+                
+                # Get historical window
+                start_step = max(0, current_step - self.lookback_window + 1)
+                end_step = current_step + 1
+                
+                if end_step <= len(data):
+                    historical_data = data[feature_columns].iloc[start_step:end_step].values
+                    
+                    # Pad if necessary
+                    if historical_data.shape[0] < self.lookback_window:
+                        padding = np.zeros((self.lookback_window - historical_data.shape[0], 
+                                          historical_data.shape[1]))
+                        historical_data = np.vstack([padding, historical_data])
+                    
+                    # Convert to tensor and flatten
+                    market_features = torch.tensor(historical_data.flatten(), 
+                                                 dtype=torch.float32, device=self.device)
+                    
+                    # Add account state features (placeholder for batch processing)
+                    account_features = torch.zeros(self.account_state_features + self.trailing_features, 
+                                                 device=self.device, dtype=torch.float32)
+                    
+                    # Combine
+                    obs = torch.cat([market_features, account_features])
+                    batch_observations.append(obs)
+                else:
+                    # Fallback observation
+                    obs = torch.zeros(self.observation_dim, device=self.device, dtype=torch.float32)
+                    batch_observations.append(obs)
+                    
+            except Exception as e:
+                logger.warning(f"Failed to compute batch observation {i}: {e}")
+                obs = torch.zeros(self.observation_dim, device=self.device, dtype=torch.float32)
+                batch_observations.append(obs)
+        
+        return torch.stack(batch_observations)
     
     def reset(self):
         """Reset observation handler state."""

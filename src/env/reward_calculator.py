@@ -1,14 +1,21 @@
 import numpy as np
-from typing import Dict, List, Optional
+import torch
+import torch.nn.functional as F
+from typing import Dict, List, Optional, Union
 
 
 class RewardCalculator:
     """Handles all reward calculation logic for the trading environment."""
     
-    def __init__(self, reward_function: str = "pnl", symbol: str = None):
+    def __init__(self, reward_function: str = "pnl", symbol: str = None, 
+                 device: str = "cpu", enable_gpu_optimization: bool = False):
         self.reward_function = reward_function
         # No instrument-specific normalization - universal scaling only
         self.reward_normalization_factor = 1.0
+        
+        # GPU optimization setup
+        self.device = torch.device(device)
+        self.enable_gpu_optimization = enable_gpu_optimization and (device != "cpu")
         
         # Load action and reward configuration for efficient access
         from src.utils.config_loader import ConfigLoader
@@ -37,6 +44,73 @@ class RewardCalculator:
         self.returns_history = []
         self.equity_history = []
         
+        # GPU-optimized computation cache
+        self._gpu_cache = {}
+        if self.enable_gpu_optimization:
+            self._init_gpu_tensors()
+    
+    def _init_gpu_tensors(self):
+        """Initialize GPU tensors for vectorized computation"""
+        self._gpu_cache['returns_tensor'] = torch.empty(0, device=self.device, dtype=torch.float32)
+        self._gpu_cache['equity_tensor'] = torch.empty(0, device=self.device, dtype=torch.float32)
+        self._gpu_cache['action_tensor'] = torch.empty(0, device=self.device, dtype=torch.long)
+    
+    def vectorized_reward_calculation(self, 
+                                    capital_batch: Union[torch.Tensor, np.ndarray],
+                                    prev_capital_batch: Union[torch.Tensor, np.ndarray],
+                                    action_batch: Union[torch.Tensor, np.ndarray]) -> torch.Tensor:
+        """Vectorized reward calculation for batch processing"""
+        if not self.enable_gpu_optimization:
+            # Fallback to individual calculations
+            rewards = []
+            for i in range(len(capital_batch)):
+                reward = self._calculate_percentage_pnl_simple(
+                    float(capital_batch[i]), float(prev_capital_batch[i])
+                )
+                rewards.append(reward)
+            return torch.tensor(rewards, device=self.device, dtype=torch.float32)
+        
+        # Convert to GPU tensors
+        if isinstance(capital_batch, np.ndarray):
+            capital_batch = torch.tensor(capital_batch, device=self.device, dtype=torch.float32)
+        if isinstance(prev_capital_batch, np.ndarray):
+            prev_capital_batch = torch.tensor(prev_capital_batch, device=self.device, dtype=torch.float32)
+        if isinstance(action_batch, np.ndarray):
+            action_batch = torch.tensor(action_batch, device=self.device, dtype=torch.long)
+        
+        # Ensure tensors are on correct device
+        capital_batch = capital_batch.to(self.device)
+        prev_capital_batch = prev_capital_batch.to(self.device)
+        action_batch = action_batch.to(self.device)
+        
+        # Vectorized percentage-based P&L calculation
+        pnl_percentage = (capital_batch - prev_capital_batch) / prev_capital_batch
+        
+        # Apply global scaling (vectorized)
+        scaled_rewards = pnl_percentage * self.global_scaling_factor * self.reward_multiplier
+        
+        # Vectorized reward shaping based on actions
+        hold_mask = (action_batch == self.action_types.get('HOLD', 4))
+        trade_mask = ~hold_mask
+        
+        # Apply small penalty for excessive holding (vectorized)
+        hold_penalty = torch.where(hold_mask, -0.001, 0.0)
+        
+        # Apply bonus for active trading (vectorized) 
+        trade_bonus = torch.where(trade_mask, 0.01, 0.0)
+        
+        # Combine all components
+        final_rewards = scaled_rewards + hold_penalty + trade_bonus
+        
+        return final_rewards
+    
+    def _calculate_percentage_pnl_simple(self, current_capital: float, prev_capital: float) -> float:
+        """Simple percentage P&L calculation for fallback"""
+        if prev_capital <= 0:
+            return 0.0
+        
+        pnl_percentage = (current_capital - prev_capital) / prev_capital
+        return pnl_percentage * self.global_scaling_factor * self.reward_multiplier
     
     def reset(self, initial_capital: float):
         """Reset reward calculator state."""

@@ -97,6 +97,66 @@ rewards:
   # Whether to apply scaling to reward shaping components
   scale_reward_shaping: true
 
+# Training Mode Configuration - Controls debug vs final training
+training_mode:
+  # Mode selection: "debug" or "final"
+  mode: "debug"  # Set to "final" for production training
+  
+  # Debug mode settings (single instrument, detailed logging)
+  debug:
+    enabled: true
+    single_instrument_mode: true
+    detailed_logging: true
+    step_by_step_logging: true
+    show_reward_calculations: true
+    show_position_changes: true
+    max_instruments_parallel: 1
+    log_frequency: 1  # Log every episode
+    
+  # Final mode settings (all instruments, optimized for speed)
+  final:
+    enabled: false
+    batch_all_instruments: true
+    detailed_logging: false
+    step_by_step_logging: false
+    show_reward_calculations: false
+    show_position_changes: false
+    max_instruments_parallel: 16  # Use all parallel environments
+    log_frequency: 25  # Log every 25 episodes
+    offline_rl_preprocessing: true  # Enable offline RL batch processing
+    gpu_optimization: true  # Full GPU utilization mode
+
+# GPU Optimization Configuration - For maximum GPU utilization
+gpu_optimization:
+  # Batch processing settings
+  vectorized_environment: true  # Use torch-based vectorized env
+  batch_size: 64  # Episodes processed in parallel
+  gradient_accumulation_steps: 4  # Accumulate gradients for larger effective batch
+  
+  # Offline RL preprocessing
+  offline_rl:
+    enabled: true
+    precompute_episodes: true  # Precompute all episode data
+    cache_observations: true   # Cache observations on GPU
+    cache_rewards: true        # Cache reward computations
+    batch_episode_processing: true  # Process episodes in batches
+    
+  # Memory optimization
+  mixed_precision: true      # Use AMP for memory efficiency
+  memory_efficient_attention: true  # Use memory efficient attention
+  pin_memory: true          # Pin memory for faster GPU transfer
+  non_blocking_transfer: true  # Non-blocking GPU transfers
+  
+  # Computation optimization
+  torch_compile: true       # Use torch.compile for optimization
+  tensorcore_optimization: true  # Enable tensor core optimization
+  cudnn_benchmark: true     # Enable CuDNN benchmarking
+  
+  # Advanced settings
+  max_batch_memory_gb: 12   # Maximum memory to use for batching
+  prefetch_factor: 2        # Data prefetching factor
+  num_workers: 4           # CPU workers for data loading
+
 # Data Processing Configuration - Used by FeatureGenerator and UniversalDataNormalizer
 data_processing:
   input_folder: "data/raw"

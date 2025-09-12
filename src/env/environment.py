@@ -1,7 +1,9 @@
 import gymnasium as gym
 import numpy as np
 import pandas as pd
-from typing import Tuple, Dict, Optional
+import torch
+import torch.nn.functional as F
+from typing import Tuple, Dict, Optional, List
 import logging
 import random
 
@@ -27,12 +29,27 @@ class TradingEnv(gym.Env):
                  lookback_window: int = 50, trailing_stop_percentage: float = None,
                  reward_function: str = "pnl", episode_length: int = 1000,
                  use_streaming: bool = True, mode: TradingMode = TradingMode.TRAINING,
-                 external_data: pd.DataFrame = None, smart_action_filtering: bool = False):
+                 external_data: pd.DataFrame = None, smart_action_filtering: bool = False,
+                 device: str = "cpu", enable_gpu_optimization: bool = False):
         super(TradingEnv, self).__init__()
         
         # Load centralized configuration
         config_loader = ConfigLoader()
         config = config_loader.get_config()
+        
+        # GPU optimization setup
+        self.device = torch.device(device)
+        self.enable_gpu_optimization = enable_gpu_optimization
+        self.gpu_config = config.get('gpu_optimization', {})
+        
+        # Training mode configuration
+        self.training_mode_config = config.get('training_mode', {})
+        self.current_training_mode = self.training_mode_config.get('mode', 'debug')
+        
+        # Vectorized computation cache for GPU optimization
+        self._obs_cache = None
+        self._reward_cache = None
+        self._action_cache = None
 
         # Mode and data handling
         self.mode = mode
@@ -120,6 +137,111 @@ class TradingEnv(gym.Env):
         
         # Observation space will be initialized by ObservationHandler
         self.observation_space = None
+        
+        # Initialize GPU optimization if enabled
+        if self.enable_gpu_optimization and self.device.type == 'cuda':
+            self._init_gpu_optimization()
+
+    def _init_gpu_optimization(self):
+        """Initialize GPU optimization features"""
+        logger.info("Initializing GPU optimization for environment")
+        
+        # Enable memory efficient operations
+        if self.gpu_config.get('memory_efficient_attention', False):
+            torch.backends.cuda.enable_math_sdp(True)
+            torch.backends.cuda.enable_flash_sdp(True)
+            torch.backends.cuda.enable_mem_efficient_sdp(True)
+        
+        # Enable tensor core optimization
+        if self.gpu_config.get('tensorcore_optimization', False):
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+        
+        # Enable CuDNN benchmarking
+        if self.gpu_config.get('cudnn_benchmark', False):
+            torch.backends.cudnn.benchmark = True
+        
+        logger.info("GPU optimization features enabled")
+
+    def precompute_episode_batch(self, batch_data: List[pd.DataFrame]) -> Dict[str, torch.Tensor]:
+        """Precompute observations and rewards for a batch of episodes (Offline RL)"""
+        if not self.enable_gpu_optimization:
+            return {}
+        
+        batch_size = len(batch_data)
+        max_episode_length = max(len(data) for data in batch_data)
+        
+        # Get observation dimension
+        if self.observation_space is None:
+            # Initialize with first batch element
+            temp_obs = self.observation_handler.get_observation(batch_data[0], 0, self.engine)
+            obs_dim = temp_obs.shape[0]
+        else:
+            obs_dim = self.observation_space.shape[0]
+        
+        # Precompute all observations for the batch
+        batch_observations = torch.zeros((batch_size, max_episode_length, obs_dim), 
+                                       dtype=torch.float32, device=self.device)
+        batch_rewards = torch.zeros((batch_size, max_episode_length), 
+                                  dtype=torch.float32, device=self.device)
+        batch_actions = torch.zeros((batch_size, max_episode_length), 
+                                  dtype=torch.long, device=self.device)
+        
+        for batch_idx, episode_data in enumerate(batch_data):
+            episode_length = len(episode_data)
+            
+            # Store original data temporarily
+            original_data = self.data
+            self.data = episode_data
+            
+            # Precompute observations for this episode
+            for step in range(min(episode_length - self.lookback_window, max_episode_length)):
+                try:
+                    obs = self.observation_handler.get_observation(episode_data, 
+                                                                 step + self.lookback_window - 1, 
+                                                                 self.engine)
+                    batch_observations[batch_idx, step] = torch.tensor(obs, dtype=torch.float32)
+                except Exception as e:
+                    logger.warning(f"Failed to precompute observation at step {step}: {e}")
+            
+            # Restore original data
+            self.data = original_data
+        
+        return {
+            'observations': batch_observations,
+            'rewards': batch_rewards,
+            'actions': batch_actions,
+            'batch_size': batch_size,
+            'max_length': max_episode_length
+        }
+    
+    def get_vectorized_observations(self, batch_data: List[pd.DataFrame]) -> torch.Tensor:
+        """Get vectorized observations for GPU batch processing (uses existing reward system)"""
+        if not self.enable_gpu_optimization:
+            return torch.empty(0)
+        
+        # This method only handles observation vectorization
+        # Reward computation continues to use your existing robust reward_calculator
+        batch_observations = []
+        
+        for data in batch_data:
+            # Store original data temporarily
+            original_data = self.data
+            self.data = data
+            
+            try:
+                # Use existing observation handler (no changes to reward system)
+                obs = self.observation_handler.get_observation(data, self.lookback_window - 1, self.engine)
+                batch_observations.append(torch.tensor(obs, dtype=torch.float32, device=self.device))
+            except Exception as e:
+                logger.warning(f"Failed to vectorize observation: {e}")
+            finally:
+                # Restore original data
+                self.data = original_data
+        
+        if batch_observations:
+            return torch.stack(batch_observations)
+        return torch.empty(0)
 
     def reset(self, performance_metrics: Optional[Dict] = None) -> np.ndarray:
         """Reset environment and load data segment for new episode with intelligent data feeding."""

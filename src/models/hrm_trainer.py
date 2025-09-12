@@ -18,93 +18,15 @@ from src.utils.data_loader import DataLoader
 from src.env.trading_mode import TradingMode
 from src.utils.config_loader import ConfigLoader
 
+# Import new modular components
+from src.training.loss_functions import HRMLossFunction
+from src.training.training_modes import TrainingModeManager, get_instruments_for_mode
+from src.training.gpu_optimization import GPUOptimizer, OfflineRLPreprocessor
+
 logger = logging.getLogger(__name__)
 
 
-class HRMLossFunction:
-    """Multi-component loss function for HRM trading"""
-    
-    def __init__(self, config: Dict):
-        self.config = config
-        self.loss_weights = config['training']['loss_weights']
-        self.scaler = torch.cuda.amp.GradScaler() if torch.cuda.is_available() else None
-        
-    def calculate_loss(self, 
-                      outputs: Dict[str, torch.Tensor], 
-                      targets: Dict[str, torch.Tensor],
-                      segment_rewards: List[float]) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """Calculate multi-component HRM loss with expert targets using mixed precision"""
-        
-        losses = {}
-        total_loss = torch.tensor(0.0, requires_grad=True)
-        
-        # ONLY market understanding guidance loss (help model interpret market context)
-        if 'market_understanding_outputs' in outputs and 'market_understanding' in targets:
-            if targets['market_understanding'].numel() > 0:
-                model_output = outputs['market_understanding_outputs']
-                target_tensor = targets['market_understanding']
-                
-                # Market understanding loss to guide market context interpretation
-                understanding_loss = nn.MSELoss()(model_output, target_tensor)
-                losses['market_understanding_loss'] = understanding_loss
-                total_loss = total_loss + self.loss_weights.get('tactical_loss', 1.0) * understanding_loss
-        
-        # REMOVED: regime loss - let H-module learn regimes from 100 historical candles naturally  
-        # REMOVED: risk context loss - let model learn risk management from environment rewards
-        
-        # ACT loss - use the Q-learning targets from the ACT module
-        if 'halt_logits' in outputs and 'continue_logits' in outputs and 'q_halt_target' in outputs:
-            # Ensure proper tensor shapes for MSE loss
-            halt_logits = outputs['halt_logits']
-            continue_logits = outputs['continue_logits']
-            halt_target = outputs['q_halt_target'].detach()
-            continue_target = outputs['q_continue_target'].detach()
-            
-            # Reshape tensors to ensure compatibility
-            if halt_logits.dim() > halt_target.dim():
-                halt_logits = halt_logits.view_as(halt_target)
-            elif halt_target.dim() > halt_logits.dim():
-                halt_target = halt_target.view_as(halt_logits)
-                
-            if continue_logits.dim() > continue_target.dim():
-                continue_logits = continue_logits.view_as(continue_target)
-            elif continue_target.dim() > continue_logits.dim():
-                continue_target = continue_target.view_as(continue_logits)
-            
-            halt_loss = nn.MSELoss()(halt_logits, halt_target)
-            continue_loss = nn.MSELoss()(continue_logits, continue_target)
-            
-            act_loss = halt_loss + continue_loss
-            losses['act_loss'] = act_loss
-            total_loss = total_loss + self.loss_weights['act_loss'] * act_loss
-        
-        # Action entropy regularization for exploration (encourage diverse action selection)
-        if 'action_probabilities' in outputs:
-            action_probs = outputs['action_probabilities']
-            # Calculate entropy: -sum(p * log(p))
-            entropy = -torch.sum(action_probs * torch.log(action_probs + 1e-8), dim=-1)
-            # We want to maximize entropy (encourage exploration), so minimize negative entropy
-            entropy_loss = -torch.mean(entropy)
-            losses['entropy_loss'] = entropy_loss
-            total_loss = total_loss + self.loss_weights.get('entropy_loss', 0.01) * entropy_loss
-        
-        # Performance-based loss (primary signal) - GPU optimized when available
-        if segment_rewards:
-            if total_loss.device.type == 'cuda':
-                # GPU: Use tensor operations for better GPU utilization
-                rewards_tensor = torch.tensor(segment_rewards, device=total_loss.device, dtype=torch.float32)
-                performance_loss = -torch.mean(rewards_tensor)
-            else:
-                # CPU: Use standard numpy approach (more efficient on CPU)
-                performance_loss = -torch.tensor(np.mean(segment_rewards))
-            losses['performance_loss'] = performance_loss
-            total_loss = total_loss + self.loss_weights['performance_loss'] * performance_loss
-        
-        # Convert loss values to float for logging
-        loss_values = {k: v.item() if isinstance(v, torch.Tensor) else v for k, v in losses.items()}
-        loss_values['total_loss'] = total_loss.item()
-        
-        return total_loss, loss_values
+# HRMLossFunction moved to src.training.loss_functions
 
 
 class HRMTrainer:
@@ -114,7 +36,7 @@ class HRMTrainer:
                  config_path: str = "config/hrm_config.yaml",
                  data_path: str = "data/final",
                  device: str = None,  # Auto-detect if None
-                 debug_mode: bool = False):
+                 debug_mode: bool = None):  # Auto-detect from config if None
         
         # Initialize device using automatic TPU/GPU/CPU detection
         from src.utils.device_manager import get_device_manager
@@ -128,12 +50,47 @@ class HRMTrainer:
             # Use user-specified device
             self.device = torch.device(device)
         self.config_path = config_path
-        self.debug_mode = debug_mode
         
         # Load configuration
         import yaml
         with open(config_path, 'r') as f:
             self.config = yaml.safe_load(f)
+        
+        # Load training mode configuration from settings.yaml
+        from src.utils.config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        settings_config = config_loader.get_config()
+        self.training_mode_config = settings_config.get('training_mode', {})
+        self.gpu_config = settings_config.get('gpu_optimization', {})
+        
+        # Determine training mode (debug vs final)
+        if debug_mode is None:
+            # Auto-detect from configuration
+            current_mode = self.training_mode_config.get('mode', 'debug')
+            self.debug_mode = (current_mode == 'debug')
+        else:
+            # Use explicit parameter
+            self.debug_mode = debug_mode
+        
+        # Get mode-specific configuration
+        mode_key = 'debug' if self.debug_mode else 'final'
+        self.mode_config = self.training_mode_config.get(mode_key, {})
+        
+        # Set GPU optimization based on mode and configuration
+        self.enable_gpu_optimization = (not self.debug_mode and 
+                                      self.mode_config.get('gpu_optimization', False) and
+                                      self.device.type == 'cuda')
+        
+        # Initialize training mode manager
+        self.training_mode_manager = TrainingModeManager(
+            self.training_mode_config, self.gpu_config
+        )
+        
+        # Initialize GPU optimizer
+        self.gpu_optimizer = GPUOptimizer(self.device, self.gpu_config)
+        
+        # Initialize offline RL preprocessor
+        self.offline_rl_preprocessor = OfflineRLPreprocessor(self.device, self.gpu_config)
         
         # Initialize components
         self.data_loader = DataLoader(final_data_dir=data_path)
@@ -170,11 +127,16 @@ class HRMTrainer:
         episode_length = config.get('environment', {}).get('episode_length', 1500)
         parallel_envs = config.get('environment', {}).get('parallel_environments', 10)
         
-        # Store available instruments for multi-data training
-        self.available_instruments = available_instruments or ["Bank_Nifty_5"]
+        # Store available instruments based on training mode
+        all_instruments = available_instruments or ["Bank_Nifty_5"]
+        self.available_instruments = get_instruments_for_mode(
+            all_instruments, self.training_mode_manager
+        )
         self.current_instrument_idx = 0
         self.episode_length = episode_length
-        self.parallel_envs = parallel_envs
+        
+        # Set parallel environments based on training mode
+        self.parallel_envs = self.training_mode_manager.get_max_instruments_parallel()
         
         # Check if we should use parallel environments (only on GPU/TPU)
         self.use_parallel_envs = self._should_use_parallel_envs()
@@ -278,16 +240,17 @@ class HRMTrainer:
         # 6. Setup optimizer (same for both modes)
         self._setup_optimizer()
         
-        # Enable Torch.Compile for maximum performance
-        if hasattr(torch, 'compile') and self.device_manager.get_device_type() == 'gpu':
-            try:
-                self.model = torch.compile(self.model, mode='max-autotune')
-                logger.info("Model compiled with max-autotune for maximum GPU performance")
-            except Exception as e:
-                logger.warning(f"Model compilation failed: {e}")
+        # 7. Apply GPU optimizations to model
+        if self.enable_gpu_optimization:
+            self.model = self.gpu_optimizer.optimize_model(self.model)
+            logger.info("GPU optimizations applied to model")
+        
+        # Log training mode information
+        self.training_mode_manager.log_training_mode_info()
         
         logger.info(f"Training setup completed for {len(self.available_instruments)} instruments")
-        logger.info(f"Parallel environments: {'ENABLED' if self.use_parallel_envs else 'DISABLED (CPU mode)'}")
+        logger.info(f"Parallel environments: {'ENABLED' if self.use_parallel_envs else 'DISABLED'}")
+        logger.info(f"GPU optimization: {'ENABLED' if self.enable_gpu_optimization else 'DISABLED'}")
         logger.info("Memory-efficient mode: Data files loaded one at a time during training")
     
     def _should_use_parallel_envs(self) -> bool:

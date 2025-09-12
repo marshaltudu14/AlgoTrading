@@ -17,12 +17,15 @@ import numpy as np
 # Add src to path
 sys.path.append(str(Path(__file__).parent))
 
-from src.models.hrm_trainer import HRMTrainer, HRMLossFunction
+from src.models.hrm_trainer import HRMTrainer
 from src.models.hrm_trading_environment import HRMTradingEnvironment
 from src.utils.data_loader import DataLoader
 from src.utils.instruments_loader import get_instruments_loader
 from src.utils.training_optimizer import get_training_optimizer
 from src.env.trading_mode import TradingMode
+from src.training.loss_functions import HRMLossFunction
+from src.training.training_modes import TrainingModeManager
+from src.training.gpu_optimization import GPUOptimizer
 
 # Configure basic logging to console only
 logging.basicConfig(
@@ -39,14 +42,15 @@ class HRMTrainingPipeline:
                  config_path: str = "config/hrm_config.yaml",
                  data_path: str = "data/final",
                  device: str = None,
-                 debug_mode: bool = False,
-                 high_performance: bool = True):
+                 debug_mode: bool = None,  # Auto-detect from config if None
+                 high_performance: bool = True,
+                 force_final_mode: bool = False):
         
         self.config_path = config_path
         self.data_path = data_path
         self.device = torch.device(device if device else ("cuda" if torch.cuda.is_available() else "cpu"))
-        self.debug_mode = debug_mode
         self.high_performance = high_performance
+        self.force_final_mode = force_final_mode
         
         # Initialize high-performance optimizer if enabled
         if self.high_performance:
@@ -61,6 +65,32 @@ class HRMTrainingPipeline:
         # Load configuration
         self.config = self._load_config()
         
+        # Initialize training mode manager
+        from src.utils.config_loader import ConfigLoader
+        config_loader = ConfigLoader()
+        settings_config = config_loader.get_config()
+        training_mode_config = settings_config.get('training_mode', {})
+        gpu_config = settings_config.get('gpu_optimization', {})
+        
+        # Override training mode if forced
+        if self.force_final_mode:
+            training_mode_config['mode'] = 'final'
+            logger.info("🚀 FORCED FINAL MODE: Maximum GPU utilization enabled")
+        
+        self.training_mode_manager = TrainingModeManager(training_mode_config, gpu_config)
+        
+        # Set debug mode based on training mode if not explicitly specified
+        if debug_mode is None:
+            self.debug_mode = self.training_mode_manager.is_debug_mode()
+        else:
+            self.debug_mode = debug_mode
+        
+        # Initialize GPU optimizer for high-performance mode
+        if self.device.type == 'cuda':
+            self.gpu_optimizer = GPUOptimizer(self.device, gpu_config)
+        else:
+            self.gpu_optimizer = None
+        
         # Initialize instruments loader
         self.instruments_loader = get_instruments_loader()
         
@@ -72,9 +102,19 @@ class HRMTrainingPipeline:
         # Validate data directory (this populates available_instruments)
         self._validate_data_directory()
         
+        # Log initialization summary
+        self.training_mode_manager.log_training_mode_info()
         logger.info(f"HRM Training Pipeline initialized on {self.device}")
         logger.info(f"High-performance mode: {'ON - 5-10x faster training' if high_performance else 'OFF - standard training'}")
-        logger.info(f"Debug mode: {'ON - detailed step-by-step logging' if debug_mode else 'OFF - progress bar with epoch summaries'}")
+        logger.info(f"GPU optimization: {'ENABLED' if self.gpu_optimizer else 'DISABLED'}")
+        
+        if self.gpu_optimizer and self.device.type == 'cuda':
+            optimal_batch_size = self.gpu_optimizer.get_optimal_batch_size()
+            logger.info(f"Optimal GPU batch size: {optimal_batch_size}")
+            if optimal_batch_size >= 32:
+                logger.info("🚀 GPU memory sufficient for large batch training")
+            else:
+                logger.warning("⚠️ Limited GPU memory - smaller batch sizes will be used")
         
     def _load_config(self) -> dict:
         """Load training configuration"""
@@ -326,9 +366,11 @@ def main():
     parser.add_argument("--config", type=str, default="config/hrm_config.yaml", help="Config file path")
     parser.add_argument("--data", type=str, default="data/final", help="Data directory path")
     parser.add_argument("--test-only", action="store_true", help="Only run test training (1-2 epochs)")
-    parser.add_argument("--debug", action="store_true", help="Enable debug mode (step-by-step logging instead of progress bar)")
+    parser.add_argument("--debug", action="store_true", help="Force debug mode (overrides config)")
+    parser.add_argument("--final-mode", action="store_true", help="Force final mode for maximum GPU utilization")
     parser.add_argument("--high-performance", action="store_true", default=True, help="Enable high-performance optimizations for 15GB VRAM")
     parser.add_argument("--no-high-performance", action="store_true", help="Disable high-performance optimizations")
+    parser.add_argument("--gpu-batch-size", type=int, help="Override GPU batch size (auto-calculated if not provided)")
     
     args = parser.parse_args()
     
@@ -342,8 +384,9 @@ def main():
             config_path=args.config,
             data_path=args.data,
             device=args.device,
-            debug_mode=args.debug,
-            high_performance=high_performance_mode
+            debug_mode=args.debug if args.debug else None,  # Auto-detect if not specified
+            high_performance=high_performance_mode,
+            force_final_mode=args.final_mode
         )
         
         # Determine number of epochs
