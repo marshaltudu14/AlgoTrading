@@ -1,0 +1,29 @@
+ERROR:root:✗ Failed to process Bank_Nifty_1.csv: Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
+ERROR:root:Traceback: Traceback (most recent call last):
+  File "/content/AlgoTrading/src/data_processing/feature_generator.py", line 57, in _process_single_file_standalone
+    processed_df = processor.process_dataframe(df)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/content/AlgoTrading/src/data_processing/feature_generator.py", line 404, in process_dataframe
+    features_df = self.generate_all_features(open_prices, high_prices, low_prices, close_prices)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/content/AlgoTrading/src/data_processing/feature_generator.py", line 285, in generate_all_features
+    high_tensor = torch.tensor(high_prices.values, dtype=torch.float32, device='cuda')
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 398, in _lazy_init
+    raise RuntimeError(
+RuntimeError: Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
+
+ERROR:root:✗ Failed to process Bank_Nifty_5.csv: Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method
+ERROR:root:Traceback: Traceback (most recent call last):
+  File "/content/AlgoTrading/src/data_processing/feature_generator.py", line 57, in _process_single_file_standalone
+    processed_df = processor.process_dataframe(df)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/content/AlgoTrading/src/data_processing/feature_generator.py", line 404, in process_dataframe
+    features_df = self.generate_all_features(open_prices, high_prices, low_prices, close_prices)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/content/AlgoTrading/src/data_processing/feature_generator.py", line 285, in generate_all_features
+    high_tensor = torch.tensor(high_prices.values, dtype=torch.float32, device='cuda')
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/torch/cuda/__init__.py", line 398, in _lazy_init
+    raise RuntimeError(
+RuntimeError: Cannot re-initialize CUDA in forked subprocess. To use CUDA with multiprocessing, you must use the 'spawn' start method

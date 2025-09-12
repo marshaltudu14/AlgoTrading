@@ -67,56 +67,7 @@ class ConfigLoader:
         Returns:
             dict: Default configuration
         """
-        return {
-            'model': {
-                'hidden_dim': 256,
-                'action_dim_discrete': 5,
-                'action_dim_continuous': 1,
-                'observation_dim': 256,
-                'model_path': "models/universal_final_model.pth",
-                'model_type': "hrm"
-            },
-            'hierarchical_reasoning_model': {
-                'h_module': {
-                    'hidden_dim': 512,
-                    'num_layers': 4,
-                    'n_heads': 8,
-                    'ff_dim': 2048,
-                    'dropout': 0.1
-                },
-                'l_module': {
-                    'hidden_dim': 256,
-                    'num_layers': 3,
-                    'n_heads': 8,
-                    'ff_dim': 1024,
-                    'dropout': 0.1
-                },
-                'input_embedding': {
-                    'input_dim': 256,
-                    'embedding_dim': 512,
-                    'dropout': 0.1
-                },
-                'hierarchical': {
-                    'N_cycles': 3,
-                    'T_timesteps': 5,
-                    'convergence_threshold': 1e-6,
-                    'max_convergence_steps': 100
-                },
-                'embeddings': {
-                    'instrument_dim': 64,
-                    'timeframe_dim': 32,
-                    'max_instruments': 1000,
-                    'max_timeframes': 10
-                },
-                'output_heads': {
-                    'action_dim': 5,
-                    'quantity_min': 1.0,
-                    'quantity_max': 100000.0,
-                    'value_estimation': True,
-                    'q_learning_prep': True
-                }
-            }
-        }
+        return {}
 
 class BacktestingConfigLoader:
     """
@@ -261,8 +212,7 @@ class BacktestingConfigLoader:
             'trailing_stop_percentage': trading.get('risk_management', {}).get('trailing_stop_percentage', 0.015),
             
             # Model parameters
-            'model_path': self.get_model_config().get('model_path', 'models/universal_final_model.pth'),
-            'model_type': self.get_model_config().get('model_type', 'hrm'),
+            'model_path': self.get_model_config().get('model_path', 'models/predictive_model.pkl'),
         }
         
         # Override with testing parameters if in testing mode
@@ -315,8 +265,7 @@ class BacktestingConfigLoader:
                 }
             },
             'model': {
-                'model_path': 'models/universal_final_model.pth',
-                'model_type': 'hrm'
+                'model_path': 'models/predictive_model.pkl'
             },
             'output': {
                 'results_dir': 'results/backtesting',
