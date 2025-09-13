@@ -47,7 +47,8 @@
       "Bash(rg:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(md-tree:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
