@@ -1,0 +1,35 @@
+{
+  "timestamp": "2025-09-13T14:05:32.638281",
+  "overall_status": false,
+  "checks": {
+    "overall_healthy": false,
+    "checks": {
+      "imports": {
+        "healthy": false,
+        "message": [
+          "optuna: No module named 'optuna'",
+          "wandb: No module named 'wandb'",
+          "tensorboard: No module named 'tensorboard'",
+          "accelerate: No module named 'accelerate'",
+          "omegaconf: No module named 'omegaconf'"
+        ]
+      },
+      "gpu": {
+        "healthy": true,
+        "message": "GPU not available, falling back to CPU"
+      },
+      "memory": {
+        "healthy": true,
+        "message": "Memory and disk usage healthy"
+      },
+      "performance": {
+        "healthy": true,
+        "message": "Performance healthy: benchmark completed in 0.2s"
+      },
+      "configuration": {
+        "healthy": false,
+        "message": "Missing file: config/example_config.yaml; Invalid config file: [Errno 2] No such file or directory: 'C:\\\\AlgoTrading\\\\config\\\\example_config.yaml'"
+      }
+    }
+  }
+}

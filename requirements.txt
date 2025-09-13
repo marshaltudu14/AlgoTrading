@@ -3,9 +3,9 @@ pandas
 numpy
 scikit-learn
 transformers
-torch
-torchvision
-torchaudio
+torch>=1.9
+torchvision>=0.10
+torchaudio>=0.9
 joblib
 sentence-transformers
 gymnasium
@@ -47,6 +47,33 @@ rich
 memory-profiler
 pyyaml
 omegaconf
+
+# Training & Optimization
+optuna
+wandb
+tensorboard
+accelerate
+
+# Mixed Precision & GPU Support
+nvidia-ml-py3
+cupy-cuda11x
+# Uncomment specific CUDA version if needed:
+# cupy-cuda111  # for CUDA 11.1
+# cupy-cuda112  # for CUDA 11.2
+
+# Performance Monitoring
+gpustat
+py3nvml
+nvitop
+
+# Additional ML Utilities
+scipy
+xgboost
+lightgbm
+optuna-integration
+
+# Data Validation
+great_expectations
 
 # Utility Libraries
 anyio
