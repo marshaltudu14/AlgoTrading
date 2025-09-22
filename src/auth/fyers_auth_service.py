@@ -15,6 +15,7 @@ from fyers_apiv3.FyersWebsocket import data_ws
 import pandas as pd
 import logging
 from typing import Dict, Any, Optional
+from .token_manager import get_cached_token, save_token_to_cache
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,53 @@ def getEncodedString(string: str) -> str:
     string = str(string)
     base64_bytes = base64.b64encode(string.encode("ascii"))
     return base64_bytes.decode("ascii")
+
+async def get_access_token(
+    app_id: str,
+    secret_key: str,
+    redirect_uri: str,
+    fy_id: str,
+    pin: str,
+    totp_secret: str,
+    force_refresh: bool = False
+) -> str:
+    """
+    Get access token, using cached token if available and valid
+
+    Args:
+        app_id: Fyers application ID
+        secret_key: Fyers secret key
+        redirect_uri: Redirect URI for OAuth
+        fy_id: Fyers user ID
+        pin: User PIN
+        totp_secret: TOTP secret for 2FA
+        force_refresh: Force refresh token even if cached one exists
+
+    Returns:
+        str: Access token for API calls
+    """
+    # Try to get cached token first
+    if not force_refresh:
+        cached_token = get_cached_token()
+        if cached_token:
+            logger.info("Using cached access token")
+            return cached_token
+
+    # If no cached token or force refresh, authenticate
+    logger.info("No valid cached token found, authenticating...")
+    access_token = await authenticate_fyers_user(
+        app_id=app_id,
+        secret_key=secret_key,
+        redirect_uri=redirect_uri,
+        fy_id=fy_id,
+        pin=pin,
+        totp_secret=totp_secret
+    )
+
+    # Save token to cache
+    save_token_to_cache(access_token)
+
+    return access_token
 
 async def authenticate_fyers_user(
     app_id: str,

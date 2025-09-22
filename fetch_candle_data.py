@@ -12,7 +12,10 @@ import argparse
 import time
 from datetime import datetime, timedelta
 from fyers_apiv3 import fyersModel
-from src.auth.fyers_auth_service import authenticate_fyers_user, create_fyers_model, FyersAuthenticationError
+from src.auth.fyers_auth_service import get_access_token, create_fyers_model, FyersAuthenticationError
+from src.config.fyers_config import (
+    APP_ID, SECRET_KEY, REDIRECT_URI, FYERS_USER, FYERS_PIN, FYERS_TOTP
+)
 
 
 # Add the project root to Python path
@@ -30,6 +33,9 @@ import numpy as np
 if not hasattr(np, 'NaN'):
     np.NaN = np.nan
 
+# Import for candlestick chart generation
+import mplfinance as mpf
+
 # Try to import the feature generator, but handle compatibility issues
 try:
     from src.data_processing.feature_generator import DynamicFileProcessor
@@ -39,13 +45,7 @@ except ImportError as e:
     logger.warning(f"Feature generator not available due to compatibility issues: {e}")
     FEATURE_GENERATOR_AVAILABLE = False
 
-# Hardcoded Fyers credentials
-APP_ID = "TS79V3NXK1-100"
-SECRET_KEY = "KQCPB0FJ74"
-REDIRECT_URI = "https://google.com"
-FYERS_USER = "XM22383"
-FYERS_PIN = "4628"
-FYERS_TOTP = "EAQD6K4IUYOEGPJNVE6BMPTUSDCWIOHW"
+# Fyers credentials are now imported from config module
 
 def load_config(config_path="config/instruments.yaml"):
     """Load instruments and timeframes from config file"""
@@ -80,6 +80,40 @@ def process_data_with_features(df):
         logger.error(f"Error processing data with feature generator: {e}")
         logger.info("Returning original data without features")
         return df
+
+
+def create_candlestick_chart(df, filepath):
+    """Create and save a candlestick chart from OHLC data"""
+    try:
+        if df.empty:
+            logger.warning("Cannot create chart: Empty dataframe")
+            return
+
+        # Create a copy of the dataframe with proper column names for mplfinance
+        chart_data = df[['datetime', 'open', 'high', 'low', 'close']].copy()
+        
+        # Convert epoch timestamp to datetime
+        # Fyers API returns timestamp in seconds, so we need to specify unit='s'
+        chart_data['datetime'] = pd.to_datetime(chart_data['datetime'], unit='s')
+        
+        # Set datetime as index
+        chart_data.set_index('datetime', inplace=True)
+        
+        # Create the chart
+        mpf.plot(
+            chart_data,
+            type='candle',
+            style='charles',
+            title='Candlestick Chart',
+            ylabel='Price',
+            volume=False,
+            figsize=(12, 8),
+            savefig=filepath
+        )
+        
+        logger.info(f"Saved candlestick chart to {filepath}")
+    except Exception as e:
+        logger.error(f"Error creating candlestick chart: {e}")
 
 
 def fetch_candles(fyers, symbol, timeframe, start_date=None, end_date=None):
@@ -180,7 +214,6 @@ async def main():
     parser.add_argument("--timeframe", required=True, help="Timeframe (e.g., 1, 5, 15, 60)")
     parser.add_argument("--start_date", help="Start date (YYYY-MM-DD format)")
     parser.add_argument("--end_date", help="End date (YYYY-MM-DD format)")
-    parser.add_argument("--output_name", help="Output filename (without extension)")
 
     args = parser.parse_args()
 
@@ -190,9 +223,9 @@ async def main():
         # Set the environment variable for the create_fyers_model function
         os.environ["FYERS_APP_ID"] = APP_ID
 
-        # Authenticate with Fyers
-        logger.info("Authenticating with Fyers...")
-        access_token = await authenticate_fyers_user(
+        # Get access token (cached or fresh)
+        logger.info("Getting access token...")
+        access_token = await get_access_token(
             app_id=APP_ID,
             secret_key=SECRET_KEY,
             redirect_uri=REDIRECT_URI,
@@ -234,16 +267,16 @@ async def main():
             # Fyers API returns: [timestamp, open, high, low, close, volume]
             df.columns = ['datetime', 'open', 'high', 'low', 'close', 'volume']
 
+            # Create candlestick chart before processing
+            chart_filepath = os.path.join(data_dir, "candlestick_chart.png")
+            logger.info("Creating candlestick chart...")
+            create_candlestick_chart(df, chart_filepath)
+
             logger.info("Processing data with technical indicators...")
             processed_df = process_data_with_features(df)
 
-            # Generate output filename
-            if args.output_name:
-                filename = f"{args.output_name}.csv"
-            else:
-                # Use default hardcoded filename
-                filename = "candle_data.csv"
-
+            # Use default hardcoded filename
+            filename = "candle_data.csv"
             filepath = os.path.join(data_dir, filename)
             processed_df.to_csv(filepath, index=False)
             logger.info(f"Saved {len(processed_df)} processed candles to {filename}")
