@@ -1,0 +1,204 @@
+{
+  "symbol": "NSE:NIFTY50-INDEX",
+  "fetched_at": "2025-09-22T21:59:08.731247",
+  "analysis": {
+    "timestamp": "2025-09-22T21:59:08.731247",
+    "vix_data": {
+      "ask": 0,
+      "bid": 0,
+      "description": "INDIAVIX-INDEX",
+      "ex_symbol": "INDIAVIX",
+      "exchange": "NSE",
+      "fyToken": "101000000026017",
+      "ltp": 10.56,
+      "ltpch": 0.59,
+      "ltpchp": 5.92,
+      "option_type": "",
+      "strike_price": -1,
+      "symbol": "NSE:INDIAVIX-INDEX"
+    },
+    "pcr_ratio": 0.7096441205634144,
+    "total_call_oi": 86605875,
+    "total_put_oi": 61459350,
+    "max_oi_call": {
+      "strike": 25300,
+      "oi": 19723725,
+      "ltp": 23.6
+    },
+    "max_oi_put": {
+      "strike": 25200,
+      "oi": 13561800,
+      "ltp": 35.4
+    },
+    "liquidity_score": 1.0278541856008674,
+    "key_levels": {
+      "support": [
+        25200
+      ],
+      "resistance": [
+        25300
+      ]
+    },
+    "oi_distribution": {
+      "call_oi_by_strike": {
+        "25300": 19723725,
+        "25400": 17791200,
+        "25350": 13539600,
+        "25450": 11376525,
+        "25200": 11000325,
+        "25250": 9030600,
+        "25150": 1657350,
+        "25100": 1219425,
+        "25000": 999300,
+        "25050": 213300,
+        "24950": 54525
+      },
+      "put_oi_by_strike": {
+        "25200": 13561800,
+        "25000": 10253775,
+        "25100": 8306850,
+        "25150": 6680550,
+        "25050": 4935450,
+        "25300": 4758525,
+        "25250": 4520775,
+        "24950": 3697350,
+        "25400": 2581425,
+        "25350": 1551225,
+        "25450": 611625
+      },
+      "top_5_call_oi": [
+        {
+          "strike": 25300,
+          "oi": 19723725,
+          "ltp": 23.6
+        },
+        {
+          "strike": 25400,
+          "oi": 17791200,
+          "ltp": 10.15
+        },
+        {
+          "strike": 25350,
+          "oi": 13539600,
+          "ltp": 15.25
+        },
+        {
+          "strike": 25450,
+          "oi": 11376525,
+          "ltp": 7.2
+        },
+        {
+          "strike": 25200,
+          "oi": 11000325,
+          "ltp": 67.1
+        }
+      ],
+      "top_5_put_oi": [
+        {
+          "strike": 25200,
+          "oi": 13561800,
+          "ltp": 35.4
+        },
+        {
+          "strike": 25000,
+          "oi": 10253775,
+          "ltp": 6.55
+        },
+        {
+          "strike": 25100,
+          "oi": 8306850,
+          "ltp": 13.95
+        },
+        {
+          "strike": 25150,
+          "oi": 6680550,
+          "ltp": 22.6
+        },
+        {
+          "strike": 25050,
+          "oi": 4935450,
+          "ltp": 9
+        }
+      ],
+      "oi_concentration_zones": [
+        {
+          "strike": 24950,
+          "call_oi": 54525,
+          "put_oi": 3697350,
+          "total_oi": 3751875,
+          "oi_type": "put"
+        },
+        {
+          "strike": 25000,
+          "call_oi": 999300,
+          "put_oi": 10253775,
+          "total_oi": 11253075,
+          "oi_type": "put"
+        },
+        {
+          "strike": 25050,
+          "call_oi": 213300,
+          "put_oi": 4935450,
+          "total_oi": 5148750,
+          "oi_type": "put"
+        },
+        {
+          "strike": 25100,
+          "call_oi": 1219425,
+          "put_oi": 8306850,
+          "total_oi": 9526275,
+          "oi_type": "put"
+        },
+        {
+          "strike": 25150,
+          "call_oi": 1657350,
+          "put_oi": 6680550,
+          "total_oi": 8337900,
+          "oi_type": "put"
+        },
+        {
+          "strike": 25200,
+          "call_oi": 11000325,
+          "put_oi": 13561800,
+          "total_oi": 24562125,
+          "oi_type": "put"
+        },
+        {
+          "strike": 25250,
+          "call_oi": 9030600,
+          "put_oi": 4520775,
+          "total_oi": 13551375,
+          "oi_type": "call"
+        },
+        {
+          "strike": 25300,
+          "call_oi": 19723725,
+          "put_oi": 4758525,
+          "total_oi": 24482250,
+          "oi_type": "call"
+        },
+        {
+          "strike": 25350,
+          "call_oi": 13539600,
+          "put_oi": 1551225,
+          "total_oi": 15090825,
+          "oi_type": "call"
+        },
+        {
+          "strike": 25400,
+          "call_oi": 17791200,
+          "put_oi": 2581425,
+          "total_oi": 20372625,
+          "oi_type": "call"
+        },
+        {
+          "strike": 25450,
+          "call_oi": 11376525,
+          "put_oi": 611625,
+          "total_oi": 11988150,
+          "oi_type": "call"
+        }
+      ]
+    }
+  }
+}
