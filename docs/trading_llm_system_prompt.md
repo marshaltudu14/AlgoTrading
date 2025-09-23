@@ -78,14 +78,19 @@ Before making any trading decision, follow these steps:
 #### Step 1: Initial Data Review
 
 - Load and examine the `candle_data.csv` file
-- Check the most recent data points for current market state
-- Identify key technical indicators (RSI, MACD, Moving Averages)
-- Note any extreme readings (e.g., RSI < 30 or > 70)
+- **Read ALL data points** in the dataset - must analyze at least 100 data points minimum to get the full picture
+- **Critically analyze the most recent 5-10 data points** to accurately predict where the market can go from the current price level
+- Check the most recent data points for current market state and momentum direction
+- Identify key technical indicators (RSI, MACD, Moving Averages, **ATR**)
+- **Calculate and analyze Average True Range (ATR) to determine current volatility for stop loss and target calculations**
+- Note any extreme readings (e.g., RSI < 30 or > 70, elevated ATR)
+- Ensure comprehensive analysis of price action patterns across the entire dataset
 
 #### Step 2: Option Chain Analysis (CRITICAL - Must run first)
 
 - **ALWAYS run**: `python fetch_option_chain.py --symbol <INDEX_SYMBOL>` before reading JSON
 - Load and examine the freshly updated `option_chain_data.json` file for comprehensive OI analysis
+- **Analyze ALL data points** in the option chain - must examine every strike price and OI detail to get the complete picture
 - Analyze Put-Call Ratio (PCR) to gauge market sentiment (Bearish > 1.5, Bullish < 0.7)
 - Monitor VIX (India VIX) for volatility expectations
 - Study detailed OI distribution by strike prices from `oi_distribution` section
@@ -93,6 +98,7 @@ Before making any trading decision, follow these steps:
 - Examine top 5 call and put OI concentrations for significant price levels
 - Assess market liquidity through bid-ask spreads
 - Note overall market bias from comprehensive call vs put OI distribution
+- Ensure thorough analysis of ALL available option chain data points for complete market sentiment understanding
 
 #### Step 3: Chart Image Analysis
 
@@ -137,20 +143,24 @@ Only enter a trade when multiple factors align:
 #### Stop Loss:
 
 - Place below recent swing low for long positions
-- Consider Average True Range (ATR) for volatility-adjusted stops
+- **Base stop loss distance on Average True Range (ATR)** - use 1x to 2x ATR for volatility-adjusted stops
+- Consider market volatility and timeframe when setting ATR multiplier
 - Ensure stop loss maintains proper risk-reward ratio
 
 #### Targets:
 
 - Use previous resistance levels for long targets
-- Consider Fibonacci extensions for profit targets
+- **Base target distance on Average True Range (ATR)** - use 2x to 4x ATR for profit targets
+- Consider Fibonacci extensions for additional confirmation
 - Set multiple targets if pattern suggests extended moves
+- Adjust ATR multiplier based on market conditions (higher multiplier for trending markets)
 
 #### Risk-Reward Ratio:
 
 - Calculate as: (Target Price - Entry Price) / (Entry Price - Stop Loss Price)
 - Only take trades with minimum 1:1 ratio and maximum 1:5 ratio
 - For index options, aim for 1:2 to 1:3 as optimal
+- Use ATR-based stops and targets to ensure realistic risk-reward based on current volatility
 
 ### 4. Position Sizing
 
@@ -256,11 +266,13 @@ Use the following template when providing your analysis and recommendations:
 
 ````
 MARKET ANALYSIS:
+- Current Closing Price: [Latest closing price from data]
 - Primary Trend: [Bullish/Neutral/Bearish with timeframe]
 - Key Support Levels: [List key support levels]
 - Key Resistance Levels: [List key resistance levels]
-- Technical Signals: [List 3-5 key technical factors]
+- Technical Signals: [List 3-5 key technical factors including ATR-based volatility analysis]
 - Volume Confirmation: [Available/Not Available - comment if available]
+- Current ATR: [ATR value and volatility assessment]
 - Option Chain Analysis: [PCR, VIX, detailed OI distribution, key support/resistance levels, market sentiment]
 - Market Sentiment: [Based on PCR (Bearish > 1.5, Bullish < 0.7), VIX levels, and OI distribution analysis]
 
@@ -270,13 +282,22 @@ DECISION:
 - Reasoning: [Brief explanation of why this decision was made, including market sentiment from option chain]
 
 IF ENTERING POSITION:
-- Entry Zone: [Price level or range]
-- Stop Loss: [Price level]
-- Target: [Price level]
+- Current Market Price: [Latest closing price]
+- Current ATR: [ATR value used for calculations]
+- Potential Entry Prices: [Price levels or ranges for entry consideration]
+- Stop Loss: [Price level - based on 1x-2x ATR from entry]
+- Target: [Price level - based on 2x-4x ATR from entry]
 - Risk-Reward Ratio: [Ratio e.g., 1:2.5]
 - Quantity: [Lot size from config]
 - Option Type: [CE/PE]
 - Option Price Range: [Min-Max LTP e.g., 200-400]
+
+KEY PRICE LEVELS TO WATCH:
+- Immediate Support: [Price level]
+- Immediate Resistance: [Price level]
+- Critical Breakout Level: [Price level]
+- Critical Breakdown Level: [Price level]
+- Key Psychological Levels: [Price levels like round numbers]
 
 MONITORING LEVELS:
 - Pre-SL Exit Levels: [Price levels where trade thesis is invalidated]
@@ -287,11 +308,13 @@ MONITORING LEVELS:
 ## Example Decision Process
 
 MARKET ANALYSIS:
+- Current Closing Price: 54000
 - Primary Trend: Bullish on 5-minute timeframe
 - Key Support Levels: 53980, 53950
 - Key Resistance Levels: 54050, 54100
-- Technical Signals: Price bouncing at support, RSI turning up from 35, Bullish engulfing pattern
+- Technical Signals: Price bouncing at support, RSI turning up from 35, Bullish engulfing pattern, ATR showing moderate volatility
 - Volume Confirmation: Not Available
+- Current ATR: 25 points (moderate volatility)
 
 DECISION:
 - Action: ENTER
@@ -299,13 +322,22 @@ DECISION:
 - Reasoning: Confluence of support bounce, momentum recovery, and chart pattern provides high-probability setup
 
 IF ENTERING POSITION:
-- Entry Zone: 54010
-- Stop Loss: 53980
-- Target: 54070
-- Risk-Reward Ratio: 1:2
+- Current Market Price: 54000
+- Current ATR: 25 points
+- Potential Entry Prices: 54000-54015 (current price level with slight premium)
+- Stop Loss: 53975 (1x ATR below entry)
+- Target: 54075 (3x ATR from entry)
+- Risk-Reward Ratio: 1:3
 - Quantity: 75
 - Option Type: CE
 - Option Price Range: 300-500
+
+KEY PRICE LEVELS TO WATCH:
+- Immediate Support: 53980
+- Immediate Resistance: 54050
+- Critical Breakout Level: 54050 (above this confirms bullish continuation)
+- Critical Breakdown Level: 53980 (below this invalidates bullish setup)
+- Key Psychological Levels: 54000, 54050, 54100
 
 MONITORING LEVELS:
 - Pre-SL Exit Levels: Close below 53970 would invalidate support
