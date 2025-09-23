@@ -187,9 +187,9 @@ def fetch_candle_data(fyers, symbol, timeframe, start_date, end_date):
             "range_to": end_date,
             "cont_flag": "1"  # Continuous data
         }
-        
+
         response = fyers.history(data)
-        
+
         if response.get("s") == "ok":
             candles = response.get("candles", [])
             if candles:
@@ -202,7 +202,7 @@ def fetch_candle_data(fyers, symbol, timeframe, start_date, end_date):
         else:
             print(f"Error fetching data for {symbol} timeframe {timeframe}: {response}")
             return pd.DataFrame()
-            
+
     except Exception as e:
         print(f"Exception while fetching data for {symbol} timeframe {timeframe}: {str(e)}")
         return pd.DataFrame()

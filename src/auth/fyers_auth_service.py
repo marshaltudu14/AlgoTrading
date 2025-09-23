@@ -55,7 +55,7 @@ async def get_access_token(
     """
     # Try to get cached token first
     if not force_refresh:
-        cached_token = get_cached_token()
+        cached_token = get_cached_token(auto_refresh=False)  # Don't auto-refresh here to avoid recursion
         if cached_token:
             logger.info("Using cached access token")
             return cached_token
@@ -136,9 +136,11 @@ async def authenticate_fyers_user(
             raise FyersAuthenticationError(f"Failed to send OTP: {res}")
         
         # Wait if we're too close to TOTP expiry
-        if datetime.now().second % 30 > 27:
-            logger.info("Waiting for TOTP refresh...")
-            await asyncio.sleep(5)
+        current_second = datetime.now().second % 30
+        if current_second > 25:
+            wait_time = 30 - current_second + 2  # Wait for next cycle + 2 seconds buffer
+            logger.info(f"Waiting {wait_time} seconds for TOTP refresh...")
+            await asyncio.sleep(wait_time)
         
         # Step 2: Verify OTP
         url_verify_otp = "https://api-t2.fyers.in/vagator/v2/verify_otp"
