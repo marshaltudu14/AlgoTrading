@@ -52,7 +52,9 @@
       "mcp__kite__search_instruments",
       "mcp__kite__get_quotes",
       "mcp__kite__get_historical_data",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:localhost)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
