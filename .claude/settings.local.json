@@ -51,7 +51,8 @@
       "mcp__kite__login",
       "mcp__kite__search_instruments",
       "mcp__kite__get_quotes",
-      "mcp__kite__get_historical_data"
+      "mcp__kite__get_historical_data",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
