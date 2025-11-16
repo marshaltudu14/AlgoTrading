@@ -124,6 +124,26 @@ async def get_profile(access_token: str, app_id: str):
         logger.error(f"Failed to fetch profile: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/auth/logout")
+async def logout():
+    """
+    Logout user by clearing session data
+
+    Returns:
+        Success message for logout
+    """
+    try:
+        # In a real application, you might want to:
+        # - Invalidate the token on the broker's side
+        # - Clear session data from database
+        # - Log the logout activity
+
+        logger.info("User logged out successfully")
+        return {"success": True, "message": "Logged out successfully"}
+    except Exception as e:
+        logger.error(f"Logout error: {str(e)}")
+        return {"success": True, "message": "Logged out successfully"}  # Always return success for logout
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler"""

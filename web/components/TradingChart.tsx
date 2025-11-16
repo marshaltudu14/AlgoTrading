@@ -231,19 +231,12 @@ export default function TradingChart({
         className="w-full h-full"
         style={{ width: "100%", height: "100%" }}
       />
-      <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-sm px-3 py-2 rounded-lg border border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium">{symbol}</span>
-          <span className="text-xs text-muted-foreground">{interval}</span>
-        </div>
-      </div>
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-1 flex items-center gap-1">
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-1 flex items-center gap-1 z-50">
         <Button
           variant="ghost"
           size="sm"
           onClick={handleZoomOut}
-          className="h-8 w-8 p-0 hover:bg-muted"
+          className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
         >
           <ZoomOut className="h-4 w-4" />
         </Button>
@@ -251,7 +244,7 @@ export default function TradingChart({
           variant="ghost"
           size="sm"
           onClick={handleReset}
-          className="h-8 w-8 p-0 hover:bg-muted"
+          className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
         >
           <RefreshCw className="h-4 w-4" />
         </Button>
@@ -259,7 +252,7 @@ export default function TradingChart({
           variant="ghost"
           size="sm"
           onClick={handleZoomIn}
-          className="h-8 w-8 p-0 hover:bg-muted"
+          className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
         >
           <ZoomIn className="h-4 w-4" />
         </Button>

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Home, TrendingUp, Settings, LogOut } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const items = [
   {
@@ -28,6 +29,29 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      // Clear any stored authentication tokens
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_profile');
+
+      // Call backend logout endpoint if it exists
+      await fetch('http://localhost:8000/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Redirect to login page regardless of API call success
+      router.push('/');
+    }
+  };
+
   return (
     <SidebarProvider>
       <Sidebar variant="inset" collapsible="icon">
@@ -52,7 +76,7 @@ export default function DashboardLayout({
         </SidebarContent>
         <SidebarFooter>
           <div className="p-4">
-            <Button variant="outline" size="sm" className="w-full">
+            <Button variant="outline" size="sm" className="w-full cursor-pointer" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Logout
             </Button>
