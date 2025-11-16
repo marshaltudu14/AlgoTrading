@@ -5,6 +5,8 @@ import { createChart, IChartApi, UTCTimestamp, ColorType, CandlestickSeries } fr
 import { useTheme } from "next-themes";
 import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TIMEFRAMES } from "@/config/instruments";
+import { useTradingState } from "@/components/TradingProvider";
 
 interface ChartData {
   time: UTCTimestamp;
@@ -14,22 +16,19 @@ interface ChartData {
   close: number;
 }
 
-interface TradingChartProps {
-  symbol?: string;
-  timeframe?: string;
-}
-
-export default function TradingChart({
-  symbol = "NSE:NIFTY50-INDEX",
-  timeframe = "5"
-}: TradingChartProps) {
+export default function TradingChart() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<unknown | null>(null);
   const { theme } = useTheme();
+  const { symbol: contextSymbol, timeframe: contextTimeframe, dataRefreshTrigger } = useTradingState();
   const [data, setData] = useState<ChartData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Always use context values, never fall back to props or defaults
+  const currentSymbol = contextSymbol || "NSE:NIFTY50-INDEX";
+  const currentTimeframe = contextTimeframe || "5";
 
   const handleZoomIn = () => {
     if (chartRef.current) {
@@ -80,7 +79,7 @@ export default function TradingChart({
 
   // Fetch candle data from API
   const fetchCandleData = useCallback(async () => {
-    if (!symbol || !timeframe) return;
+    if (!currentSymbol || !currentTimeframe) return;
 
     setIsLoading(true);
     setError(null);
@@ -90,11 +89,16 @@ export default function TradingChart({
       const access_token = localStorage.getItem('access_token');
       const app_id = localStorage.getItem('app_id');
 
+      // Find timeframe configuration to get days parameter
+      const timeframeConfig = TIMEFRAMES.find(tf => tf.name === currentTimeframe);
+      const days = timeframeConfig?.days || 15; // Default to 15 days if not found
+
       const params = new URLSearchParams();
       if (access_token) params.append('access_token', access_token);
       if (app_id) params.append('app_id', app_id);
+      params.append('days', days.toString());
 
-      const response = await fetch(`/api/candle-data/${symbol}/${timeframe}?${params.toString()}`);
+      const response = await fetch(`/api/candle-data/${currentSymbol}/${currentTimeframe}?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch candle data: ${response.statusText}`);
@@ -105,14 +109,14 @@ export default function TradingChart({
       if (result.success && result.data) {
         // Convert API data to ChartData format
         const chartData: ChartData[] = result.data.map((item: {
-          datetime?: number;
+          timestamp?: number;
           time?: number;
           open: string | number;
           high: string | number;
           low: string | number;
           close: string | number;
         }) => ({
-          time: convertTimestampForChart(item.datetime || item.time || 0), // Backend uses 'datetime' field
+          time: convertTimestampForChart(item.timestamp || item.time || 0), // Backend uses 'timestamp' field
           open: parseFloat(item.open.toString()),
           high: parseFloat(item.high.toString()),
           low: parseFloat(item.low.toString()),
@@ -130,13 +134,14 @@ export default function TradingChart({
     } finally {
       setIsLoading(false);
     }
-  }, [symbol, timeframe]);
+  }, [currentSymbol, currentTimeframe]);
 
-  // Fetch data when component mounts or symbol/timeframe changes
+  // Fetch data when component mounts, symbol/timeframe changes, or refresh is triggered
   useEffect(() => {
     fetchCandleData();
-  }, [fetchCandleData]);
+  }, [fetchCandleData, dataRefreshTrigger]);
 
+  
   // Initialize and update chart
   useEffect(() => {
     if (!chartContainerRef.current || isLoading || data.length === 0) return;
@@ -249,7 +254,7 @@ export default function TradingChart({
       });
       }
     }
-  }, [theme, symbol]);
+  }, [theme]);
 
   if (isLoading) {
     return (
@@ -297,6 +302,8 @@ export default function TradingChart({
         className="w-full h-full"
         style={{ width: "100%", height: "100%" }}
       />
+
+      
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-1 flex items-center gap-1 z-50">
         <Button
           variant="ghost"

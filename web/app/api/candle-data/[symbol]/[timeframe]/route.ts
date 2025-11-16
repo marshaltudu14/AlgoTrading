@@ -12,6 +12,7 @@ export async function GET(
     // Extract optional query parameters
     const start_date = searchParams.get('start_date');
     const end_date = searchParams.get('end_date');
+    const days = searchParams.get('days');
 
     // Get access token and app_id from query parameters (passed from client-side TradingChart)
     const access_token = searchParams.get('access_token');
@@ -20,12 +21,13 @@ export async function GET(
     // Build URL with query parameters
     let url = `${API_ENDPOINTS.CANDLE_DATA?.replace('{symbol}', symbol).replace('{timeframe}', timeframe) || `/candle-data/${symbol}/${timeframe}`}`;
 
-    if (start_date || end_date || access_token || app_id) {
+    if (start_date || end_date || access_token || app_id || days) {
       const params = new URLSearchParams();
       if (start_date) params.append('start_date', start_date);
       if (end_date) params.append('end_date', end_date);
       if (access_token) params.append('access_token', access_token);
       if (app_id) params.append('app_id', app_id);
+      if (days) params.append('days', days);
       url += `?${params.toString()}`;
     }
 

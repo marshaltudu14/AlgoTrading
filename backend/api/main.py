@@ -145,7 +145,7 @@ async def logout():
         return {"success": True, "message": "Logged out successfully"}  # Always return success for logout
 
 @app.get("/candle-data/{symbol}/{timeframe}")
-async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, end_date: str = None, access_token: str = None, app_id: str = None):
+async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, end_date: str = None, access_token: str = None, app_id: str = None, days: int = None):
     """
     Get historical candle data for a symbol and timeframe
 
@@ -174,7 +174,7 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
 
         logger.info(f"Fetching candle data for {symbol} {timeframe}")
         logger.info(f"Received parameters - app_id: {app_id}, access_token: {'Present' if access_token else 'Missing'}")
-        logger.info(f"Query params - start_date: {start_date}, end_date: {end_date}")
+        logger.info(f"Query params - start_date: {start_date}, end_date: {end_date}, days: {days}")
 
         if not app_id:
             raise ValueError("app_id is required for candle data fetching")
@@ -207,7 +207,7 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
             end_dt = datetime.strptime(end_date, "%Y-%m-%d")
 
         # Fetch candle data
-        df = fetch_candles(fyers, symbol, timeframe, start_dt, end_dt)
+        df = fetch_candles(fyers, symbol, timeframe, start_dt, end_dt, days)
 
         if df.empty:
             return {

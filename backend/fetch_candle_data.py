@@ -116,14 +116,15 @@ def create_candlestick_chart(df, filepath):
         logger.error(f"Error creating candlestick chart: {e}")
 
 
-def fetch_candles(fyers, symbol, timeframe, start_date=None, end_date=None):
+def fetch_candles(fyers, symbol, timeframe, start_date=None, end_date=None, days=None):
     """Fetch candle data for specified date range, handling API limits"""
     if end_date is None:
         end_date = datetime.now()
 
     if start_date is None:
-        # Default to 30 days if no start date specified
-        start_date = end_date - timedelta(days=30)
+        # Use days parameter or default to 30 days if no start date specified
+        days_to_fetch = days if days is not None else 30
+        start_date = end_date - timedelta(days=days_to_fetch)
 
     all_data = pd.DataFrame()
     current_start = start_date

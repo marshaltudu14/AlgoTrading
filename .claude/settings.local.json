@@ -65,7 +65,8 @@
       "Bash(curl:*)",
       "Bash(netstat:*)",
       "Bash(pkill:*)",
-      "mcp__playwright__browser_fill_form"
+      "mcp__playwright__browser_fill_form",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

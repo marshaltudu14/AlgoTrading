@@ -6,6 +6,7 @@ import LogoutButton from "@/components/LogoutButton";
 import TradingProvider from "@/components/TradingProvider";
 import InstrumentSelector from "@/components/InstrumentSelector";
 import TimeframeSelector from "@/components/TimeframeSelector";
+import TimeDisplay from "@/components/TimeDisplay";
 
 const items = [
   {
@@ -67,6 +68,7 @@ export default function DashboardLayout({
               <TimeframeSelector />
             </div>
             <div className="flex-1" />
+            <TimeDisplay />
             <ModeToggle />
           </header>
           <main className="flex-1 overflow-hidden">

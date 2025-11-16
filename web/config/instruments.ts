@@ -12,6 +12,7 @@ export interface Timeframe {
   id: number;
   name: string;
   description: string;
+  days: number; // Number of past days to fetch data for
 }
 
 export const INSTRUMENTS: Instrument[] = [
@@ -90,19 +91,19 @@ export const INSTRUMENTS: Instrument[] = [
 ];
 
 export const TIMEFRAMES: Timeframe[] = [
-  { id: 0, name: "1", description: "1 minute" },
-  { id: 1, name: "2", description: "2 minutes" },
-  { id: 2, name: "3", description: "3 minutes" },
-  { id: 3, name: "5", description: "5 minutes" },
-  { id: 4, name: "10", description: "10 minutes" },
-  { id: 5, name: "15", description: "15 minutes" },
-  { id: 6, name: "20", description: "20 minutes" },
-  { id: 7, name: "30", description: "30 minutes" },
-  { id: 8, name: "45", description: "45 minutes" },
-  { id: 9, name: "60", description: "1 hour" },
-  { id: 10, name: "120", description: "2 hours" },
-  { id: 11, name: "180", description: "3 hours" },
-  { id: 12, name: "240", description: "4 hours" },
+  { id: 0, name: "1", description: "1 minute", days: 7 },
+  { id: 1, name: "2", description: "2 minutes", days: 7 },
+  { id: 2, name: "3", description: "3 minutes", days: 10 },
+  { id: 3, name: "5", description: "5 minutes", days: 15 },
+  { id: 4, name: "10", description: "10 minutes", days: 20 },
+  { id: 5, name: "15", description: "15 minutes", days: 30 },
+  { id: 6, name: "20", description: "20 minutes", days: 30 },
+  { id: 7, name: "30", description: "30 minutes", days: 45 },
+  { id: 8, name: "45", description: "45 minutes", days: 60 },
+  { id: 9, name: "60", description: "1 hour", days: 90 },
+  { id: 10, name: "120", description: "2 hours", days: 100 },
+  { id: 11, name: "180", description: "3 hours", days: 100 },
+  { id: 12, name: "240", description: "4 hours", days: 100 },
 ];
 
 export const DEFAULT_INSTRUMENT = INSTRUMENTS[1]; // Nifty 50
