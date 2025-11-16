@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createChart, IChartApi, UTCTimestamp, ColorType, CandlestickSeries } from "lightweight-charts";
 import { useTheme } from "next-themes";
 import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ChartData {
-  time: string | UTCTimestamp;
+  time: UTCTimestamp;
   open: number;
   high: number;
   low: number;
@@ -15,64 +15,21 @@ interface ChartData {
 }
 
 interface TradingChartProps {
-  data?: ChartData[];
   symbol?: string;
-  interval?: string;
-}
-
-// Generate demo data with realistic candlestick patterns
-function generateDemoData(): ChartData[] {
-  const now = new Date();
-  const data: ChartData[] = [];
-  let lastClose = 19500;
-
-  // Generate 500 data points (about 2 years of daily data)
-  for (let i = 500; i >= 0; i--) {
-    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-
-    // Add some randomness to create realistic patterns
-    const volatility = 0.02; // 2% daily volatility
-    const trend = Math.sin(i * 0.05) * 0.01; // Sinusoidal trend
-
-    const randomWalk = (Math.random() - 0.5) * volatility;
-    const change = trend + randomWalk;
-
-    const open = lastClose;
-    const close = open * (1 + change);
-
-    // Ensure high >= max(open, close) and low <= min(open, close)
-    const range = Math.abs(close - open) * (0.5 + Math.random() * 0.5);
-    const high = Math.max(open, close) + range * 0.5;
-    const low = Math.min(open, close) - range * 0.5;
-
-    // Add some gaps (weekends) for realism
-    if (Math.random() < 0.05) {
-      const gap = (Math.random() - 0.5) * 0.03;
-      lastClose = close * (1 + gap);
-    } else {
-      lastClose = close;
-    }
-
-    data.push({
-      time: (date.getTime() / 1000) as UTCTimestamp,
-      open: Math.round(open * 100) / 100,
-      high: Math.round(high * 100) / 100,
-      low: Math.round(low * 100) / 100,
-      close: Math.round(close * 100) / 100,
-    });
-  }
-
-  return data;
+  timeframe?: string;
 }
 
 export default function TradingChart({
-  data = generateDemoData(),
-  symbol = "NIFTY"
+  symbol = "NSE:NIFTY50-INDEX",
+  timeframe = "5"
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<unknown | null>(null);
   const { theme } = useTheme();
+  const [data, setData] = useState<ChartData[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleZoomIn = () => {
     if (chartRef.current) {
@@ -112,8 +69,69 @@ export default function TradingChart({
     }
   };
 
+  // Convert epoch timestamp to format lightweight-charts accepts
+  const convertTimestampForChart = (epochTime: number): UTCTimestamp => {
+    // Backend returns epoch in seconds, convert to seconds for lightweight-charts
+    // If timestamp is in milliseconds, convert to seconds
+    const timestampSeconds = epochTime > 10000000000 ? Math.floor(epochTime / 1000) : epochTime;
+
+    return timestampSeconds as UTCTimestamp;
+  };
+
+  // Fetch candle data from API
+  const fetchCandleData = useCallback(async () => {
+    if (!symbol || !timeframe) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/candle-data/${symbol}/${timeframe}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch candle data: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        // Convert API data to ChartData format
+        const chartData: ChartData[] = result.data.map((item: {
+          datetime?: number;
+          time?: number;
+          open: string | number;
+          high: string | number;
+          low: string | number;
+          close: string | number;
+        }) => ({
+          time: convertTimestampForChart(item.datetime || item.time || 0), // Backend uses 'datetime' field
+          open: parseFloat(item.open.toString()),
+          high: parseFloat(item.high.toString()),
+          low: parseFloat(item.low.toString()),
+          close: parseFloat(item.close.toString()),
+        }));
+
+        setData(chartData);
+      } else {
+        throw new Error(result.error || 'No data available');
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch candle data';
+      setError(errorMessage);
+      console.error('Error fetching candle data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [symbol, timeframe]);
+
+  // Fetch data when component mounts or symbol/timeframe changes
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    fetchCandleData();
+  }, [fetchCandleData]);
+
+  // Initialize and update chart
+  useEffect(() => {
+    if (!chartContainerRef.current || isLoading || data.length === 0) return;
 
     // Create chart
     const chart = createChart(chartContainerRef.current, {
@@ -180,7 +198,7 @@ export default function TradingChart({
         chartRef.current.remove();
       }
     };
-  }, [data, theme]);
+  }, [data, theme, isLoading]);
 
   // Update chart theme when theme changes
   useEffect(() => {
@@ -224,6 +242,45 @@ export default function TradingChart({
       }
     }
   }, [theme, symbol]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading chart data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <div className="text-center">
+          <div className="text-destructive mb-4">
+            <RefreshCw className="h-8 w-8 mx-auto" />
+          </div>
+          <p className="text-destructive font-medium mb-2">Failed to load chart data</p>
+          <p className="text-muted-foreground text-sm mb-4">{error}</p>
+          <Button onClick={fetchCandleData} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center w-full h-full">
+        <div className="text-center">
+          <p className="text-muted-foreground">No data available</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-full">

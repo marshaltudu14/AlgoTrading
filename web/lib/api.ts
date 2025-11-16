@@ -81,4 +81,5 @@ export const API_ENDPOINTS = {
     FYERS_LOGIN: '/auth/fyers/login',
     LOGOUT: '/auth/logout',
   },
+  CANDLE_DATA: '/candle-data/{symbol}/{timeframe}',
 } as const;
