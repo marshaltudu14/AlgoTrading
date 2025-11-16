@@ -45,7 +45,7 @@ export default function TradingProvider({
   const [countdown, setCountdown] = useState(0);
   const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0);
 
-  // Calculate next rounded interval based on timeframe (with 1-second delay for latest data)
+  // Calculate next rounded interval based on timeframe
   const calculateNextInterval = (tf: string, now: Date): Date => {
     const timeframeMinutes = parseInt(tf);
 
@@ -54,7 +54,7 @@ export default function TradingProvider({
       const currentMinutes = now.getMinutes();
       const nextIntervalMinutes = Math.ceil((currentMinutes + 1) / timeframeMinutes) * timeframeMinutes;
       const nextTime = new Date(now);
-      nextTime.setMinutes(nextIntervalMinutes, 0, 1); // Add 1-second delay for latest data
+      nextTime.setMinutes(nextIntervalMinutes, 0, 0); // Exact interval time
 
       // If next time is in the past, add the timeframe interval
       if (nextTime <= now) {
@@ -68,7 +68,7 @@ export default function TradingProvider({
       const currentHours = now.getHours();
       const nextIntervalHours = Math.ceil((currentHours + 1) / hours) * hours;
       const nextTime = new Date(now);
-      nextTime.setHours(nextIntervalHours, 0, 0, 1); // Add 1-second delay for latest data
+      nextTime.setHours(nextIntervalHours, 0, 0, 0); // Exact interval time
 
       // If next time is in the past, add the timeframe interval
       if (nextTime <= now) {
@@ -89,12 +89,13 @@ export default function TradingProvider({
       if (timeframe) {
         const nextInterval = calculateNextInterval(timeframe, now);
         const diff = nextInterval.getTime() - now.getTime();
-        const seconds = Math.max(0, Math.floor(diff / 1000));
+        const rawSeconds = Math.floor(diff / 1000);
+        const seconds = Math.max(0, rawSeconds);
         setCountdown(seconds);
         setNextUpdateTime(nextInterval);
 
-        // Trigger data refresh when countdown reaches 0 (with 1-second buffer for latest data)
-        if (seconds === 0) {
+        // Trigger data refresh 1 second after interval for latest data
+        if (rawSeconds === -1) {
           setDataRefreshTrigger(prev => prev + 1);
         }
       }
