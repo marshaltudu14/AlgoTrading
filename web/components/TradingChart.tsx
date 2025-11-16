@@ -67,12 +67,11 @@ function generateDemoData(): ChartData[] {
 
 export default function TradingChart({
   data = generateDemoData(),
-  symbol = "NIFTY",
-  interval = "1D"
+  symbol = "NIFTY"
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<any | null>(null);
+  const seriesRef = useRef<unknown | null>(null);
   const { theme } = useTheme();
 
   const handleZoomIn = () => {
@@ -213,7 +212,8 @@ export default function TradingChart({
         });
 
       // Update series colors for theme
-      seriesRef.current.applyOptions({
+      if (seriesRef.current && typeof seriesRef.current === 'object' && 'applyOptions' in seriesRef.current) {
+        (seriesRef.current as { applyOptions: (options: unknown) => void }).applyOptions({
         upColor: theme === "dark" ? "#00d084" : "#10b981",
         downColor: theme === "dark" ? "#f44336" : "#ef4444",
         borderDownColor: theme === "dark" ? "#f44336" : "#ef4444",
@@ -221,6 +221,7 @@ export default function TradingChart({
         wickDownColor: theme === "dark" ? "#f44336" : "#ef4444",
         wickUpColor: theme === "dark" ? "#00d084" : "#10b981",
       });
+      }
     }
   }, [theme, symbol]);
 

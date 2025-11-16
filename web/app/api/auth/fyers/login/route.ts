@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { apiCall, API_ENDPOINTS } from '@/lib/api';
+import { apiCall, API_ENDPOINTS, APIError } from '@/lib/api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     // Call FastAPI backend using centralized API utility
     try {
-      const data = await apiCall(API_ENDPOINTS.AUTH.FYERS_LOGIN, {
+      const data = await apiCall<{ access_token: string; profile: unknown }>(API_ENDPOINTS.AUTH.FYERS_LOGIN, {
         method: 'POST',
         body: JSON.stringify({
           app_id: appId,
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         {
           error: fetchError instanceof Error ? fetchError.message : 'Authentication service unavailable'
         },
-        { status: fetchError instanceof Error && 'status' in fetchError ? (fetchError as any).status : 503 }
+        { status: fetchError instanceof Error && 'status' in fetchError ? (fetchError as APIError).status : 503 }
       );
     }
 

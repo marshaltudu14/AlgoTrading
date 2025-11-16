@@ -6,7 +6,7 @@ export class APIError extends Error {
   constructor(
     message: string,
     public status?: number,
-    public data?: any
+    public data?: unknown
   ) {
     super(message);
     this.name = 'APIError';
@@ -16,7 +16,7 @@ export class APIError extends Error {
 /**
  * Make API calls to backend with consistent error handling
  */
-export async function apiCall<T = any>(
+export async function apiCall<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -80,15 +80,5 @@ export const API_ENDPOINTS = {
   AUTH: {
     FYERS_LOGIN: '/auth/fyers/login',
     LOGOUT: '/auth/logout',
-    PROFILE: '/user/profile',
-  },
-  TRADING: {
-    ORDERS: '/orders',
-    POSITIONS: '/positions',
-    HOLDINGS: '/holdings',
-  },
-  MARKET: {
-    DATA: '/market/data',
-    WATCHLIST: '/watchlist',
   },
 } as const;
