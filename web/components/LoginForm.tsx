@@ -15,7 +15,8 @@ export default function LoginForm() {
     secretKey: "KQCPB0FJ74",
     redirectUrl: "https://google.com",
     fyersId: "XM22383",
-    pin: "4628"
+    pin: "4628",
+    totpSecret: "EAQD6K4IUYOEGPJNVE6BMPTUSDCWIOHW"
   });
 
   const [isLoading, setIsLoading] = useState(false);
@@ -59,7 +60,7 @@ export default function LoginForm() {
       } else {
         toast.error(data.error || 'Authentication failed');
       }
-    } catch (err) {
+    } catch {
       toast.error('Network error. Please try again.');
     } finally {
       setIsLoading(false);
@@ -197,6 +198,23 @@ export default function LoginForm() {
                       {showPin ? "Hide PIN" : "Show PIN"}
                     </span>
                   </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="totpSecret" className="text-sm font-medium">TOTP Secret</Label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="totpSecret"
+                    name="totpSecret"
+                    type="password"
+                    value={formData.totpSecret}
+                    onChange={handleChange}
+                    placeholder="Enter your TOTP Secret"
+                    required
+                    className="h-11 pl-10"
+                  />
                 </div>
               </div>
 

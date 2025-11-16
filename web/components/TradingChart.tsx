@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { createChart, IChartApi, UTCTimestamp, ColorType } from "lightweight-charts";
+import { createChart, IChartApi, UTCTimestamp, ColorType, CandlestickSeries } from "lightweight-charts";
 import { useTheme } from "next-themes";
+import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ChartData {
   time: string | UTCTimestamp;
@@ -73,6 +75,44 @@ export default function TradingChart({
   const seriesRef = useRef<any>(null);
   const { theme } = useTheme();
 
+  const handleZoomIn = () => {
+    if (chartRef.current) {
+      const timeScale = chartRef.current.timeScale();
+      const visibleRange = timeScale.getVisibleRange();
+      if (visibleRange) {
+        const range = visibleRange.to - visibleRange.from;
+        const center = visibleRange.from + range / 2;
+        const newRange = range * 0.8; // Zoom in by 20%
+        timeScale.setVisibleRange({
+          from: center - newRange / 2,
+          to: center + newRange / 2,
+        });
+      }
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (chartRef.current) {
+      const timeScale = chartRef.current.timeScale();
+      const visibleRange = timeScale.getVisibleRange();
+      if (visibleRange) {
+        const range = visibleRange.to - visibleRange.from;
+        const center = visibleRange.from + range / 2;
+        const newRange = range * 1.25; // Zoom out by 25%
+        timeScale.setVisibleRange({
+          from: center - newRange / 2,
+          to: center + newRange / 2,
+        });
+      }
+    }
+  };
+
+  const handleReset = () => {
+    if (chartRef.current) {
+      chartRef.current.timeScale().fitContent();
+    }
+  };
+
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
@@ -118,14 +158,12 @@ export default function TradingChart({
       });
 
     // Add candlestick series
-    const candlestickSeries = (chart as any).addSeries({
-      type: "candlestick",
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: theme === "dark" ? "#00d084" : "#10b981",
       downColor: theme === "dark" ? "#f44336" : "#ef4444",
-      borderDownColor: theme === "dark" ? "#f44336" : "#ef4444",
-      borderUpColor: theme === "dark" ? "#00d084" : "#10b981",
-      wickDownColor: theme === "dark" ? "#f44336" : "#ef4444",
+      borderVisible: false,
       wickUpColor: theme === "dark" ? "#00d084" : "#10b981",
+      wickDownColor: theme === "dark" ? "#f44336" : "#ef4444",
     });
 
     // Set data
@@ -138,25 +176,12 @@ export default function TradingChart({
     chartRef.current = chart;
     seriesRef.current = candlestickSeries;
 
-    // Handle resize
-    const handleResize = () => {
-      if (chartRef.current && chartContainerRef.current) {
-        chartRef.current.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-
     return () => {
-      window.removeEventListener("resize", handleResize);
       if (chartRef.current) {
         chartRef.current.remove();
       }
     };
-  }, [data]);
+  }, [data, theme]);
 
   // Update chart theme when theme changes
   useEffect(() => {
@@ -212,6 +237,32 @@ export default function TradingChart({
           <span className="text-sm font-medium">{symbol}</span>
           <span className="text-xs text-muted-foreground">{interval}</span>
         </div>
+      </div>
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-1 flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleZoomOut}
+          className="h-8 w-8 p-0 hover:bg-muted"
+        >
+          <ZoomOut className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleReset}
+          className="h-8 w-8 p-0 hover:bg-muted"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleZoomIn}
+          className="h-8 w-8 p-0 hover:bg-muted"
+        >
+          <ZoomIn className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

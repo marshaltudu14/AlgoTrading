@@ -44,6 +44,7 @@ class AuthRequest(BaseModel):
     redirect_uri: str = Field(..., description="Redirect URI for OAuth")
     fy_id: str = Field(..., description="Fyers User ID")
     pin: str = Field(..., description="User PIN")
+    totp_secret: str = Field(..., description="TOTP Secret for 2FA")
 
 class AuthResponse(BaseModel):
     success: bool
@@ -74,9 +75,6 @@ async def login(auth_data: AuthRequest):
     try:
         logger.info(f"Starting authentication for user: {auth_data.fy_id}")
 
-        # Hardcoded TOTP secret (in production, this should be securely stored)
-        totp_secret = "EAQD6K4IUYOEGPJNVE6BMPTUSDCWIOHW"
-
         # Authenticate user
         access_token = await authenticate_fyers_user(
             app_id=auth_data.app_id,
@@ -84,7 +82,7 @@ async def login(auth_data: AuthRequest):
             redirect_uri=auth_data.redirect_uri,
             fy_id=auth_data.fy_id,
             pin=auth_data.pin,
-            totp_secret=totp_secret
+            totp_secret=auth_data.totp_secret
         )
 
         # Get user profile

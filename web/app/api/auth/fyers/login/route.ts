@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { appId, secretKey, redirectUrl, fyersId, pin } = await request.json();
+    const { appId, secretKey, redirectUrl, fyersId, pin, totpSecret } = await request.json();
 
     // Validate required fields
-    if (!appId || !secretKey || !redirectUrl || !fyersId || !pin) {
+    if (!appId || !secretKey || !redirectUrl || !fyersId || !pin || !totpSecret) {
       return NextResponse.json(
         { error: 'All fields are required' },
         { status: 400 }
@@ -24,7 +24,8 @@ export async function POST(request: NextRequest) {
           secret_key: secretKey,
           redirect_uri: redirectUrl,
           fy_id: fyersId,
-          pin: pin
+          pin: pin,
+          totp_secret: totpSecret
         }),
       });
 

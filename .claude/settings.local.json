@@ -59,7 +59,9 @@
       "Bash(npx shadcn@latest init:*)",
       "mcp__shadcn__search_items_in_registries",
       "mcp__shadcn__get_add_command_for_items",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "mcp__shadcn__view_items_in_registries",
+      "mcp__shadcn__get_item_examples_from_registries"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
