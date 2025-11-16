@@ -55,7 +55,11 @@
       "Bash(tree:*)",
       "Bash(npx tsc:*)",
       "WebFetch(domain:localhost)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "mcp__shadcn__search_items_in_registries",
+      "mcp__shadcn__get_add_command_for_items",
+      "Bash(npx shadcn@latest add:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
