@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { apiCall, API_ENDPOINTS } from '@/lib/api';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,13 +13,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call FastAPI backend
+    // Call FastAPI backend using centralized API utility
     try {
-      const response = await fetch('http://localhost:8000/auth/fyers/login', {
+      const data = await apiCall(API_ENDPOINTS.AUTH.FYERS_LOGIN, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           app_id: appId,
           secret_key: secretKey,
@@ -29,26 +27,20 @@ export async function POST(request: NextRequest) {
         }),
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        return NextResponse.json({
-          success: true,
-          access_token: data.access_token,
-          profile: data.profile
-        });
-      } else {
-        return NextResponse.json(
-          { error: data.error || 'Authentication failed' },
-          { status: response.status || 401 }
-        );
-      }
+      return NextResponse.json({
+        success: true,
+        access_token: data.access_token,
+        profile: data.profile
+      });
 
     } catch (fetchError) {
-      console.error('FastAPI connection error:', fetchError);
+      console.error('Backend connection error:', fetchError);
+
       return NextResponse.json(
-        { error: 'Unable to connect to authentication service. Please ensure the backend is running on localhost:8000' },
-        { status: 503 }
+        {
+          error: fetchError instanceof Error ? fetchError.message : 'Authentication service unavailable'
+        },
+        { status: fetchError instanceof Error && 'status' in fetchError ? (fetchError as any).status : 503 }
       );
     }
 

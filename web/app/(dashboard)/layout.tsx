@@ -33,20 +33,24 @@ export default function DashboardLayout({
 
   const handleLogout = async () => {
     try {
-      // Clear any stored authentication tokens
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user_profile');
+      // Get auth token from localStorage for the API call
+      const accessToken = localStorage.getItem('access_token');
 
-      // Call backend logout endpoint if it exists
-      await fetch('http://localhost:8000/auth/logout', {
+      // Call Next.js API route (which will call backend)
+      await fetch('/api/auth/logout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
         },
       });
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      // Clear any stored authentication tokens
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_profile');
+
       // Redirect to login page regardless of API call success
       router.push('/');
     }
