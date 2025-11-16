@@ -1,3 +1,7 @@
 backend/venv/
 backend/data/final
 backend/data/test
+
+# Ignore all .log files
+*.log
+**/*.log

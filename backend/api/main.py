@@ -145,7 +145,7 @@ async def logout():
         return {"success": True, "message": "Logged out successfully"}  # Always return success for logout
 
 @app.get("/candle-data/{symbol}/{timeframe}")
-async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, end_date: str = None):
+async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, end_date: str = None, access_token: str = None, app_id: str = None):
     """
     Get historical candle data for a symbol and timeframe
 
@@ -154,6 +154,8 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
         timeframe: Timeframe (e.g., 1, 5, 15, 60)
         start_date: Start date in YYYY-MM-DD format (optional)
         end_date: End date in YYYY-MM-DD format (optional)
+        access_token: Fyers access token (optional, defaults to fetching new one)
+        app_id: Fyers application ID (required for API calls)
 
     Returns:
         Historical candle data with OHLCV format
@@ -161,30 +163,34 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
     try:
         import os
         import sys
-        import asyncio
         from datetime import datetime, timedelta
         import pandas as pd
 
         # Add backend to Python path
         sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-        from backend.fetch_candle_data import fetch_candles, get_access_token, create_fyers_model
-        from backend.config.fyers_config import APP_ID, SECRET_KEY, REDIRECT_URI, FYERS_USER, FYERS_PIN, FYERS_TOTP
+        from fetch_candle_data import fetch_candles
+        from src.auth.fyers_auth_service import get_access_token, create_fyers_model
 
         logger.info(f"Fetching candle data for {symbol} {timeframe}")
 
-        # Get access token (cached or fresh)
-        access_token = await get_access_token(
-            app_id=APP_ID,
-            secret_key=SECRET_KEY,
-            redirect_uri=REDIRECT_URI,
-            fy_id=FYERS_USER,
-            pin=FYERS_PIN,
-            totp_secret=FYERS_TOTP
-        )
+        if not app_id:
+            raise ValueError("app_id is required for candle data fetching")
+
+        # Use provided access token or fetch new one
+        if not access_token:
+            from src.config.fyers_config import SECRET_KEY, REDIRECT_URI, FYERS_USER, FYERS_PIN, FYERS_TOTP
+            access_token = await get_access_token(
+                app_id=app_id,
+                secret_key=SECRET_KEY,
+                redirect_uri=REDIRECT_URI,
+                fy_id=FYERS_USER,
+                pin=FYERS_PIN,
+                totp_secret=FYERS_TOTP
+            )
 
         # Create Fyers model instance
-        fyers = create_fyers_model(access_token)
+        fyers = create_fyers_model(access_token, app_id)
 
         # Parse dates if provided
         start_dt = None
@@ -214,11 +220,11 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
         candle_data = []
         for _, row in df.iterrows():
             candle_data.append({
-                time: int(row['datetime']),  # Convert to Unix timestamp
-                open: float(row['open']),
-                high: float(row['high']),
-                low: float(row['low']),
-                close: float(row['close'])
+                "time": int(row['datetime']),  # Convert to Unix timestamp
+                "open": float(row['open']),
+                "high": float(row['high']),
+                "low": float(row['low']),
+                "close": float(row['close'])
             })
 
         # Sort by time (oldest first for proper chart display)

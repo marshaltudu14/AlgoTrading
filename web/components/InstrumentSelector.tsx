@@ -39,10 +39,7 @@ export default function InstrumentSelector() {
             onClick={() => handleInstrumentSelect(instrument.exchangeSymbol)}
             className={symbol === instrument.exchangeSymbol ? "bg-accent" : ""}
           >
-            <div>
-              <div className="font-medium">{instrument.name}</div>
-              <div className="text-xs text-muted-foreground">{instrument.symbol}</div>
-            </div>
+            <div className="font-medium">{instrument.name}</div>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

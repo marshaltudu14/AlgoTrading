@@ -48,9 +48,10 @@ export default function LoginForm() {
 
       if (response.ok) {
         toast.success("Authentication successful!");
-        // Store token in localStorage or secure storage
+        // Store token and app_id in localStorage or secure storage
         if (data.access_token) {
-          localStorage.setItem('fyers_access_token', data.access_token);
+          localStorage.setItem('access_token', data.access_token);
+          localStorage.setItem('app_id', formData.appId); // Get app_id from form data
           localStorage.setItem('user_profile', JSON.stringify(data.profile));
         }
         // Redirect to dashboard

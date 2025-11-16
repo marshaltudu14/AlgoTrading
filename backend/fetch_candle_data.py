@@ -171,7 +171,7 @@ def fetch_candles(fyers, symbol, timeframe, start_date=None, end_date=None):
         return pd.DataFrame()
 
     # Remove duplicates and sort by timestamp
-    all_data = all_data.drop_duplicates().sort_values(0).reset_index(drop=True)
+    all_data = all_data.drop_duplicates().sort_values('datetime').reset_index(drop=True)
 
     logger.info(f"Fetched total of {len(all_data)} candles for {symbol} {timeframe}")
     return all_data

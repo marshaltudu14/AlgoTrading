@@ -39,10 +39,7 @@ export default function TimeframeSelector() {
             onClick={() => handleTimeframeSelect(tf.name)}
             className={timeframe === tf.name ? "bg-accent" : ""}
           >
-            <div>
-              <div className="font-medium">{tf.name}M</div>
-              <div className="text-xs text-muted-foreground">{tf.description}</div>
-            </div>
+            <div className="font-medium">{tf.name}M</div>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

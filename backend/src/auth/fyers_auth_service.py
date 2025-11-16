@@ -296,20 +296,17 @@ async def get_user_profile(access_token: str, app_id: str) -> Dict[str, Any]:
         else:
             raise FyersAuthenticationError(f"Unexpected error fetching profile: {str(e)}")
 
-def create_fyers_model(access_token: str) -> fyersModel.FyersModel:
+def create_fyers_model(access_token: str, app_id: str) -> fyersModel.FyersModel:
     """
     Create a Fyers model instance for API calls
-    
+
     Args:
         access_token: Valid access token
         app_id: Fyers application ID
-        
+
     Returns:
         FyersModel instance
     """
-    app_id = os.getenv("FYERS_APP_ID")
-    if not app_id:
-        raise FyersAuthenticationError("Fyers APP_ID must be set as an environment variable.")
     return fyersModel.FyersModel(client_id=app_id, token=access_token)
 
 def create_fyers_websocket(access_token: str, log_path: str = "") -> data_ws.FyersDataSocket:

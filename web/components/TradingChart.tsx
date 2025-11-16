@@ -86,7 +86,15 @@ export default function TradingChart({
     setError(null);
 
     try {
-      const response = await fetch(`/api/candle-data/${symbol}/${timeframe}`);
+      // Get access token and app_id from localStorage
+      const access_token = localStorage.getItem('access_token');
+      const app_id = localStorage.getItem('app_id');
+
+      const params = new URLSearchParams();
+      if (access_token) params.append('access_token', access_token);
+      if (app_id) params.append('app_id', app_id);
+
+      const response = await fetch(`/api/candle-data/${symbol}/${timeframe}?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch candle data: ${response.statusText}`);
