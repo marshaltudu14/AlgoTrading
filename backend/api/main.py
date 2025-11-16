@@ -173,6 +173,8 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
         from src.auth.fyers_auth_service import get_access_token, create_fyers_model
 
         logger.info(f"Fetching candle data for {symbol} {timeframe}")
+        logger.info(f"Received parameters - app_id: {app_id}, access_token: {'Present' if access_token else 'Missing'}")
+        logger.info(f"Query params - start_date: {start_date}, end_date: {end_date}")
 
         if not app_id:
             raise ValueError("app_id is required for candle data fetching")
@@ -190,6 +192,8 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
             )
 
         # Create Fyers model instance
+        logger.info(f"Creating Fyers model with app_id: {app_id}, access_token length: {len(access_token) if access_token else 'None'}")
+        logger.info(f"Access token preview: {access_token[:50] if access_token else 'None'}...")
         fyers = create_fyers_model(access_token, app_id)
 
         # Parse dates if provided
@@ -214,13 +218,13 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
 
         # Convert DataFrame to list of objects (proper format for frontend)
         # Fyers returns: [timestamp, open, high, low, close, volume]
-        df.columns = ['datetime', 'open', 'high', 'low', 'close', 'volume']
+        df.columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
 
         # Convert to candle data format expected by lightweight-charts
         candle_data = []
         for _, row in df.iterrows():
             candle_data.append({
-                "time": int(row['datetime']),  # Convert to Unix timestamp
+                "time": int(row['timestamp']),  # Convert to Unix timestamp
                 "open": float(row['open']),
                 "high": float(row['high']),
                 "low": float(row['low']),

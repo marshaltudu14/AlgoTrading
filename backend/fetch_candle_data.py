@@ -171,7 +171,15 @@ def fetch_candles(fyers, symbol, timeframe, start_date=None, end_date=None):
         return pd.DataFrame()
 
     # Remove duplicates and sort by timestamp
-    all_data = all_data.drop_duplicates().sort_values('datetime').reset_index(drop=True)
+    # Fyers API returns data without column headers, so we need to handle this
+    if not all_data.empty and all_data.shape[1] >= 6:
+        if all_data.columns.dtype == 'int64':  # Default numeric column names
+            all_data = all_data.drop_duplicates().sort_values(0).reset_index(drop=True)
+        elif 'timestamp' in all_data.columns:
+            all_data = all_data.drop_duplicates().sort_values('timestamp').reset_index(drop=True)
+        else:
+            # Try to find the timestamp column (usually the first column)
+            all_data = all_data.drop_duplicates().sort_values(all_data.columns[0]).reset_index(drop=True)
 
     logger.info(f"Fetched total of {len(all_data)} candles for {symbol} {timeframe}")
     return all_data

@@ -5,3 +5,9 @@ backend/data/test
 # Ignore all .log files
 *.log
 **/*.log
+
+# Ignore Python cache files
+*.pyc
+**/*.pyc
+__pycache__/
+**/__pycache__/
