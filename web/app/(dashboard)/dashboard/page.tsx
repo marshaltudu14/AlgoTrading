@@ -1,121 +1,85 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import TradingChart from "@/components/TradingChart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TrendingUp, Activity, DollarSign } from "lucide-react";
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-background p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back to your AlgoTrading platform</p>
-        </div>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Trading Chart - Full Screen */}
+      <div className="flex-1 relative">
+        <TradingChart />
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Trading Info Overlay */}
+        <div className="absolute top-4 right-4 z-10 space-y-2">
+          <Card className="bg-background/80 backdrop-blur-sm">
+            <CardContent className="p-4">
+              <div className="text-sm text-muted-foreground mb-1">NIFTY 50</div>
+              <div className="text-2xl font-bold text-green-600">19,456.80</div>
+              <div className="flex items-center text-sm text-green-600">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                +124.50 (+0.64%)
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Bottom Stats Bar */}
+      <div className="border-t border-border bg-background/95 backdrop-blur p-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Portfolio Value</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₹1,234,567</div>
-              <p className="text-xs text-muted-foreground">+20.1% from last month</p>
+              <div className="text-xl font-bold">₹12,34,567</div>
+              <div className="flex items-center text-xs text-green-600">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                +20.1%
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Positions</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M3 3v18h18" />
-                <path d="m19 9-5 5-4-4-3 3" />
-              </svg>
+              <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
-              <p className="text-xs text-muted-foreground">+2 from yesterday</p>
+              <div className="text-xl font-bold">12</div>
+              <div className="flex items-center text-xs text-blue-600">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                +2 today
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Today's P&L</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">+₹12,345</div>
-              <p className="text-xs text-muted-foreground">+1.2% from yesterday</p>
+              <div className="text-xl font-bold text-green-600">+₹12,345</div>
+              <div className="flex items-center text-xs text-green-600">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                +1.2%
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Win Rate</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="m22 21-3-3 3-3" />
-              </svg>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">68.5%</div>
-              <p className="text-xs text-muted-foreground">+5% from last week</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="mt-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-              <CardDescription>
-                Common trading operations and tools
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex gap-4">
-              <Button variant="outline">New Trade</Button>
-              <Button variant="outline">Market Analysis</Button>
-              <Button variant="outline">Portfolio Report</Button>
-              <Button variant="outline">Settings</Button>
+              <div className="text-xl font-bold">68.5%</div>
+              <div className="flex items-center text-xs text-blue-600">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                +5% this week
+              </div>
             </CardContent>
           </Card>
         </div>

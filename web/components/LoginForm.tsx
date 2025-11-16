@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import ThemeToggle from "@/components/ThemeToggle";
-import { Eye, EyeOff } from "lucide-react";
+import { ModeToggle } from "@/components/mode-toggle";
+import { Eye, EyeOff, Key, Link, User, Lock, Shield } from "lucide-react";
 
 export default function LoginForm() {
   const [formData, setFormData] = useState({
@@ -67,40 +67,43 @@ export default function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative">
       {/* Theme toggle in top right corner */}
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
+      <div className="fixed top-4 right-4 z-50">
+        <ModeToggle />
       </div>
 
       <div className="w-full max-w-md">
-
-        <Card className="shadow-lg dark:shadow-white/5 bg-white dark:bg-black border-gray-200 dark:border-gray-800">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-center dark:text-white">Sign in</CardTitle>
-            <CardDescription className="text-center dark:text-gray-400">
-              Enter your Fyers credentials to access your account
+        <Card className="border shadow-2xl bg-card backdrop-blur-sm sm:border border-0 sm:border-1">
+          <CardHeader className="space-y-3 pb-6">
+            <CardTitle className="text-3xl font-bold text-center">Welcome Back</CardTitle>
+            <CardDescription className="text-center text-base">
+              Sign in to your AlgoTrading account with Fyers
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <CardContent className="px-8 pb-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="appId" className="dark:text-white">App ID</Label>
-                <Input
-                  id="appId"
-                  name="appId"
-                  type="text"
-                  value={formData.appId}
-                  onChange={handleChange}
-                  placeholder="Enter your Fyers App ID"
-                  required
-                  className="bg-background"
-                />
+                <Label htmlFor="appId" className="text-sm font-medium">App ID</Label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="appId"
+                    name="appId"
+                    type="text"
+                    value={formData.appId}
+                    onChange={handleChange}
+                    placeholder="Enter your Fyers App ID"
+                    required
+                    className="h-11 pl-10"
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="secretKey" className="dark:text-white">Secret Key</Label>
+                <Label htmlFor="secretKey" className="text-sm font-medium">Secret Key</Label>
                 <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="secretKey"
                     name="secretKey"
@@ -109,14 +112,14 @@ export default function LoginForm() {
                     onChange={handleChange}
                     placeholder="Enter your Secret Key"
                     required
-                    className="bg-background pr-10"
+                    className="h-11 pl-10 pr-12"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowSecretKey(!showSecretKey)}
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent dark:text-white dark:hover:bg-transparent"
+                    className="absolute right-1 top-1 h-9 w-9"
                   >
                     {showSecretKey ? (
                       <EyeOff className="h-4 w-4" />
@@ -131,36 +134,43 @@ export default function LoginForm() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="redirectUrl" className="dark:text-white">Redirect URL</Label>
-                <Input
-                  id="redirectUrl"
-                  name="redirectUrl"
-                  type="url"
-                  value={formData.redirectUrl}
-                  onChange={handleChange}
-                  placeholder="Enter redirect URL"
-                  required
-                  className="bg-background"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fyersId" className="dark:text-white">Fyers ID</Label>
-                <Input
-                  id="fyersId"
-                  name="fyersId"
-                  type="text"
-                  value={formData.fyersId}
-                  onChange={handleChange}
-                  placeholder="Enter your Fyers ID"
-                  required
-                  className="bg-background"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="pin" className="dark:text-white">PIN</Label>
+                <Label htmlFor="redirectUrl" className="text-sm font-medium">Redirect URL</Label>
                 <div className="relative">
+                  <Link className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="redirectUrl"
+                    name="redirectUrl"
+                    type="url"
+                    value={formData.redirectUrl}
+                    onChange={handleChange}
+                    placeholder="Enter redirect URL"
+                    required
+                    className="h-11 pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fyersId" className="text-sm font-medium">Fyers ID</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="fyersId"
+                    name="fyersId"
+                    type="text"
+                    value={formData.fyersId}
+                    onChange={handleChange}
+                    placeholder="Enter your Fyers ID"
+                    required
+                    className="h-11 pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pin" className="text-sm font-medium">PIN</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="pin"
                     name="pin"
@@ -169,14 +179,14 @@ export default function LoginForm() {
                     onChange={handleChange}
                     placeholder="Enter your PIN"
                     required
-                    className="bg-background pr-10"
+                    className="h-11 pl-10 pr-12"
                   />
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => setShowPin(!showPin)}
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent dark:text-white dark:hover:bg-transparent"
+                    className="absolute right-1 top-1 h-9 w-9"
                   >
                     {showPin ? (
                       <EyeOff className="h-4 w-4" />
@@ -192,7 +202,7 @@ export default function LoginForm() {
 
               <Button
                 type="submit"
-                className="w-full bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                className="w-full h-11 text-base font-medium shadow-lg"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -206,15 +216,15 @@ export default function LoginForm() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center">
-              <p className="text-xs text-muted-foreground dark:text-gray-400">
+            <div className="mt-8 text-center flex items-center justify-center gap-2">
+              <Shield className="h-3 w-3 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">
                 Secure authentication powered by Fyers API
               </p>
             </div>
           </CardContent>
         </Card>
-
-        </div>
+      </div>
     </div>
   );
 }

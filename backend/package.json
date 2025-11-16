@@ -1,0 +1,12 @@
+{
+  "name": "algotrading-backend",
+  "version": "1.0.0",
+  "description": "FastAPI backend for AlgoTrading platform",
+  "scripts": {
+    "start": "python start_api.py",
+    "dev": "python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload",
+    "install": "pip install -r requirements.txt"
+  },
+  "keywords": ["fastapi", "trading", "fyers", "algotrading"],
+  "author": "AlgoTrading Team"
+}
