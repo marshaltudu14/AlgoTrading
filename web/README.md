@@ -1,137 +1,36 @@
-# AlgoTrading Platform
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-A modern, professional trading platform built with Next.js 16, TypeScript, and Fyers API integration. Features real-time candlestick charts, secure authentication, and a responsive dark-themed interface.
+## Getting Started
 
-## Features
-
-- 🔐 **Secure Authentication**: Complete Fyers API integration with TOTP support
-- 📊 **Real-time Charts**: TradingView-style candlestick charts using lightweight-charts
-- 🎨 **Modern UI**: Dark theme with responsive design
-- ⚡ **Fast Performance**: Built with Next.js 16 and Zustand for state management
-- 🔄 **Auto-refresh**: Market data updates every 30 seconds
-- 📱 **Mobile Responsive**: Works seamlessly on all devices
-
-## Tech Stack
-
-- **Frontend**: Next.js 16, React 19, TypeScript
-- **State Management**: Zustand with persistence
-- **Charts**: Lightweight Charts (TradingView alternative)
-- **Styling**: Tailwind CSS v4
-- **API Integration**: Fyers Trading API
-- **Authentication**: JWT tokens with refresh capability
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+
-- Fyers API credentials (APP_ID, SECRET_KEY, etc.)
-
-### Installation
-
-1. **Install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Set up environment variables:**
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Edit `.env.local` with your Fyers credentials:
-   ```env
-   FYERS_APP_ID="YOUR_APP_ID"
-   FYERS_SECRET_KEY="YOUR_SECRET_KEY"
-   FYERS_REDIRECT_URI="YOUR_REDIRECT_URI"
-   FYERS_USER="YOUR_FYERS_USER_ID"
-   FYERS_PIN="YOUR_PIN"
-   FYERS_TOTP="YOUR_TOTP_SECRET"
-   ```
-
-3. **Run the development server:**
-   ```bash
-   npm run dev
-   ```
-
-4. **Open your browser and navigate to:**
-   ```
-   http://localhost:3000
-   ```
-
-## Project Structure
-
-```
-web/
-├── app/
-│   ├── (auth)/login/          # Login page and layout
-│   ├── dashboard/             # Main trading dashboard
-│   ├── api/auth/              # Authentication API routes
-│   ├── api/market/            # Market data API routes
-│   └── layout.tsx             # Root layout with error boundary
-├── components/
-│   ├── charts/                # Chart components
-│   ├── auth/                  # Authentication components
-│   └── ui/                    # Reusable UI components
-├── stores/                    # Zustand state management
-├── lib/                       # Utility functions and API services
-├── types/                     # TypeScript type definitions
-└── middleware.ts              # Route protection middleware
-```
-
-## Available Features
-
-### Chart Features
-- Multiple timeframes (1m to 1D)
-- Volume overlay
-- Interactive controls (pan, zoom, crosshair)
-- Auto-refresh every 30 seconds
-- Multiple symbol support
-
-### Authentication Features
-- TOTP countdown timer
-- Auto token refresh
-- Secure credential handling
-- Persistent login state
-- Error handling and validation
-
-### Trading Symbols
-- NIFTY 50 Index
-- NIFTY BANK Index
-- SENSEX Index
-- Major stocks (RELIANCE, TCS, HDFC Bank)
-
-## Development
-
-### Available Scripts
+First, run the development server:
 
 ```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-## Security Notes
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-- 🔒 API credentials are server-side only (never exposed to client)
-- 🍪 JWT tokens stored securely with auto-refresh
-- 🛡️ Input validation and sanitization
-- ⚡ Rate limiting considerations for API calls
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Troubleshooting
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-### Common Issues
+## Learn More
 
-1. **Authentication fails**: Check your Fyers credentials in `.env.local`
-2. **Chart not loading**: Ensure you have a valid access token
-3. **TOTP issues**: Make sure your TOTP secret is correct and synchronized
-4. **API errors**: Check network connectivity and Fyers API status
+To learn more about Next.js, take a look at the following resources:
 
-### Debug Mode
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-For development, the login form pre-fills with sample credentials when `NODE_ENV=development`.
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
----
+## Deploy on Vercel
 
-**Built with ❤️ using Next.js, TypeScript, and modern web technologies.**
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

@@ -54,9 +54,17 @@
       "mcp__kite__get_historical_data",
       "Bash(tree:*)",
       "Bash(npx tsc:*)",
-      "WebFetch(domain:localhost)"
+      "WebFetch(domain:localhost)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
-  }
+  },
+  "enabledMcpjsonServers": [
+    "playwright",
+    "context7",
+    "supabase",
+    "next-devtools",
+    "shadcn"
+  ]
 }

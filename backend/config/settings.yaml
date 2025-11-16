@@ -1,0 +1,171 @@
+# =========================================================================
+# Unified Configuration File for AlgoTrading Bot
+# =========================================================================
+# This file contains only the configuration settings that are actively used
+# by the codebase. Unused settings have been removed for clarity and maintainability.
+# =========================================================================
+
+# Environment Configuration - Used by TradingEnv
+environment:
+  initial_capital: 100000.0
+  trailing_stop_percentage: 0.015
+  episode_length: 1000 # Number of sequential rows per episode
+  parallel_environments:
+    gpu_tpu: 16 # MAXIMIZED: Increased from 32 to 64 for better GPU saturation and full VRAM utilization
+    cpu: 5 # Number of environments to run in parallel on CPU
+
+# Risk Management Configuration - Used by BacktestingEngine
+risk_management:
+  risk_multiplier: 1.0
+  reward_multiplier: 2.0
+
+# Trading Configuration - Used by BacktestingEngine
+trading:
+  brokerage_entry: 25 # Entry brokerage in INR
+  brokerage_exit: 35 # Exit brokerage in INR
+
+# Feature Generation Configuration - Used by FeatureGenerator
+feature_generation:
+  # Moving Average Periods
+  sma_periods: [5, 10, 20, 50, 100, 200]
+  ema_periods: [5, 10, 20, 50, 100, 200]
+
+  # RSI Periods
+  rsi_periods: [14, 21]
+
+  # MACD Parameters
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+
+  # Bollinger Bands
+  bb_period: 20
+  bb_std_dev: 2.0
+
+  # ATR Period
+  atr_period: 14
+
+  # Stochastic Parameters
+  stoch_k_period: 14
+  stoch_d_period: 3
+
+  # Williams %R Period
+  williams_r_period: 14
+
+  # CCI Period
+  cci_period: 20
+
+  # ADX Period
+  adx_period: 14
+
+  # Momentum and ROC Periods
+  momentum_period: 10
+  roc_period: 10
+
+  # TRIX Period
+  trix_period: 14
+
+  # Volatility Calculation Periods
+  volatility_periods: [10, 20]
+
+# Paths Configuration - Used by DataLoader
+paths:
+  raw_data_dir: "backend/data/raw"
+  final_data_dir: "backend/data/final"
+
+# Action Configuration - Used by all components that handle trading actions
+actions:
+  # Trading action types and their mappings
+  action_types:
+    BUY_LONG: 0
+    SELL_SHORT: 1
+    CLOSE_LONG: 2
+    CLOSE_SHORT: 3
+    HOLD: 4
+  action_names: ["BUY_LONG", "SELL_SHORT", "CLOSE_LONG", "CLOSE_SHORT", "HOLD"]
+  num_actions: 5
+
+# Reward Configuration - Used by RewardCalculator
+rewards:
+  # Percentage-based reward scaling with no artificial limits
+  # 1% price move = 10 reward points (uncapped for true percentage representation)
+  # Large moves get proportionally large rewards - no clipping needed
+
+  # Base scaling factor for percentage-based rewards - ENHANCED 10X SCALING
+  global_scaling_factor: 10.0
+
+  # Whether to apply scaling to reward shaping components
+  scale_reward_shaping: true
+
+# Training Mode Configuration - Controls debug vs final training
+training_mode:
+  # Mode selection: "debug" or "final"
+  mode: "debug"  # Set to "final" for production training
+  
+  # Debug mode settings (single instrument, detailed logging)
+  debug:
+    enabled: true
+    single_instrument_mode: true
+    detailed_logging: true
+    step_by_step_logging: true
+    show_reward_calculations: true
+    show_position_changes: true
+    max_instruments_parallel: 1
+    log_frequency: 1  # Log every episode
+    
+  # Final mode settings (all instruments, optimized for speed)
+  final:
+    enabled: false
+    batch_all_instruments: true
+    detailed_logging: false
+    step_by_step_logging: false
+    show_reward_calculations: false
+    show_position_changes: false
+    max_instruments_parallel: 16  # Use all parallel environments
+    log_frequency: 25  # Log every 25 episodes
+    offline_rl_preprocessing: true  # Enable offline RL batch processing
+    gpu_optimization: true  # Full GPU utilization mode
+
+# GPU Optimization Configuration - For maximum GPU utilization
+gpu_optimization:
+  # Batch processing settings
+  vectorized_environment: true  # Use torch-based vectorized env
+  batch_size: 64  # Episodes processed in parallel
+  gradient_accumulation_steps: 4  # Accumulate gradients for larger effective batch
+  
+  # Offline RL preprocessing
+  offline_rl:
+    enabled: true
+    precompute_episodes: true  # Precompute all episode data
+    cache_observations: true   # Cache observations on GPU
+    cache_rewards: true        # Cache reward computations
+    batch_episode_processing: true  # Process episodes in batches
+    
+  # Memory optimization
+  mixed_precision: true      # Use AMP for memory efficiency
+  memory_efficient_attention: true  # Use memory efficient attention
+  pin_memory: true          # Pin memory for faster GPU transfer
+  non_blocking_transfer: true  # Non-blocking GPU transfers
+  
+  # Computation optimization
+  torch_compile: true       # Use torch.compile for optimization
+  tensorcore_optimization: true  # Enable tensor core optimization
+  cudnn_benchmark: true     # Enable CuDNN benchmarking
+  
+  # Advanced settings
+  max_batch_memory_gb: 12   # Maximum memory to use for batching
+  prefetch_factor: 2        # Data prefetching factor
+  num_workers: 4           # CPU workers for data loading
+
+# Data Processing Configuration - Used by FeatureGenerator and UniversalDataNormalizer
+data_processing:
+  input_folder: "backend/data/raw"
+  output_folder: "backend/data/final"
+
+  # Universal Data Normalization - No instrument bias
+  normalization:
+    # Feature normalization range (0-100 scale for all features)
+    feature_range: [0, 100]
+
+    # Normalization method - Single method for all features for consistency
+    method: "minmax" # MinMax scaling (0-100) for ALL features passed to model
