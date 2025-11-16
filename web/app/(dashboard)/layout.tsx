@@ -2,7 +2,7 @@ import React from "react";
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger, SidebarInset } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
-import { Home, TrendingUp, Settings, User, LogOut } from "lucide-react";
+import { Home, TrendingUp, Settings, LogOut } from "lucide-react";
 import Link from "next/link";
 
 const items = [
@@ -30,7 +30,7 @@ export default function DashboardLayout({
 }) {
   return (
     <SidebarProvider>
-      <Sidebar>
+      <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
           <div className="flex items-center p-4">
             <h1 className="text-xl font-bold text-foreground">AlgoTrading</h1>
@@ -51,16 +51,7 @@ export default function DashboardLayout({
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          <div className="p-4 space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-primary-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">User</p>
-                <p className="text-xs text-muted-foreground">Trader</p>
-              </div>
-            </div>
+          <div className="p-4">
             <Button variant="outline" size="sm" className="w-full">
               <LogOut className="h-4 w-4 mr-2" />
               Logout

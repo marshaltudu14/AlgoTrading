@@ -72,7 +72,7 @@ export default function TradingChart({
 }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<any>(null);
+  const seriesRef = useRef<any | null>(null);
   const { theme } = useTheme();
 
   const handleZoomIn = () => {
@@ -80,12 +80,12 @@ export default function TradingChart({
       const timeScale = chartRef.current.timeScale();
       const visibleRange = timeScale.getVisibleRange();
       if (visibleRange) {
-        const range = visibleRange.to - visibleRange.from;
-        const center = visibleRange.from + range / 2;
+        const range = Number(visibleRange.to) - Number(visibleRange.from);
+        const center = Number(visibleRange.from) + range / 2;
         const newRange = range * 0.8; // Zoom in by 20%
         timeScale.setVisibleRange({
-          from: center - newRange / 2,
-          to: center + newRange / 2,
+          from: center - newRange / 2 as UTCTimestamp,
+          to: center + newRange / 2 as UTCTimestamp,
         });
       }
     }
@@ -96,12 +96,12 @@ export default function TradingChart({
       const timeScale = chartRef.current.timeScale();
       const visibleRange = timeScale.getVisibleRange();
       if (visibleRange) {
-        const range = visibleRange.to - visibleRange.from;
-        const center = visibleRange.from + range / 2;
+        const range = Number(visibleRange.to) - Number(visibleRange.from);
+        const center = Number(visibleRange.from) + range / 2;
         const newRange = range * 1.25; // Zoom out by 25%
         timeScale.setVisibleRange({
-          from: center - newRange / 2,
-          to: center + newRange / 2,
+          from: center - newRange / 2 as UTCTimestamp,
+          to: center + newRange / 2 as UTCTimestamp,
         });
       }
     }
