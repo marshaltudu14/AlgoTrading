@@ -65,9 +65,9 @@ class TradingPredictor:
         df['direction_3state'] = df['direction_3state'].astype(int)
         df['volatility_3state'] = df['volatility_3state'].astype(int)
 
-        # Select features (exclude target variables and OHLCV for now)
+        # Select features (exclude target variables but keep OHLC for pattern learning)
         exclude_cols = ['direction', 'volatility', 'direction_3state', 'volatility_3state',
-                       'open', 'high', 'low', 'close', 'volume',
+                       'volume',  # Only exclude volume as it can have data leakage issues
                        'datetime', 'datetime_readable', 'datetime_epoch', 'Unnamed: 0']
         self.features = [col for col in df.columns if col not in exclude_cols]
 
@@ -155,8 +155,12 @@ class TradingPredictor:
         if not self.is_trained:
             raise ValueError("Models not trained yet. Call train() first.")
 
+        # Get features from data columns if not set
         if self.features is None:
-            raise ValueError("Features not defined. Train the model first.")
+            exclude_cols = ['direction', 'volatility', 'direction_3state', 'volatility_3state',
+                           'volume',  # Only exclude volume
+                           'datetime', 'datetime_readable', 'datetime_epoch', 'Unnamed: 0']
+            self.features = [col for col in df.columns if col not in exclude_cols]
 
         # Prepare features
         X = df[self.features].copy()
@@ -230,36 +234,42 @@ class TradingPredictor:
 
         return float(np.clip(confidence, 0, 1))
 
-    def save_models(self, path: str):
-        """Save trained models to disk"""
+    def save_models(self, path_prefix: str):
+        """Save trained models to disk (separate files for each model)"""
 
         if not self.is_trained:
             raise ValueError("Models not trained yet")
 
-        model_data = {
-            'direction_model': self.direction_model,
-            'volatility_model': self.volatility_model,
-            'features': self.features
-        }
+        # Save direction model
+        direction_path = f"{path_prefix}_direction.pkl"
+        with open(direction_path, 'wb') as f:
+            pickle.dump(self.direction_model, f)
+        logger.info(f"Direction model saved to {direction_path}")
 
-        with open(path, 'wb') as f:
-            pickle.dump(model_data, f)
+        # Save volatility model
+        volatility_path = f"{path_prefix}_volatility.pkl"
+        with open(volatility_path, 'wb') as f:
+            pickle.dump(self.volatility_model, f)
+        logger.info(f"Volatility model saved to {volatility_path}")
 
-        logger.info(f"Models saved to {path}")
-
-    def load_models(self, path: str):
-        """Load trained models from disk"""
+    
+    def load_models(self, path_prefix: str):
+        """Load trained models from disk (separate files for each model)"""
 
         try:
-            with open(path, 'rb') as f:
-                model_data = pickle.load(f)
+            # Load direction model
+            direction_path = f"{path_prefix}_direction.pkl"
+            with open(direction_path, 'rb') as f:
+                self.direction_model = pickle.load(f)
 
-            self.direction_model = model_data['direction_model']
-            self.volatility_model = model_data['volatility_model']
-            self.features = model_data['features']
+            # Load volatility model
+            volatility_path = f"{path_prefix}_volatility.pkl"
+            with open(volatility_path, 'rb') as f:
+                self.volatility_model = pickle.load(f)
+
             self.is_trained = True
-
-            logger.info(f"Models loaded from {path}")
+            self.features = None  # Will be set when predicting from data columns
+            logger.info(f"Models loaded from {path_prefix}")
 
         except Exception as e:
             logger.error(f"Failed to load models: {e}")

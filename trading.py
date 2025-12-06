@@ -52,9 +52,9 @@ TIMEFRAME = "2"  # Same timeframe for both training and backtest
 # Instrument configuration
 DEFAULT_INSTRUMENT_NAME = "Nifty"  # Can be "Bank_Nifty", "Nifty", "Bankex", "Finnifty", "Sensex", etc.
 
-# Trading parameters
-TARGET_POINTS = 20  # Target profit in points
-STOP_LOSS_POINTS = 15  # Stop loss in points
+# Trading parameters - P&L based (instrument agnostic) - Ultra-scalping configuration
+TARGET_PNL = 300  # Target profit in Rs (per position) - Ultra-scalping
+STOP_LOSS_PNL = -200  # Stop loss in Rs (per position) - Ultra-scalping
 
 # Generate unique identifier for filenames
 DATA_ID = f"{BACKTEST_DAYS}d_{TIMEFRAME}min"
@@ -284,10 +284,7 @@ def preprocess_data():
                 latest_file = max(matching_files, key=lambda x: x.stat().st_mtime)
                 processed_data = pd.read_csv(latest_file)
                 print(f"[OK] Processed data shape: {processed_data.shape}")
-
-                csv_output_path = f"backend/data/processed_nifty_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
-                processed_data.to_csv(csv_output_path, index=False)
-                print(f"[OK] Data saved to {csv_output_path}")
+                print(f"[OK] Using data from {latest_file}")
 
                 return True
             else:
@@ -448,8 +445,8 @@ async def real_trading():
 
 async def backtest():
     print(f"\n=== BACKTESTING MODE ===")
-    print(f"[INFO] Target: {TARGET_POINTS} points")
-    print(f"[INFO] Stop Loss: {STOP_LOSS_POINTS} points")
+    print(f"[INFO] Target P&L: Rs.{TARGET_PNL}")
+    print(f"[INFO] Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
 
     from backend.src.ml.backtest import Backtester
 
@@ -477,8 +474,8 @@ async def backtest():
                 return False
 
         backtester = Backtester(
-            target_points=TARGET_POINTS,
-            stop_loss_points=STOP_LOSS_POINTS,
+            target_pnl=TARGET_PNL,
+            stop_loss_pnl=STOP_LOSS_PNL,
             ml_model_path=model_path,
             initial_capital=20000,
             brokerage_entry=25,
@@ -526,8 +523,8 @@ async def main():
     print(f"Mode: {mode}")
     print(f"Timeframe: {TIMEFRAME}-minute")
     print(f"Historical Days: {BACKTEST_DAYS}")
-    print(f"Target: {TARGET_POINTS} points")
-    print(f"Stop Loss: {STOP_LOSS_POINTS} points")
+    print(f"Target P&L: Rs.{TARGET_PNL}")
+    print(f"Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
 
     if not await authenticate():
         return

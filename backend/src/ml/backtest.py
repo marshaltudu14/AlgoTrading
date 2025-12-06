@@ -18,22 +18,22 @@ logger = logging.getLogger(__name__)
 class Backtester:
     """Backtesting engine for ML-based trading strategies"""
 
-    def __init__(self, target_points: float = 20, stop_loss_points: float = 15,
+    def __init__(self, target_pnl: float = 1000, stop_loss_pnl: float = -600,
                  ml_model_path: str = None, initial_capital: float = 20000,
                  brokerage_entry: float = 25, brokerage_exit: float = 25):
         """
         Initialize backtester
 
         Args:
-            target_points: Target profit in points
-            stop_loss_points: Stop loss in points
+            target_pnl: Target profit in Rs (per position)
+            stop_loss_pnl: Stop loss in Rs (per position)
             ml_model_path: Path to saved ML models
             initial_capital: Starting capital for backtest
             brokerage_entry: Brokerage fee per trade entry
             brokerage_exit: Brokerage fee per trade exit
         """
-        self.target_points = target_points
-        self.stop_loss_points = stop_loss_points
+        self.target_pnl = target_pnl
+        self.stop_loss_pnl = stop_loss_pnl
         self.ml_model_path = ml_model_path
         self.initial_capital = initial_capital
         self.brokerage_entry = brokerage_entry
@@ -55,7 +55,7 @@ class Backtester:
 
     def simulate_trade(self, entry_price: float, direction: str,
                       high_prices: pd.Series, low_prices: pd.Series,
-                      entry_time: pd.Timestamp) -> Tuple[bool, float, int, Dict]:
+                      entry_time: pd.Timestamp, lot_size: int) -> Tuple[bool, float, int, Dict]:
         bars_held = 0
         exit_details = {
             'exit_price': entry_price,
@@ -64,9 +64,13 @@ class Backtester:
             'exit_reason': None
         }
 
+        # Calculate points needed based on P&L targets
+        target_points = abs(self.target_pnl) / lot_size
+        stop_loss_points = abs(self.stop_loss_pnl) / lot_size
+
         if direction == 'BUY':
-            target_price = entry_price + self.target_points
-            stop_loss_price = entry_price - self.stop_loss_points
+            target_price = entry_price + target_points
+            stop_loss_price = entry_price - stop_loss_points
             exit_details.update({
                 'target_price': target_price,
                 'stop_loss_price': stop_loss_price
@@ -80,18 +84,18 @@ class Backtester:
                         'exit_price': target_price,
                         'exit_reason': 'TARGET'
                     })
-                    return True, self.target_points, bars_held, exit_details
+                    return True, target_points, bars_held, exit_details
 
                 if low <= stop_loss_price:
                     exit_details.update({
                         'exit_price': stop_loss_price,
                         'exit_reason': 'STOP_LOSS'
                     })
-                    return False, -self.stop_loss_points, bars_held, exit_details
+                    return False, -stop_loss_points, bars_held, exit_details
 
         else:
-            target_price = entry_price - self.target_points
-            stop_loss_price = entry_price + self.stop_loss_points
+            target_price = entry_price - target_points
+            stop_loss_price = entry_price + stop_loss_points
             exit_details.update({
                 'target_price': target_price,
                 'stop_loss_price': stop_loss_price
@@ -105,14 +109,14 @@ class Backtester:
                         'exit_price': target_price,
                         'exit_reason': 'TARGET'
                     })
-                    return True, self.target_points, bars_held, exit_details
+                    return True, target_points, bars_held, exit_details
 
                 if high >= stop_loss_price:
                     exit_details.update({
                         'exit_price': stop_loss_price,
                         'exit_reason': 'STOP_LOSS'
                     })
-                    return False, -self.stop_loss_points, bars_held, exit_details
+                    return False, -stop_loss_points, bars_held, exit_details
 
         if len(high_prices) > 0:
             last_price = high_prices.iloc[-1] if direction == 'BUY' else low_prices.iloc[-1]
@@ -136,7 +140,7 @@ class Backtester:
         Returns:
             Dictionary with backtest results
         """
-        logger.info(f"Starting backtest with target={self.target_points}, SL={self.stop_loss_points}")
+        logger.info(f"Starting backtest with target=Rs.{self.target_pnl}, SL=Rs.{self.stop_loss_pnl}")
 
         # Load data
         df = pd.read_csv(csv_path)
@@ -225,28 +229,34 @@ class Backtester:
 
             # If in position, check for exit
             elif position:
-                # Get future prices for trade simulation
-                future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
-                future_lows = df['low'].iloc[i+1:i+51]
-
-                # Simulate trade with fixed targets and stop loss
-                is_win, pnl_points, bars_held, exit_price_detail = self.simulate_trade(
-                    entry_price, position, future_highs, future_lows, entry_time
-                )
-
                 # Use lot size from instrument
                 if instrument and hasattr(instrument, 'lot_size'):
                     lot_size = instrument.lot_size
                 else:
                     lot_size = 50  # Default fallback
 
+                # Get future prices for trade simulation
+                future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
+                future_lows = df['low'].iloc[i+1:i+51]
+
+                # Simulate trade with P&L-based targets and stop loss
+                is_win, pnl_points, bars_held, exit_price_detail = self.simulate_trade(
+                    entry_price, position, future_highs, future_lows, entry_time, lot_size
+                )
+
                 # Calculate P&L: points * lot_size
-                # For NIFTY: 1 point = Rs. 50 per lot, so 20 points = Rs. 1000 per lot
                 pnl_currency = pnl_points * lot_size
 
-                # Subtract brokerage fees
+                # Add brokerage fees to P&L calculation
                 total_brokerage = self.brokerage_entry + self.brokerage_exit
-                net_pnl = pnl_currency - total_brokerage
+
+                # For winners: subtract brokerage
+                # For losers: add brokerage to the loss
+                if is_win:
+                    net_pnl = pnl_currency - total_brokerage
+                else:
+                    net_pnl = pnl_currency - total_brokerage  # pnl_currency is already negative
+
                 capital += net_pnl
 
                 exit_time = df.index[i + bars_held] if i + bars_held < len(df) else df.index[-1]
@@ -258,13 +268,13 @@ class Backtester:
                     'target_price': exit_price_detail['target_price'],
                     'stop_loss_price': exit_price_detail['stop_loss_price'],
                     'lot_size': lot_size,
-                    'pnl_points': pnl_points,
-                    'pnl_currency': pnl_currency,
+                    'pnl_points': round(pnl_points, 2),  # Points with 2 decimal places
+                    'pnl_currency': round(net_pnl, 2),  # Net P&L in Rs with 2 decimal places
                     'bars_held': bars_held,
                     'exit_reason': exit_price_detail['exit_reason'],
                     'direction_signal': current_signal,
                     'volatility_state': entry_volatility,
-                    'confidence': direction_confidence * 100,  # Convert to percentage
+                    'confidence': round(direction_confidence * 100, 1),  # Convert to percentage, 2 digits
                     'capital': capital  # Current capital after this trade
                 }
                 self.trades.append(trade)
@@ -316,15 +326,15 @@ class Backtester:
         # Convert trades list to DataFrame for easier analysis
         trades_df = pd.DataFrame(self.trades)
 
-        # Total P&L (after brokerage)
-        total_pnl = trades_df['net_pnl'].sum()
+        # Total P&L (from pnl_currency, which is after brokerage)
+        total_pnl = trades_df['pnl_currency'].sum()
         total_pnl_percent = (total_pnl / self.initial_capital) * 100
 
         # Win rate
         win_rate = winning_trades / total_trades if total_trades > 0 else 0
 
         # Average trade P&L (after brokerage)
-        avg_trade_pnl = trades_df['net_pnl'].mean()
+        avg_trade_pnl = trades_df['pnl_currency'].mean()
 
         # Maximum drawdown
         if self.equity_curve:
@@ -348,7 +358,9 @@ class Backtester:
         current_losing_streak = 0
 
         for _, trade in trades_df.iterrows():
-            if trade['is_win']:
+            # Determine if trade was winning based on pnl_currency
+            is_winning_trade = trade['pnl_currency'] > 0
+            if is_winning_trade:
                 current_winning_streak += 1
                 max_winning_streak = max(max_winning_streak, current_winning_streak)
                 current_losing_streak = 0
