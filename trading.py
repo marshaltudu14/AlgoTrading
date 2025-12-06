@@ -192,7 +192,7 @@ def configure_instrument():
         return False
 
 
-def fetch_historical_data():
+def fetch_historical_data(days=None):
     global historical_data
 
     try:
@@ -200,7 +200,10 @@ def fetch_historical_data():
             print("[ERROR] Please authenticate and configure instrument first")
             return False
 
-        print(f"Fetching {BACKTEST_DAYS} days of historical data with {TIMEFRAME}-minute timeframe...")
+        # Use provided days or default to BACKTEST_DAYS
+        days_to_fetch = days if days is not None else BACKTEST_DAYS
+
+        print(f"Fetching {days_to_fetch} days of historical data with {TIMEFRAME}-minute timeframe...")
 
         from backend.fetch_candle_data import fetch_candles
 
@@ -208,14 +211,14 @@ def fetch_historical_data():
             fyers=fyers_model,
             symbol=instrument.symbol,
             timeframe=TIMEFRAME,
-            days=BACKTEST_DAYS
+            days=days_to_fetch
         )
 
         if historical_data.empty:
             print("[ERROR] No data received")
             return False
 
-        print(f"[OK] Fetched {len(historical_data)} days of data")
+        print(f"[OK] Fetched {len(historical_data)} candles")
         return True
 
     except Exception as e:
@@ -284,38 +287,6 @@ def preprocess_data():
         return False
 
 
-def fetch_training_data():
-    """Fetch training data with larger timeframe and more days"""
-    global historical_data
-
-    try:
-        if not fyers_model or not instrument:
-            print("[ERROR] Please authenticate and configure instrument first")
-            return False
-
-        print(f"Fetching {TRAINING_DAYS} days of training data with {TIMEFRAME}-minute timeframe...")
-
-        from backend.fetch_candle_data import fetch_candles
-
-        historical_data = fetch_candles(
-            fyers=fyers_model,
-            symbol=instrument.symbol,
-            timeframe=TIMEFRAME,
-            days=TRAINING_DAYS
-        )
-
-        if historical_data.empty:
-            print("[ERROR] No training data received")
-            return False
-
-        print(f"[OK] Fetched {len(historical_data)} training candles")
-        return True
-
-    except Exception as e:
-        print(f"[ERROR] Failed to fetch training data: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
 
 
 def train_ml_models():
@@ -324,67 +295,85 @@ def train_ml_models():
     try:
         print("\n--- Step 5: ML Model Training ---")
 
-        # Fetch training data separately
-        if not fetch_training_data():
-            return False
+        # Check if we need to fetch training data (only if no processed data exists)
+        training_data_id = f"{TRAINING_DAYS}d_{TIMEFRAME}min"
+        model_path = f"backend/data/trading_models_{training_data_id}.pkl"
 
-        # Process training data
-        input_dir = "backend/data/raw"
+        # Check if model already exists
+        if os.path.exists(model_path):
+            print(f"[INFO] Model already exists at {model_path}")
+            return True
+
+        # Look for processed training data
         output_dir = "backend/data/processed"
-        os.makedirs(input_dir, exist_ok=True)
-        os.makedirs(output_dir, exist_ok=True)
+        feature_files = list(Path(output_dir).glob("features_*.csv"))
+        matching_files = [f for f in feature_files if f"nifty_{TRAINING_DAYS}d_{TIMEFRAME}min" in f.name]
 
-        # Save training data with consistent naming
-        csv_path = f"{input_dir}/nifty_{TRAINING_DAYS}d_{TIMEFRAME}min.csv"
-        historical_data.to_csv(csv_path, index=False)
+        # If training data not found, fetch and process it
+        if not matching_files:
+            print(f"[INFO] No training data found, fetching {TRAINING_DAYS} days...")
 
-        from backend.src.data_processing.pipeline import DataProcessingPipeline
-        pipeline = DataProcessingPipeline()
+            # Fetch training data
+            if not fetch_historical_data(days=TRAINING_DAYS):
+                return False
 
-        results = pipeline.run_feature_generation(
-            input_dir=input_dir,
-            output_dir=output_dir,
-            parallel=False
-        )
+            # Process training data
+            input_dir = "backend/data/raw"
+            output_dir = "backend/data/processed"
+            os.makedirs(input_dir, exist_ok=True)
+            os.makedirs(output_dir, exist_ok=True)
 
-        if results.get('success'):
-            output_data_path = Path(output_dir)
-            feature_files = list(output_data_path.glob("features_*.csv"))
+            # Save training data with consistent naming
+            csv_path = f"{input_dir}/nifty_{training_data_id}.csv"
+            historical_data.to_csv(csv_path, index=False)
+
+            from backend.src.data_processing.pipeline import DataProcessingPipeline
+            pipeline = DataProcessingPipeline()
+
+            results = pipeline.run_feature_generation(
+                input_dir=input_dir,
+                output_dir=output_dir,
+                parallel=False
+            )
+
+            if not results.get('success'):
+                print(f"[ERROR] Training pipeline failed: {results.get('error')}")
+                return False
+
+            # Re-scan for processed files
+            feature_files = list(Path(output_dir).glob("features_*.csv"))
             matching_files = [f for f in feature_files if f"nifty_{TRAINING_DAYS}d_{TIMEFRAME}min" in f.name]
 
-            if matching_files:
-                latest_file = max(matching_files, key=lambda x: x.stat().st_mtime)
-                training_data = pd.read_csv(latest_file)
-                print(f"[OK] Training data shape: {training_data.shape}")
-
-                from backend.src.ml.predictor import train_and_evaluate
-
-                print("Training Random Forest models...")
-                model_path = f"backend/data/trading_models_{TRAINING_DAYS}d_{TIMEFRAME}min.pkl"
-
-                predictor = train_and_evaluate(
-                    csv_path=str(latest_file),
-                    save_path=model_path
-                )
-
-                print("[OK] ML models trained and saved successfully!")
-
-                latest_prediction = predictor.predict_latest(training_data)
-
-                print(f"\nLatest Prediction:")
-                print(f"  Current Price: Rs.{latest_prediction['current_price']:.2f}")
-                print(f"  Direction: {'UP' if latest_prediction['direction_signal'] == 1 else 'DOWN'}")
-                print(f"  Expected Move: {latest_prediction['direction_prediction']*100:.2f}%")
-                print(f"  Volatility: {latest_prediction['volatility_prediction']:.2f}%")
-                print(f"  Confidence: {latest_prediction['prediction_confidence']*100:.1f}%")
-
-                return True
-            else:
-                print("[ERROR] No processed training files found")
+            if not matching_files:
+                print("[ERROR] No processed training files found after generation")
                 return False
-        else:
-            print(f"[ERROR] Training pipeline failed: {results.get('error')}")
-            return False
+
+        # Use the most recent training data file
+        latest_file = max(matching_files, key=lambda x: x.stat().st_mtime)
+        training_data = pd.read_csv(latest_file)
+        print(f"[OK] Using training data shape: {training_data.shape}")
+
+        from backend.src.ml.predictor import train_and_evaluate
+
+        print("Training Random Forest models...")
+
+        predictor = train_and_evaluate(
+            csv_path=str(latest_file),
+            save_path=model_path
+        )
+
+        print("[OK] ML models trained and saved successfully!")
+
+        latest_prediction = predictor.predict_latest(training_data)
+
+        print(f"\nLatest Prediction:")
+        print(f"  Current Price: Rs.{latest_prediction['current_price']:.2f}")
+        print(f"  Direction: {'UP' if latest_prediction['direction_signal'] == 1 else 'DOWN'}")
+        print(f"  Expected Move: {latest_prediction['direction_prediction']*100:.2f}%")
+        print(f"  Volatility: {latest_prediction['volatility_prediction']:.2f}%")
+        print(f"  Confidence: {latest_prediction['prediction_confidence']*100:.1f}%")
+
+        return True
 
     except Exception as e:
         print(f"[ERROR] ML training failed: {e}")
@@ -397,6 +386,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description='Algo Trading Pipeline')
     parser.add_argument('--backtest', action='store_true',
                         help='Run in backtest mode')
+    parser.add_argument('--train', action='store_true',
+                        help='Run ML training only')
     return parser.parse_args()
 
 
@@ -454,7 +445,7 @@ async def backtest():
         trade_log_path = f"backend/data/backtest_trades_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
         backtester.trade_log_path = trade_log_path
 
-        results = backtester.run_backtest(csv_path, lot_size=instrument.lot_size)
+        results = backtester.run_backtest(csv_path, instrument=instrument)
 
         if results:
             print(f"[OK] Trade log saved to {trade_log_path}")
@@ -483,8 +474,9 @@ async def backtest():
 async def main():
     args = parse_arguments()
 
+    mode = 'TRAIN' if args.train else ('BACKTEST' if args.backtest else 'REAL')
     print("\n=== Algo Trading Pipeline ===\n")
-    print(f"Mode: {'BACKTEST' if args.backtest else 'REAL'}")
+    print(f"Mode: {mode}")
     print(f"Timeframe: {TIMEFRAME}-minute")
     print(f"Historical Days: {BACKTEST_DAYS}")
     print(f"Target: {TARGET_POINTS} points")
@@ -495,6 +487,14 @@ async def main():
 
     print("\n--- Step 2: Instrument Configuration ---")
     if not configure_instrument():
+        return
+
+    if args.train:
+        # Train mode - only train ML models
+        print("\n--- Step 3: ML Model Training ---")
+        if not train_ml_models():
+            return
+        print("\n[OK] Training completed successfully!")
         return
 
     print("\n--- Step 3: Fetch Historical Data ---")

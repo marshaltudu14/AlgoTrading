@@ -91,13 +91,13 @@ class Backtester:
 
         return False, 0, bars_held
 
-    def run_backtest(self, csv_path: str, lot_size: int = None) -> Dict:
+    def run_backtest(self, csv_path: str, instrument=None) -> Dict:
         """
         Run backtest on historical data
 
         Args:
             csv_path: Path to processed data CSV
-            lot_size: Lot size for trades (if None, uses default)
+            instrument: Instrument object containing lot size and other info
 
         Returns:
             Dictionary with backtest results
@@ -162,23 +162,14 @@ class Backtester:
                     entry_price, position, future_highs, future_lows, entry_time
                 )
 
-                # Use provided lot_size or get from instrument config
-                if lot_size is None:
-                    # Try to get lot_size from instrument config
-                    try:
-                        from config.instrument import Instrument
-                        from config.fyers_config import DEFAULT_LOT_SIZE
-                        temp_instrument = Instrument(
-                            symbol="NSE:NIFTY50-INDEX",
-                            lot_size=DEFAULT_LOT_SIZE,
-                            tick_size=0.05,
-                            instrument_type="index",
-                            option_premium_range=[0.5, 5.0]
-                        )
-                        lot_size = temp_instrument.lot_size
-                    except:
-                        lot_size = 50  # Default fallback
+                # Use lot size from instrument
+                if instrument and hasattr(instrument, 'lot_size'):
+                    lot_size = instrument.lot_size
+                else:
+                    lot_size = 50  # Default fallback
 
+                # Calculate P&L: points * lot_size
+                # For NIFTY: 1 point = Rs. 50 per lot, so 20 points = Rs. 1000 per lot
                 pnl_currency = pnl_points * lot_size
 
                 # Subtract brokerage fees
