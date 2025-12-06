@@ -444,14 +444,17 @@ async def backtest():
         backtester = Backtester(
             target_points=TARGET_POINTS,
             stop_loss_points=STOP_LOSS_POINTS,
-            ml_model_path=model_path
+            ml_model_path=model_path,
+            initial_capital=20000,
+            brokerage_entry=25,
+            brokerage_exit=25
         )
 
         # Set trade log path for real-time saving
         trade_log_path = f"backend/data/backtest_trades_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
         backtester.trade_log_path = trade_log_path
 
-        results = backtester.run_backtest(csv_path)
+        results = backtester.run_backtest(csv_path, lot_size=instrument.lot_size)
 
         if results:
             print(f"[OK] Trade log saved to {trade_log_path}")
@@ -461,7 +464,7 @@ async def backtest():
             print(f"Winning Trades: {results.get('winning_trades', 0)}")
             print(f"Losing Trades: {results.get('losing_trades', 0)}")
             print(f"Win Rate: {results.get('win_rate', 0):.2%}")
-            print(f"Total P&L: {results.get('total_pnl', 0):.2f}")
+            print(f"Total P&L (after brokerage): {results.get('total_pnl', 0):.2f}")
             print(f"Max Drawdown: {results.get('max_drawdown', 0):.2f}")
             print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
 

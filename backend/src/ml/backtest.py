@@ -19,7 +19,8 @@ class Backtester:
     """Backtesting engine for ML-based trading strategies"""
 
     def __init__(self, target_points: float = 20, stop_loss_points: float = 15,
-                 ml_model_path: str = None):
+                 ml_model_path: str = None, initial_capital: float = 20000,
+                 brokerage_entry: float = 25, brokerage_exit: float = 25):
         """
         Initialize backtester
 
@@ -27,10 +28,16 @@ class Backtester:
             target_points: Target profit in points
             stop_loss_points: Stop loss in points
             ml_model_path: Path to saved ML models
+            initial_capital: Starting capital for backtest
+            brokerage_entry: Brokerage fee per trade entry
+            brokerage_exit: Brokerage fee per trade exit
         """
         self.target_points = target_points
         self.stop_loss_points = stop_loss_points
         self.ml_model_path = ml_model_path
+        self.initial_capital = initial_capital
+        self.brokerage_entry = brokerage_entry
+        self.brokerage_exit = brokerage_exit
         self.predictor = None
         self.trades = []
         self.equity_curve = []
@@ -84,13 +91,13 @@ class Backtester:
 
         return False, 0, bars_held
 
-    def run_backtest(self, csv_path: str, initial_capital: float = 100000) -> Dict:
+    def run_backtest(self, csv_path: str, lot_size: int = None) -> Dict:
         """
         Run backtest on historical data
 
         Args:
             csv_path: Path to processed data CSV
-            initial_capital: Starting capital
+            lot_size: Lot size for trades (if None, uses default)
 
         Returns:
             Dictionary with backtest results
@@ -110,7 +117,7 @@ class Backtester:
             raise ValueError("ML model path not provided")
 
         # Initialize tracking variables
-        capital = initial_capital
+        capital = self.initial_capital
         position = None
         entry_price = None
         entry_time = None
@@ -155,9 +162,29 @@ class Backtester:
                     entry_price, position, future_highs, future_lows, entry_time
                 )
 
-                lot_size = 50
+                # Use provided lot_size or get from instrument config
+                if lot_size is None:
+                    # Try to get lot_size from instrument config
+                    try:
+                        from config.instrument import Instrument
+                        from config.fyers_config import DEFAULT_LOT_SIZE
+                        temp_instrument = Instrument(
+                            symbol="NSE:NIFTY50-INDEX",
+                            lot_size=DEFAULT_LOT_SIZE,
+                            tick_size=0.05,
+                            instrument_type="index",
+                            option_premium_range=[0.5, 5.0]
+                        )
+                        lot_size = temp_instrument.lot_size
+                    except:
+                        lot_size = 50  # Default fallback
+
                 pnl_currency = pnl_points * lot_size
-                capital += pnl_currency
+
+                # Subtract brokerage fees
+                total_brokerage = self.brokerage_entry + self.brokerage_exit
+                net_pnl = pnl_currency - total_brokerage
+                capital += net_pnl
 
                 exit_time = df.index[i + bars_held] if i + bars_held < len(df) else df.index[-1]
                 trade = {
@@ -166,8 +193,11 @@ class Backtester:
                     'position': position,
                     'entry_price': entry_price,
                     'exit_price': entry_price + (pnl_points if position == 'BUY' else -pnl_points),
+                    'lot_size': lot_size,
                     'pnl_points': pnl_points,
                     'pnl_currency': pnl_currency,
+                    'brokerage': total_brokerage,
+                    'net_pnl': net_pnl,
                     'bars_held': bars_held,
                     'is_win': is_win,
                     'exit_reason': 'TARGET' if is_win else 'STOP_LOSS'
@@ -219,15 +249,15 @@ class Backtester:
         # Convert trades list to DataFrame for easier analysis
         trades_df = pd.DataFrame(self.trades)
 
-        # Total P&L
-        total_pnl = trades_df['pnl_currency'].sum()
-        total_pnl_percent = (total_pnl / initial_capital) * 100
+        # Total P&L (after brokerage)
+        total_pnl = trades_df['net_pnl'].sum()
+        total_pnl_percent = (total_pnl / self.initial_capital) * 100
 
         # Win rate
         win_rate = winning_trades / total_trades if total_trades > 0 else 0
 
-        # Average trade P&L
-        avg_trade_pnl = trades_df['pnl_currency'].mean()
+        # Average trade P&L (after brokerage)
+        avg_trade_pnl = trades_df['net_pnl'].mean()
 
         # Maximum drawdown
         if self.equity_curve:
