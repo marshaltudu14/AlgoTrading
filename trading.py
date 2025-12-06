@@ -44,7 +44,7 @@ processed_data = None
 BACKTEST_DAYS = 10
 
 # For ML training
-TRAINING_DAYS = 100
+TRAINING_DAYS = 365
 
 # Configuration
 TIMEFRAME = "2"  # Same timeframe for both training and backtest

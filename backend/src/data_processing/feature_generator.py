@@ -125,7 +125,7 @@ class DynamicFileProcessor:
     Handles dynamic processing of all CSV files in the historical_data folder.
     """
 
-    def __init__(self, data_folder: str = None):
+    def __init__(self, data_folder: str = None, timeframe: str = "2"):
         self.config = get_settings()
         self.feature_config = self.config.get('feature_generation', {})
         data_processing_config = self.config.get('data_processing', {})
@@ -133,6 +133,7 @@ class DynamicFileProcessor:
         self.processed_folder = Path(data_processing_config.get('output_folder'))
         self.processed_folder.mkdir(exist_ok=True)
         self.market_structure = MarketStructureAnalyzer()
+        self.timeframe = int(timeframe)  # Store current timeframe in minutes
     
     def scan_data_files(self) -> List[Path]:
         csv_files = list(self.data_folder.glob("*.csv"))
@@ -165,9 +166,9 @@ class DynamicFileProcessor:
     def generate_all_features(self, open_prices: pd.Series, high_prices: pd.Series,
                              low_prices: pd.Series, close_prices: pd.Series) -> pd.DataFrame:
         features = {}
-        for period in self.feature_config.get('sma_periods', [5, 10, 20, 50, 100, 200]):
+        for period in self.feature_config.get('sma_periods', [20, 50, 200]):
             features[f'sma_{period}'] = ta.sma(close_prices, length=period)
-        for period in self.feature_config.get('ema_periods', [5, 10, 20, 50, 100, 200]):
+        for period in self.feature_config.get('ema_periods', [20]):
             features[f'ema_{period}'] = ta.ema(close_prices, length=period)
         macd_fast = self.feature_config.get('macd_fast', 12)
         macd_slow = self.feature_config.get('macd_slow', 26)
@@ -182,21 +183,8 @@ class DynamicFileProcessor:
                 'macd_signal': macd_data[macd_signal_col_name],
                 'macd_histogram': macd_data[macd_hist_col_name]
             })
-        for period in self.feature_config.get('rsi_periods', [14, 21]):
+        for period in self.feature_config.get('rsi_periods', [14]):
             features[f'rsi_{period}'] = ta.rsi(close_prices, length=period)
-        stoch_k_period = self.feature_config.get('stoch_k_period', 14)
-        stoch_d_period = self.feature_config.get('stoch_d_period', 3)
-        stoch_data = ta.stoch(high_prices, low_prices, close_prices, k=stoch_k_period, d=stoch_d_period)
-        if stoch_data is not None and not stoch_data.empty:
-            stoch_k_col = f'STOCHk_{stoch_k_period}_{stoch_d_period}_3'
-            stoch_d_col = f'STOCHd_{stoch_k_period}_{stoch_d_period}_3'
-            stoch_k = stoch_data[stoch_k_col].reindex(close_prices.index)
-            stoch_d = stoch_data[stoch_d_col].reindex(close_prices.index)
-            features.update({'stoch_k': stoch_k, 'stoch_d': stoch_d})
-        williams_r_period = self.feature_config.get('williams_r_period', 14)
-        features['williams_r'] = ta.willr(high_prices, low_prices, close_prices, length=williams_r_period)
-        cci_period = self.feature_config.get('cci_period', 20)
-        features['cci'] = ta.cci(high_prices, low_prices, close_prices, length=cci_period)
         adx_period = self.feature_config.get('adx_period', 14)
         adx_data = ta.adx(high_prices, low_prices, close_prices, length=adx_period)
         if adx_data is not None and not adx_data.empty:
@@ -205,18 +193,6 @@ class DynamicFileProcessor:
                 'di_plus': adx_data[f'DMP_{adx_period}'],
                 'di_minus': adx_data[f'DMN_{adx_period}']
             })
-        momentum_period = self.feature_config.get('momentum_period', 10)
-        roc_period = self.feature_config.get('roc_period', 10)
-        features[f'momentum_{momentum_period}'] = ta.mom(close_prices, length=momentum_period)
-        features[f'roc_{roc_period}'] = ta.roc(close_prices, length=roc_period)
-        trix_period = self.feature_config.get('trix_period', 14)
-        trix_data = ta.trix(close_prices, length=trix_period)
-        if trix_data is not None and not trix_data.empty:
-            trix_col = f'TRIX_{trix_period}_9'
-            if trix_col in trix_data.columns:
-                features['trix'] = trix_data[trix_col]
-            else:
-                features['trix'] = trix_data.iloc[:, 0]
         atr_period = self.feature_config.get('atr_period', 14)
         features['atr'] = ta.atr(high_prices, low_prices, close_prices, length=atr_period)
         bb_period = self.feature_config.get('bb_period', 20)
