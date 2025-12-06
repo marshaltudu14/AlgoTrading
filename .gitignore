@@ -1,6 +1,10 @@
 backend/venv/
 backend/data/final
 backend/data/test
+backend/data/processed/
+backend/data/raw/
+backend/data/token_cache.json
+backend/data/trading_models.pkl
 
 # Ignore all .log files
 *.log
@@ -11,3 +15,9 @@ backend/data/test
 **/*.pyc
 __pycache__/
 **/__pycache__/
+
+# Fyers tokens
+fyers_token.json
+
+# Local settings
+.claude/settings.local.json

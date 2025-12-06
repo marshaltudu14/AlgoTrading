@@ -182,7 +182,8 @@ async def get_candle_data(symbol: str, timeframe: str, start_date: str = None, e
         # Use provided access token or fetch new one
         if not access_token:
             from src.config.fyers_config import SECRET_KEY, REDIRECT_URI, FYERS_USER, FYERS_PIN, FYERS_TOTP
-            access_token = await get_access_token(
+            from src.auth.fyers_auth_service import authenticate_fyers_user
+            access_token = await authenticate_fyers_user(
                 app_id=app_id,
                 secret_key=SECRET_KEY,
                 redirect_uri=REDIRECT_URI,

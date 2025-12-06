@@ -56,9 +56,9 @@ def _process_single_file_standalone(file_path: str, processed_folder: str, featu
         # Process the dataframe
         processed_df = processor.process_dataframe(df)
 
-        # Save processed file as Parquet (replace existing)
-        output_path = Path(processed_folder) / f"features_{Path(file_path).stem}.parquet"
-        processed_df.to_parquet(output_path, index=True)
+        # Save processed file as CSV (replace existing)
+        output_path = Path(processed_folder) / f"features_{Path(file_path).stem}.csv"
+        processed_df.to_csv(output_path, index=True)
 
         result = f"Success: {len(processed_df)} rows, {len(processed_df.columns)} features"
         logger.info(f"Processed {Path(file_path).name}: {result}")
@@ -425,8 +425,8 @@ class DynamicFileProcessor:
             try:
                 df = self.load_and_validate_data(file_path)
                 processed_df = self.process_dataframe(df)
-                output_path = self.processed_folder / f"features_{file_path.stem}.parquet"
-                processed_df.to_parquet(output_path, index=True)
+                output_path = self.processed_folder / f"features_{file_path.stem}.csv"
+                processed_df.to_csv(output_path, index=True)
                 results[file_path.name] = f"Success: {len(processed_df)} rows, {len(processed_df.columns)} features"
                 logger.info(f"Processed {file_path.name}: {results[file_path.name]}")
             except Exception as e:

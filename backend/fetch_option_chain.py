@@ -27,8 +27,8 @@ from fyers_apiv3 import fyersModel
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.auth.fyers_auth_service import get_access_token, create_fyers_model, FyersAuthenticationError
-from src.config.fyers_config import (
+from auth.fyers_auth_service import authenticate_fyers_user, create_fyers_model, FyersAuthenticationError
+from config.fyers_config import (
     APP_ID, SECRET_KEY, REDIRECT_URI, FYERS_USER, FYERS_PIN, FYERS_TOTP
 )
 
@@ -56,7 +56,7 @@ def load_config() -> Dict[str, Any]:
 async def get_access_token_async() -> Optional[str]:
     """Get Fyers access token using the authentication service."""
     try:
-        access_token = await get_access_token(
+        access_token = await authenticate_fyers_user(
             app_id=APP_ID,
             secret_key=SECRET_KEY,
             redirect_uri=REDIRECT_URI,
@@ -82,7 +82,7 @@ async def fetch_option_chain_data(symbol: str, strike_count: int = 5) -> Optiona
             return None
 
         # Create Fyers model instance
-        fyers = fyersModel.FyersModel(client_id=APP_ID, token=access_token)
+        fyers = create_fyers_model(access_token, APP_ID)
 
         # Prepare API request
         url = f"https://api-t1.fyers.in/data/options-chain-v3?symbol={symbol}&strikecount={strike_count}"
@@ -99,33 +99,8 @@ async def fetch_option_chain_data(symbol: str, strike_count: int = 5) -> Optiona
             if data.get('code') == 200:
                 return data.get('data')
             else:
-                # Check if the error is due to expired token
-                error_message = data.get('message', '').lower()
-                if any(keyword in error_message for keyword in ['token', 'unauthorized', 'expired', 'invalid']):
-                    logger.warning("Token appears to be expired, attempting to refresh...")
-                    # Force refresh token and retry
-                    from src.auth.token_manager import clear_cached_token
-                    clear_cached_token()
-                    access_token = await get_access_token_async()
-
-                    if access_token:
-                        # Retry with new token
-                        headers['Authorization'] = access_token
-                        response = requests.get(url, headers=headers)
-                        response.raise_for_status()
-
-                        data = response.json()
-                        if data.get('code') == 200:
-                            return data.get('data')
-                        else:
-                            logger.error(f"Error fetching option chain data after token refresh: {data.get('message', 'Unknown error')}")
-                            return None
-                    else:
-                        logger.error("Failed to refresh token")
-                        return None
-                else:
-                    logger.error(f"Error fetching option chain data: {data.get('message', 'Unknown error')}")
-                    return None
+                logger.error(f"Error fetching option chain data: {data.get('message', 'Unknown error')}")
+                return None
 
         except requests.exceptions.RequestException as e:
             logger.error(f"Error making API request: {e}")

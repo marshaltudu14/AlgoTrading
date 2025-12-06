@@ -14,8 +14,8 @@ from fyers_apiv3 import fyersModel
 # Add the project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.auth.fyers_auth_service import get_access_token, create_fyers_model, FyersAuthenticationError
-from src.config.fyers_config import (
+from auth.fyers_auth_service import authenticate_fyers_user, create_fyers_model, FyersAuthenticationError
+from config.fyers_config import (
     APP_ID, SECRET_KEY, REDIRECT_URI, FYERS_USER, FYERS_PIN, FYERS_TOTP,
     DEFAULT_LOT_SIZE, DEFAULT_PRODUCT_TYPE, DEFAULT_ORDER_TYPE, DEFAULT_EXCHANGE,
     INDEX_SYMBOLS, STRIKE_PRICE_INTERVAL
@@ -380,9 +380,9 @@ async def main():
     logger.info(f"SL Points={args.sl_price}, Target Points={args.target_price}")
 
     try:
-        # Get access token (cached or fresh)
+        # Get access token
         logger.info("Getting access token...")
-        access_token = await get_access_token(
+        access_token = await authenticate_fyers_user(
             app_id=APP_ID,
             secret_key=SECRET_KEY,
             redirect_uri=REDIRECT_URI,
@@ -396,7 +396,7 @@ async def main():
         os.environ["FYERS_APP_ID"] = APP_ID
 
         # Create Fyers model instance
-        fyers = create_fyers_model(access_token)
+        fyers = create_fyers_model(access_token, APP_ID)
 
         # Use provided symbol
         index_symbol = args.symbol

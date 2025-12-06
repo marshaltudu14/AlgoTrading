@@ -12,8 +12,8 @@ import argparse
 import time
 from datetime import datetime, timedelta
 from fyers_apiv3 import fyersModel
-from src.auth.fyers_auth_service import get_access_token, create_fyers_model, FyersAuthenticationError
-from src.config.fyers_config import (
+from auth.fyers_auth_service import authenticate_fyers_user, create_fyers_model, FyersAuthenticationError
+from config.fyers_config import (
     APP_ID, SECRET_KEY, REDIRECT_URI, FYERS_USER, FYERS_PIN, FYERS_TOTP
 )
 
@@ -176,11 +176,15 @@ def fetch_candles(fyers, symbol, timeframe, start_date=None, end_date=None, days
     if not all_data.empty and all_data.shape[1] >= 6:
         if all_data.columns.dtype == 'int64':  # Default numeric column names
             all_data = all_data.drop_duplicates().sort_values(0).reset_index(drop=True)
+            # Set proper column names
+            all_data.columns = ['datetime', 'open', 'high', 'low', 'close', 'volume']
         elif 'timestamp' in all_data.columns:
             all_data = all_data.drop_duplicates().sort_values('timestamp').reset_index(drop=True)
         else:
             # Try to find the timestamp column (usually the first column)
             all_data = all_data.drop_duplicates().sort_values(all_data.columns[0]).reset_index(drop=True)
+            # Set proper column names
+            all_data.columns = ['datetime', 'open', 'high', 'low', 'close', 'volume']
 
     logger.info(f"Fetched total of {len(all_data)} candles for {symbol} {timeframe}")
     return all_data
@@ -232,9 +236,9 @@ async def main():
         # Set the environment variable for the create_fyers_model function
         os.environ["FYERS_APP_ID"] = APP_ID
 
-        # Get access token (cached or fresh)
+        # Get access token
         logger.info("Getting access token...")
-        access_token = await get_access_token(
+        access_token = await authenticate_fyers_user(
             app_id=APP_ID,
             secret_key=SECRET_KEY,
             redirect_uri=REDIRECT_URI,
@@ -245,7 +249,7 @@ async def main():
         logger.info("Authentication successful!")
 
         # Create Fyers model instance
-        fyers = create_fyers_model(access_token)
+        fyers = create_fyers_model(access_token, APP_ID)
 
         # Create data directory if it doesn't exist
         data_dir = "backend/data"
