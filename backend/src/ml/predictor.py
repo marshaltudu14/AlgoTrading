@@ -9,9 +9,9 @@ Uses Random Forest to predict:
 
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 import pickle
 import logging
 from typing import Dict, Tuple, Optional
@@ -38,19 +38,50 @@ class TradingPredictor:
         # 2. Volatility: (next high - next low) / next close
         df['volatility'] = ((df['high'].shift(-1) - df['low'].shift(-1)) / df['close'].shift(-1)) * 100
 
-        # Remove rows with NaN targets (last row will have NaN)
-        df = df.dropna(subset=['direction', 'volatility'])
+        # Convert direction to 3-state classification
+        # Calculate 33rd and 66th percentiles for direction
+        direction_threshold_low = df['direction'].quantile(0.33)
+        direction_threshold_high = df['direction'].quantile(0.67)
+
+        # Create 3-state direction: -1 (strong down), 0 (neutral), 1 (strong up)
+        df['direction_3state'] = pd.cut(df['direction'],
+                                       bins=[-np.inf, direction_threshold_low, direction_threshold_high, np.inf],
+                                       labels=[-1, 0, 1])
+
+        # Convert volatility to 3-state classification
+        # Calculate 33rd and 66th percentiles for volatility
+        volatility_threshold_low = df['volatility'].quantile(0.33)
+        volatility_threshold_high = df['volatility'].quantile(0.67)
+
+        # Create 3-state volatility: 0 (low), 1 (normal), 2 (high)
+        df['volatility_3state'] = pd.cut(df['volatility'],
+                                        bins=[-np.inf, volatility_threshold_low, volatility_threshold_high, np.inf],
+                                        labels=[0, 1, 2])
+
+        # Remove rows with NaN targets (including categorical NaNs)
+        df = df.dropna(subset=['direction_3state', 'volatility_3state'])
+
+        # Now convert to int after removing NaNs
+        df['direction_3state'] = df['direction_3state'].astype(int)
+        df['volatility_3state'] = df['volatility_3state'].astype(int)
 
         # Select features (exclude target variables and OHLCV for now)
-        exclude_cols = ['direction', 'volatility', 'open', 'high', 'low', 'close', 'volume',
+        exclude_cols = ['direction', 'volatility', 'direction_3state', 'volatility_3state',
+                       'open', 'high', 'low', 'close', 'volume',
                        'datetime', 'datetime_readable', 'datetime_epoch', 'Unnamed: 0']
         self.features = [col for col in df.columns if col not in exclude_cols]
 
         X = df[self.features]
-        y_direction = df['direction']
-        y_volatility = df['volatility']
+        y_direction = df['direction_3state']
+        y_volatility = df['volatility_3state']
 
         logger.info(f"Prepared {len(self.features)} features for {len(X)} samples")
+        logger.info(f"Direction distribution: -1: {len(df[df['direction_3state'] == -1])}, "
+                   f"0: {len(df[df['direction_3state'] == 0])}, "
+                   f"1: {len(df[df['direction_3state'] == 1])}")
+        logger.info(f"Volatility distribution: 0: {len(df[df['volatility_3state'] == 0])}, "
+                   f"1: {len(df[df['volatility_3state'] == 1])}, "
+                   f"2: {len(df[df['volatility_3state'] == 2])}")
 
         return X, y_direction, y_volatility
 
@@ -70,9 +101,9 @@ class TradingPredictor:
             X, y_volatility, test_size=0.2, random_state=42, shuffle=False
         )
 
-        # Train direction model
-        logger.info("Training direction prediction model...")
-        self.direction_model = RandomForestRegressor(
+        # Train direction model (classifier)
+        logger.info("Training direction classification model...")
+        self.direction_model = RandomForestClassifier(
             n_estimators=100,
             max_depth=10,
             random_state=42,
@@ -80,9 +111,9 @@ class TradingPredictor:
         )
         self.direction_model.fit(X_train, y_dir_train)
 
-        # Train volatility model
-        logger.info("Training volatility prediction model...")
-        self.volatility_model = RandomForestRegressor(
+        # Train volatility model (classifier)
+        logger.info("Training volatility classification model...")
+        self.volatility_model = RandomForestClassifier(
             n_estimators=100,
             max_depth=10,
             random_state=42,
@@ -94,20 +125,22 @@ class TradingPredictor:
         dir_pred = self.direction_model.predict(X_test)
         vol_pred = self.volatility_model.predict(X_test)
 
+        # Classification metrics
+        dir_accuracy = accuracy_score(y_dir_test, dir_pred)
+        vol_accuracy = accuracy_score(y_vol_test, vol_pred)
+
         dir_metrics = {
-            'mae': mean_absolute_error(y_dir_test, dir_pred),
-            'mse': mean_squared_error(y_dir_test, dir_pred),
-            'r2': r2_score(y_dir_test, dir_pred)
+            'accuracy': dir_accuracy,
+            'classification_report': classification_report(y_dir_test, dir_pred, output_dict=True)
         }
 
         vol_metrics = {
-            'mae': mean_absolute_error(y_vol_test, vol_pred),
-            'mse': mean_squared_error(y_vol_test, vol_pred),
-            'r2': r2_score(y_vol_test, vol_pred)
+            'accuracy': vol_accuracy,
+            'classification_report': classification_report(y_vol_test, vol_pred, output_dict=True)
         }
 
-        logger.info(f"Direction model - R²: {dir_metrics['r2']:.3f}, MAE: {dir_metrics['mae']:.4f}")
-        logger.info(f"Volatility model - R²: {vol_metrics['r2']:.3f}, MAE: {vol_metrics['mae']:.2f}%")
+        logger.info(f"Direction model - Accuracy: {dir_accuracy:.3f}")
+        logger.info(f"Volatility model - Accuracy: {vol_accuracy:.3f}")
 
         self.is_trained = True
 
@@ -132,13 +165,16 @@ class TradingPredictor:
         direction_pred = self.direction_model.predict(X)
         volatility_pred = self.volatility_model.predict(X)
 
-        # Convert direction to binary signal (1 for up, 0 for down)
-        direction_signal = (direction_pred > 0).astype(int)
+        # Get prediction probabilities
+        direction_proba = self.direction_model.predict_proba(X)
+        volatility_proba = self.volatility_model.predict_proba(X)
 
         return {
-            'direction_raw': direction_pred,
-            'direction_signal': direction_signal,
-            'volatility': volatility_pred
+            'direction_raw': direction_pred,  # -1, 0, 1
+            'direction_signal': direction_pred,  # Keep original 3-state signal
+            'direction_proba': direction_proba,  # Probabilities for each state
+            'volatility': volatility_pred,  # 0, 1, 2
+            'volatility_proba': volatility_proba  # Probabilities for each state
         }
 
     def predict_latest(self, df: pd.DataFrame) -> Dict[str, float]:
@@ -153,10 +189,22 @@ class TradingPredictor:
         # Make prediction
         predictions = self.predict(latest)
 
+        # Get probability for the predicted class
+        dir_class_idx = int(predictions['direction_signal'][0])
+        vol_class_idx = int(predictions['volatility'][0])
+
+        # Map indices to probability arrays
+        dir_probabilities = predictions['direction_proba'][0]
+        vol_probabilities = predictions['volatility_proba'][0]
+
+        # Convert -1,0,1 to 0,1,2 for indexing
+        dir_prob_idx = dir_class_idx + 1 if dir_class_idx != -1 else 0
+
         return {
-            'direction_prediction': float(predictions['direction_raw'][0]),
-            'direction_signal': int(predictions['direction_signal'][0]),
-            'volatility_prediction': float(predictions['volatility'][0]),
+            'direction_prediction': int(predictions['direction_signal'][0]),  # -1, 0, or 1
+            'direction_probability': float(dir_probabilities[dir_prob_idx]),
+            'volatility_prediction': int(predictions['volatility'][0]),  # 0, 1, or 2
+            'volatility_probability': float(vol_probabilities[vol_class_idx]),
             'current_price': float(latest['close'].iloc[-1]),
             'prediction_confidence': self._get_confidence_score(latest)
         }

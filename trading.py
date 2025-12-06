@@ -382,14 +382,40 @@ def train_ml_models():
 
         print("[OK] ML models trained and saved successfully!")
 
+        # Get training metrics from the model (from train_and_evaluate function)
+        # Since train_and_evaluate already trained the model and returned the predictor,
+        # we need to predict on test data to get metrics
+        from sklearn.model_selection import train_test_split
+        from sklearn.metrics import accuracy_score
+
+        # Split data to get test metrics
+        X, y_direction, y_volatility = predictor.prepare_features_and_targets(training_data)
+        _, X_test, _, y_dir_test = train_test_split(X, y_direction, test_size=0.2, random_state=42, shuffle=False)
+        _, _, _, y_vol_test = train_test_split(X, y_volatility, test_size=0.2, random_state=42, shuffle=False)
+
+        # Get predictions
+        dir_pred = predictor.direction_model.predict(X_test)
+        vol_pred = predictor.volatility_model.predict(X_test)
+
+        # Calculate accuracy
+        dir_accuracy = accuracy_score(y_dir_test, dir_pred)
+        vol_accuracy = accuracy_score(y_vol_test, vol_pred)
+
+        print("\n[MODEL TRAINING RESULTS]")
+        print(f"  Direction Model Accuracy: {dir_accuracy:.1%}")
+        print(f"  Volatility Model Accuracy: {vol_accuracy:.1%}")
+
+        # Note: Skip detailed classification report for brevity
+
         latest_prediction = predictor.predict_latest(training_data)
 
         print(f"\nLatest Prediction:")
         print(f"  Current Price: Rs.{latest_prediction['current_price']:.2f}")
-        print(f"  Direction: {'UP' if latest_prediction['direction_signal'] == 1 else 'DOWN'}")
-        print(f"  Expected Move: {latest_prediction['direction_prediction']*100:.2f}%")
-        print(f"  Volatility: {latest_prediction['volatility_prediction']:.2f}%")
-        print(f"  Confidence: {latest_prediction['prediction_confidence']*100:.1f}%")
+        print(f"  Direction: {['Strong Down', 'Neutral', 'Strong Up'][latest_prediction['direction_prediction'] + 1]}")
+        print(f"  Direction Confidence: {latest_prediction['direction_probability']:.1%}")
+        print(f"  Volatility: {['Low', 'Normal', 'High'][latest_prediction['volatility_prediction']]}")
+        print(f"  Volatility Confidence: {latest_prediction['volatility_probability']:.1%}")
+        print(f"  Overall Confidence: {latest_prediction['prediction_confidence']*100:.1f}%")
 
         return True
 
@@ -476,6 +502,9 @@ async def backtest():
             print(f"Total P&L (after brokerage): {results.get('total_pnl', 0):.2f}")
             print(f"Max Drawdown: {results.get('max_drawdown', 0):.2f}")
             print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
+            print(f"Max Winning Streak: {results.get('max_winning_streak', 0)} trades")
+            print(f"Max Losing Streak: {results.get('max_losing_streak', 0)} trades")
+            print(f"Trade log includes: direction signal, volatility state, confidence, target/stop prices")
 
             return True
         else:

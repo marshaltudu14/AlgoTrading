@@ -55,41 +55,75 @@ class Backtester:
 
     def simulate_trade(self, entry_price: float, direction: str,
                       high_prices: pd.Series, low_prices: pd.Series,
-                      entry_time: pd.Timestamp) -> Tuple[bool, float, int]:
+                      entry_time: pd.Timestamp) -> Tuple[bool, float, int, Dict]:
         bars_held = 0
+        exit_details = {
+            'exit_price': entry_price,
+            'target_price': None,
+            'stop_loss_price': None,
+            'exit_reason': None
+        }
 
         if direction == 'BUY':
             target_price = entry_price + self.target_points
             stop_loss_price = entry_price - self.stop_loss_points
+            exit_details.update({
+                'target_price': target_price,
+                'stop_loss_price': stop_loss_price
+            })
 
             for high, low in zip(high_prices, low_prices):
                 bars_held += 1
 
                 if high >= target_price:
-                    return True, self.target_points, bars_held
+                    exit_details.update({
+                        'exit_price': target_price,
+                        'exit_reason': 'TARGET'
+                    })
+                    return True, self.target_points, bars_held, exit_details
 
                 if low <= stop_loss_price:
-                    return False, -self.stop_loss_points, bars_held
+                    exit_details.update({
+                        'exit_price': stop_loss_price,
+                        'exit_reason': 'STOP_LOSS'
+                    })
+                    return False, -self.stop_loss_points, bars_held, exit_details
 
         else:
             target_price = entry_price - self.target_points
             stop_loss_price = entry_price + self.stop_loss_points
+            exit_details.update({
+                'target_price': target_price,
+                'stop_loss_price': stop_loss_price
+            })
 
             for high, low in zip(high_prices, low_prices):
                 bars_held += 1
 
                 if low <= target_price:
-                    return True, self.target_points, bars_held
+                    exit_details.update({
+                        'exit_price': target_price,
+                        'exit_reason': 'TARGET'
+                    })
+                    return True, self.target_points, bars_held, exit_details
 
                 if high >= stop_loss_price:
-                    return False, -self.stop_loss_points, bars_held
+                    exit_details.update({
+                        'exit_price': stop_loss_price,
+                        'exit_reason': 'STOP_LOSS'
+                    })
+                    return False, -self.stop_loss_points, bars_held, exit_details
 
         if len(high_prices) > 0:
             last_price = high_prices.iloc[-1] if direction == 'BUY' else low_prices.iloc[-1]
             pnl = last_price - entry_price if direction == 'BUY' else entry_price - last_price
-            return pnl > 0, pnl, bars_held
+            exit_details.update({
+                'exit_price': last_price,
+                'exit_reason': 'EXPIRY'
+            })
+            return pnl > 0, pnl, bars_held, exit_details
 
-        return False, 0, bars_held
+        return False, 0, bars_held, exit_details
 
     def run_backtest(self, csv_path: str, instrument=None) -> Dict:
         """
@@ -129,27 +163,40 @@ class Backtester:
         predictions = self.predictor.predict(df)
         df['direction_signal'] = predictions['direction_signal']
         df['volatility_prediction'] = predictions['volatility']
+        df['direction_proba'] = [proba.max() for proba in predictions['direction_proba']]
+        df['volatility_proba'] = [proba.max() for proba in predictions['volatility_proba']]
 
         # Iterate through each data point (skip last 50 bars to ensure future data for trade simulation)
         for i in range(len(df) - 50):
             current_time = df.index[i]
             current_price = df['close'].iloc[i]
             current_signal = df['direction_signal'].iloc[i]
+            current_volatility = df['volatility_prediction'].iloc[i]
+            direction_confidence = df['direction_proba'].iloc[i]
 
             # If not in position, check for entry signal
             if position is None:
-                # Enter position based on ML signal
-                if current_signal == 1:  # BUY signal
+                # Only enter if we have strong directional signal and good confidence
+                if direction_confidence < 0.35:  # Skip low confidence signals
+                    continue
+
+                # Determine if we should enter based on 3-state signals
+                should_buy = current_signal == 1 and direction_confidence > 0.4
+                should_sell = current_signal == -1 and direction_confidence > 0.4
+
+                if should_buy:
                     position = 'BUY'
                     entry_price = current_price
                     entry_time = current_time
-                    logger.debug(f"{current_time}: BUY at {entry_price}")
+                    entry_volatility = current_volatility
+                    logger.debug(f"{current_time}: BUY at {entry_price} (volatility: {entry_volatility}, confidence: {direction_confidence:.2f})")
 
-                elif current_signal == 0:  # SELL signal
+                elif should_sell:
                     position = 'SELL'
                     entry_price = current_price
                     entry_time = current_time
-                    logger.debug(f"{current_time}: SELL at {entry_price}")
+                    entry_volatility = current_volatility
+                    logger.debug(f"{current_time}: SELL at {entry_price} (volatility: {entry_volatility}, confidence: {direction_confidence:.2f})")
 
             # If in position, check for exit
             elif position:
@@ -157,8 +204,8 @@ class Backtester:
                 future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
                 future_lows = df['low'].iloc[i+1:i+51]
 
-                # Simulate trade
-                is_win, pnl_points, bars_held = self.simulate_trade(
+                # Simulate trade with fixed targets and stop loss
+                is_win, pnl_points, bars_held, exit_price_detail = self.simulate_trade(
                     entry_price, position, future_highs, future_lows, entry_time
                 )
 
@@ -183,7 +230,9 @@ class Backtester:
                     'exit_time': exit_time,
                     'position': position,
                     'entry_price': entry_price,
-                    'exit_price': entry_price + (pnl_points if position == 'BUY' else -pnl_points),
+                    'exit_price': exit_price_detail['exit_price'],
+                    'target_price': exit_price_detail['target_price'],
+                    'stop_loss_price': exit_price_detail['stop_loss_price'],
                     'lot_size': lot_size,
                     'pnl_points': pnl_points,
                     'pnl_currency': pnl_currency,
@@ -191,7 +240,10 @@ class Backtester:
                     'net_pnl': net_pnl,
                     'bars_held': bars_held,
                     'is_win': is_win,
-                    'exit_reason': 'TARGET' if is_win else 'STOP_LOSS'
+                    'exit_reason': exit_price_detail['exit_reason'],
+                    'direction_signal': current_signal,
+                    'volatility_state': entry_volatility,
+                    'confidence': direction_confidence * 100  # Convert to percentage
                 }
                 self.trades.append(trade)
 
@@ -217,6 +269,8 @@ class Backtester:
         results = self._calculate_metrics(self.initial_capital, total_trades, winning_trades, losing_trades)
 
         logger.info(f"Backtest completed - Total trades: {total_trades}, Win rate: {results['win_rate']:.2%}")
+        logger.info(f"Max Winning Streak: {results.get('max_winning_streak', 0)} trades")
+        logger.info(f"Max Losing Streak: {results.get('max_losing_streak', 0)} trades")
 
         return results
 
@@ -265,6 +319,22 @@ class Backtester:
             max_drawdown = 0
             sharpe_ratio = 0
 
+        # Calculate winning and losing streaks
+        max_winning_streak = 0
+        max_losing_streak = 0
+        current_winning_streak = 0
+        current_losing_streak = 0
+
+        for _, trade in trades_df.iterrows():
+            if trade['is_win']:
+                current_winning_streak += 1
+                max_winning_streak = max(max_winning_streak, current_winning_streak)
+                current_losing_streak = 0
+            else:
+                current_losing_streak += 1
+                max_losing_streak = max(max_losing_streak, current_losing_streak)
+                current_winning_streak = 0
+
         return {
             'total_trades': total_trades,
             'winning_trades': winning_trades,
@@ -275,6 +345,8 @@ class Backtester:
             'max_drawdown': max_drawdown,
             'sharpe_ratio': sharpe_ratio,
             'avg_trade_pnl': avg_trade_pnl,
+            'max_winning_streak': max_winning_streak,
+            'max_losing_streak': max_losing_streak,
             'profit_factor': (trades_df[trades_df['pnl_currency'] > 0]['pnl_currency'].sum() /
                              abs(trades_df[trades_df['pnl_currency'] < 0]['pnl_currency'].sum()))
                              if trades_df[trades_df['pnl_currency'] < 0]['pnl_currency'].sum() != 0 else float('inf')
