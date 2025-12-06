@@ -49,6 +49,9 @@ TRAINING_DAYS = 100
 # Configuration
 TIMEFRAME = "2"  # Same timeframe for both training and backtest
 
+# Instrument configuration
+DEFAULT_INSTRUMENT_NAME = "Nifty"  # Can be "Bank_Nifty", "Nifty", "Bankex", "Finnifty", "Sensex", etc.
+
 # Trading parameters
 TARGET_POINTS = 20  # Target profit in points
 STOP_LOSS_POINTS = 15  # Stop loss in points
@@ -162,16 +165,29 @@ def configure_instrument():
     global instrument
 
     try:
-        from backend.config.instruments import INSTRUMENTS, DEFAULT_INSTRUMENT
+        from backend.config.instruments import INSTRUMENTS
+        from backend.src.config.instrument import Instrument
 
-        # Use NIFTY from instruments config
-        instrument = DEFAULT_INSTRUMENT  # This is Nifty 50 with lot_size=75
+        # Find instrument by name
+        instrument_config = None
+        for inst in INSTRUMENTS:
+            if inst.symbol == DEFAULT_INSTRUMENT_NAME:
+                instrument_config = inst
+                break
 
-        # Update instrument attributes for compatibility
-        instrument.symbol = instrument.exchangeSymbol
-        instrument.lot_size = instrument.lotSize
-        instrument.tick_size = instrument.tickSize
-        instrument.instrument_type = instrument.type
+        if instrument_config is None:
+            print(f"[ERROR] Instrument '{DEFAULT_INSTRUMENT_NAME}' not found!")
+            print(f"Available instruments: {[inst.symbol for inst in INSTRUMENTS]}")
+            return False
+
+        # Create Instrument object with correct parameters
+        instrument = Instrument(
+            symbol=instrument_config.exchangeSymbol,
+            lot_size=instrument_config.lotSize,
+            tick_size=instrument_config.tickSize,
+            instrument_type=instrument_config.type,
+            option_premium_range=[0.5, 5.0]
+        )
 
         # Calculate position size
         if profile:
@@ -179,7 +195,7 @@ def configure_instrument():
             trade_capital = available_capital * 0.10  # 10% of capital
             position_size = max(1, int(trade_capital / (instrument.lot_size * 200)))
 
-            print(f"[OK] Instrument: {instrument.name}")
+            print(f"[OK] Instrument: {instrument_config.name}")
             print(f"[OK] Lot Size: {instrument.lot_size}")
             print(f"[OK] Trade Capital: Rs.{trade_capital:,.2f}")
             print(f"[OK] Position Size: {position_size} lots")
@@ -188,6 +204,8 @@ def configure_instrument():
 
     except Exception as e:
         print(f"[ERROR] Instrument configuration failed: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
@@ -298,10 +316,11 @@ def train_ml_models():
         training_data_id = f"{TRAINING_DAYS}d_{TIMEFRAME}min"
         model_path = f"backend/data/trading_models_{training_data_id}.pkl"
 
-        # Check if model already exists
+        # Always retrain when --train argument is passed
         if os.path.exists(model_path):
-            print(f"[INFO] Model already exists at {model_path}")
-            return True
+            print(f"[INFO] Existing model found at {model_path}, retraining...")
+        else:
+            print(f"[INFO] Training new model...")
 
         # Look for processed training data
         output_dir = "backend/data/processed"

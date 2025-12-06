@@ -214,7 +214,7 @@ class Backtester:
                 entry_time = None
 
         # Calculate final metrics
-        results = self._calculate_metrics(initial_capital, total_trades, winning_trades, losing_trades)
+        results = self._calculate_metrics(self.initial_capital, total_trades, winning_trades, losing_trades)
 
         logger.info(f"Backtest completed - Total trades: {total_trades}, Win rate: {results['win_rate']:.2%}")
 

@@ -2,15 +2,15 @@
 Instrument configuration for trading
 """
 
-class Instrument:
-    def __init__(self, id, name, symbol, exchange_symbol, type, lot_size, tick_size):
+class InstrumentConfig:
+    def __init__(self, id, name, symbol, exchangeSymbol, type, lotSize, tickSize):
         self.id = id
         self.name = name
         self.symbol = symbol
-        self.exchangeSymbol = exchange_symbol
+        self.exchangeSymbol = exchangeSymbol
         self.type = type
-        self.lotSize = lot_size
-        self.tickSize = tick_size
+        self.lotSize = lotSize
+        self.tickSize = tickSize
 
 
 class Timeframe:
@@ -22,77 +22,77 @@ class Timeframe:
 
 
 INSTRUMENTS = [
-    Instrument(
+    InstrumentConfig(
         id=0,
         name="Bank Nifty",
         symbol="Bank_Nifty",
         exchangeSymbol="NSE:NIFTYBANK-INDEX",
         type="index",
-        lot_size=35,
-        tick_size=0.05,
+        lotSize=35,
+        tickSize=0.05,
     ),
-    Instrument(
+    InstrumentConfig(
         id=1,
         name="Nifty 50",
         symbol="Nifty",
         exchangeSymbol="NSE:NIFTY50-INDEX",
         type="index",
-        lot_size=75,
-        tick_size=0.05,
+        lotSize=75,
+        tickSize=0.05,
     ),
-    Instrument(
+    InstrumentConfig(
         id=2,
         name="Bankex",
         symbol="Bankex",
         exchangeSymbol="NSE:BANKEX-INDEX",
         type="index",
-        lot_size=30,
-        tick_size=0.05,
+        lotSize=30,
+        tickSize=0.05,
     ),
-    Instrument(
+    InstrumentConfig(
         id=3,
         name="Finnifty",
         symbol="Finnifty",
         exchangeSymbol="NSE:FINNIFTY-INDEX",
         type="index",
-        lot_size=65,
-        tick_size=0.05,
+        lotSize=65,
+        tickSize=0.05,
     ),
-    Instrument(
+    InstrumentConfig(
         id=4,
         name="Sensex",
         symbol="Sensex",
         exchangeSymbol="BSE:SENSEX-INDEX",
         type="index",
-        lot_size=20,
-        tick_size=0.05,
+        lotSize=20,
+        tickSize=0.05,
     ),
-    Instrument(
+    InstrumentConfig(
         id=5,
         name="Reliance Industries",
         symbol="RELIANCE",
         exchangeSymbol="NSE:RELIANCE-EQ",
         type="stock",
-        lot_size=1,
-        tick_size=0.05,
+        lotSize=1,
+        tickSize=0.05,
     ),
-    Instrument(
+    InstrumentConfig(
         id=6,
         name="Tata Consultancy Services",
         symbol="TCS",
         exchangeSymbol="NSE:TCS-EQ",
         type="stock",
-        lot_size=1,
-        tick_size=0.05,
+        lotSize=1,
+        tickSize=0.05,
     ),
-    Instrument(
+    InstrumentConfig(
         id=7,
         name="HDFC Bank",
         symbol="HDFC",
         exchangeSymbol="NSE:HDFCBANK-EQ",
         type="stock",
-        lot_size=1,
-        tick_size=0.05,
+        lotSize=1,
+        tickSize=0.05,
     ),
 ]
 
