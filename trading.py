@@ -162,17 +162,16 @@ def configure_instrument():
     global instrument
 
     try:
-        from config.instrument import Instrument
-        from config.fyers_config import INDEX_SYMBOLS, DEFAULT_LOT_SIZE
+        from backend.config.instruments import INSTRUMENTS, DEFAULT_INSTRUMENT
 
-        # Define NIFTY instrument
-        instrument = Instrument(
-            symbol=INDEX_SYMBOLS["NIFTY"],
-            lot_size=DEFAULT_LOT_SIZE,
-            tick_size=0.05,
-            instrument_type="index",
-            option_premium_range=[0.5, 5.0]
-        )
+        # Use NIFTY from instruments config
+        instrument = DEFAULT_INSTRUMENT  # This is Nifty 50 with lot_size=75
+
+        # Update instrument attributes for compatibility
+        instrument.symbol = instrument.exchangeSymbol
+        instrument.lot_size = instrument.lotSize
+        instrument.tick_size = instrument.tickSize
+        instrument.instrument_type = instrument.type
 
         # Calculate position size
         if profile:
@@ -180,7 +179,7 @@ def configure_instrument():
             trade_capital = available_capital * 0.10  # 10% of capital
             position_size = max(1, int(trade_capital / (instrument.lot_size * 200)))
 
-            print(f"[OK] Instrument: NIFTY")
+            print(f"[OK] Instrument: {instrument.name}")
             print(f"[OK] Lot Size: {instrument.lot_size}")
             print(f"[OK] Trade Capital: Rs.{trade_capital:,.2f}")
             print(f"[OK] Position Size: {position_size} lots")
