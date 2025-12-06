@@ -230,20 +230,17 @@ class Backtester:
                     'exit_time': exit_time,
                     'position': position,
                     'entry_price': entry_price,
-                    'exit_price': exit_price_detail['exit_price'],
                     'target_price': exit_price_detail['target_price'],
                     'stop_loss_price': exit_price_detail['stop_loss_price'],
                     'lot_size': lot_size,
                     'pnl_points': pnl_points,
                     'pnl_currency': pnl_currency,
-                    'brokerage': total_brokerage,
-                    'net_pnl': net_pnl,
                     'bars_held': bars_held,
-                    'is_win': is_win,
                     'exit_reason': exit_price_detail['exit_reason'],
                     'direction_signal': current_signal,
                     'volatility_state': entry_volatility,
-                    'confidence': direction_confidence * 100  # Convert to percentage
+                    'confidence': direction_confidence * 100,  # Convert to percentage
+                    'capital': capital  # Current capital after this trade
                 }
                 self.trades.append(trade)
 
