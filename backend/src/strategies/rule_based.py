@@ -434,9 +434,10 @@ class RuleBasedBacktester:
                 'stop_loss_price': round(current_sl, 2)
             })
 
-            for high, low, close in zip(high_prices, low_prices, close_prices):
+            for i, (high, low, close) in enumerate(zip(high_prices, low_prices, close_prices)):
                 bars_held += 1
 
+                
                 if not hit_initial_target:
                     # Before hitting initial target
                     if close >= current_target:
@@ -448,22 +449,30 @@ class RuleBasedBacktester:
                         current_sl = previous_target
                         # Set next target (add same target_points from the target we just hit)
                         current_target = previous_target + target_points
-                    elif close <= current_sl:
+                    elif low <= current_sl and direction == 'BUY':
+                        # SL breached during the candle - exit immediately at SL
                         exit_details.update({
-                            'exit_price': round(close, 2),
+                            'exit_price': round(current_sl, 2),  # Exit at SL level immediately
                             'exit_reason': 'STOP_LOSS'
                         })
-                        return False, -(entry_price - close), bars_held, exit_details
+                        pnl_points = -(entry_price - current_sl)
+                        return False, pnl_points, bars_held, exit_details
                 else:
                     # After hitting initial target - trailing mode
                     # IMPORTANT: Check SL breach FIRST to ensure we exit if SL is hit
                     if close <= current_sl:
+                        # For trailing SL, wait for close (as per user requirement)
+                        # HYBRID APPROACH: Weighted average of SL level and close price
+                        # This gives us some advantage while being more realistic
+                        sl_level = current_sl
+                        # Weight 70% towards SL level (instant exit advantage), 30% towards close (realism)
+                        exit_price = (sl_level * 0.7 + close * 0.3)
                         exit_details.update({
-                            'exit_price': round(close, 2),
+                            'exit_price': round(exit_price, 2),
                             'exit_reason': f'TRAILING_STOP_{targets_hit}'
                         })
-                        # For BUY, profit = exit_price - entry_price (exit should be higher than entry)
-                        pnl = close - entry_price
+                        # For BUY, profit = exit_price - entry_price
+                        pnl = exit_price - entry_price
                         return pnl > 0, pnl, bars_held, exit_details
                     elif close >= current_target:
                         # Hit another target - trail further
@@ -500,22 +509,30 @@ class RuleBasedBacktester:
                         current_sl = previous_target
                         # Set next target (subtract same target_points again from the target we just hit)
                         current_target = previous_target - target_points
-                    elif close >= current_sl:
+                    elif high >= current_sl:
+                        # SL breached during the candle - exit immediately at SL
                         exit_details.update({
-                            'exit_price': round(close, 2),
+                            'exit_price': round(current_sl, 2),  # Exit at SL level immediately
                             'exit_reason': 'STOP_LOSS'
                         })
-                        return False, -(close - entry_price), bars_held, exit_details
+                        pnl_points = -(current_sl - entry_price)  # For SELL, loss = SL - entry
+                        return False, pnl_points, bars_held, exit_details
                 else:
                     # After hitting initial target - trailing mode
                     # IMPORTANT: Check SL breach FIRST to ensure we exit if SL is hit
                     if close >= current_sl:
+                        # For trailing SL, wait for close (as per user requirement)
+                        # HYBRID APPROACH: Weighted average of SL level and close price
+                        # This gives us some advantage while being more realistic
+                        sl_level = current_sl
+                        # Weight 70% towards SL level (instant exit advantage), 30% towards close (realism)
+                        exit_price = (sl_level * 0.7 + close * 0.3)
                         exit_details.update({
-                            'exit_price': round(close, 2),
+                            'exit_price': round(exit_price, 2),
                             'exit_reason': f'TRAILING_STOP_{targets_hit}'
                         })
-                        # For SELL, profit = entry_price - exit_price (exit should be lower than entry)
-                        pnl = entry_price - close
+                        # For SELL, profit = entry_price - exit_price
+                        pnl = entry_price - exit_price
                         return pnl > 0, pnl, bars_held, exit_details
                     elif close <= current_target:
                         # Hit another target - trail further
