@@ -19,7 +19,7 @@ class RuleBasedBacktester:
     """Backtester for rule-based strategies using pre-calculated features"""
 
     def __init__(self, target_pnl: float = 500, stop_loss_pnl: float = -300,
-                 initial_capital: float = 20000, brokerage_entry: float = 25,
+                 initial_capital: float = 25000, brokerage_entry: float = 25,
                  brokerage_exit: float = 25):
         """
         Initialize backtester for rule-based strategies
@@ -490,9 +490,14 @@ class RuleBasedBacktester:
         winning_trades = 0
         losing_trades = 0
 
-        # Track daily losses
+        # Track daily losses (total losses per day, not consecutive)
         daily_losses = {}  # Dictionary to track losses per day
         max_daily_losses = 2
+
+        # Dynamic lot size based on capital
+        base_lot_size = instrument.lot_size if instrument and hasattr(instrument, 'lot_size') else 75
+        current_lot_multiplier = 1  # Tracks how many times capital has doubled
+        initial_capital_for_doubling = self.initial_capital
 
         # Iterate through each data point (skip last 50 bars for trade simulation)
         for i in range(len(df) - 50):
@@ -525,11 +530,19 @@ class RuleBasedBacktester:
 
             # If in position, check for exit (immediate exit for backtesting)
             elif position:
-                # Use lot size from instrument
-                if instrument and hasattr(instrument, 'lot_size'):
-                    lot_size = instrument.lot_size
-                else:
-                    lot_size = 50  # Default fallback
+                # Check if capital has doubled and update lot multiplier
+                capital_multiple = capital / initial_capital_for_doubling
+                new_multiplier = 1
+                while capital_multiple >= (2 ** new_multiplier):
+                    new_multiplier += 1
+
+                # Log lot size change if it increased
+                if new_multiplier > current_lot_multiplier:
+                    logger.info(f"Capital reached Rs.{capital:,.0f} - Lot size increased from {base_lot_size * current_lot_multiplier} to {base_lot_size * new_multiplier}")
+                    current_lot_multiplier = new_multiplier
+
+                lot_size = base_lot_size * current_lot_multiplier
+                lot_size = max(lot_size, base_lot_size)  # Ensure lot size is never less than base
 
                 # Get future prices for trade simulation
                 future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
@@ -574,10 +587,10 @@ class RuleBasedBacktester:
                     winning_trades += 1
                 else:
                     losing_trades += 1
-                    # Update daily loss count
+                    # Update daily loss count (using entry date when trade was initiated)
                     trade_date = entry_time.date() if hasattr(entry_time, 'date') else entry_time
                     daily_losses[trade_date] = daily_losses.get(trade_date, 0) + 1
-                    logger.debug(f"{trade_date}: Loss count increased to {daily_losses[trade_date]}")
+                    logger.debug(f"{trade_date}: Loss count increased to {daily_losses[trade_date]} (total losses for day)")
 
                 self.equity_curve.append({
                     'time': exit_time,

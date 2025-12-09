@@ -51,7 +51,7 @@ STRATEGY = "multi_indicator_combo"  # Default strategy - best performer
 MIN_CONFIDENCE = 0.5  # Optimal confidence threshold
 
 # Instrument configuration
-DEFAULT_INSTRUMENT_NAME = "Bank_Nifty"  # Can be "Bank_Nifty", "Nifty", "Bankex", "Finnifty", "Sensex", etc.
+DEFAULT_INSTRUMENT_NAME = "Nifty"  # Can be "Bank_Nifty", "Nifty", "Bankex", "Finnifty", "Sensex", etc.
 
 # Trading parameters - P&L based (instrument agnostic) - Fixed configuration
 TARGET_PNL = 500  # Target profit in Rs (per position) - FIXED
@@ -256,12 +256,13 @@ def preprocess_data():
 
         print("Using data processing pipeline...")
 
+        # Use standard directories with instrument-specific filenames
+        instrument_name = DEFAULT_INSTRUMENT_NAME.lower()  # Use clean name like "bank_nifty"
         input_dir = "backend/data/raw"
         output_dir = "backend/data/processed"
         os.makedirs(input_dir, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
-        instrument_symbol = instrument.symbol.lower() if hasattr(instrument, 'symbol') else DEFAULT_INSTRUMENT_NAME.lower()
-        csv_path = f"{input_dir}/{instrument_symbol}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
+        csv_path = f"{input_dir}/{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
         historical_data.to_csv(csv_path, index=False)
 
         from backend.src.data_processing.pipeline import DataProcessingPipeline
@@ -279,7 +280,7 @@ def preprocess_data():
             feature_files = list(output_data_path.glob("features_*.csv"))
 
             # Get the most recent feature file that matches our data ID
-            matching_files = [f for f in feature_files if f"{instrument_symbol}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
+            matching_files = [f for f in feature_files if f"{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
 
             if matching_files:
                 # Use the file that matches our historical days
@@ -336,10 +337,10 @@ async def backtest():
 
     try:
         # Use backtest data - get the processed file directly
+        instrument_name = DEFAULT_INSTRUMENT_NAME.lower()
         output_dir = "backend/data/processed"
         feature_files = list(Path(output_dir).glob("features_*.csv"))
-        instrument_symbol = DEFAULT_INSTRUMENT_NAME.lower()
-        matching_files = [f for f in feature_files if f"{instrument_symbol}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
+        matching_files = [f for f in feature_files if f"{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
 
         if matching_files:
             csv_path = max(matching_files, key=lambda x: x.stat().st_mtime)
@@ -351,7 +352,7 @@ async def backtest():
         backtester = RuleBasedBacktester(
             target_pnl=TARGET_PNL,
             stop_loss_pnl=STOP_LOSS_PNL,
-            initial_capital=20000,
+            initial_capital=25000,
             brokerage_entry=25,
             brokerage_exit=25
         )
@@ -411,10 +412,10 @@ async def main():
 
     # For backtest mode, check if processed data exists to skip authentication
     if args.backtest:
+        instrument_name = DEFAULT_INSTRUMENT_NAME.lower()
         output_dir = "backend/data/processed"
         feature_files = list(Path(output_dir).glob("features_*.csv"))
-        instrument_symbol = DEFAULT_INSTRUMENT_NAME.lower()
-        matching_files = [f for f in feature_files if f"{instrument_symbol}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
+        matching_files = [f for f in feature_files if f"{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
 
         if matching_files:
             print("\n[OK] Found existing processed data - skipping authentication and data fetch")
@@ -445,10 +446,10 @@ async def main():
 
     print("\n--- Data Preprocessing ---")
     # Check if processed data already exists
+    instrument_name = DEFAULT_INSTRUMENT_NAME.lower()
     output_dir = "backend/data/processed"
     feature_files = list(Path(output_dir).glob("features_*.csv"))
-    instrument_symbol = DEFAULT_INSTRUMENT_NAME.lower()
-    matching_files = [f for f in feature_files if f"{instrument_symbol}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
+    matching_files = [f for f in feature_files if f"{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
 
     if not matching_files:
         print("[INFO] No processed data found, running preprocessing...")
