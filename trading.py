@@ -41,7 +41,7 @@ processed_data = None
 
 # Configuration
 # For regular/backtest mode - using larger dataset for better testing
-BACKTEST_DAYS = 365
+BACKTEST_DAYS = 30
 
 # Configuration
 TIMEFRAME = "5"  # 5-minute timeframe - better Sharpe ratio, more stable
@@ -266,43 +266,57 @@ def preprocess_data():
 
         print("Using data processing pipeline...")
 
-        # Use standard directories with instrument-specific filenames
-        instrument_name = DEFAULT_INSTRUMENT_NAME.lower()  # Use clean name like "bank_nifty"
+        # Use instrument-specific filenames
+        instrument_name = DEFAULT_INSTRUMENT_NAME.lower().replace(" ", "_").replace("-", "_")  # Clean name for file
         input_dir = "backend/data/raw"
         output_dir = "backend/data/processed"
         os.makedirs(input_dir, exist_ok=True)
         os.makedirs(output_dir, exist_ok=True)
-        csv_path = f"{input_dir}/{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
-        historical_data.to_csv(csv_path, index=False)
 
+        # Specific file paths for our instrument/days/timeframe
+        raw_csv_path = f"{input_dir}/{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
+        processed_csv_path = f"{output_dir}/features_{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
+
+        # Save raw data
+        historical_data.to_csv(raw_csv_path, index=False)
+        print(f"[INFO] Saved raw data to {raw_csv_path}")
+
+        # Check if processed file already exists
+        if os.path.exists(processed_csv_path):
+            print(f"[OK] Using existing processed data: {processed_csv_path}")
+            processed_data = pd.read_csv(processed_csv_path)
+            print(f"[OK] Processed data shape: {processed_data.shape}")
+            return True
+
+        # Create a temporary directory with only our file
+        temp_input_dir = f"{input_dir}/temp_{instrument_name}_{BACKTEST_DAYS}d"
+        os.makedirs(temp_input_dir, exist_ok=True)
+
+        # Copy only our file to the temp directory
+        import shutil
+        temp_csv_path = f"{temp_input_dir}/{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
+        shutil.copy2(raw_csv_path, temp_csv_path)
+
+        # Process only the files in temp directory
         from backend.src.data_processing.pipeline import DataProcessingPipeline
-
         pipeline = DataProcessingPipeline()
 
+        # Run feature generation on temp directory
         results = pipeline.run_feature_generation(
-            input_dir=input_dir,
+            input_dir=temp_input_dir,
             output_dir=output_dir,
             parallel=False
         )
 
+        # Clean up temp directory
+        shutil.rmtree(temp_input_dir)
+
         if results.get('success'):
-            output_data_path = Path(output_dir)
-            feature_files = list(output_data_path.glob("features_*.csv"))
-
-            # Get the most recent feature file that matches our data ID
-            matching_files = [f for f in feature_files if f"{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
-
-            if matching_files:
-                # Use the file that matches our historical days
-                latest_file = max(matching_files, key=lambda x: x.stat().st_mtime)
-                processed_data = pd.read_csv(latest_file)
-                print(f"[OK] Processed data shape: {processed_data.shape}")
-                print(f"[OK] Using data from {latest_file}")
-
-                return True
-            else:
-                print("[ERROR] No processed files found")
-                return False
+            # Read the processed data
+            processed_data = pd.read_csv(processed_csv_path)
+            print(f"[OK] Processed data shape: {processed_data.shape}")
+            print(f"[OK] Saved processed data to {processed_csv_path}")
+            return True
         else:
             print(f"[ERROR] Pipeline failed: {results.get('error')}")
             return False
@@ -346,17 +360,17 @@ async def backtest():
     from backend.src.strategies.rule_based import RuleBasedBacktester
 
     try:
-        # Use backtest data - get the processed file directly
-        instrument_name = DEFAULT_INSTRUMENT_NAME.lower()
+        # Use backtest data - get the specific processed file
+        instrument_name = DEFAULT_INSTRUMENT_NAME.lower().replace(" ", "_").replace("-", "_")
         output_dir = "backend/data/processed"
-        feature_files = list(Path(output_dir).glob("features_*.csv"))
-        matching_files = [f for f in feature_files if f"{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
+        csv_path = f"{output_dir}/features_{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
 
-        if matching_files:
-            csv_path = max(matching_files, key=lambda x: x.stat().st_mtime)
-        else:
-            print(f"[ERROR] No processed backtest data found")
+        if not os.path.exists(csv_path):
+            print(f"[ERROR] No processed backtest data found at {csv_path}")
+            print(f"[INFO] Please run without --backtest flag first to fetch and process data")
             return False
+
+        print(f"[OK] Using processed data: {csv_path}")
 
         # Create rule-based backtester
         backtester = RuleBasedBacktester(
@@ -431,15 +445,16 @@ async def main():
 
     # For backtest mode, check if processed data exists to skip authentication
     if args.backtest:
-        instrument_name = DEFAULT_INSTRUMENT_NAME.lower()
+        instrument_name = DEFAULT_INSTRUMENT_NAME.lower().replace(" ", "_").replace("-", "_")
         output_dir = "backend/data/processed"
-        feature_files = list(Path(output_dir).glob("features_*.csv"))
-        matching_files = [f for f in feature_files if f"{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
 
-        if matching_files:
+        # Specific file we're looking for
+        processed_csv_path = f"{output_dir}/features_{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
+
+        if os.path.exists(processed_csv_path):
             print("\n[OK] Found existing processed data - skipping authentication and data fetch")
             print("\n--- Data Preprocessing ---")
-            print(f"[OK] Using existing processed data: {matching_files[0].name}")
+            print(f"[OK] Using existing processed data: features_{instrument_name}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv")
 
             # Configure instrument with defaults since we can't get capital without auth
             print("\n--- Instrument Configuration (Default) ---")
