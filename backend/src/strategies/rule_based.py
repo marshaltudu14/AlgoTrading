@@ -54,6 +54,7 @@ class RuleBasedBacktester:
         self.trades = []
         self.equity_curve = []
         self.trade_log_path = None
+        self.peak_capital = initial_capital  # Track highest capital achieved
 
     def rsi_mean_reversion(self, df: pd.DataFrame, i: int) -> Tuple[str, float]:
         """RSI Mean Reversion Strategy using pre-calculated RSI"""
@@ -549,8 +550,7 @@ class RuleBasedBacktester:
 
             # If in position, check for exit (immediate exit for backtesting)
             elif position:
-                # Calculate lot size based on capital doubling - dynamic and unlimited
-                # Keep doubling as capital grows beyond any limit
+                # Calculate lot size based on capital levels - dynamic with both increase and decrease
                 lot_multiplier = 1
                 temp_capital = capital
 
@@ -560,22 +560,35 @@ class RuleBasedBacktester:
                     temp_capital /= 2
                     lot_multiplier *= 2
 
-                # This creates:
-                # 25k-49.9k: 1x
-                # 50k-99.9k: 2x
-                # 100k-199.9k: 4x
-                # 200k-399.9k: 8x
-                # 400k-799.9k: 16x
-                # 800k+: 32x, 64x, 128x... unlimited!
+                # This creates dynamic lot sizing:
+                # 25k-49.9k: 1x, 50k-99.9k: 2x, 100k-199.9k: 4x, etc.
+                # Automatically scales down if capital drops!
 
-                # Log lot size change if it increased
-                if lot_multiplier > current_lot_multiplier:
+                # Update peak capital if current capital is higher
+                if capital > self.peak_capital:
+                    self.peak_capital = capital
+
+                # Check for account blowup (capital below 50% of peak)
+                if capital < self.peak_capital * 0.50:
+                    logger.error(f"CRITICAL: Account blowup! Capital at {format_currency(capital)} (< 50% of peak {format_currency(self.peak_capital)})")
+                    logger.error("Stopping trading to prevent complete loss")
+                    break  # Exit the backtest loop
+
+                # Check if we need to adjust lot size (increase or decrease)
+                lot_size_changed = False
+                if lot_multiplier != current_lot_multiplier:
                     old_lot_size = base_lot_size * current_lot_multiplier
                     new_lot_size = base_lot_size * lot_multiplier
-                    scaled_target_pnl = self.target_pnl * lot_multiplier
-                    scaled_stop_loss_pnl = self.stop_loss_pnl * lot_multiplier
-                    logger.info(f"Capital reached {format_currency(capital)} - Lot size doubled from {old_lot_size} to {new_lot_size}")
-                    logger.info(f"Scaled P&L targets: Target {format_currency(scaled_target_pnl)} | Stop Loss {format_currency(scaled_stop_loss_pnl)}")
+                    lot_size_changed = True
+
+                    if lot_multiplier > current_lot_multiplier:
+                        # Lot size increasing
+                        logger.info(f"Capital reached {format_currency(capital)} - Lot size doubled from {old_lot_size} to {new_lot_size}")
+                    else:
+                        # Lot size decreasing (capital reduction)
+                        logger.warning(f"Capital dropped to {format_currency(capital)} - Lot size halved from {old_lot_size} to {new_lot_size}")
+
+                    # Update lot multiplier
                     current_lot_multiplier = lot_multiplier
 
                 lot_size = base_lot_size * current_lot_multiplier
@@ -584,6 +597,10 @@ class RuleBasedBacktester:
                 # This maintains the same risk-reward per lot
                 scaled_target_pnl = self.target_pnl * current_lot_multiplier
                 scaled_stop_loss_pnl = self.stop_loss_pnl * current_lot_multiplier
+
+                # Log current P&L targets when lot size changed
+                if lot_size_changed:
+                    logger.info(f"Scaled P&L targets: Target {format_currency(scaled_target_pnl)} | Stop Loss {format_currency(scaled_stop_loss_pnl)}")
 
                 # Get future prices for trade simulation
                 future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
