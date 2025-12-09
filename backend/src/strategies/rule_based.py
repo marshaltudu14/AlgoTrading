@@ -620,7 +620,7 @@ class RuleBasedBacktester:
                     'bars_held': bars_held,
                     'exit_reason': exit_details['exit_reason'],
                     'confidence': round(entry_confidence * 100, 1),
-                    'capital': capital
+                    'capital': format_currency(capital)
                 }
                 self.trades.append(trade)
 
@@ -636,7 +636,7 @@ class RuleBasedBacktester:
 
                 self.equity_curve.append({
                     'time': exit_time,
-                    'capital': capital
+                    'capital': capital  # Keep numeric for calculations
                 })
 
                 # Save trade to CSV
