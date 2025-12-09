@@ -54,11 +54,21 @@ MIN_CONFIDENCE = 0.5  # Optimal confidence threshold
 DEFAULT_INSTRUMENT_NAME = "Nifty"  # Can be "Bank_Nifty", "Nifty", "Bankex", "Finnifty", "Sensex", etc.
 
 # Trading parameters - P&L based (instrument agnostic) - Fixed configuration
-TARGET_PNL = 500  # Target profit in Rs (per position) - FIXED
-STOP_LOSS_PNL = -250  # Stop loss in Rs (per position) - FIXED
+TARGET_PNL = 5000  # Target profit in Rs (per position) - FIXED
+STOP_LOSS_PNL = -2500  # Stop loss in Rs (per position) - FIXED
 
 # Generate unique identifier for filenames
 DATA_ID = f"{BACKTEST_DAYS}d_{TIMEFRAME}min"
+
+
+def format_currency(amount: float) -> str:
+    """Format currency amount with Indian number system"""
+    if amount >= 10000000:  # 1 Crore or more
+        return f"Rs.{amount/10000000:.2f} Cr"
+    elif amount >= 100000:  # 1 Lakh or more
+        return f"Rs.{amount/100000:.2f} L"
+    else:
+        return f"Rs.{amount:,.0f}"
 
 
 def save_token_to_cache(token_data):
@@ -383,13 +393,13 @@ async def backtest():
             print(f"Winning Trades: {results.get('winning_trades', 0)}")
             print(f"Losing Trades: {results.get('losing_trades', 0)}")
             print(f"Win Rate: {results.get('win_rate', 0):.2%}")
-            print(f"Total P&L (after brokerage): Rs.{results.get('total_pnl', 0):,.2f}")
+            print(f"Total P&L (after brokerage): {format_currency(results.get('total_pnl', 0))}")
             print(f"Total P&L %: {results.get('total_pnl_percent', 0):.1f}%")
-            print(f"Max Drawdown: Rs.{results.get('max_drawdown', 0):,.2f}")
+            print(f"Max Drawdown: {format_currency(results.get('max_drawdown', 0))}")
             print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
             print(f"Profit Factor: {results.get('profit_factor', 0):.2f}")
-            print(f"Highest Daily Profit: Rs.{results.get('highest_daily_profit', 0):,.2f}")
-            print(f"Highest Daily Loss: Rs.{results.get('highest_daily_loss', 0):,.2f}")
+            print(f"Highest Daily Profit: {format_currency(results.get('highest_daily_profit', 0))}")
+            print(f"Highest Daily Loss: {format_currency(results.get('highest_daily_loss', 0))}")
             print(f"Max Trades in a Day: {results.get('max_trades_per_day', 0)}")
             print(f"Min Trades in a Day: {results.get('min_trades_per_day', 0)}")
             print(f"Max Winning Streak: {results.get('max_winning_streak', 0)} trades")
@@ -415,8 +425,8 @@ async def main():
     print(f"Mode: {mode}")
     print(f"Timeframe: {TIMEFRAME}-minute")
     print(f"Historical Days: {BACKTEST_DAYS}")
-    print(f"Target P&L: Rs.{TARGET_PNL}")
-    print(f"Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
+    print(f"Target P&L: {format_currency(TARGET_PNL)}")
+    print(f"Stop Loss P&L: {format_currency(STOP_LOSS_PNL)}")
     print(f"Strategy: {STRATEGY}")
 
     # For backtest mode, check if processed data exists to skip authentication

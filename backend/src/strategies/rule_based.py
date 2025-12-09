@@ -15,6 +15,21 @@ import os
 logger = logging.getLogger(__name__)
 
 
+def format_currency(amount: float) -> str:
+    """Format currency amount with Indian number system"""
+    if amount >= 10000000:  # 1 Crore or more
+        return f"Rs.{amount/10000000:.2f} Cr"
+    elif amount >= 100000:  # 1 Lakh or more
+        return f"Rs.{amount/100000:.2f} L"
+    else:
+        return f"Rs.{amount:,.0f}"
+
+
+def round_to_nearest_5k(amount: float) -> float:
+    """Round amount to nearest 5000"""
+    return round(amount / 5000) * 5000
+
+
 class RuleBasedBacktester:
     """Backtester for rule-based strategies using pre-calculated features"""
 
@@ -474,7 +489,7 @@ class RuleBasedBacktester:
             Dictionary with backtest results
         """
         logger.info(f"Starting rule-based backtest with strategy: {strategy}")
-        logger.info(f"Target: Rs.{self.target_pnl}, Stop Loss: Rs.{self.stop_loss_pnl}")
+        logger.info(f"Target: {format_currency(self.target_pnl)}, Stop Loss: {format_currency(self.stop_loss_pnl)}")
 
         # Load data
         df = pd.read_csv(csv_path)
@@ -559,8 +574,8 @@ class RuleBasedBacktester:
                     new_lot_size = base_lot_size * lot_multiplier
                     scaled_target_pnl = self.target_pnl * lot_multiplier
                     scaled_stop_loss_pnl = self.stop_loss_pnl * lot_multiplier
-                    logger.info(f"Capital reached Rs.{capital:,.0f} - Lot size doubled from {old_lot_size} to {new_lot_size}")
-                    logger.info(f"Scaled P&L targets: Target Rs.{scaled_target_pnl:,} | Stop Loss Rs.{scaled_stop_loss_pnl:,}")
+                    logger.info(f"Capital reached {format_currency(capital)} - Lot size doubled from {old_lot_size} to {new_lot_size}")
+                    logger.info(f"Scaled P&L targets: Target {format_currency(scaled_target_pnl)} | Stop Loss {format_currency(scaled_stop_loss_pnl)}")
                     current_lot_multiplier = lot_multiplier
 
                 lot_size = base_lot_size * current_lot_multiplier
@@ -636,8 +651,8 @@ class RuleBasedBacktester:
         results = self._calculate_metrics(self.initial_capital, total_trades, winning_trades, losing_trades)
 
         logger.info(f"Backtest completed - Total trades: {total_trades}, Win rate: {results['win_rate']:.2%}")
-        logger.info(f"Total P&L: Rs.{results['total_pnl']:,.2f} ({results['total_pnl_percent']:.1f}%)")
-        logger.info(f"Max Drawdown: Rs.{results['max_drawdown']:,.2f}")
+        logger.info(f"Total P&L: {format_currency(results['total_pnl'])} ({results['total_pnl_percent']:.1f}%)")
+        logger.info(f"Max Drawdown: {format_currency(results['max_drawdown'])}")
 
         return results
 
