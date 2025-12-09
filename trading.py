@@ -43,9 +43,6 @@ processed_data = None
 # For regular/backtest mode - using larger dataset for better testing
 BACKTEST_DAYS = 365
 
-# For ML training (commented out - using indicator strategies instead)
-# TRAINING_DAYS = 365
-
 # Configuration
 TIMEFRAME = "5"  # 5-minute timeframe - better Sharpe ratio, more stable
 
@@ -307,23 +304,12 @@ def preprocess_data():
 
 
 
-def train_ml_models():
-    """ML Model Training - DISABLED - Using indicator strategies instead"""
-    print("\n--- Step 5: ML Model Training ---")
-    print("[INFO] ML model training is disabled - Using indicator-based strategies")
-    print("[INFO] Strategies available: rsi_mean_reversion, macd_crossover, bollinger_bands, ema_crossover,")
-    print("                     supertrend, stochastic_oversold, volume_price_trend, atr_breakout,")
-    print("                     vwap_reversal, multi_indicator_combo")
-    print(f"[INFO] Current strategy: {STRATEGY}")
-    return True
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Algo Trading Pipeline')
     parser.add_argument('--backtest', action='store_true',
                         help='Run in backtest mode')
-    parser.add_argument('--train', action='store_true',
-                        help='Run ML training only')
     return parser.parse_args()
 
 
@@ -331,8 +317,8 @@ async def real_trading():
     print("\n=== REAL TRADING MODE ===")
     print("\n[INFO] Real trading is currently disabled for safety")
     print(f"[INFO] Current Price: NIFTY - Check live prices")
-    print(f"[INFO] Target: {TARGET_POINTS} points")
-    print(f"[INFO] Stop Loss: {STOP_LOSS_POINTS} points")
+    print(f"[INFO] Target P&L: Rs.{TARGET_PNL}")
+    print(f"[INFO] Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
     print("\n[WARNING] Please implement real trading logic with proper risk management")
     print("[WARNING] Ensure to test thoroughly with paper trading first!")
     return True
@@ -345,7 +331,7 @@ async def backtest():
     print(f"[INFO] Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
     print(f"[INFO] Minimum Confidence: {MIN_CONFIDENCE}")
 
-    from backend.src.strategies.backtest import RuleBasedBacktester
+    from backend.src.strategies.rule_based import RuleBasedBacktester
 
     try:
         # Use backtest data - get the processed file directly
@@ -411,13 +397,14 @@ async def backtest():
 async def main():
     args = parse_arguments()
 
-    mode = 'TRAIN' if args.train else ('BACKTEST' if args.backtest else 'REAL')
+    mode = 'BACKTEST' if args.backtest else 'REAL'
     print("\n=== Algo Trading Pipeline ===\n")
     print(f"Mode: {mode}")
     print(f"Timeframe: {TIMEFRAME}-minute")
     print(f"Historical Days: {BACKTEST_DAYS}")
     print(f"Target P&L: Rs.{TARGET_PNL}")
     print(f"Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
+    print(f"Strategy: {STRATEGY}")
 
     # For backtest mode, check if processed data exists to skip authentication
     if args.backtest:
@@ -427,16 +414,16 @@ async def main():
 
         if matching_files:
             print("\n[OK] Found existing processed data - skipping authentication and data fetch")
-            print("\n--- Step 4: Data Preprocessing ---")
+            print("\n--- Data Preprocessing ---")
             print(f"[OK] Using existing processed data: {matching_files[0].name}")
 
             # Configure instrument with defaults since we can't get capital without auth
-            print("\n--- Step 2: Instrument Configuration (Default) ---")
+            print("\n--- Instrument Configuration (Default) ---")
             if not configure_instrument():
                 print("[WARNING] Using default instrument configuration")
 
-            # Skip ML training for backtest
-            print("\n--- Step 6: Execution ---")
+            # Execute backtest
+            print("\n--- Execution ---")
             await backtest()
             return
 
@@ -444,23 +431,15 @@ async def main():
     if not await authenticate():
         return
 
-    print("\n--- Step 2: Instrument Configuration ---")
+    print("\n--- Instrument Configuration ---")
     if not configure_instrument():
         return
 
-    if args.train:
-        # Train mode - only train ML models
-        print("\n--- Step 3: ML Model Training ---")
-        if not train_ml_models():
-            return
-        print("\n[OK] Training completed successfully!")
-        return
-
-    print("\n--- Step 3: Fetch Historical Data ---")
+    print("\n--- Fetch Historical Data ---")
     if not fetch_historical_data():
         return
 
-    print("\n--- Step 4: Data Preprocessing ---")
+    print("\n--- Data Preprocessing ---")
     # Check if processed data already exists
     output_dir = "backend/data/processed"
     feature_files = list(Path(output_dir).glob("features_*.csv"))
@@ -473,13 +452,7 @@ async def main():
     else:
         print(f"[OK] Using existing processed data: {matching_files[0].name}")
 
-    # ML models are disabled - using indicator strategies instead
-    # Only show training info if explicitly requested
-    if not args.backtest:
-        if not train_ml_models():
-            return
-
-    print("\n--- Step 6: Execution ---")
+    print("\n--- Execution ---")
     if args.backtest:
         await backtest()
     else:

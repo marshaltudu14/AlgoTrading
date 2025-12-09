@@ -519,6 +519,10 @@ class RuleBasedBacktester:
         winning_trades = 0
         losing_trades = 0
 
+        # Track daily losses
+        daily_losses = {}  # Dictionary to track losses per day
+        max_daily_losses = 2
+
         # Iterate through each data point (skip last 50 bars for trade simulation)
         for i in range(len(df) - 50):
             current_time = df.index[i] if hasattr(df.index, 'to_pydatetime') else df['datetime_readable'].iloc[i]
@@ -529,6 +533,18 @@ class RuleBasedBacktester:
 
             # If not in position, check for entry signal
             if position is None and signal != 'HOLD' and confidence >= min_confidence:
+                # Check daily loss limit
+                trade_date = current_time.date()
+
+                # Initialize daily loss count if not exists
+                if trade_date not in daily_losses:
+                    daily_losses[trade_date] = 0
+
+                # Skip trade if already hit max daily losses
+                if daily_losses[trade_date] >= max_daily_losses:
+                    logger.debug(f"{current_time}: Skipping trade - Max daily losses ({max_daily_losses}) reached for {trade_date}")
+                    continue
+
                 position = signal
                 entry_price = current_price
                 entry_time = current_time
@@ -577,7 +593,6 @@ class RuleBasedBacktester:
                     'pnl_currency': round(net_pnl, 2),
                     'bars_held': bars_held,
                     'exit_reason': exit_details['exit_reason'],
-                    'strategy': strategy,
                     'confidence': round(entry_confidence * 100, 1),
                     'capital': capital
                 }
@@ -588,6 +603,10 @@ class RuleBasedBacktester:
                     winning_trades += 1
                 else:
                     losing_trades += 1
+                    # Update daily loss count
+                    trade_date = entry_time.date() if hasattr(entry_time, 'date') else entry_time
+                    daily_losses[trade_date] = daily_losses.get(trade_date, 0) + 1
+                    logger.debug(f"{trade_date}: Loss count increased to {daily_losses[trade_date]}")
 
                 self.equity_curve.append({
                     'time': exit_time,
@@ -719,6 +738,23 @@ class RuleBasedBacktester:
         losses = abs(trades_df[trades_df['pnl_currency'] < 0]['pnl_currency'].sum())
         profit_factor = profits / losses if losses != 0 else float('inf')
 
+        # Calculate winning and losing streaks
+        max_winning_streak = 0
+        max_losing_streak = 0
+        current_winning_streak = 0
+        current_losing_streak = 0
+
+        for _, trade in trades_df.iterrows():
+            is_winning_trade = trade['pnl_currency'] > 0
+            if is_winning_trade:
+                current_winning_streak += 1
+                max_winning_streak = max(max_winning_streak, current_winning_streak)
+                current_losing_streak = 0
+            else:
+                current_losing_streak += 1
+                max_losing_streak = max(max_losing_streak, current_losing_streak)
+                current_winning_streak = 0
+
         return {
             'total_trades': total_trades,
             'winning_trades': winning_trades,
@@ -729,7 +765,9 @@ class RuleBasedBacktester:
             'max_drawdown': max_drawdown,
             'sharpe_ratio': sharpe_ratio,
             'avg_trade_pnl': avg_trade_pnl,
-            'profit_factor': profit_factor
+            'profit_factor': profit_factor,
+            'max_winning_streak': max_winning_streak,
+            'max_losing_streak': max_losing_streak
         }
 
     def _save_trade_to_csv(self, trade: Dict):
