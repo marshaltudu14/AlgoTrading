@@ -213,7 +213,14 @@ class RuleBasedBacktester:
         return signal, confidence
 
     def multi_indicator_combo(self, df: pd.DataFrame, i: int) -> Tuple[str, float]:
-        """Ultra-Enhanced Multi-Indicator Combination Strategy"""
+        """Enhanced Multi-Indicator Combination Strategy with Risk Filters"""
+
+        # Get current time to check for 3 PM cutoff
+        current_time = df.index[i] if hasattr(df.index, 'to_pydatetime') else pd.to_datetime(df['datetime_readable'].iloc[i])
+
+        # Skip trades after 3:15 PM (to allow execution before 3:30 close)
+        if current_time.time() >= pd.Timestamp('15:15:00').time():
+            return 'HOLD', 0.0
 
         # Get signals from multiple strategies
         rsi_signal, rsi_conf = self.rsi_mean_reversion(df, i)
@@ -221,15 +228,21 @@ class RuleBasedBacktester:
         trend_signal, trend_conf = self.trend_following(df, i)
 
         # Additional indicator analysis
-        atr_pct = df['atr_pct'].iloc[i] if 'atr_pct' in df.columns else 1.0
+        atr_pct = df['atr_pct'].iloc[i] if 'atr_pct' in df.columns else 0.09
         price_change_pct = df['price_change_pct'].iloc[i] if 'price_change_pct' in df.columns else 0
         bb_position = df['bb_position'].iloc[i] if 'bb_position' in df.columns else 0.5
-        bb_width = df['bb_width_pct'].iloc[i] if 'bb_width_pct' in df.columns else 0.5
+        bb_width = df['bb_width_pct'].iloc[i] if 'bb_width_pct' in df.columns else 0.19
         trend_slope = df['trend_slope'].iloc[i] if 'trend_slope' in df.columns else 0
 
-        # Get RSI_21 for additional confirmation
+        # Get RSI values
         rsi_21 = df['rsi_21'].iloc[i] if 'rsi_21' in df.columns else 50
         rsi_14 = df['rsi_14'].iloc[i] if 'rsi_14' in df.columns else 50
+
+        # Candlestick analysis for momentum and reversal detection
+        body_size = df['body_size_pct'].iloc[i] if 'body_size_pct' in df.columns else 0.047
+        lower_shadow = df['lower_shadow_pct'].iloc[i] if 'lower_shadow_pct' in df.columns else 0.022
+        upper_shadow = df['upper_shadow_pct'].iloc[i] if 'upper_shadow_pct' in df.columns else 0.021
+        hl_range = df['hl_range_pct'].iloc[i] if 'hl_range_pct' in df.columns else 0.09
 
         # Multi-timeframe alignment check
         mtf_buy = ((df['dist_sma_5'].iloc[i] > df['dist_sma_10'].iloc[i]) &
@@ -239,125 +252,87 @@ class RuleBasedBacktester:
                     (df['dist_sma_10'].iloc[i] < df['dist_sma_20'].iloc[i]) &
                     (df['dist_sma_20'].iloc[i] < df['dist_sma_50'].iloc[i]))
 
-        # Candlestick pattern detection
-        body_size = df['body_size_pct'].iloc[i] if 'body_size_pct' in df.columns else 0
-        lower_shadow = df['lower_shadow_pct'].iloc[i] if 'lower_shadow_pct' in df.columns else 0
-        upper_shadow = df['upper_shadow_pct'].iloc[i] if 'upper_shadow_pct' in df.columns else 0
-        hl_range = df['hl_range_pct'].iloc[i] if 'hl_range_pct' in df.columns else 0
+        # Risk filters based on actual data analysis
+        # 1. Avoid huge candles (momentum already passed)
+        if hl_range > 0.5:  # > 0.5% range is large (75th percentile is 0.11%)
+            return 'HOLD', 0.0
 
-        # Pattern recognition
-        hammer_pattern = (lower_shadow > 2 * body_size) and (lower_shadow > 1.0)
-        shooting_star = (upper_shadow > 2 * body_size) and (upper_shadow > 1.0)
+        # 2. Avoid large body candles (already strong momentum)
+        if body_size > 0.3:  # > 0.3% body is large
+            return 'HOLD', 0.0
 
-        # High-Low range analysis (intraday range)
-        large_range = hl_range > 2.0  # > 2% intraday range
-        small_range = hl_range < 0.5  # < 0.5% intraday range
-
-        # Wick analysis for reversal signals
-        long_lower_wick = lower_shadow > hl_range * 0.6  # Lower wick > 60% of range
-        long_upper_wick = upper_shadow > hl_range * 0.6  # Upper wick > 60% of range
+        # 3. Check for reversal signals using wicks
+        long_lower_wick = lower_shadow > 0.1 and lower_shadow > (body_size * 2)
+        long_upper_wick = upper_shadow > 0.1 and upper_shadow > (body_size * 2)
 
         # Dynamic confidence multipliers
         confidence_boost = 1.0
-        reasons = []
 
-        # 1. Multi-timeframe alignment bonus
+        # Multi-timeframe alignment bonus
         if mtf_buy and trend_signal == 'BUY':
             confidence_boost *= 1.3
-            reasons.append('MTF buy alignment')
         elif mtf_sell and trend_signal == 'SELL':
             confidence_boost *= 1.3
-            reasons.append('MTF sell alignment')
 
-        # 2. Bollinger Band bounce/reversal
-        if bb_position < 0.1 and bb_width > 0.3:  # Near lower band with decent volatility
-            if rsi_14 < 35 or rsi_21 < 35:
-                confidence_boost *= 1.2
-                reasons.append('BB bounce from support')
-        elif bb_position > 0.9 and bb_width > 0.3:  # Near upper band
-            if rsi_14 > 65 or rsi_21 > 65:
-                confidence_boost *= 1.2
-                reasons.append('BB rejection at resistance')
+        # Bollinger Band analysis
+        if bb_position < 0.15 and bb_width > 0.15:  # Near lower band with decent volatility
+            if rsi_14 < 40:
+                confidence_boost *= 1.25
+        elif bb_position > 0.85 and bb_width > 0.15:  # Near upper band
+            if rsi_14 > 60:
+                confidence_boost *= 1.25
 
-        # 3. Squeeze play detection (low volatility)
-        if bb_width < 0.2:
-            # Prepare for breakout
+        # Reversal signals from wicks
+        if long_lower_wick and rsi_14 < 45:
+            confidence_boost *= 1.2  # Bullish reversal potential
+        elif long_upper_wick and rsi_14 > 55:
+            confidence_boost *= 1.2  # Bearish reversal potential
+
+        # Squeeze play detection
+        if bb_width < 0.1:  # Low volatility squeeze
             if abs(trend_slope) > 0.5:
                 confidence_boost *= 1.15
-                reasons.append('Squeeze with strong trend')
 
-        # 4. Divergence detection (simplified)
+        # Divergence detection
         if i > 10:
             recent_rsi = df['rsi_14'].iloc[i-5:i+1]
             recent_price = df['close'].iloc[i-5:i+1]
 
-            # Bullish divergence (price lower, RSI higher)
-            if (recent_price.iloc[-1] < recent_price.iloc[0] and
-                recent_rsi.iloc[-1] > recent_rsi.iloc[0] and
-                rsi_14 < 40):
-                confidence_boost *= 1.2
-                reasons.append('Bullish divergence')
+            if len(recent_rsi) == 6 and len(recent_price) == 6:
+                # Bullish divergence
+                if (recent_price.iloc[-1] < recent_price.iloc[0] and
+                    recent_rsi.iloc[-1] > recent_rsi.iloc[0] and
+                    rsi_14 < 40):
+                    confidence_boost *= 1.2
+                # Bearish divergence
+                elif (recent_price.iloc[-1] > recent_price.iloc[0] and
+                      recent_rsi.iloc[-1] < recent_rsi.iloc[0] and
+                      rsi_14 > 60):
+                    confidence_boost *= 1.2
 
-        # 5. Candlestick pattern confirmation
-        if hammer_pattern and (rsi_signal == 'BUY' or trend_signal == 'BUY'):
-            confidence_boost *= 1.15
-            reasons.append('Hammer pattern')
-        elif shooting_star and (rsi_signal == 'SELL' or trend_signal == 'SELL'):
-            confidence_boost *= 1.15
-            reasons.append('Shooting star')
+        # Dynamic weighting based on volatility
+        if atr_pct > 0.15:  # High volatility (mean is 0.09)
+            trend_conf *= 1.3
+            rsi_conf *= 0.7
+        elif atr_pct < 0.07:  # Low volatility
+            rsi_conf *= 1.3
+            trend_conf *= 0.7
 
-        # 6. High-Low range and wick analysis
-        if long_lower_wick and (rsi_14 < 35 or bb_position < 0.2):
-            confidence_boost *= 1.1
-            reasons.append('Long lower wick at support')
-        elif long_upper_wick and (rsi_14 > 65 or bb_position > 0.8):
-            confidence_boost *= 1.1
-            reasons.append('Long upper wick at resistance')
+        # Avoid trading during extreme price movements
+        if abs(price_change_pct) > 0.3:  # > 0.3% move is significant
+            return 'HOLD', 0.0
 
-        # Range-based adjustments
-        if small_range and (trend_signal == 'BUY' or trend_signal == 'SELL'):
-            # Low volatility - reduce confidence
-            confidence_boost *= 0.9
-            reasons.append('Low volatility')
-        elif large_range and trend_signal:
-            # High volatility with trend - increase confidence
-            confidence_boost *= 1.05
-            reasons.append('High volatility trend')
+        # Enhanced RSI logic for overbought/oversold
+        if rsi_14 > 75 and trend_signal == 'SELL':
+            rsi_conf *= 1.3  # Strengthen sell in overbought
+        elif rsi_14 < 25 and trend_signal == 'BUY':
+            rsi_conf *= 1.3  # Strengthen buy in oversold
 
-        # 7. RSI divergence between 14 and 21 periods
-        rsi_divergence = abs(rsi_14 - rsi_21)
-        if rsi_divergence > 5:  # Significant difference
-            confidence_boost *= 0.9  # Reduce confidence during divergence
-            reasons.append('RSI divergence')
-
-        # 8. Trend strength confirmation
-        if abs(trend_slope) > 1.0:
-            confidence_boost *= 1.1
-            reasons.append('Strong trend')
-
-        # Dynamic weighting based on market conditions
-        if atr_pct > 2.0 or abs(price_change_pct) > 1.5:
-            # High volatility - prioritize trend following
-            trend_conf *= 1.4
-            rsi_conf *= 0.2
-        elif atr_pct < 0.5:
-            # Low volatility - mean reversion works better
-            rsi_conf *= 1.4
-            trend_conf *= 0.6
-
-        # Enhanced RSI logic for extreme momentum
-        if abs(price_change_pct) > 2.0:
-            if (rsi_signal == 'SELL' and price_change_pct > 2.0) or \
-               (rsi_signal == 'BUY' and price_change_pct < -2.0):
-                rsi_signal = 'HOLD'
-                rsi_conf = 0
-
-        # Enhanced weight voting
+        # Weight voting system
         buy_votes = 0
         sell_votes = 0
         total_confidence = 0
 
-        # Core signals
         for signal, conf in [(rsi_signal, rsi_conf), (macd_signal, macd_conf), (trend_signal, trend_conf)]:
             if signal == 'BUY':
                 buy_votes += conf
@@ -369,23 +344,19 @@ class RuleBasedBacktester:
         # Apply confidence boost
         total_confidence *= confidence_boost
 
-        # Final decision with enhanced logic
+        # Final decision
         if total_confidence > 0:
             buy_ratio = buy_votes / total_confidence
             sell_ratio = sell_votes / total_confidence
 
-            # Adaptive thresholds based on confidence boost
-            if confidence_boost > 1.2:
-                # Strong signals, lower threshold
-                threshold = 0.55
-            else:
-                threshold = 0.65
+            # Higher threshold for safety
+            threshold = 0.7 if confidence_boost < 1.2 else 0.6
 
-            if buy_ratio > threshold and total_confidence > 0.4:
-                final_confidence = min(0.95, buy_ratio * confidence_boost)
+            if buy_ratio > threshold and total_confidence > 0.5:
+                final_confidence = min(0.9, buy_ratio * confidence_boost)
                 return 'BUY', final_confidence
-            elif sell_ratio > threshold and total_confidence > 0.4:
-                final_confidence = min(0.95, sell_ratio * confidence_boost)
+            elif sell_ratio > threshold and total_confidence > 0.5:
+                final_confidence = min(0.9, sell_ratio * confidence_boost)
                 return 'SELL', final_confidence
 
         return 'HOLD', 0.0
