@@ -690,6 +690,12 @@ class RuleBasedBacktester:
                 # Save trade to CSV
                 self._save_trade_to_csv(trade)
 
+                # Update equity curve after each trade
+                self.equity_curve.append({
+                    'timestamp': exit_time,
+                    'capital': capital
+                })
+
                 # Reset position
                 position = None
                 entry_price = None
@@ -826,10 +832,10 @@ class RuleBasedBacktester:
         if self.equity_curve:
             equity_df = pd.DataFrame(self.equity_curve)
             equity_df['peak'] = equity_df['capital'].cummax()
-            equity_df['drawdown'] = equity_df['capital'] - equity_df['peak']
+            equity_df['drawdown'] = equity_df['peak'] - equity_df['capital']  # Peak - Current (positive value)
             equity_df['drawdown_pct'] = (equity_df['drawdown'] / equity_df['peak']) * 100
-            max_drawdown = equity_df['drawdown'].min()
-            max_drawdown_pct = equity_df['drawdown_pct'].min()
+            max_drawdown = equity_df['drawdown'].max()  # Max of the drawdown values
+            max_drawdown_pct = equity_df['drawdown_pct'].max()
 
             # Sharpe ratio
             equity_df['returns'] = equity_df['capital'].pct_change()

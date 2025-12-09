@@ -41,7 +41,7 @@ processed_data = None
 
 # Configuration
 # For regular/backtest mode - using larger dataset for better testing
-BACKTEST_DAYS = 150
+BACKTEST_DAYS = 30
 
 # Configuration
 TIMEFRAME = "5"  # 5-minute timeframe - better Sharpe ratio, more stable
