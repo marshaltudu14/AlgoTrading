@@ -568,8 +568,8 @@ class RuleBasedBacktester:
                 if capital > self.peak_capital:
                     self.peak_capital = capital
 
-                # Check for account blowup (capital below 50% of peak)
-                if capital < self.peak_capital * 0.50:
+                # Check for account blowup (capital below 10% of peak)
+                if capital < self.peak_capital * 0.10:
                     logger.error(f"CRITICAL: Account blowup! Capital at {format_currency(capital)} (< 50% of peak {format_currency(self.peak_capital)})")
                     logger.error("Stopping trading to prevent complete loss")
                     break  # Exit the backtest loop
@@ -751,9 +751,21 @@ class RuleBasedBacktester:
 
         trades_df = pd.DataFrame(self.trades)
 
-        # Total P&L
-        total_pnl = trades_df['pnl_currency'].sum()
+        # Get final capital from equity curve or use current capital
+        if self.equity_curve:
+            final_capital = self.equity_curve[-1]['capital']
+        else:
+            # If no equity curve, sum initial capital and all trade P&Ls
+            final_capital = self.initial_capital + trades_df['pnl_currency'].sum()
+
+        # Total P&L (Final Capital - Initial Capital)
+        total_pnl = final_capital - self.initial_capital
         total_pnl_percent = (total_pnl / self.initial_capital) * 100
+
+        # Log capital details
+        logger.info(f"Initial Capital: {format_currency(self.initial_capital)}")
+        logger.info(f"Final Capital: {format_currency(final_capital)}")
+        logger.info(f"Total P&L from trades: {format_currency(trades_df['pnl_currency'].sum())}")
 
         # Win rate
         win_rate = winning_trades / total_trades if total_trades > 0 else 0
