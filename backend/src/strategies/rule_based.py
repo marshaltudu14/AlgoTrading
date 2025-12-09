@@ -379,7 +379,7 @@ class RuleBasedBacktester:
 
     def simulate_trade(self, entry_price: float, direction: str,
                       high_prices: pd.Series, low_prices: pd.Series,
-                      entry_time: pd.Timestamp, lot_size: int) -> Tuple[bool, float, int, Dict]:
+                      entry_time: pd.Timestamp, lot_size: int, target_pnl: float = None, stop_loss_pnl: float = None) -> Tuple[bool, float, int, Dict]:
         """Simulate trade execution"""
         bars_held = 0
         exit_details = {
@@ -389,9 +389,13 @@ class RuleBasedBacktester:
             'exit_reason': None
         }
 
+        # Use provided P&L targets or fall back to defaults
+        current_target_pnl = target_pnl if target_pnl is not None else self.target_pnl
+        current_stop_loss_pnl = stop_loss_pnl if stop_loss_pnl is not None else self.stop_loss_pnl
+
         # Calculate points needed based on P&L targets
-        target_points = abs(self.target_pnl) / lot_size
-        stop_loss_points = abs(self.stop_loss_pnl) / lot_size
+        target_points = abs(current_target_pnl) / lot_size
+        stop_loss_points = abs(current_stop_loss_pnl) / lot_size
 
         if direction == 'BUY':
             target_price = entry_price + target_points
@@ -530,27 +534,43 @@ class RuleBasedBacktester:
 
             # If in position, check for exit (immediate exit for backtesting)
             elif position:
-                # Check if capital has doubled and update lot multiplier
-                capital_multiple = capital / initial_capital_for_doubling
-                new_multiplier = 1
-                while capital_multiple >= (2 ** new_multiplier):
-                    new_multiplier += 1
+                # Calculate lot size based on capital doubling
+                # Capital levels: 25k=1x, 50k=2x, 100k=4x, 200k=8x
+                if capital >= 200000:
+                    lot_multiplier = 8  # 8x initial lot
+                elif capital >= 100000:
+                    lot_multiplier = 4  # 4x initial lot
+                elif capital >= 50000:
+                    lot_multiplier = 2  # 2x initial lot
+                else:
+                    lot_multiplier = 1  # 1x initial lot
 
                 # Log lot size change if it increased
-                if new_multiplier > current_lot_multiplier:
-                    logger.info(f"Capital reached Rs.{capital:,.0f} - Lot size increased from {base_lot_size * current_lot_multiplier} to {base_lot_size * new_multiplier}")
-                    current_lot_multiplier = new_multiplier
+                if lot_multiplier > current_lot_multiplier:
+                    old_lot_size = base_lot_size * current_lot_multiplier
+                    new_lot_size = base_lot_size * lot_multiplier
+                    logger.info(f"Capital reached Rs.{capital:,.0f} - Lot size doubled from {old_lot_size} to {new_lot_size}")
+                    current_lot_multiplier = lot_multiplier
 
                 lot_size = base_lot_size * current_lot_multiplier
-                lot_size = max(lot_size, base_lot_size)  # Ensure lot size is never less than base
+
+                # Scale target and stop loss P&L with lot size multiplier
+                # This maintains the same risk-reward per lot
+                scaled_target_pnl = self.target_pnl * current_lot_multiplier
+                scaled_stop_loss_pnl = self.stop_loss_pnl * current_lot_multiplier
+
+                # Log the scaling when lot size increases
+                if current_lot_multiplier > 1:
+                    logger.info(f"Scaled P&L targets: Target Rs.{scaled_target_pnl:,} | Stop Loss Rs.{scaled_stop_loss_pnl:,}")
 
                 # Get future prices for trade simulation
                 future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
                 future_lows = df['low'].iloc[i+1:i+51]
 
-                # Simulate trade
+                # Simulate trade with scaled P&L targets
                 is_win, pnl_points, bars_held, exit_details = self.simulate_trade(
-                    entry_price, position, future_highs, future_lows, entry_time, lot_size
+                    entry_price, position, future_highs, future_lows, entry_time, lot_size,
+                    target_pnl=scaled_target_pnl, stop_loss_pnl=scaled_stop_loss_pnl
                 )
 
                 # Calculate P&L
