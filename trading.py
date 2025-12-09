@@ -54,8 +54,8 @@ MIN_CONFIDENCE = 0.5  # Optimal confidence threshold
 DEFAULT_INSTRUMENT_NAME = "Nifty"  # Can be "Bank_Nifty", "Nifty", "Bankex", "Finnifty", "Sensex", etc.
 
 # Trading parameters - P&L based (instrument agnostic) - Fixed configuration
-TARGET_PNL = 5000  # Target profit in Rs (per position) - FIXED
-STOP_LOSS_PNL = -2500  # Stop loss in Rs (per position) - FIXED
+TARGET_PNL = 500  # Target profit in Rs (per position) - FIXED
+STOP_LOSS_PNL = -250  # Stop loss in Rs (per position) - FIXED
 
 # Generate unique identifier for filenames
 DATA_ID = f"{BACKTEST_DAYS}d_{TIMEFRAME}min"
@@ -395,7 +395,7 @@ async def backtest():
             print(f"Win Rate: {results.get('win_rate', 0):.2%}")
             print(f"Total P&L (after brokerage): {format_currency(results.get('total_pnl', 0))}")
             print(f"Total P&L %: {results.get('total_pnl_percent', 0):.1f}%")
-            print(f"Max Drawdown: {format_currency(results.get('max_drawdown', 0))}")
+            print(f"Max Drawdown: {format_currency(results.get('max_drawdown', 0))} ({results.get('max_drawdown_pct', 0):.1f}%)")
             print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
             print(f"Profit Factor: {results.get('profit_factor', 0):.2f}")
             print(f"Highest Daily Profit: {format_currency(results.get('highest_daily_profit', 0))}")

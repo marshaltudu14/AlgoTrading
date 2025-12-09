@@ -394,9 +394,9 @@ class RuleBasedBacktester:
         return strategy_map[strategy](df, i)
 
     def simulate_trade(self, entry_price: float, direction: str,
-                      high_prices: pd.Series, low_prices: pd.Series,
-                      entry_time: pd.Timestamp, lot_size: int, target_pnl: float = None, stop_loss_pnl: float = None) -> Tuple[bool, float, int, Dict]:
-        """Simulate trade execution"""
+                      high_prices: pd.Series, low_prices: pd.Series, close_prices: pd.Series,
+                      entry_time: pd.Timestamp, lot_size: int, target_pnl: float = None, stop_loss_pnl: float = None, debug: bool = False) -> Tuple[bool, float, int, Dict]:
+        """Simulate trade execution with trailing stop loss"""
         bars_held = 0
         exit_details = {
             'exit_price': entry_price,
@@ -410,58 +410,160 @@ class RuleBasedBacktester:
         current_stop_loss_pnl = stop_loss_pnl if stop_loss_pnl is not None else self.stop_loss_pnl
 
         # Calculate points needed based on P&L targets
-        target_points = abs(current_target_pnl) / lot_size
-        stop_loss_points = abs(current_stop_loss_pnl) / lot_size
+        # P&L targets are per lot, so we divide by lot_size to get price movement
+        if lot_size > 0:
+            target_points = abs(current_target_pnl) / lot_size
+            stop_loss_points = abs(current_stop_loss_pnl) / lot_size
+        else:
+            # Fallback to default calculations
+            target_points = abs(self.target_pnl) / 1  # Per lot calculation
+            stop_loss_points = abs(self.stop_loss_pnl) / 1
+
+        # Initialize variables for trailing
+        hit_initial_target = False
+        targets_hit = 0
 
         if direction == 'BUY':
-            target_price = entry_price + target_points
-            stop_loss_price = entry_price - stop_loss_points
+            # Initial target and stop loss
+            initial_target = entry_price + target_points
+            current_target = initial_target
+            current_sl = entry_price - stop_loss_points
+
             exit_details.update({
-                'target_price': round(target_price, 2),
-                'stop_loss_price': round(stop_loss_price, 2)
+                'target_price': round(initial_target, 2),
+                'stop_loss_price': round(current_sl, 2)
             })
 
-            for high, low in zip(high_prices, low_prices):
+            for i, (high, low, close) in enumerate(zip(high_prices, low_prices, close_prices)):
                 bars_held += 1
 
-                if high >= target_price:
-                    exit_details.update({
-                        'exit_price': round(target_price, 2),
-                        'exit_reason': 'TARGET'
-                    })
-                    return True, target_points, bars_held, exit_details
+                if debug:
+                    logger.info(f"Bar {bars_held}: High={high:.2f}, Low={low:.2f}, Close={close:.2f}")
+                    logger.info(f"Current Target: {current_target:.2f}, Current SL: {current_sl:.2f}")
+                    logger.info(f"Hit Initial Target: {hit_initial_target}, Targets Hit: {targets_hit}")
 
-                if low <= stop_loss_price:
-                    exit_details.update({
-                        'exit_price': round(stop_loss_price, 2),
-                        'exit_reason': 'STOP_LOSS'
-                    })
-                    return False, -stop_loss_points, bars_held, exit_details
+                if not hit_initial_target:
+                    # Before hitting initial target
+                    if close >= current_target:
+                        # Hit initial target - start trailing
+                        hit_initial_target = True
+                        targets_hit = 1
+                        # Move SL to target price (protect profit at this level)
+                        previous_target = current_target
+                        current_sl = previous_target
+                        if debug:
+                            logger.info(f"*** HIT INITIAL TARGET at {close:.2f} ***")
+                            logger.info(f"Moved SL to: {current_sl:.2f}")
+                        # Set next target (add same target_points from the target we just hit)
+                        current_target = previous_target + target_points
+                        if debug:
+                            logger.info(f"Next target set to: {current_target:.2f}")
+                    elif close <= current_sl:
+                        if debug:
+                            logger.info(f"*** STOP LOSS HIT at {close:.2f} ***")
+                        exit_details.update({
+                            'exit_price': round(current_sl, 2),
+                            'exit_reason': 'STOP_LOSS'
+                        })
+                        return False, -(entry_price - current_sl), bars_held, exit_details
+                else:
+                    # After hitting initial target - trailing mode
+                    # IMPORTANT: Check SL breach FIRST to ensure we exit if SL is hit
+                    if close <= current_sl:
+                        if debug:
+                            logger.info(f"*** TRAILING STOP LOSS HIT at {close:.2f} after {targets_hit} targets ***")
+                        exit_details.update({
+                            'exit_price': round(current_sl, 2),
+                            'exit_reason': f'TRAILING_STOP_{targets_hit}'
+                        })
+                        # For BUY, profit = exit_price - entry_price (exit should be higher than entry)
+                        pnl = current_sl - entry_price
+                        return pnl > 0, pnl, bars_held, exit_details
+                    elif close >= current_target:
+                        # Hit another target - trail further
+                        targets_hit += 1
+                        # The price we just hit becomes the defended level
+                        previous_target = current_target
+                        # Move SL to defend the profit at this level
+                        current_sl = previous_target
+                        if debug:
+                            logger.info(f"*** HIT TARGET {targets_hit} at {close:.2f} ***")
+                            logger.info(f"Moved SL to: {current_sl:.2f}")
+                        # Set new target (go up by target_points from the target we just hit)
+                        current_target = previous_target + target_points
+                        if debug:
+                            logger.info(f"Next target set to: {current_target:.2f}")
 
         else:  # SELL
-            target_price = entry_price - target_points
-            stop_loss_price = entry_price + stop_loss_points
+            # Initial target and stop loss
+            initial_target = entry_price - target_points
+            current_target = initial_target
+            current_sl = entry_price + stop_loss_points
+
             exit_details.update({
-                'target_price': round(target_price, 2),
-                'stop_loss_price': round(stop_loss_price, 2)
+                'target_price': round(initial_target, 2),
+                'stop_loss_price': round(current_sl, 2)
             })
 
-            for high, low in zip(high_prices, low_prices):
+            for i, (high, low, close) in enumerate(zip(high_prices, low_prices, close_prices)):
                 bars_held += 1
 
-                if low <= target_price:
-                    exit_details.update({
-                        'exit_price': round(target_price, 2),
-                        'exit_reason': 'TARGET'
-                    })
-                    return True, target_points, bars_held, exit_details
+                if debug:
+                    logger.info(f"Bar {bars_held}: High={high:.2f}, Low={low:.2f}, Close={close:.2f}")
+                    logger.info(f"Current Target: {current_target:.2f}, Current SL: {current_sl:.2f}")
+                    logger.info(f"Hit Initial Target: {hit_initial_target}, Targets Hit: {targets_hit}")
 
-                if high >= stop_loss_price:
-                    exit_details.update({
-                        'exit_price': round(stop_loss_price, 2),
-                        'exit_reason': 'STOP_LOSS'
-                    })
-                    return False, -stop_loss_points, bars_held, exit_details
+                if not hit_initial_target:
+                    # Before hitting initial target
+                    if close <= current_target:
+                        # Hit initial target - start trailing
+                        hit_initial_target = True
+                        targets_hit = 1
+                        # Move SL to target price (protect profit at this level)
+                        previous_target = current_target
+                        current_sl = previous_target
+                        if debug:
+                            logger.info(f"*** HIT INITIAL TARGET at {close:.2f} ***")
+                            logger.info(f"Moved SL to: {current_sl:.2f}")
+                        # Set next target (subtract same target_points again from the target we just hit)
+                        current_target = previous_target - target_points
+                        if debug:
+                            logger.info(f"Next target set to: {current_target:.2f}")
+                    elif close >= current_sl:
+                        if debug:
+                            logger.info(f"*** STOP LOSS HIT at {close:.2f} ***")
+                        exit_details.update({
+                            'exit_price': round(current_sl, 2),
+                            'exit_reason': 'STOP_LOSS'
+                        })
+                        return False, -(current_sl - entry_price), bars_held, exit_details
+                else:
+                    # After hitting initial target - trailing mode
+                    # IMPORTANT: Check SL breach FIRST to ensure we exit if SL is hit
+                    if close >= current_sl:
+                        if debug:
+                            logger.info(f"*** TRAILING STOP LOSS HIT at {close:.2f} after {targets_hit} targets ***")
+                        exit_details.update({
+                            'exit_price': round(current_sl, 2),
+                            'exit_reason': f'TRAILING_STOP_{targets_hit}'
+                        })
+                        # For SELL, profit = entry_price - exit_price (exit should be lower than entry)
+                        pnl = entry_price - current_sl
+                        return pnl > 0, pnl, bars_held, exit_details
+                    elif close <= current_target:
+                        # Hit another target - trail further
+                        targets_hit += 1
+                        # The price we just hit becomes the defended level
+                        previous_target = current_target
+                        # Move SL to defend the profit at this level
+                        current_sl = previous_target
+                        if debug:
+                            logger.info(f"*** HIT TARGET {targets_hit} at {close:.2f} ***")
+                            logger.info(f"Moved SL to: {current_sl:.2f}")
+                        # Set new target (go down by target_points from the target we just hit)
+                        current_target = previous_target - target_points
+                        if debug:
+                            logger.info(f"Next target set to: {current_target:.2f}")
 
         # If we reach here, trade didn't hit target or SL
         if len(high_prices) > 0:
@@ -538,7 +640,6 @@ class RuleBasedBacktester:
 
                 # Skip trade if already hit max daily losses
                 if daily_losses[trade_date] >= max_daily_losses:
-                    logger.debug(f"{current_time}: Skipping trade - Max daily losses ({max_daily_losses}) reached for {trade_date}")
                     continue
 
                 position = signal
@@ -546,8 +647,7 @@ class RuleBasedBacktester:
                 entry_time = current_time
                 entry_confidence = confidence
 
-                logger.debug(f"{current_time}: {signal} at {entry_price} (confidence: {confidence:.2f})")
-
+                
             # If in position, check for exit (immediate exit for backtesting)
             elif position:
                 # Calculate lot size based on capital levels - dynamic with both increase and decrease
@@ -568,8 +668,8 @@ class RuleBasedBacktester:
                 if capital > self.peak_capital:
                     self.peak_capital = capital
 
-                # Check for account blowup (capital below 10% of peak)
-                if capital < self.peak_capital * 0.10:
+                # Check for account blowup (capital below 50% of peak)
+                if capital < self.peak_capital * 0.50:
                     logger.error(f"CRITICAL: Account blowup! Capital at {format_currency(capital)} (< 50% of peak {format_currency(self.peak_capital)})")
                     logger.error("Stopping trading to prevent complete loss")
                     break  # Exit the backtest loop
@@ -605,15 +705,28 @@ class RuleBasedBacktester:
                 # Get future prices for trade simulation
                 future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
                 future_lows = df['low'].iloc[i+1:i+51]
+                future_closes = df['close'].iloc[i+1:i+51]  # Next 50 close prices
 
                 # Simulate trade with scaled P&L targets
+                # Store lot size at entry for correct P&L calculation
+                entry_lot_size = lot_size
+
+                # Add debug for specific trade time
+                if entry_time == pd.Timestamp('2025-12-09 09:55:00'):
+                    logger.info(f"=== DEBUG: Starting trade at {entry_time} ===")
+                    logger.info(f"Entry Price: {entry_price}, Position: {position}")
+                    logger.info(f"Lot Size: {lot_size:,}")
+                    logger.info(f"Scaled Target P&L: Rs.{scaled_target_pnl:,.0f}")
+                    logger.info(f"Scaled Stop Loss P&L: Rs.{scaled_stop_loss_pnl:,.0f}")
+
                 is_win, pnl_points, bars_held, exit_details = self.simulate_trade(
-                    entry_price, position, future_highs, future_lows, entry_time, lot_size,
-                    target_pnl=scaled_target_pnl, stop_loss_pnl=scaled_stop_loss_pnl
+                    entry_price, position, future_highs, future_lows, future_closes, entry_time, entry_lot_size,
+                    target_pnl=scaled_target_pnl, stop_loss_pnl=scaled_stop_loss_pnl,
+                    debug=(entry_time == pd.Timestamp('2025-12-09 09:55:00'))
                 )
 
                 # Calculate P&L
-                pnl_currency = pnl_points * lot_size
+                pnl_currency = pnl_points * lot_size  # Using CURRENT lot_size for capital calculation
                 total_brokerage = self.brokerage_entry + self.brokerage_exit
 
                 if is_win:
@@ -629,6 +742,7 @@ class RuleBasedBacktester:
                     'exit_time': exit_time,
                     'position': position,
                     'entry_price': round(entry_price, 2),
+                    'exit_price': round(exit_details['exit_price'], 2),
                     'target_price': exit_details['target_price'],
                     'stop_loss_price': exit_details['stop_loss_price'],
                     'lot_size': lot_size,
@@ -649,8 +763,7 @@ class RuleBasedBacktester:
                     # Update daily loss count (using entry date when trade was initiated)
                     trade_date = entry_time.date() if hasattr(entry_time, 'date') else entry_time
                     daily_losses[trade_date] = daily_losses.get(trade_date, 0) + 1
-                    logger.debug(f"{trade_date}: Loss count increased to {daily_losses[trade_date]} (total losses for day)")
-
+                    
                 self.equity_curve.append({
                     'time': exit_time,
                     'capital': capital  # Keep numeric for calculations
@@ -669,7 +782,7 @@ class RuleBasedBacktester:
 
         logger.info(f"Backtest completed - Total trades: {total_trades}, Win rate: {results['win_rate']:.2%}")
         logger.info(f"Total P&L: {format_currency(results['total_pnl'])} ({results['total_pnl_percent']:.1f}%)")
-        logger.info(f"Max Drawdown: {format_currency(results['max_drawdown'])}")
+        logger.info(f"Max Drawdown: {format_currency(results['max_drawdown'])} ({results['max_drawdown_pct']:.1f}%)")
 
         return results
 
@@ -763,10 +876,7 @@ class RuleBasedBacktester:
         total_pnl_percent = (total_pnl / self.initial_capital) * 100
 
         # Log capital details
-        logger.info(f"Initial Capital: {format_currency(self.initial_capital)}")
-        logger.info(f"Final Capital: {format_currency(final_capital)}")
-        logger.info(f"Total P&L from trades: {format_currency(trades_df['pnl_currency'].sum())}")
-
+        
         # Win rate
         win_rate = winning_trades / total_trades if total_trades > 0 else 0
 
@@ -786,7 +896,9 @@ class RuleBasedBacktester:
             equity_df = pd.DataFrame(self.equity_curve)
             equity_df['peak'] = equity_df['capital'].cummax()
             equity_df['drawdown'] = equity_df['capital'] - equity_df['peak']
+            equity_df['drawdown_pct'] = (equity_df['drawdown'] / equity_df['peak']) * 100
             max_drawdown = equity_df['drawdown'].min()
+            max_drawdown_pct = equity_df['drawdown_pct'].min()
 
             # Sharpe ratio
             equity_df['returns'] = equity_df['capital'].pct_change()
@@ -826,6 +938,7 @@ class RuleBasedBacktester:
             'total_pnl': total_pnl,
             'total_pnl_percent': total_pnl_percent,
             'max_drawdown': max_drawdown,
+            'max_drawdown_pct': max_drawdown_pct,
             'sharpe_ratio': sharpe_ratio,
             'profit_factor': profit_factor,
             'highest_daily_profit': highest_daily_profit,
