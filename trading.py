@@ -360,6 +360,12 @@ async def backtest():
         # Set trade log path for real-time saving
         instrument_symbol = DEFAULT_INSTRUMENT_NAME.lower()
         trade_log_path = f"backend/data/backtest_trades_{instrument_symbol}_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
+
+        # Delete existing CSV file if it exists
+        if os.path.exists(trade_log_path):
+            os.remove(trade_log_path)
+            print(f"[INFO] Deleted existing trade log: {trade_log_path}")
+
         backtester.trade_log_path = trade_log_path
 
         results = backtester.run_backtest(

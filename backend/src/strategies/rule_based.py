@@ -796,9 +796,16 @@ class RuleBasedBacktester:
         """Save a single trade to CSV file"""
         try:
             trade_df = pd.DataFrame([trade])
-            file_exists = os.path.exists(self.trade_log_path) if self.trade_log_path else False
 
             if self.trade_log_path:
-                trade_df.to_csv(self.trade_log_path, mode='a', header=not file_exists, index=False)
+                # Check if this is the first trade (no file exists)
+                file_exists = os.path.exists(self.trade_log_path)
+
+                if not file_exists:
+                    # Create new file with header
+                    trade_df.to_csv(self.trade_log_path, mode='w', index=False)
+                else:
+                    # Append to existing file
+                    trade_df.to_csv(self.trade_log_path, mode='a', header=False, index=False)
         except Exception as e:
             logger.error(f"Failed to save trade to CSV: {e}")
