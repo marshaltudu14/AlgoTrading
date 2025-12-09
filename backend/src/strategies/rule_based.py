@@ -601,7 +601,8 @@ class RuleBasedBacktester:
         initial_capital_for_doubling = self.initial_capital
 
         # Iterate through each data point (skip last 50 bars for trade simulation)
-        for i in range(len(df) - 50):
+        i = 0
+        while i < len(df) - 50:
             current_time = df.index[i] if hasattr(df.index, 'to_pydatetime') else df['datetime_readable'].iloc[i]
             current_price = df['close'].iloc[i]
 
@@ -619,6 +620,7 @@ class RuleBasedBacktester:
 
                 # Skip trade if already hit max daily losses
                 if daily_losses[trade_date] >= max_daily_losses:
+                    i += 1
                     continue
 
                 position = signal
@@ -626,86 +628,46 @@ class RuleBasedBacktester:
                 entry_time = current_time
                 entry_confidence = confidence
 
-                
-            # If in position, check for exit (immediate exit for backtesting)
-            elif position:
-                # Calculate lot size based on capital levels - dynamic with both increase and decrease
-                lot_multiplier = 1
-                temp_capital = capital
-
-                # Calculate how many times 50k fits into current capital
-                # 50k is our doubling threshold from the initial 25k
-                while temp_capital >= 50000:
-                    temp_capital /= 2
-                    lot_multiplier *= 2
-
-                # This creates dynamic lot sizing:
-                # 25k-49.9k: 1x, 50k-99.9k: 2x, 100k-199.9k: 4x, etc.
-                # Automatically scales down if capital drops!
-
-                # Update peak capital if current capital is higher
-                if capital > self.peak_capital:
-                    self.peak_capital = capital
-
-                # Check for account blowup (capital below 10% of peak)
-                if capital < self.peak_capital * 0.10:
-                    logger.error(f"CRITICAL: Account blowup! Capital at {format_currency(capital)} (< 50% of peak {format_currency(self.peak_capital)})")
-                    logger.error("Stopping trading to prevent complete loss")
-                    break  # Exit the backtest loop
-
-                # Check if we need to adjust lot size (increase or decrease)
-                lot_size_changed = False
-                if lot_multiplier != current_lot_multiplier:
-                    old_lot_size = base_lot_size * current_lot_multiplier
-                    new_lot_size = base_lot_size * lot_multiplier
-                    lot_size_changed = True
-
-                    if lot_multiplier > current_lot_multiplier:
-                        # Lot size increasing
-                        logger.info(f"Capital reached {format_currency(capital)} - Lot size doubled from {old_lot_size} to {new_lot_size}")
-                    else:
-                        # Lot size decreasing (capital reduction)
-                        logger.warning(f"Capital dropped to {format_currency(capital)} - Lot size halved from {old_lot_size} to {new_lot_size}")
-
-                    # Update lot multiplier
-                    current_lot_multiplier = lot_multiplier
-
-                lot_size = base_lot_size * current_lot_multiplier
-
-                # Scale target and stop loss P&L with lot size multiplier
-                # This maintains the same risk-reward per lot
-                scaled_target_pnl = self.target_pnl * current_lot_multiplier
-                scaled_stop_loss_pnl = self.stop_loss_pnl * current_lot_multiplier
-
-                # Log current P&L targets when lot size changed
-                if lot_size_changed:
-                    logger.info(f"Scaled P&L targets: Target {format_currency(scaled_target_pnl)} | Stop Loss {format_currency(scaled_stop_loss_pnl)}")
-
+                # Simulate the trade from this point forward
                 # Get future prices for trade simulation
                 future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
                 future_lows = df['low'].iloc[i+1:i+51]
                 future_closes = df['close'].iloc[i+1:i+51]  # Next 50 close prices
 
-                # Simulate trade with scaled P&L targets
-                # Store lot size at entry for correct P&L calculation
-                entry_lot_size = lot_size
+                # Calculate lot size at entry
+                lot_multiplier = 1
+                temp_capital = capital
+                while temp_capital >= 50000:
+                    temp_capital /= 2
+                    lot_multiplier *= 2
+                lot_size = base_lot_size * lot_multiplier
 
+                # Scale target and stop loss P&L
+                scaled_target_pnl = self.target_pnl * lot_multiplier
+                scaled_stop_loss_pnl = self.stop_loss_pnl * lot_multiplier
+
+                # Simulate trade
                 is_win, pnl_points, bars_held, exit_details = self.simulate_trade(
-                    entry_price, position, future_highs, future_lows, future_closes, entry_time, entry_lot_size,
+                    entry_price, position, future_highs, future_lows, future_closes, entry_time, lot_size,
                     target_pnl=scaled_target_pnl, stop_loss_pnl=scaled_stop_loss_pnl
                 )
 
                 # Calculate P&L
-                pnl_currency = pnl_points * lot_size  # Using CURRENT lot_size for capital calculation
+                pnl_currency = pnl_points * lot_size
                 total_brokerage = self.brokerage_entry + self.brokerage_exit
-
-                if is_win:
-                    net_pnl = pnl_currency - total_brokerage
-                else:
-                    net_pnl = pnl_currency - total_brokerage
-
+                net_pnl = pnl_currency - total_brokerage
                 capital += net_pnl
 
+                # Update trade counts
+                total_trades += 1
+                if is_win:
+                    winning_trades += 1
+                else:
+                    losing_trades += 1
+                    trade_date = entry_time.date() if hasattr(entry_time, 'date') else entry_time
+                    daily_losses[trade_date] = daily_losses.get(trade_date, 0) + 1
+
+                # Create trade record
                 exit_time = df.index[i + bars_held] if i + bars_held < len(df) else df.index[-1]
                 trade = {
                     'entry_time': entry_time,
@@ -725,27 +687,21 @@ class RuleBasedBacktester:
                 }
                 self.trades.append(trade)
 
-                total_trades += 1
-                if is_win:
-                    winning_trades += 1
-                else:
-                    losing_trades += 1
-                    # Update daily loss count (using entry date when trade was initiated)
-                    trade_date = entry_time.date() if hasattr(entry_time, 'date') else entry_time
-                    daily_losses[trade_date] = daily_losses.get(trade_date, 0) + 1
-                    
-                self.equity_curve.append({
-                    'time': exit_time,
-                    'capital': capital  # Keep numeric for calculations
-                })
-
                 # Save trade to CSV
                 self._save_trade_to_csv(trade)
 
+                # Reset position
                 position = None
                 entry_price = None
                 entry_time = None
                 entry_confidence = 0.0
+
+                # Skip ahead by bars_held to avoid overlapping trades
+                i += bars_held
+
+            else:
+                # No position and no signal, move to next candle
+                i += 1
 
         # Calculate final metrics
         results = self._calculate_metrics(self.initial_capital, total_trades, winning_trades, losing_trades)
@@ -861,6 +817,11 @@ class RuleBasedBacktester:
         max_trades_per_day = daily_trade_count.max()
         min_trades_per_day = daily_trade_count.min()
 
+        # Initialize drawdown variables
+        max_drawdown = 0
+        max_drawdown_pct = 0
+        sharpe_ratio = 0
+
         # Maximum drawdown
         if self.equity_curve:
             equity_df = pd.DataFrame(self.equity_curve)
@@ -874,9 +835,6 @@ class RuleBasedBacktester:
             equity_df['returns'] = equity_df['capital'].pct_change()
             sharpe_ratio = (equity_df['returns'].mean() / equity_df['returns'].std()
                           * np.sqrt(252)) if equity_df['returns'].std() != 0 else 0
-        else:
-            max_drawdown = 0
-            sharpe_ratio = 0
 
         # Profit factor
         profits = trades_df[trades_df['pnl_currency'] > 0]['pnl_currency'].sum()
