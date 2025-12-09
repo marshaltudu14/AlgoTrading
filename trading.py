@@ -381,8 +381,11 @@ async def backtest():
             print(f"Total P&L %: {results.get('total_pnl_percent', 0):.1f}%")
             print(f"Max Drawdown: Rs.{results.get('max_drawdown', 0):,.2f}")
             print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
-            print(f"Average Trade P&L: Rs.{results.get('avg_trade_pnl', 0):,.2f}")
             print(f"Profit Factor: {results.get('profit_factor', 0):.2f}")
+            print(f"Highest Daily Profit: Rs.{results.get('highest_daily_profit', 0):,.2f}")
+            print(f"Highest Daily Loss: Rs.{results.get('highest_daily_loss', 0):,.2f}")
+            print(f"Max Trades in a Day: {results.get('max_trades_per_day', 0)}")
+            print(f"Min Trades in a Day: {results.get('min_trades_per_day', 0)}")
             print(f"Max Winning Streak: {results.get('max_winning_streak', 0)} trades")
             print(f"Max Losing Streak: {results.get('max_losing_streak', 0)} trades")
 

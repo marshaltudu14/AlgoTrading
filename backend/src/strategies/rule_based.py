@@ -534,22 +534,33 @@ class RuleBasedBacktester:
 
             # If in position, check for exit (immediate exit for backtesting)
             elif position:
-                # Calculate lot size based on capital doubling
-                # Capital levels: 25k=1x, 50k=2x, 100k=4x, 200k=8x
-                if capital >= 200000:
-                    lot_multiplier = 8  # 8x initial lot
-                elif capital >= 100000:
-                    lot_multiplier = 4  # 4x initial lot
-                elif capital >= 50000:
-                    lot_multiplier = 2  # 2x initial lot
-                else:
-                    lot_multiplier = 1  # 1x initial lot
+                # Calculate lot size based on capital doubling - dynamic and unlimited
+                # Keep doubling as capital grows beyond any limit
+                lot_multiplier = 1
+                temp_capital = capital
+
+                # Calculate how many times 50k fits into current capital
+                # 50k is our doubling threshold from the initial 25k
+                while temp_capital >= 50000:
+                    temp_capital /= 2
+                    lot_multiplier *= 2
+
+                # This creates:
+                # 25k-49.9k: 1x
+                # 50k-99.9k: 2x
+                # 100k-199.9k: 4x
+                # 200k-399.9k: 8x
+                # 400k-799.9k: 16x
+                # 800k+: 32x, 64x, 128x... unlimited!
 
                 # Log lot size change if it increased
                 if lot_multiplier > current_lot_multiplier:
                     old_lot_size = base_lot_size * current_lot_multiplier
                     new_lot_size = base_lot_size * lot_multiplier
+                    scaled_target_pnl = self.target_pnl * lot_multiplier
+                    scaled_stop_loss_pnl = self.stop_loss_pnl * lot_multiplier
                     logger.info(f"Capital reached Rs.{capital:,.0f} - Lot size doubled from {old_lot_size} to {new_lot_size}")
+                    logger.info(f"Scaled P&L targets: Target Rs.{scaled_target_pnl:,} | Stop Loss Rs.{scaled_stop_loss_pnl:,}")
                     current_lot_multiplier = lot_multiplier
 
                 lot_size = base_lot_size * current_lot_multiplier
@@ -558,10 +569,6 @@ class RuleBasedBacktester:
                 # This maintains the same risk-reward per lot
                 scaled_target_pnl = self.target_pnl * current_lot_multiplier
                 scaled_stop_loss_pnl = self.stop_loss_pnl * current_lot_multiplier
-
-                # Log the scaling when lot size increases
-                if current_lot_multiplier > 1:
-                    logger.info(f"Scaled P&L targets: Target Rs.{scaled_target_pnl:,} | Stop Loss Rs.{scaled_stop_loss_pnl:,}")
 
                 # Get future prices for trade simulation
                 future_highs = df['high'].iloc[i+1:i+51]  # Next 50 bars
@@ -719,8 +726,16 @@ class RuleBasedBacktester:
         # Win rate
         win_rate = winning_trades / total_trades if total_trades > 0 else 0
 
-        # Average trade P&L
-        avg_trade_pnl = trades_df['pnl_currency'].mean()
+        # Calculate daily statistics
+        trades_df['date'] = pd.to_datetime(trades_df['entry_time']).dt.date
+        daily_pnl = trades_df.groupby('date')['pnl_currency'].sum()
+        highest_daily_profit = daily_pnl.max()
+        highest_daily_loss = daily_pnl.min()
+
+        # Calculate maximum and minimum trades per day
+        daily_trade_count = trades_df.groupby('date').size()
+        max_trades_per_day = daily_trade_count.max()
+        min_trades_per_day = daily_trade_count.min()
 
         # Maximum drawdown
         if self.equity_curve:
@@ -768,8 +783,11 @@ class RuleBasedBacktester:
             'total_pnl_percent': total_pnl_percent,
             'max_drawdown': max_drawdown,
             'sharpe_ratio': sharpe_ratio,
-            'avg_trade_pnl': avg_trade_pnl,
             'profit_factor': profit_factor,
+            'highest_daily_profit': highest_daily_profit,
+            'highest_daily_loss': highest_daily_loss,
+            'max_trades_per_day': max_trades_per_day,
+            'min_trades_per_day': min_trades_per_day,
             'max_winning_streak': max_winning_streak,
             'max_losing_streak': max_losing_streak
         }
