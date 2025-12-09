@@ -40,21 +40,25 @@ historical_data = None
 processed_data = None
 
 # Configuration
-# For regular/backtest mode
-BACKTEST_DAYS = 10
+# For regular/backtest mode - using larger dataset for better testing
+BACKTEST_DAYS = 365
 
-# For ML training
-TRAINING_DAYS = 365
+# For ML training (commented out - using indicator strategies instead)
+# TRAINING_DAYS = 365
 
 # Configuration
-TIMEFRAME = "2"  # Same timeframe for both training and backtest
+TIMEFRAME = "5"  # 5-minute timeframe - better Sharpe ratio, more stable
+
+# Trading strategies configuration
+STRATEGY = "multi_indicator_combo"  # Default strategy - best performer
+MIN_CONFIDENCE = 0.5  # Optimal confidence threshold
 
 # Instrument configuration
 DEFAULT_INSTRUMENT_NAME = "Nifty"  # Can be "Bank_Nifty", "Nifty", "Bankex", "Finnifty", "Sensex", etc.
 
-# Trading parameters - P&L based (instrument agnostic) - Ultra-scalping configuration
-TARGET_PNL = 300  # Target profit in Rs (per position) - Ultra-scalping
-STOP_LOSS_PNL = -200  # Stop loss in Rs (per position) - Ultra-scalping
+# Trading parameters - P&L based (instrument agnostic) - Fixed configuration
+TARGET_PNL = 500  # Target profit in Rs (per position) - FIXED
+STOP_LOSS_PNL = -250  # Stop loss in Rs (per position) - FIXED
 
 # Generate unique identifier for filenames
 DATA_ID = f"{BACKTEST_DAYS}d_{TIMEFRAME}min"
@@ -304,123 +308,14 @@ def preprocess_data():
 
 
 def train_ml_models():
-    global processed_data
-
-    try:
-        print("\n--- Step 5: ML Model Training ---")
-
-        # Check if we need to fetch training data (only if no processed data exists)
-        training_data_id = f"{TRAINING_DAYS}d_{TIMEFRAME}min"
-        model_path = f"backend/data/trading_models_{training_data_id}.pkl"
-
-        # Always retrain when --train argument is passed
-        if os.path.exists(model_path):
-            print(f"[INFO] Existing model found at {model_path}, retraining...")
-        else:
-            print(f"[INFO] Training new model...")
-
-        # Look for processed training data
-        output_dir = "backend/data/processed"
-        feature_files = list(Path(output_dir).glob("features_*.csv"))
-        matching_files = [f for f in feature_files if f"nifty_{TRAINING_DAYS}d_{TIMEFRAME}min" in f.name]
-
-        # If training data not found, fetch and process it
-        if not matching_files:
-            print(f"[INFO] No training data found, fetching {TRAINING_DAYS} days...")
-
-            # Fetch training data
-            if not fetch_historical_data(days=TRAINING_DAYS):
-                return False
-
-            # Process training data
-            input_dir = "backend/data/raw"
-            output_dir = "backend/data/processed"
-            os.makedirs(input_dir, exist_ok=True)
-            os.makedirs(output_dir, exist_ok=True)
-
-            # Save training data with consistent naming
-            csv_path = f"{input_dir}/nifty_{training_data_id}.csv"
-            historical_data.to_csv(csv_path, index=False)
-
-            from backend.src.data_processing.pipeline import DataProcessingPipeline
-            pipeline = DataProcessingPipeline()
-
-            results = pipeline.run_feature_generation(
-                input_dir=input_dir,
-                output_dir=output_dir,
-                parallel=False
-            )
-
-            if not results.get('success'):
-                print(f"[ERROR] Training pipeline failed: {results.get('error')}")
-                return False
-
-            # Re-scan for processed files
-            feature_files = list(Path(output_dir).glob("features_*.csv"))
-            matching_files = [f for f in feature_files if f"nifty_{TRAINING_DAYS}d_{TIMEFRAME}min" in f.name]
-
-            if not matching_files:
-                print("[ERROR] No processed training files found after generation")
-                return False
-
-        # Use the most recent training data file
-        latest_file = max(matching_files, key=lambda x: x.stat().st_mtime)
-        training_data = pd.read_csv(latest_file)
-        print(f"[OK] Using training data shape: {training_data.shape}")
-
-        from backend.src.ml.predictor import train_and_evaluate
-
-        print("Training Random Forest models...")
-
-        predictor = train_and_evaluate(
-            csv_path=str(latest_file),
-            save_path=model_path
-        )
-
-        print("[OK] ML models trained and saved successfully!")
-
-        # Get training metrics from the model (from train_and_evaluate function)
-        # Since train_and_evaluate already trained the model and returned the predictor,
-        # we need to predict on test data to get metrics
-        from sklearn.model_selection import train_test_split
-        from sklearn.metrics import accuracy_score
-
-        # Split data to get test metrics
-        X, y_direction, y_volatility = predictor.prepare_features_and_targets(training_data)
-        _, X_test, _, y_dir_test = train_test_split(X, y_direction, test_size=0.2, random_state=42, shuffle=False)
-        _, _, _, y_vol_test = train_test_split(X, y_volatility, test_size=0.2, random_state=42, shuffle=False)
-
-        # Get predictions
-        dir_pred = predictor.direction_model.predict(X_test)
-        vol_pred = predictor.volatility_model.predict(X_test)
-
-        # Calculate accuracy
-        dir_accuracy = accuracy_score(y_dir_test, dir_pred)
-        vol_accuracy = accuracy_score(y_vol_test, vol_pred)
-
-        print("\n[MODEL TRAINING RESULTS]")
-        print(f"  Direction Model Accuracy: {dir_accuracy:.1%}")
-        print(f"  Volatility Model Accuracy: {vol_accuracy:.1%}")
-
-        # Note: Skip detailed classification report for brevity
-
-        latest_prediction = predictor.predict_latest(training_data)
-
-        print(f"\nLatest Prediction:")
-        print(f"  Current Price: Rs.{latest_prediction['current_price']:.2f}")
-        print(f"  Direction: {['Strong Down', 'Neutral', 'Strong Up'][latest_prediction['direction_prediction'] + 1]}")
-        print(f"  Direction Confidence: {latest_prediction['direction_probability']:.1%}")
-        print(f"  Volatility: {['Low', 'Normal', 'High'][latest_prediction['volatility_prediction']]}")
-        print(f"  Volatility Confidence: {latest_prediction['volatility_probability']:.1%}")
-        print(f"  Overall Confidence: {latest_prediction['prediction_confidence']*100:.1f}%")
-
-        return True
-
-    except Exception as e:
-        print(f"[ERROR] ML training failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
+    """ML Model Training - DISABLED - Using indicator strategies instead"""
+    print("\n--- Step 5: ML Model Training ---")
+    print("[INFO] ML model training is disabled - Using indicator-based strategies")
+    print("[INFO] Strategies available: rsi_mean_reversion, macd_crossover, bollinger_bands, ema_crossover,")
+    print("                     supertrend, stochastic_oversold, volume_price_trend, atr_breakout,")
+    print("                     vwap_reversal, multi_indicator_combo")
+    print(f"[INFO] Current strategy: {STRATEGY}")
+    return True
 
 
 def parse_arguments():
@@ -445,15 +340,14 @@ async def real_trading():
 
 async def backtest():
     print(f"\n=== BACKTESTING MODE ===")
+    print(f"[INFO] Using Strategy: {STRATEGY}")
     print(f"[INFO] Target P&L: Rs.{TARGET_PNL}")
     print(f"[INFO] Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
+    print(f"[INFO] Minimum Confidence: {MIN_CONFIDENCE}")
 
-    from backend.src.ml.backtest import Backtester
+    from backend.src.strategies.rule_based import RuleBasedBacktester
 
     try:
-        # Use training model path
-        model_path = f"backend/data/trading_models_{TRAINING_DAYS}d_{TIMEFRAME}min.pkl"
-
         # Use backtest data - get the processed file directly
         output_dir = "backend/data/processed"
         feature_files = list(Path(output_dir).glob("features_*.csv"))
@@ -465,18 +359,10 @@ async def backtest():
             print(f"[ERROR] No processed backtest data found")
             return False
 
-        # Check if model exists, if not train first
-        if not os.path.exists(model_path):
-            print(f"[INFO] No existing model found at {model_path}")
-            print("[INFO] Training ML models first...")
-            if not train_ml_models():
-                print("[ERROR] Failed to train ML models")
-                return False
-
-        backtester = Backtester(
+        # Create rule-based backtester
+        backtester = RuleBasedBacktester(
             target_pnl=TARGET_PNL,
             stop_loss_pnl=STOP_LOSS_PNL,
-            ml_model_path=model_path,
             initial_capital=20000,
             brokerage_entry=25,
             brokerage_exit=25
@@ -486,7 +372,12 @@ async def backtest():
         trade_log_path = f"backend/data/backtest_trades_{BACKTEST_DAYS}d_{TIMEFRAME}min.csv"
         backtester.trade_log_path = trade_log_path
 
-        results = backtester.run_backtest(csv_path, instrument=instrument)
+        results = backtester.run_backtest(
+            csv_path,
+            strategy=STRATEGY,
+            min_confidence=MIN_CONFIDENCE,
+            instrument=instrument
+        )
 
         if results:
             print(f"[OK] Trade log saved to {trade_log_path}")
@@ -496,12 +387,12 @@ async def backtest():
             print(f"Winning Trades: {results.get('winning_trades', 0)}")
             print(f"Losing Trades: {results.get('losing_trades', 0)}")
             print(f"Win Rate: {results.get('win_rate', 0):.2%}")
-            print(f"Total P&L (after brokerage): {results.get('total_pnl', 0):.2f}")
-            print(f"Max Drawdown: {results.get('max_drawdown', 0):.2f}")
+            print(f"Total P&L (after brokerage): Rs.{results.get('total_pnl', 0):,.2f}")
+            print(f"Total P&L %: {results.get('total_pnl_percent', 0):.1f}%")
+            print(f"Max Drawdown: Rs.{results.get('max_drawdown', 0):,.2f}")
             print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
-            print(f"Max Winning Streak: {results.get('max_winning_streak', 0)} trades")
-            print(f"Max Losing Streak: {results.get('max_losing_streak', 0)} trades")
-            print(f"Trade log includes: direction signal, volatility state, confidence, target/stop prices")
+            print(f"Average Trade P&L: Rs.{results.get('avg_trade_pnl', 0):,.2f}")
+            print(f"Profit Factor: {results.get('profit_factor', 0):.2f}")
 
             return True
         else:
@@ -526,6 +417,28 @@ async def main():
     print(f"Target P&L: Rs.{TARGET_PNL}")
     print(f"Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
 
+    # For backtest mode, check if processed data exists to skip authentication
+    if args.backtest:
+        output_dir = "backend/data/processed"
+        feature_files = list(Path(output_dir).glob("features_*.csv"))
+        matching_files = [f for f in feature_files if f"nifty_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
+
+        if matching_files:
+            print("\n[OK] Found existing processed data - skipping authentication and data fetch")
+            print("\n--- Step 4: Data Preprocessing ---")
+            print(f"[OK] Using existing processed data: {matching_files[0].name}")
+
+            # Configure instrument with defaults since we can't get capital without auth
+            print("\n--- Step 2: Instrument Configuration (Default) ---")
+            if not configure_instrument():
+                print("[WARNING] Using default instrument configuration")
+
+            # Skip ML training for backtest
+            print("\n--- Step 6: Execution ---")
+            await backtest()
+            return
+
+    # If no existing data or not backtest mode, proceed with full pipeline
     if not await authenticate():
         return
 
@@ -546,10 +459,20 @@ async def main():
         return
 
     print("\n--- Step 4: Data Preprocessing ---")
-    if not preprocess_data():
-        return
+    # Check if processed data already exists
+    output_dir = "backend/data/processed"
+    feature_files = list(Path(output_dir).glob("features_*.csv"))
+    matching_files = [f for f in feature_files if f"nifty_{BACKTEST_DAYS}d_{TIMEFRAME}min" in f.name]
 
-    # Only train ML models for real mode, backtest will train if needed
+    if not matching_files:
+        print("[INFO] No processed data found, running preprocessing...")
+        if not preprocess_data():
+            return
+    else:
+        print(f"[OK] Using existing processed data: {matching_files[0].name}")
+
+    # ML models are disabled - using indicator strategies instead
+    # Only show training info if explicitly requested
     if not args.backtest:
         if not train_ml_models():
             return

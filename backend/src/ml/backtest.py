@@ -182,34 +182,36 @@ class Backtester:
             if position is None:
                 # Get current ATR if available
                 current_atr = df['atr'].iloc[i] if 'atr' in df.columns else None
+                
+                # Check Volatility Prediction (0=Low, 1=Normal, 2=High)
+                # Avoid trading in Low Volatility (0) unless confidence is reasonable
+                if current_volatility == 0 and direction_confidence < 0.45:
+                    continue
 
                 # Only enter if we have strong directional signal and good confidence
-                if direction_confidence < 0.35:  # Skip low confidence signals
+                # Lowered threshold to 0.38 (slightly better than random 0.33) to allow more trades
+                if direction_confidence < 0.38:
                     continue
 
                 # Determine if we should enter based on 3-state signals and ATR
                 should_buy = False
                 should_sell = False
 
-                if current_signal == 1 and direction_confidence > 0.4:
-                    # For BUY: Check if ATR indicates enough volatility for movement
-                    if current_atr is not None:
-                        # Only buy if ATR > 5 (minimum movement expected)
-                        if current_atr > 5:
-                            should_buy = True
-                    else:
-                        # Fallback without ATR
-                        should_buy = True
+                if current_signal == 1:
+                    # For BUY
+                    should_buy = True
+                    # Optional: Add ATR filter if available (ensure enough range)
+                    if current_atr is not None and current_atr < 5:
+                         if direction_confidence < 0.45: # require higher confidence if ATR is low
+                            should_buy = False
 
-                elif current_signal == -1 and direction_confidence > 0.4:
-                    # For SELL: Check if ATR indicates enough volatility for movement
-                    if current_atr is not None:
-                        # Only sell if ATR > 5 (minimum movement expected)
-                        if current_atr > 5:
-                            should_sell = True
-                    else:
-                        # Fallback without ATR
-                        should_sell = True
+                elif current_signal == -1:
+                    # For SELL
+                    should_sell = True
+                    # Optional: Add ATR filter
+                    if current_atr is not None and current_atr < 5:
+                         if direction_confidence < 0.45:
+                            should_sell = False
 
                 if should_buy:
                     position = 'BUY'
@@ -217,7 +219,7 @@ class Backtester:
                     entry_time = current_time
                     entry_volatility = current_volatility
                     atr_info = f", ATR: {current_atr:.2f}" if current_atr else ""
-                    logger.debug(f"{current_time}: BUY at {entry_price} (volatility: {entry_volatility}, confidence: {direction_confidence:.2f}{atr_info})")
+                    logger.debug(f"{current_time}: BUY at {entry_price} (vol2state: {entry_volatility}, confidence: {direction_confidence:.2f}{atr_info})")
 
                 elif should_sell:
                     position = 'SELL'
@@ -225,7 +227,7 @@ class Backtester:
                     entry_time = current_time
                     entry_volatility = current_volatility
                     atr_info = f", ATR: {current_atr:.2f}" if current_atr else ""
-                    logger.debug(f"{current_time}: SELL at {entry_price} (volatility: {entry_volatility}, confidence: {direction_confidence:.2f}{atr_info})")
+                    logger.debug(f"{current_time}: SELL at {entry_price} (vol2state: {entry_volatility}, confidence: {direction_confidence:.2f}{atr_info})")
 
             # If in position, check for exit
             elif position:

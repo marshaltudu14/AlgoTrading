@@ -166,25 +166,41 @@ class DynamicFileProcessor:
     def generate_all_features(self, open_prices: pd.Series, high_prices: pd.Series,
                              low_prices: pd.Series, close_prices: pd.Series) -> pd.DataFrame:
         features = {}
+        
+        # 1. Moving Averages - Use distances instead of raw values
         for period in self.feature_config.get('sma_periods', [20, 50, 200]):
-            features[f'sma_{period}'] = ta.sma(close_prices, length=period)
+            sma = ta.sma(close_prices, length=period)
+            # Normalized distance from SMA (percentage)
+            features[f'dist_sma_{period}'] = (close_prices - sma) / sma * 100
+            
         for period in self.feature_config.get('ema_periods', [20]):
-            features[f'ema_{period}'] = ta.ema(close_prices, length=period)
+            ema = ta.ema(close_prices, length=period)
+            # Normalized distance from EMA (percentage)
+            features[f'dist_ema_{period}'] = (close_prices - ema) / ema * 100
+
+        # 2. MACD - Normalize by price
         macd_fast = self.feature_config.get('macd_fast', 12)
         macd_slow = self.feature_config.get('macd_slow', 26)
         macd_signal = self.feature_config.get('macd_signal', 9)
         macd_data = ta.macd(close_prices, fast=macd_fast, slow=macd_slow, signal=macd_signal)
+        
         if macd_data is not None and not macd_data.empty:
             macd_col_name = f'MACD_{macd_fast}_{macd_slow}_{macd_signal}'
             macd_signal_col_name = f'MACDs_{macd_fast}_{macd_slow}_{macd_signal}'
             macd_hist_col_name = f'MACDh_{macd_fast}_{macd_slow}_{macd_signal}'
+            
+            # Normalize MACD values by close price to make them percentage-based
             features.update({
-                'macd': macd_data[macd_col_name],
-                'macd_signal': macd_data[macd_signal_col_name],
-                'macd_histogram': macd_data[macd_hist_col_name]
+                'macd_pct': macd_data[macd_col_name] / close_prices * 100,
+                'macd_signal_pct': macd_data[macd_signal_col_name] / close_prices * 100,
+                'macd_hist_pct': macd_data[macd_hist_col_name] / close_prices * 100
             })
+
+        # 3. RSI - Already normalized (0-100)
         for period in self.feature_config.get('rsi_periods', [14]):
             features[f'rsi_{period}'] = ta.rsi(close_prices, length=period)
+
+        # 4. ADX - Already normalized (0-100)
         adx_period = self.feature_config.get('adx_period', 14)
         adx_data = ta.adx(high_prices, low_prices, close_prices, length=adx_period)
         if adx_data is not None and not adx_data.empty:
@@ -193,137 +209,57 @@ class DynamicFileProcessor:
                 'di_plus': adx_data[f'DMP_{adx_period}'],
                 'di_minus': adx_data[f'DMN_{adx_period}']
             })
+
+        # 5. ATR - Normalize by price (volatility percentage)
         atr_period = self.feature_config.get('atr_period', 14)
-        features['atr'] = ta.atr(high_prices, low_prices, close_prices, length=atr_period)
+        atr = ta.atr(high_prices, low_prices, close_prices, length=atr_period)
+        features['atr_pct'] = (atr / close_prices) * 100
+        features['atr'] = atr # Keep raw ATR for backtest logic, but excluding in predictor
+
+        # 6. Bollinger Bands - Use width and position (normalized)
         bb_period = self.feature_config.get('bb_period', 20)
         bb_std_dev = self.feature_config.get('bb_std_dev', 2.0)
         bb_data = ta.bbands(close_prices, length=bb_period, std=bb_std_dev)
+        
         if bb_data is not None and not bb_data.empty:
-            bb_upper_col = None
-            bb_middle_col = None
-            bb_lower_col = None
-            
-            # Try multiple naming patterns
-            expected_upper = f'BBU_{bb_period}_{bb_std_dev}'
-            expected_middle = f'BBM_{bb_period}_{bb_std_dev}'
-            expected_lower = f'BBL_{bb_period}_{bb_std_dev}'
-            
-            int_upper = f'BBU_{bb_period}_{int(bb_std_dev)}'
-            int_middle = f'BBM_{bb_period}_{int(bb_std_dev)}'
-            int_lower = f'BBL_{bb_period}_{int(bb_std_dev)}'
-            
-            for col in bb_data.columns:
-                col_upper = col.upper()
-                if col in [expected_upper, int_upper] or 'BBU' in col_upper:
-                    bb_upper_col = col
-                elif col in [expected_middle, int_middle] or 'BBM' in col_upper:
-                    bb_middle_col = col
-                elif col in [expected_lower, int_lower] or 'BBL' in col_upper:
-                    bb_lower_col = col
-            
-            # Fallback to positional indexing
-            if bb_upper_col is None or bb_middle_col is None or bb_lower_col is None:
-                cols = list(bb_data.columns)
-                if len(cols) >= 3:
-                    bb_lower_col = cols[0] if bb_lower_col is None else bb_lower_col
-                    bb_middle_col = cols[1] if bb_middle_col is None else bb_middle_col
-                    bb_upper_col = cols[2] if bb_upper_col is None else bb_upper_col
-            
-            try:
-                if bb_upper_col and bb_middle_col and bb_lower_col and all(col in bb_data.columns for col in [bb_upper_col, bb_middle_col, bb_lower_col]):
-                    features.update({
-                        'bb_upper': bb_data[bb_upper_col],
-                        'bb_middle': bb_data[bb_middle_col],
-                        'bb_lower': bb_data[bb_lower_col],
-                        'bb_width': (bb_data[bb_upper_col] - bb_data[bb_lower_col]) / bb_data[bb_middle_col] * 100,
-                        'bb_position': (close_prices - bb_data[bb_lower_col]) / (bb_data[bb_upper_col] - bb_data[bb_lower_col]) * 100
-                    })
-                else:
-                    raise ValueError("Could not identify Bollinger Bands columns")
-            except Exception:
+            # Find columns (standard naming or indexed)
+            cols = list(bb_data.columns)
+            if len(cols) >= 3:
+                lower = bb_data[cols[0]]
+                middle = bb_data[cols[1]]
+                upper = bb_data[cols[2]]
+                
                 features.update({
-                    'bb_upper': pd.Series([np.nan] * len(close_prices), index=close_prices.index),
-                    'bb_middle': pd.Series([np.nan] * len(close_prices), index=close_prices.index),
-                    'bb_lower': pd.Series([np.nan] * len(close_prices), index=close_prices.index),
-                    'bb_width': pd.Series([np.nan] * len(close_prices), index=close_prices.index),
-                    'bb_position': pd.Series([np.nan] * len(close_prices), index=close_prices.index)
+                    'bb_width_pct': (upper - lower) / middle * 100,
+                    'bb_position': (close_prices - lower) / (upper - lower)  # 0 to 1 scaling
                 })
+
+        # 7. Trend Strength
         trend_data = self.market_structure.trend_strength(close_prices)
         features.update(trend_data)
-        features['price_change'] = close_prices.pct_change() * 100
-        features['price_change_abs'] = np.abs(features['price_change'])
-        features['hl_range'] = (high_prices - low_prices) / close_prices * 100
-        features['body_size'] = np.abs(close_prices - open_prices) / close_prices * 100
-        # GPU-optimized candlestick pattern calculations
-        import torch
-        if torch.cuda.is_available() and len(close_prices) > 1000:
-            # GPU: Use tensor operations for large datasets
-            high_tensor = torch.tensor(high_prices.values, dtype=torch.float32, device='cuda')
-            low_tensor = torch.tensor(low_prices.values, dtype=torch.float32, device='cuda')
-            open_tensor = torch.tensor(open_prices.values, dtype=torch.float32, device='cuda')
-            close_tensor = torch.tensor(close_prices.values, dtype=torch.float32, device='cuda')
-            
-            upper_shadow_tensor = (high_tensor - torch.maximum(open_tensor, close_tensor)) / close_tensor * 100
-            lower_shadow_tensor = (torch.minimum(open_tensor, close_tensor) - low_tensor) / close_tensor * 100
-            
-            features['upper_shadow'] = pd.Series(upper_shadow_tensor.cpu().numpy(), index=close_prices.index)
-            features['lower_shadow'] = pd.Series(lower_shadow_tensor.cpu().numpy(), index=close_prices.index)
-        else:
-            # CPU: Use numpy for small datasets or when GPU unavailable
-            features['upper_shadow'] = (high_prices - np.maximum(open_prices, close_prices)) / close_prices * 100
-            features['lower_shadow'] = (np.minimum(open_prices, close_prices) - low_prices) / close_prices * 100
-        if ('sma_5' in features and 'sma_20' in features and
-            features['sma_5'] is not None and features['sma_20'] is not None):
-            features['sma_5_20_cross'] = np.where(features['sma_5'] > features['sma_20'], 1, -1)
-        else:
-            features['sma_5_20_cross'] = np.zeros(len(close_prices))
-        if ('sma_10' in features and 'sma_50' in features and
-            features['sma_10'] is not None and features['sma_50'] is not None):
-            features['sma_10_50_cross'] = np.where(features['sma_10'] > features['sma_50'], 1, -1)
-        else:
-            features['sma_10_50_cross'] = np.zeros(len(close_prices))
-        if 'sma_20' in features and features['sma_20'] is not None:
-            features['price_vs_sma_20'] = (close_prices - features['sma_20']) / features['sma_20'] * 100
-        else:
-            features['price_vs_sma_20'] = np.zeros(len(close_prices))
-        if 'ema_20' in features and features['ema_20'] is not None:
-            features['price_vs_ema_20'] = (close_prices - features['ema_20']) / features['ema_20'] * 100
-        else:
-            features['price_vs_ema_20'] = np.zeros(len(close_prices))
-        # GPU-optimized volatility calculations
-        volatility_periods = self.feature_config.get('volatility_periods', [10, 20])
-        import torch
         
-        if torch.cuda.is_available() and len(close_prices) > 1000:
-            # GPU: Use vectorized rolling operations for large datasets
-            close_tensor = torch.tensor(close_prices.values, dtype=torch.float32, device='cuda')
-            
-            for period in volatility_periods:
-                # Vectorized rolling window computation
-                if len(close_tensor) >= period:
-                    # Pad tensor for rolling windows
-                    padded = torch.nn.functional.pad(close_tensor, (period-1, 0), value=float('nan'))
-                    # Create rolling windows using unfold
-                    windows = padded.unfold(0, period, 1)
-                    
-                    # Compute std and mean for all windows at once
-                    vol_std = torch.std(windows, dim=1)
-                    vol_mean = torch.mean(windows, dim=1)
-                    
-                    # Avoid division by zero
-                    volatility_tensor = torch.where(vol_mean != 0, (vol_std / vol_mean * 100), torch.tensor(0.0, device='cuda'))
-                    
-                    # Handle initial NaN values for periods without enough data
-                    volatility_values = volatility_tensor.cpu().numpy()
-                    volatility_values[:period-1] = float('nan')
-                    
-                    features[f'volatility_{period}'] = pd.Series(volatility_values, index=close_prices.index)
-                else:
-                    features[f'volatility_{period}'] = pd.Series([float('nan')] * len(close_prices), index=close_prices.index)
-        else:
-            # CPU: Use pandas rolling for small datasets or when GPU unavailable
-            for period in volatility_periods:
-                features[f'volatility_{period}'] = close_prices.rolling(period).std() / close_prices.rolling(period).mean() * 100
+        # 8. Price Action Features
+        features['price_change_pct'] = close_prices.pct_change() * 100
+        features['price_change_abs'] = np.abs(features['price_change_pct'])
+        features['hl_range_pct'] = (high_prices - low_prices) / close_prices * 100
+        features['body_size_pct'] = np.abs(close_prices - open_prices) / close_prices * 100
+        
+        # Shadows as percentage of price
+        features['upper_shadow_pct'] = (high_prices - np.maximum(open_prices, close_prices)) / close_prices * 100
+        features['lower_shadow_pct'] = (np.minimum(open_prices, close_prices) - low_prices) / close_prices * 100
+        
+        # 9. Crossovers (Reduced to single most important one)
+        # We already have distance to SMA/EMA, so explicit crossovers are somewhat redundant
+        # Keeping only the golden cross equivalent for trend confirmation if needed, but dist_sma is better for ML
+        
+        # Removed binary crossovers to reduce dimensionality and let trees find splits on dist_sma
+
+        # 10. Volatility (Standardized)
+        volatility_periods = self.feature_config.get('volatility_periods', [10, 20])
+        for period in volatility_periods:
+            # Coefficient of Variation: (std / mean) * 100
+            features[f'volatility_{period}'] = close_prices.rolling(period).std() / close_prices.rolling(period).mean() * 100
+
         features_df = pd.DataFrame(features)
         if len(features_df) != len(close_prices):
             logger.warning(f"Features length mismatch: {len(features_df)} vs {len(close_prices)}")
