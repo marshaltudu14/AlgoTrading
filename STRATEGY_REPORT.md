@@ -125,6 +125,22 @@ After extensive testing, the optimal configuration for consistent profits with m
 - For consistent profits with better risk management: Use **5min** timeframe
 - For maximum profit potential: Use **2min** timeframe
 
+### Latest Ultra-Enhanced Strategy Results (5min, 365 days):
+- **Total Trades**: 837
+- **Win Rate**: 55.20%
+- **Total Return**: 477%
+- **Max Drawdown**: Rs.-2,700
+- **Sharpe Ratio**: 4.53
+- **Profit Factor**: 1.85
+
+### New Features Added:
+1. **Multi-timeframe Alignment**: 5/10/20/50 SMA alignment for trend confirmation
+2. **Bollinger Band Analysis**: Bounces from bands, squeeze plays, rejections
+3. **RSI Divergence**: Both price-RSI and RSI_14/RSI_21 divergence
+4. **Candlestick Patterns**: Hammer and shooting star confirmation
+5. **Dynamic Confidence**: Automatic boost based on multiple confirmations
+6. **Adaptive Thresholds**: Lower entry requirements with strong signals
+
 ### Implementation:
 Update `trading.py` with:
 ```

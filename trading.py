@@ -345,7 +345,7 @@ async def backtest():
     print(f"[INFO] Stop Loss P&L: Rs.{STOP_LOSS_PNL}")
     print(f"[INFO] Minimum Confidence: {MIN_CONFIDENCE}")
 
-    from backend.src.strategies.rule_based import RuleBasedBacktester
+    from backend.src.strategies.backtest import RuleBasedBacktester
 
     try:
         # Use backtest data - get the processed file directly
@@ -393,6 +393,8 @@ async def backtest():
             print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
             print(f"Average Trade P&L: Rs.{results.get('avg_trade_pnl', 0):,.2f}")
             print(f"Profit Factor: {results.get('profit_factor', 0):.2f}")
+            print(f"Max Winning Streak: {results.get('max_winning_streak', 0)} trades")
+            print(f"Max Losing Streak: {results.get('max_losing_streak', 0)} trades")
 
             return True
         else:
