@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef } from "react";
 import { createChart, IChartApi, UTCTimestamp, ColorType, CandlestickSeries } from "lightweight-charts";
 import { useTheme } from "next-themes";
 import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TIMEFRAMES } from "@/config/instruments";
-import { useTradingState } from "@/components/TradingProvider";
+import { useTradingStore } from "@/stores/tradingStore";
 
 interface ChartData {
   time: UTCTimestamp;
@@ -21,14 +20,12 @@ export default function TradingChart() {
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<unknown | null>(null);
   const { theme } = useTheme();
-  const { symbol: contextSymbol, timeframe: contextTimeframe, dataRefreshTrigger } = useTradingState();
-  const [data, setData] = useState<ChartData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Always use context values, never fall back to props or defaults
-  const currentSymbol = contextSymbol || "NSE:NIFTY50-INDEX";
-  const currentTimeframe = contextTimeframe || "5";
+  const {
+    candleData,
+    isLoading,
+    error,
+    refreshData
+  } = useTradingStore();
 
   const handleZoomIn = () => {
     if (chartRef.current) {
@@ -68,83 +65,19 @@ export default function TradingChart() {
     }
   };
 
-  // Convert epoch timestamp to format lightweight-charts accepts
-  const convertTimestampForChart = (epochTime: number): UTCTimestamp => {
-    // Backend returns epoch in seconds, convert to seconds for lightweight-charts
-    // If timestamp is in milliseconds, convert to seconds
-    const timestampSeconds = epochTime > 10000000000 ? Math.floor(epochTime / 1000) : epochTime;
-
-    return timestampSeconds as UTCTimestamp;
-  };
-
-  // Fetch candle data from API
-  const fetchCandleData = useCallback(async () => {
-    if (!currentSymbol || !currentTimeframe) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Get access token and app_id from localStorage
-      const access_token = localStorage.getItem('access_token');
-      const app_id = localStorage.getItem('app_id');
-
-      // Find timeframe configuration to get days parameter
-      const timeframeConfig = TIMEFRAMES.find(tf => tf.name === currentTimeframe);
-      const days = timeframeConfig?.days || 15; // Default to 15 days if not found
-
-      const params = new URLSearchParams();
-      if (access_token) params.append('access_token', access_token);
-      if (app_id) params.append('app_id', app_id);
-      params.append('days', days.toString());
-
-      const response = await fetch(`/api/candle-data/${currentSymbol}/${currentTimeframe}?${params.toString()}`);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch candle data: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        // Convert API data to ChartData format
-        const chartData: ChartData[] = result.data.map((item: {
-          timestamp?: number;
-          time?: number;
-          open: string | number;
-          high: string | number;
-          low: string | number;
-          close: string | number;
-        }) => ({
-          time: convertTimestampForChart(item.timestamp || item.time || 0), // Backend uses 'timestamp' field
-          open: parseFloat(item.open.toString()),
-          high: parseFloat(item.high.toString()),
-          low: parseFloat(item.low.toString()),
-          close: parseFloat(item.close.toString()),
-        }));
-
-        setData(chartData);
-      } else {
-        throw new Error(result.error || 'No data available');
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch candle data';
-      setError(errorMessage);
-      console.error('Error fetching candle data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currentSymbol, currentTimeframe]);
-
-  // Fetch data when component mounts, symbol/timeframe changes, or refresh is triggered
-  useEffect(() => {
-    fetchCandleData();
-  }, [fetchCandleData, dataRefreshTrigger]);
+  // Convert store data to chart format
+  const chartData: ChartData[] = candleData.map((candle) => ({
+    time: candle.timestamp as UTCTimestamp,
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+  }));
 
   
   // Initialize and update chart
   useEffect(() => {
-    if (!chartContainerRef.current || isLoading || data.length === 0) return;
+    if (!chartContainerRef.current || isLoading || chartData.length === 0) return;
 
     // Create chart
     const chart = createChart(chartContainerRef.current, {
@@ -197,7 +130,7 @@ export default function TradingChart() {
     });
 
     // Set data
-    candlestickSeries.setData(data);
+    candlestickSeries.setData(chartData);
 
     // Fit content
     chart.timeScale().fitContent();
@@ -211,7 +144,7 @@ export default function TradingChart() {
         chartRef.current.remove();
       }
     };
-  }, [data, theme, isLoading]);
+  }, [chartData, theme, isLoading]);
 
   // Update chart theme when theme changes
   useEffect(() => {
@@ -276,7 +209,7 @@ export default function TradingChart() {
           </div>
           <p className="text-destructive font-medium mb-2">Failed to load chart data</p>
           <p className="text-muted-foreground text-sm mb-4">{error}</p>
-          <Button onClick={fetchCandleData} variant="outline" size="sm">
+          <Button onClick={refreshData} variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Retry
           </Button>
@@ -285,7 +218,7 @@ export default function TradingChart() {
     );
   }
 
-  if (data.length === 0) {
+  if (chartData.length === 0) {
     return (
       <div className="flex items-center justify-center w-full h-full">
         <div className="text-center">

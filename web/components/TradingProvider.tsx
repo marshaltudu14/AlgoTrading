@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, createContext, useContext, useEffect, useMemo } from "react";
-import { DEFAULT_INSTRUMENT, DEFAULT_TIMEFRAME } from "@/config/instruments";
+import React, { useState, createContext, useContext, useEffect, useMemo, useCallback } from "react";
+import { DEFAULT_INSTRUMENT, DEFAULT_TIMEFRAME, INSTRUMENTS, TIMEFRAMES } from "@/config/instruments";
+import { useTradingStore } from "@/stores/tradingStore";
 
 interface TradingState {
   symbol: string;
@@ -9,9 +10,12 @@ interface TradingState {
   currentTime: Date | null;
   nextUpdateTime: Date | null;
   countdown: number;
-  dataRefreshTrigger: number;
+  selectedInstrument: typeof INSTRUMENTS[0];
+  selectedTimeframe: typeof TIMEFRAMES[0];
   setSymbol: (symbol: string) => void;
   setTimeframe: (timeframe: string) => void;
+  setSelectedInstrument: (instrument: typeof INSTRUMENTS[0]) => void;
+  setSelectedTimeframe: (timeframe: typeof TIMEFRAMES[0]) => void;
   setCurrentTime: (time: Date) => void;
   triggerDataRefresh: () => void;
 }
@@ -23,9 +27,12 @@ const TradingContext = createContext<TradingState>({
   currentTime: null,
   nextUpdateTime: null,
   countdown: 0,
-  dataRefreshTrigger: 0,
+  selectedInstrument: DEFAULT_INSTRUMENT,
+  selectedTimeframe: DEFAULT_TIMEFRAME,
   setSymbol: () => {},
   setTimeframe: () => {},
+  setSelectedInstrument: () => {},
+  setSelectedTimeframe: () => {},
   setCurrentTime: () => {},
   triggerDataRefresh: () => {},
 });
@@ -38,12 +45,33 @@ export default function TradingProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [symbol, setSymbol] = useState(DEFAULT_INSTRUMENT.exchangeSymbol);
-  const [timeframe, setTimeframe] = useState(DEFAULT_TIMEFRAME.name);
+  const {
+    selectedInstrument,
+    selectedTimeframe,
+    setSelectedInstrument,
+    setSelectedTimeframe,
+  } = useTradingStore();
+
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [nextUpdateTime, setNextUpdateTime] = useState<Date | null>(null);
   const [countdown, setCountdown] = useState(0);
-  const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0);
+
+  const symbol = selectedInstrument.exchangeSymbol;
+  const timeframe = selectedTimeframe.name;
+
+  const setSymbol = useCallback((newSymbol: string) => {
+    const instrument = INSTRUMENTS.find(i => i.exchangeSymbol === newSymbol);
+    if (instrument) {
+      setSelectedInstrument(instrument);
+    }
+  }, [setSelectedInstrument]);
+
+  const setTimeframe = useCallback((newTimeframe: string) => {
+    const tf = TIMEFRAMES.find(t => t.name === newTimeframe);
+    if (tf) {
+      setSelectedTimeframe(tf);
+    }
+  }, [setSelectedTimeframe]);
 
   // Calculate next rounded interval based on timeframe
   const calculateNextInterval = (tf: string, now: Date): Date => {
@@ -93,20 +121,16 @@ export default function TradingProvider({
         const seconds = Math.max(0, rawSeconds);
         setCountdown(seconds);
         setNextUpdateTime(nextInterval);
-
-        // Trigger data refresh 1 second after interval for latest data
-        if (rawSeconds === -1) {
-          setDataRefreshTrigger(prev => prev + 1);
-        }
       }
     }, 1000);
 
     return () => clearInterval(timer);
   }, [timeframe]);
 
-  const triggerDataRefresh = () => {
-    setDataRefreshTrigger(prev => prev + 1);
-  };
+  const triggerDataRefresh = useCallback(() => {
+    // Refresh data through the trading store
+    useTradingStore.getState().refreshData();
+  }, []);
 
   // Memoize state to prevent unnecessary re-renders
   const state = useMemo(() => ({
@@ -115,12 +139,15 @@ export default function TradingProvider({
     currentTime,
     nextUpdateTime,
     countdown,
-    dataRefreshTrigger,
+    selectedInstrument,
+    selectedTimeframe,
     setSymbol,
     setTimeframe,
+    setSelectedInstrument,
+    setSelectedTimeframe,
     setCurrentTime,
     triggerDataRefresh,
-  }), [symbol, timeframe, currentTime, nextUpdateTime, countdown, dataRefreshTrigger]);
+  }), [symbol, timeframe, currentTime, nextUpdateTime, countdown, selectedInstrument, selectedTimeframe, setSymbol, setTimeframe, setSelectedInstrument, setSelectedTimeframe, triggerDataRefresh]);
 
   return (
     <TradingContext.Provider value={state}>

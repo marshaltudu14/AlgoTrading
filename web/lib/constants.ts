@@ -13,6 +13,7 @@ export const FYERS_ENDPOINTS = {
   ORDERS: `${FYERS_API_BASE}/orders`,
   POSITIONS: `${FYERS_API_BASE}/positions`,
   TRADEBOOK: `${FYERS_API_BASE}/tradebook`,
+  HISTORY: 'https://api-t1.fyers.in/data/history',
 } as const;
 
 // Cookie Constants
