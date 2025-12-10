@@ -19,7 +19,7 @@ interface AuthState {
   setError: (error: string | null) => void;
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
+export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   isLoading: false,
   user: null,
@@ -31,9 +31,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      // Store credentials for callback
-      sessionStorage.setItem('fyers_app_id', appId);
-      sessionStorage.setItem('fyers_secret_key', secretKey);
+      // Store credentials in cookies for callback
+      document.cookie = `fyers_temp_app_id=${appId}; path=/; max-age=${60 * 10}; samesite=lax`;
+      document.cookie = `fyers_temp_secret=${secretKey}; path=/; max-age=${60 * 10}; samesite=lax`;
 
       // Create redirect URL dynamically
       const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/api/auth/fyers/callback`;
@@ -127,28 +127,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     window.location.href = '/';
   },
 
-  checkAuthStatus: () => {
-    // Check if we have stored tokens
-    const hasToken = document.cookie.includes('fyers_access_token');
-
-    if (hasToken) {
-      set({
-        isAuthenticated: true,
-        appId: document.cookie.split('fyers_app_id=')[1]?.split(';')[0] || null,
+  checkAuthStatus: async () => {
+    try {
+      // Check auth status via API since httpOnly cookies aren't accessible via document.cookie
+      const response = await fetch('/api/auth/fyers/status', {
+        method: 'GET',
+        credentials: 'include',
       });
-    } else {
-      // Check if we have an auth_code (from OAuth callback)
-      const authCodeCookie = document.cookie.includes('fyers_auth_code');
 
-      if (authCodeCookie) {
-        const storedAppId = sessionStorage.getItem('fyers_app_id');
-        const storedSecretKey = sessionStorage.getItem('fyers_secret_key');
-
-        if (storedAppId && storedSecretKey) {
-          // Auto-validate with stored credentials
-          get().validateAuth(storedAppId, storedSecretKey);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated) {
+          set({
+            isAuthenticated: true,
+            user: data.profile,
+            appId: data.appId,
+            accessToken: data.access_token || null,
+          });
+        } else {
+          set({
+            isAuthenticated: false,
+            user: null,
+            appId: null,
+            accessToken: null,
+          });
         }
+      } else {
+        // Not authenticated
+        set({
+          isAuthenticated: false,
+          user: null,
+          appId: null,
+          accessToken: null,
+        });
       }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      set({
+        isAuthenticated: false,
+        user: null,
+        appId: null,
+        accessToken: null,
+      });
     }
   },
 

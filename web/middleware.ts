@@ -8,7 +8,7 @@ export function middleware(request: NextRequest) {
   const accessToken = request.cookies.get('fyers_access_token')?.value;
 
   // Define public paths that don't require authentication
-  const publicPaths = ['/'];
+  const publicPaths = ['/', '/callback'];
   const apiPaths = ['/api/auth/fyers/initiate', '/api/auth/fyers/callback', '/api/auth/fyers/validate', '/api/auth/fyers/refresh'];
 
   // Check if the path is public or an API route
