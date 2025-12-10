@@ -67,20 +67,40 @@ export async function GET(
       throw new Error(data.message || 'Fyers API returned error');
     }
 
-    // Transform data to match expected format
+    // Transform data to match expected format and remove duplicates
     const candles = data.candles || [];
-    const transformedData = candles.map((candle: number[]) => ({
-      timestamp: candle[0], // Epoch timestamp
-      open: candle[1],
-      high: candle[2],
-      low: candle[3],
-      close: candle[4],
-      volume: candle[5] || 0,
-    }));
+    const dataMap = new Map<number, [number, number, number, number, number]>();
+
+    // Use a Map to automatically handle duplicates
+    candles.forEach((candle: number[]) => {
+      const timestamp = candle[0];
+      // Only keep the first occurrence of each timestamp
+      if (!dataMap.has(timestamp)) {
+        dataMap.set(timestamp, [
+          candle[1], // open
+          candle[2], // high
+          candle[3], // low
+          candle[4], // close
+          candle[5] || 0, // volume
+        ]);
+      }
+    });
+
+    // Convert Map back to array and sort by timestamp
+    const uniqueData = Array.from(dataMap.entries())
+      .map(([timestamp, [open, high, low, close, volume]]) => ({
+        timestamp,
+        open,
+        high,
+        low,
+        close,
+        volume,
+      }))
+      .sort((a, b) => a.timestamp - b.timestamp);
 
     return NextResponse.json({
       success: true,
-      data: transformedData,
+      data: uniqueData,
     });
 
   } catch (error) {

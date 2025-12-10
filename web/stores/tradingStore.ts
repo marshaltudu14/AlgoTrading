@@ -54,9 +54,9 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch(
-        `/api/candle-data/${selectedInstrument.exchangeSymbol}/${selectedTimeframe.name}`
-      );
+      const apiUrl = `/api/candle-data/${selectedInstrument.exchangeSymbol}/${selectedTimeframe.name}`;
+
+      const response = await fetch(apiUrl);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch candle data: ${response.statusText}`);

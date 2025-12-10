@@ -16,6 +16,8 @@ interface ChartData {
 }
 
 export default function TradingChart() {
+  console.log('=== TradingChart render ===');
+
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<unknown | null>(null);
@@ -24,8 +26,17 @@ export default function TradingChart() {
     candleData,
     isLoading,
     error,
-    refreshData
+    refreshData,
+    fetchCandleData
   } = useTradingStore();
+
+  console.log('TradingChart state:', { isLoading, error, candleDataLength: candleData.length });
+
+  // Fetch data on component mount
+  useEffect(() => {
+    console.log('TradingChart mounted, fetching data...');
+    fetchCandleData();
+  }, [fetchCandleData]);
 
   const handleZoomIn = () => {
     if (chartRef.current) {
