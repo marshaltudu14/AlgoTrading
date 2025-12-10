@@ -70,7 +70,8 @@
       "mcp__ide__executeCode",
       "Bash(git reset:*)",
       "Bash(ls:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "mcp__playwright__browser_handle_dialog"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

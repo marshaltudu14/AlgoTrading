@@ -25,14 +25,8 @@ plotly
 ipywidgets
 kaleido
 
-# Web Framework & API Libraries
-fastapi
-uvicorn[standard]
+# API Libraries
 pydantic
-python-jose[cryptography]
-python-multipart
-websockets
-pyjwt
 python-dotenv
 aiofiles
 
