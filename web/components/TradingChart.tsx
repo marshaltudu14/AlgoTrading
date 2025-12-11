@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { createChart, IChartApi, UTCTimestamp, ColorType, CandlestickSeries } from "lightweight-charts";
 import { useTheme } from "next-themes";
-import { ZoomIn, ZoomOut, RefreshCw, Brain, Activity, TrendingUp, TrendingDown, Minus, X, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { ZoomIn, ZoomOut, RefreshCw, AlertCircle, CheckCircle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTradingStore } from "@/stores/tradingStore";
 import { useCandleStore } from "@/stores/candleStore";
@@ -11,6 +11,7 @@ import { useStrategyStore } from "@/stores/strategyStore";
 import { useBacktestStore } from "@/stores/backtestStore";
 import { useTradingContext } from "@/components/TradingProvider";
 import { INSTRUMENTS } from "@/config/instruments";
+import { DataViewer } from "@/components/DataViewer";
 
 interface ChartData {
   time: UTCTimestamp;
@@ -236,10 +237,9 @@ export default function TradingChart() {
       visible: true,
       timeVisible: true,
       secondsVisible: false,
+      // Disable auto scaling to prevent scroll reset
+      lockVisibleTimeRangeOnResize: true,
     });
-
-    // Fit content
-    timeScale.fitContent();
 
     // Store references
     chartRef.current = chart;
@@ -419,66 +419,46 @@ export default function TradingChart() {
       <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-2 text-xs space-y-1 z-50">
         {/* Instrument and Timeframe */}
         <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground">Instrument:</span>
-          <div className="flex items-center gap-1">
-            <span className="font-medium">
-              {INSTRUMENTS.find(inst => inst.exchangeSymbol === displaySymbol)?.name || displaySymbol}
-            </span>
-            <span className="text-muted-foreground">-</span>
-            <span className="font-medium">{displayTimeframe}M</span>
-          </div>
+          <span>Instrument:</span>
+          <span className="font-medium">
+            {INSTRUMENTS.find(inst => inst.exchangeSymbol === displaySymbol)?.name || displaySymbol} - {displayTimeframe}M
+          </span>
         </div>
 
         {/* Trading Signal */}
         {currentSignal && (
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Signal:</span>
-            <div className="flex items-center gap-1">
-              {currentSignal.signal === 'BUY' ? (
-                <>
-                  <TrendingUp className="h-3 w-3 text-green-500" />
-                  <span className="text-green-500 font-medium">
-                    BUY ({Math.round(currentSignal.confidence * 100)}%)
-                  </span>
-                </>
-              ) : currentSignal.signal === 'SELL' ? (
-                <>
-                  <TrendingDown className="h-3 w-3 text-red-500" />
-                  <span className="text-red-500 font-medium">
-                    SELL ({Math.round(currentSignal.confidence * 100)}%)
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Minus className="h-3 w-3 text-gray-500" />
-                  <span className="text-gray-500 font-medium">HOLD</span>
-                </>
-              )}
-            </div>
+            <span>Signal:</span>
+            <span className={`font-medium ${
+              currentSignal.signal === 'BUY' ? 'text-green-500' :
+              currentSignal.signal === 'SELL' ? 'text-red-500' : 'text-gray-500'
+            }`}>
+              {currentSignal.signal} ({Math.round(currentSignal.confidence * 100)}%)
+            </span>
           </div>
         )}
 
         {/* Feature Count */}
         {featureCount > 0 && (
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Indicators:</span>
-            <div className="flex items-center gap-1">
-              <Brain className="h-3 w-3" />
-              <span className={`font-medium ${featureCount === expectedFeatureCount ? 'text-green-500' : 'text-yellow-500'}`}>
-                {featureCount}/{expectedFeatureCount}
-              </span>
-            </div>
+            <span>Indicators:</span>
+            <span className={`font-medium ${featureCount === expectedFeatureCount ? 'text-green-500' : 'text-yellow-500'}`}>
+              {featureCount}/{expectedFeatureCount}
+            </span>
           </div>
         )}
+
+        {/* Data Viewer Button */}
+        <div className="flex items-center justify-between gap-4">
+          <span>Data:</span>
+          <DataViewer />
+        </div>
 
         {/* Processing Status (only show when processing) */}
         {isProcessing && (
           <div className="flex items-center justify-between gap-4">
-            <span className="text-muted-foreground">Status:</span>
-            <div className="flex items-center gap-1">
-              <Activity className="h-3 w-3 animate-spin text-blue-500" />
-              <span className="text-blue-500 font-medium">Processing...</span>
-            </div>
+            <span>Status:</span>
+            <span className="text-blue-500 font-medium">Processing...</span>
           </div>
         )}
 
