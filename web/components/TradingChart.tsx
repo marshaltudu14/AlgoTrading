@@ -414,6 +414,22 @@ export default function TradingChart({ dataViewerRef }: TradingChartProps) {
                   ₹{((backtestResults.metrics as { totalPL?: number }).totalPL || 0).toFixed(0)}
                 </span>
               </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">P&L %:</span>
+                <span className={`font-medium ${((backtestResults.metrics as { totalPnLPct?: number }).totalPnLPct ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {((backtestResults.metrics as { totalPnLPct?: number }).totalPnLPct || 0).toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Sharpe:</span>
+                <span className="font-medium">{((backtestResults.metrics as { sharpeRatio?: number }).sharpeRatio || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Max DD:</span>
+                <span className="font-medium text-red-500">
+                  ₹{((backtestResults.metrics as { maxDrawdown?: number }).maxDrawdown || 0).toFixed(0)}
+                </span>
+              </div>
             </div>
           ) : null}
         </div>

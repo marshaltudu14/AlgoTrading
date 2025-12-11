@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -39,6 +40,9 @@ export default function BacktestDialog() {
     setDurationUnit,
     setTargetPL,
     setStopLossPL,
+    setInitialCapital,
+    setDoubleLotSize,
+    setTrailSL,
     openDialog,
     closeDialog,
     startBacktest,
@@ -97,7 +101,7 @@ export default function BacktestDialog() {
       const engine = new BacktestEngine({
         targetPnL: config.targetPL,
         stopLossPnL: config.stopLossPL,
-        initialCapital: 25000,
+        initialCapital: config.initialCapital,
         lotSize: 75,
         minConfidence: 0.5
       });
@@ -424,6 +428,52 @@ export default function BacktestDialog() {
               {errors.stopLossPL && (
                 <p className="text-sm text-red-500">{errors.stopLossPL}</p>
               )}
+            </div>
+          </div>
+
+          {/* Initial Capital */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="initialCapital" className="text-right">
+              Initial Capital
+            </Label>
+            <div className="col-span-3 space-y-1">
+              <Input
+                id="initialCapital"
+                type="number"
+                value={config.initialCapital}
+                onChange={(e) => {
+                  const numValue = parseFloat(e.target.value) || 0;
+                  if (numValue > 0) {
+                    setInitialCapital(numValue);
+                  }
+                }}
+                placeholder="Enter initial capital"
+                min="1000"
+                step="1000"
+              />
+            </div>
+          </div>
+
+          {/* Double Lot Size & Trail SL */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">
+              Options
+            </Label>
+            <div className="col-span-3 flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Double Lot Size</Label>
+                <Switch
+                  checked={config.doubleLotSize}
+                  onCheckedChange={setDoubleLotSize}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm">Trail SL</Label>
+                <Switch
+                  checked={config.trailSL}
+                  onCheckedChange={setTrailSL}
+                />
+              </div>
             </div>
           </div>
         </div>

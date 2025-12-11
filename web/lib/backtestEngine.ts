@@ -19,6 +19,8 @@ export interface BacktestConfig {
   lotSize: number;          // Lot size for position sizing
   minConfidence: number;    // Minimum confidence threshold - Default: 0.5
   maxDailyLosses: number;   // Maximum losses per day - Default: 2
+  doubleLotSize?: boolean;  // Double lot size when capital doubles - Default: true
+  trailSL?: boolean;        // Trail stop loss after target hit - Default: true
 }
 
 // Trade record interface
@@ -95,6 +97,8 @@ export class BacktestEngine {
       lotSize: 75, // Default for Nifty
       minConfidence: 0.5,
       maxDailyLosses: 2,
+      doubleLotSize: true,
+      trailSL: true,
       ...config
     };
     this.peakCapital = this.config.initialCapital;
@@ -115,6 +119,8 @@ export class BacktestEngine {
     let barsHeld = 0;
     const exitDetails: ExitDetails = {
       exitPrice: entryPrice,
+      targetPrice: undefined,
+      stopLossPrice: undefined,
       exitReason: undefined
     };
 
@@ -123,9 +129,11 @@ export class BacktestEngine {
     const currentStopLossPnL = stopLossPnL ?? this.config.stopLossPnL;
 
     // Calculate points needed based on P&L targets
-    // P&L targets are per lot, so we divide by lot_size to get price movement
     const targetPoints = Math.abs(currentTargetPnL) / lotSize;
     const stopLossPoints = Math.abs(currentStopLossPnL) / lotSize;
+
+    // Check if trailing SL is enabled
+    const trailSL = this.config.trailSL ?? true;
 
     // Initialize variables for trailing
     let hitInitialTarget = false;
@@ -148,14 +156,23 @@ export class BacktestEngine {
         if (!hitInitialTarget) {
           // Before hitting initial target
           if (candle.close >= currentTarget) {
-            // Hit initial target - start trailing
-            hitInitialTarget = true;
-            targetsHit = 1;
-            // Move SL to target price (protect profit at this level)
-            const previousTarget = currentTarget;
-            currentSl = previousTarget;
-            // Set next target (add same target_points from the target we just hit)
-            currentTarget = previousTarget + targetPoints;
+            // Hit initial target
+            if (trailSL) {
+              // Start trailing
+              hitInitialTarget = true;
+              targetsHit = 1;
+              // Move SL to target price (protect profit at this level)
+              const previousTarget = currentTarget;
+              currentSl = previousTarget;
+              // Set next target (add same target_points from the target we just hit)
+              currentTarget = previousTarget + targetPoints;
+            } else {
+              // Exit at target if no trailing
+              exitDetails.exitPrice = Math.round(currentTarget * 100) / 100;
+              exitDetails.exitReason = 'TARGET_HIT';
+              const pnlPoints = currentTarget - entryPrice;
+              return { isWin: true, pnlPoints, barsHeld, exitDetails };
+            }
           } else if (candle.low <= currentSl) {
             // SL breached during the candle - exit immediately at SL
             exitDetails.exitPrice = Math.round(currentSl * 100) / 100;
@@ -163,7 +180,7 @@ export class BacktestEngine {
             const pnlPoints = -(entryPrice - currentSl);
             return { isWin: false, pnlPoints, barsHeld, exitDetails };
           }
-        } else {
+        } else if (trailSL) {
           // After hitting initial target - trailing mode
           // IMPORTANT: Check SL breach FIRST to ensure we exit if SL is hit
           if (candle.close <= currentSl) {
@@ -206,14 +223,23 @@ export class BacktestEngine {
         if (!hitInitialTarget) {
           // Before hitting initial target
           if (candle.close <= currentTarget) {
-            // Hit initial target - start trailing
-            hitInitialTarget = true;
-            targetsHit = 1;
-            // Move SL to target price (protect profit at this level)
-            const previousTarget = currentTarget;
-            currentSl = previousTarget;
-            // Set next target (subtract same target_points again from the target we just hit)
-            currentTarget = previousTarget - targetPoints;
+            // Hit initial target
+            if (trailSL) {
+              // Start trailing
+              hitInitialTarget = true;
+              targetsHit = 1;
+              // Move SL to target price (protect profit at this level)
+              const previousTarget = currentTarget;
+              currentSl = previousTarget;
+              // Set next target (subtract same target_points again from the target we just hit)
+              currentTarget = previousTarget - targetPoints;
+            } else {
+              // Exit at target if no trailing
+              exitDetails.exitPrice = Math.round(currentTarget * 100) / 100;
+              exitDetails.exitReason = 'TARGET_HIT';
+              const pnlPoints = entryPrice - currentTarget;
+              return { isWin: true, pnlPoints, barsHeld, exitDetails };
+            }
           } else if (candle.high >= currentSl) {
             // SL breached during the candle - exit immediately at SL
             exitDetails.exitPrice = Math.round(currentSl * 100) / 100;
@@ -221,7 +247,7 @@ export class BacktestEngine {
             const pnlPoints = -(currentSl - entryPrice); // For SELL, loss = SL - entry
             return { isWin: false, pnlPoints, barsHeld, exitDetails };
           }
-        } else {
+        } else if (trailSL) {
           // After hitting initial target - trailing mode
           // IMPORTANT: Check SL breach FIRST to ensure we exit if SL is hit
           if (candle.close >= currentSl) {
@@ -314,10 +340,13 @@ export class BacktestEngine {
 
         // Calculate scaled lot size and P&L
         let currentLotMultiplier = 1;
-        let tempCapital = capital;
-        while (tempCapital >= 50000) {
-          tempCapital /= 2;
-          currentLotMultiplier *= 2;
+        if (this.config.doubleLotSize) {
+          let tempCapital = capital;
+          const doublingThreshold = this.config.initialCapital * 2; // Double when capital doubles
+          while (tempCapital >= doublingThreshold) {
+            tempCapital /= 2;
+            currentLotMultiplier *= 2;
+          }
         }
         const currentLotSize = this.config.lotSize * currentLotMultiplier;
         const scaledTargetPnL = this.config.targetPnL * currentLotMultiplier;

@@ -11,6 +11,9 @@ interface BacktestConfig {
   durationInDays: number;
   targetPL: number;
   stopLossPL: number;
+  initialCapital: number;
+  doubleLotSize: boolean;
+  trailSL: boolean;
 }
 
 interface BacktestState {
@@ -38,6 +41,9 @@ interface BacktestState {
   setDurationUnit: (unit: DurationUnit) => void;
   setTargetPL: (pl: number) => void;
   setStopLossPL: (pl: number) => void;
+  setInitialCapital: (capital: number) => void;
+  setDoubleLotSize: (double: boolean) => void;
+  setTrailSL: (trail: boolean) => void;
   openDialog: () => void;
   closeDialog: () => void;
   startBacktest: () => void;
@@ -69,6 +75,9 @@ const DEFAULT_CONFIG: BacktestConfig = {
   durationInDays: 30,
   targetPL: 500,
   stopLossPL: -250,
+  initialCapital: 25000,
+  doubleLotSize: true,
+  trailSL: true,
 };
 
 export const useBacktestStore = create<BacktestState>((set, get) => ({
@@ -119,6 +128,24 @@ export const useBacktestStore = create<BacktestState>((set, get) => ({
   setStopLossPL: (stopLossPL: number) => {
     set(state => ({
       config: { ...state.config, stopLossPL }
+    }));
+  },
+
+  setInitialCapital: (initialCapital: number) => {
+    set(state => ({
+      config: { ...state.config, initialCapital }
+    }));
+  },
+
+  setDoubleLotSize: (doubleLotSize: boolean) => {
+    set(state => ({
+      config: { ...state.config, doubleLotSize }
+    }));
+  },
+
+  setTrailSL: (trailSL: boolean) => {
+    set(state => ({
+      config: { ...state.config, trailSL }
     }));
   },
 
