@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useTradingContext } from "./TradingProvider";
+import { useBacktestStore } from "@/stores/backtestStore";
 import { INSTRUMENTS } from "@/config/instruments";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, TrendingUp } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,22 +15,26 @@ import {
 
 export default function InstrumentSelector() {
   const { symbol, setSymbol } = useTradingContext();
+  const { isBacktestMode, setSymbol: setBacktestSymbol } = useBacktestStore();
   const [isOpen, setIsOpen] = useState(false);
 
-  const currentInstrument = INSTRUMENTS.find(inst => inst.exchangeSymbol === symbol);
+  // Show backtest symbol when in backtest mode
+  const displaySymbol = isBacktestMode ? useBacktestStore.getState().config.symbol : symbol;
 
   const handleInstrumentSelect = (exchangeSymbol: string) => {
     setSymbol(exchangeSymbol);
+    // Also update backtest symbol if in backtest mode
+    if (isBacktestMode) {
+      setBacktestSymbol(exchangeSymbol);
+    }
     setIsOpen(false);
   };
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 gap-1">
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer">
           <TrendingUp className="h-4 w-4" />
-          <span>{currentInstrument?.name || symbol}</span>
-          <ChevronDown className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
@@ -37,7 +42,7 @@ export default function InstrumentSelector() {
           <DropdownMenuItem
             key={instrument.id}
             onClick={() => handleInstrumentSelect(instrument.exchangeSymbol)}
-            className={symbol === instrument.exchangeSymbol ? "bg-accent" : ""}
+            className={displaySymbol === instrument.exchangeSymbol ? "bg-accent" : ""}
           >
             <div className="font-medium">{instrument.name}</div>
           </DropdownMenuItem>

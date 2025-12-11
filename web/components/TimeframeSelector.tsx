@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useTradingContext } from "./TradingProvider";
+import { useBacktestStore } from "@/stores/backtestStore";
 import { TIMEFRAMES } from "@/config/instruments";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,22 +15,26 @@ import {
 
 export default function TimeframeSelector() {
   const { timeframe, setTimeframe } = useTradingContext();
+  const { isBacktestMode, setTimeframe: setBacktestTimeframe } = useBacktestStore();
   const [isOpen, setIsOpen] = useState(false);
 
-  const currentTimeframe = TIMEFRAMES.find(tf => tf.name === timeframe);
+  // Show backtest timeframe when in backtest mode
+  const displayTimeframe = isBacktestMode ? useBacktestStore.getState().config.timeframe : timeframe;
 
   const handleTimeframeSelect = (timeframeName: string) => {
     setTimeframe(timeframeName);
+    // Also update backtest timeframe if in backtest mode
+    if (isBacktestMode) {
+      setBacktestTimeframe(timeframeName);
+    }
     setIsOpen(false);
   };
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 gap-1">
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 cursor-pointer">
           <Clock className="h-4 w-4" />
-          <span>{currentTimeframe?.name}M</span>
-          <ChevronDown className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-40">
@@ -37,7 +42,7 @@ export default function TimeframeSelector() {
           <DropdownMenuItem
             key={tf.id}
             onClick={() => handleTimeframeSelect(tf.name)}
-            className={timeframe === tf.name ? "bg-accent" : ""}
+            className={displayTimeframe === tf.name ? "bg-accent" : ""}
           >
             <div className="font-medium">{tf.name}M</div>
           </DropdownMenuItem>

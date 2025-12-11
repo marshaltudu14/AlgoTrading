@@ -42,14 +42,13 @@ export default function LogoutButton() {
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="sm"
-      className="w-full cursor-pointer"
+      className="h-8 w-8 p-0 cursor-pointer"
       onClick={handleLogout}
       disabled={isLoading}
     >
-      <LogOut className="h-4 w-4 mr-2" />
-      {isLoading ? 'Logging out...' : 'Logout'}
+      <LogOut className="h-4 w-4" />
     </Button>
   );
 }

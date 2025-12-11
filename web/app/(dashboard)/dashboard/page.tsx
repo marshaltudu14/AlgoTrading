@@ -1,3 +1,5 @@
+"use client";
+
 import TradingChart from "@/components/TradingChart";
 
 export default function Dashboard() {

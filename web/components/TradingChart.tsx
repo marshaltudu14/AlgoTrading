@@ -3,10 +3,14 @@
 import { useEffect, useRef, useCallback } from "react";
 import { createChart, IChartApi, UTCTimestamp, ColorType, CandlestickSeries } from "lightweight-charts";
 import { useTheme } from "next-themes";
-import { ZoomIn, ZoomOut, RefreshCw, Brain, Activity } from "lucide-react";
+import { ZoomIn, ZoomOut, RefreshCw, Brain, Activity, TrendingUp, TrendingDown, Minus, X, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTradingStore } from "@/stores/tradingStore";
 import { useCandleStore } from "@/stores/candleStore";
+import { useStrategyStore } from "@/stores/strategyStore";
+import { useBacktestStore } from "@/stores/backtestStore";
+import { useTradingContext } from "@/components/TradingProvider";
+import { INSTRUMENTS } from "@/config/instruments";
 
 interface ChartData {
   time: UTCTimestamp;
@@ -30,6 +34,12 @@ export default function TradingChart() {
     fetchCandleData
   } = useTradingStore();
 
+  // Get instrument and timeframe info
+  const { symbol, timeframe } = useTradingContext();
+
+  // Get backtest state
+  const { isBacktestMode, isBacktestLoading, backtestResults, config } = useBacktestStore();
+
   // Memoize fetchCandleData to prevent unnecessary re-renders
   const memoizedFetchCandleData = useCallback(() => {
     fetchCandleData();
@@ -42,6 +52,11 @@ export default function TradingChart() {
     getFeatureNames,
     getExpectedFeatureCount
   } = useCandleStore();
+
+  const {
+    currentSignal,
+    calculateSignal
+  } = useStrategyStore();
 
   
   // Perform the initial fetch on mount
@@ -63,14 +78,46 @@ export default function TradingChart() {
     }
   }, [candleData.length, isProcessing, processedCandles.length, processingError]); // Include all dependencies
 
+  // Calculate signal when we have processed candles
+  useEffect(() => {
+    if (processedCandles.length > 0) {
+      const latestCandle = processedCandles[processedCandles.length - 1];
+      const previousCandles = processedCandles.slice(0, -1);
+      calculateSignal(latestCandle, previousCandles);
+    }
+  }, [processedCandles, calculateSignal]);
+
   // Show loading states - only show chart when processing is complete
-  const isLoadingData = isLoading;
+  const isLoadingData = isLoading || isBacktestLoading;
   const isProcessingData = isProcessing;
   const shouldShowLoading = isLoadingData || isProcessingData;
+
+  // Determine which data to show
+  let chartDataSource = processedCandles;
+  let displaySymbol = symbol;
+  let displayTimeframe = timeframe;
+
+  console.log("📊 TradingChart state:", {
+    isBacktestMode,
+    isBacktestLoading,
+    hasBacktestResults: !!backtestResults,
+    hasCandleData: !!backtestResults?.candleData,
+    chartDataLength: chartDataSource.length
+  });
+
+  if (isBacktestMode && backtestResults?.candleData) {
+    // Use backtest candle data when in backtest mode
+    const backtestCandles = backtestResults.candleData as { timestamp: number; open: number; high: number; low: number; close: number }[];
+    console.log(`🔄 Using backtest data: ${backtestCandles.length} candles`);
+    chartDataSource = backtestCandles;
+    displaySymbol = config.symbol;
+    displayTimeframe = config.timeframe;
+  }
+
   // Only show no data state if not loading AND not processing AND no data exists
-  const shouldShowNoData = !isLoadingData && !isProcessingData && candleData.length === 0 && !error;
+  const shouldShowNoData = !isLoadingData && !isProcessingData && chartDataSource.length === 0 && !error;
   // Only show chart when processing is complete
-  const shouldShowChart = !isLoadingData && !isProcessingData && processedCandles.length > 0 && !error;
+  const shouldShowChart = !isLoadingData && !isProcessingData && chartDataSource.length > 0 && !error;
 
   const handleZoomIn = () => {
     if (chartRef.current) {
@@ -110,10 +157,10 @@ export default function TradingChart() {
     }
   };
 
-  // Use processed candles for chart display when processing is complete
+  // Use data source for chart display when processing is complete
   // Timestamps from Fyers API are in seconds and already have the correct time
   // No timezone conversion needed - use timestamps as received from API
-  const dataToDisplay = shouldShowChart ? processedCandles : [];
+  const dataToDisplay = shouldShowChart ? chartDataSource : [];
   const chartData: ChartData[] = dataToDisplay.map((candle) => ({
     // Use timestamp as-is (in seconds) for lightweight-charts
     time: candle.timestamp as UTCTimestamp,
@@ -161,7 +208,7 @@ export default function TradingChart() {
         // This tells the chart to respect actual time intervals rather than interpolating
       },
       crosshair: {
-        mode: 1,
+        mode: 0, // Normal crosshair mode (no magnet/snap)
         vertLine: {
           color: theme === "dark" ? "#444444" : "#cccccc",
           width: 1,
@@ -211,7 +258,7 @@ export default function TradingChart() {
         chartRef.current.remove();
       }
     };
-  }, [chartData, theme, isLoading]);
+  }, [chartData, theme, shouldShowChart]);
 
   // Update chart theme when theme changes
   useEffect(() => {
@@ -262,7 +309,9 @@ export default function TradingChart() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">
-            {isLoadingData ? 'Fetching chart data...' : 'Processing technical indicators...'}
+            {isLoadingData ? 'Fetching chart data...' :
+             isBacktestLoading ? 'Running backtest...' :
+             'Processing technical indicators...'}
           </p>
         </div>
       </div>
@@ -308,35 +357,137 @@ export default function TradingChart() {
         />
       )}
 
-      {/* Processing Status and Feature Info */}
-      <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-2 text-xs space-y-1 z-50">
-        {/* Processing Status */}
-        <div className="flex items-center gap-2">
-          {isProcessing ? (
-            <>
-              <Activity className="h-3 w-3 animate-spin" />
-              <span className="text-muted-foreground">Processing features...</span>
-            </>
-          ) : processedCandles.length > 0 ? (
-            <>
-              <Brain className="h-3 w-3 text-green-500" />
-              <span className="text-green-500">Features ready</span>
-            </>
-          ) : candleData.length > 0 ? (
-            <>
-              <Brain className="h-3 w-3 text-yellow-500" />
-              <span className="text-yellow-500">Ready to process</span>
-            </>
-          ) : null}
+      {/* Backtest Indicator in bottom-left corner */}
+      {isBacktestMode && (
+        <div className="absolute bottom-4 left-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-2 text-xs z-50">
+          <div className="flex items-center justify-between gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              {/* Backtest Mode Badge */}
+              <div className="flex items-center gap-1 px-2 py-1 bg-secondary rounded">
+                {isBacktestLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : backtestResults ? (
+                  <CheckCircle className="h-3 w-3" />
+                ) : (
+                  <AlertCircle className="h-3 w-3" />
+                )}
+                <span className="text-xs font-medium">Backtest</span>
+              </div>
+
+              {/* Backtest Info */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>{config.symbol}</span>
+                <span>•</span>
+                <span>{config.timeframe}M</span>
+                <span>•</span>
+                <span>{config.durationInDays} days</span>
+              </div>
+            </div>
+
+            {/* Exit Backtest Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                console.log("Stopping backtest and fetching real data...");
+                const { stopBacktest } = useBacktestStore.getState();
+                stopBacktest();
+                // Fetch fresh data for real trading
+                const { fetchCandleData } = useTradingStore.getState();
+                fetchCandleData();
+              }}
+              className="h-6 px-1 text-xs hover:bg-destructive/10 hover:text-destructive"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+
+          {/* Backtest Results */}
+          {backtestResults?.metrics && (
+            <div className="border-t pt-1 mt-1 space-y-1">
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Trades:</span>
+                <span className="font-medium">{String((backtestResults.metrics as { totalTrades?: number }).totalTrades || 0)}</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">Win Rate:</span>
+                <span className="font-medium">{((backtestResults.metrics as { winRate?: number }).winRate || 0).toFixed(1)}%</span>
+              </div>
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">P&L:</span>
+                <span className={`font-medium ${(backtestResults.metrics as { totalPL?: number }).totalPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  ₹{((backtestResults.metrics as { totalPL?: number }).totalPL || 0).toFixed(0)}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Instrument, Timeframe, Signal and Feature Info */}
+      <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-2 text-xs space-y-1 z-50">
+        {/* Instrument and Timeframe */}
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">Instrument:</span>
+          <div className="flex items-center gap-1">
+            <span className="font-medium">
+              {INSTRUMENTS.find(inst => inst.exchangeSymbol === displaySymbol)?.name || displaySymbol}
+            </span>
+            <span className="text-muted-foreground">-</span>
+            <span className="font-medium">{displayTimeframe}M</span>
+          </div>
+        </div>
+
+        {/* Trading Signal */}
+        {currentSignal && (
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Signal:</span>
+            <div className="flex items-center gap-1">
+              {currentSignal.signal === 'BUY' ? (
+                <>
+                  <TrendingUp className="h-3 w-3 text-green-500" />
+                  <span className="text-green-500 font-medium">
+                    BUY ({Math.round(currentSignal.confidence * 100)}%)
+                  </span>
+                </>
+              ) : currentSignal.signal === 'SELL' ? (
+                <>
+                  <TrendingDown className="h-3 w-3 text-red-500" />
+                  <span className="text-red-500 font-medium">
+                    SELL ({Math.round(currentSignal.confidence * 100)}%)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Minus className="h-3 w-3 text-gray-500" />
+                  <span className="text-gray-500 font-medium">HOLD</span>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Feature Count */}
         {featureCount > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Features:</span>
-            <span className={`font-medium ${featureCount === expectedFeatureCount ? 'text-green-500' : 'text-yellow-500'}`}>
-              {featureCount}/{expectedFeatureCount}
-            </span>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Indicators:</span>
+            <div className="flex items-center gap-1">
+              <Brain className="h-3 w-3" />
+              <span className={`font-medium ${featureCount === expectedFeatureCount ? 'text-green-500' : 'text-yellow-500'}`}>
+                {featureCount}/{expectedFeatureCount}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Processing Status (only show when processing) */}
+        {isProcessing && (
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-muted-foreground">Status:</span>
+            <div className="flex items-center gap-1">
+              <Activity className="h-3 w-3 animate-spin text-blue-500" />
+              <span className="text-blue-500 font-medium">Processing...</span>
+            </div>
           </div>
         )}
 
@@ -350,7 +501,7 @@ export default function TradingChart() {
 
       {/* Chart Controls - Only show when chart is visible */}
       {shouldShowChart && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-1 flex items-center gap-1 z-50">
+        <div className="absolute bottom-4 right-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-1 flex items-center gap-1 z-50">
           <Button
             variant="ghost"
             size="sm"
