@@ -80,6 +80,9 @@ export class BacktestEngine {
   private trades: Trade[] = [];
   private equityCurve: EquityPoint[] = [];
   private peakCapital: number;
+  private totalTrades: number = 0;
+  private winningTrades: number = 0;
+  private losingTrades: number = 0;
 
   constructor(config: Partial<BacktestConfig> = {}) {
     // Default configuration matching trading.py
@@ -277,16 +280,16 @@ export class BacktestEngine {
     let entryPrice: number | null = null;
     let entryTime: Date | null = null;
     let entryConfidence = 0;
-    let totalTrades = 0;
-    let winningTrades = 0;
-    let losingTrades = 0;
+
+    // Reset trade counters
+    this.totalTrades = 0;
+    this.winningTrades = 0;
+    this.losingTrades = 0;
 
     // Track daily losses
     const dailyLosses = new Map<string, number>();
 
     // Dynamic lot size based on capital (matching Python logic)
-    const lotMultiplier = 1;
-    const lotSize = this.config.lotSize * lotMultiplier;
 
     // Process candles (skip last 50 bars for trade simulation)
     for (let i = 0; i < candles.length - 50; i++) {
@@ -338,11 +341,11 @@ export class BacktestEngine {
         capital += netPnL;
 
         // Update trade counts
-        totalTrades++;
+        this.totalTrades++;
         if (result.isWin) {
-          winningTrades++;
+          this.winningTrades++;
         } else {
-          losingTrades++;
+          this.losingTrades++;
           if (entryTime) {
             const dateStr = entryTime.toDateString();
             dailyLosses.set(dateStr, (dailyLosses.get(dateStr) ?? 0) + 1);
@@ -431,9 +434,7 @@ export class BacktestEngine {
     const totalPnLPct = (totalPnL / this.config.initialCapital) * 100;
 
     // Win rate
-    const winningTrades = this.trades.filter(t => t.pnlCurrency > 0).length;
-    const losingTrades = this.trades.filter(t => t.pnlCurrency < 0).length;
-    const winRate = winningTrades / this.trades.length;
+    const winRate = this.totalTrades > 0 ? this.winningTrades / this.totalTrades : 0;
 
     // Average trade P&L
     const avgTradePnL = totalPnL / this.trades.length;
@@ -510,9 +511,9 @@ export class BacktestEngine {
     }
 
     return {
-      totalTrades: this.trades.length,
-      winningTrades,
-      losingTrades,
+      totalTrades: this.totalTrades,
+      winningTrades: this.winningTrades,
+      losingTrades: this.losingTrades,
       winRate,
       totalPnL,
       totalPnLPct,

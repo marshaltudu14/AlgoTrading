@@ -11,7 +11,11 @@ import { useStrategyStore } from "@/stores/strategyStore";
 import { useBacktestStore } from "@/stores/backtestStore";
 import { useTradingContext } from "@/components/TradingProvider";
 import { INSTRUMENTS } from "@/config/instruments";
-import { DataViewer } from "@/components/DataViewer";
+import { DataViewerRef } from "@/components/DataViewer";
+
+interface TradingChartProps {
+  dataViewerRef?: React.RefObject<DataViewerRef | null>;
+}
 
 interface ChartData {
   time: UTCTimestamp;
@@ -21,7 +25,7 @@ interface ChartData {
   close: number;
 }
 
-export default function TradingChart() {
+export default function TradingChart({ dataViewerRef }: TradingChartProps) {
   
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -394,7 +398,7 @@ export default function TradingChart() {
           </div>
 
           {/* Backtest Results */}
-          {backtestResults && (backtestResults.metrics as any) && typeof backtestResults.metrics === 'object' && (
+          {backtestResults && backtestResults.metrics ? (
             <div className="border-t pt-1 mt-1 space-y-1">
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Trades:</span>
@@ -406,12 +410,12 @@ export default function TradingChart() {
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">P&L:</span>
-                <span className={`font-medium $((backtestResults.metrics as { totalPL?: number }).totalPL ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'`}>
+                <span className={`font-medium ${((backtestResults.metrics as { totalPL?: number }).totalPL ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                   ₹{((backtestResults.metrics as { totalPL?: number }).totalPL || 0).toFixed(0)}
                 </span>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       )}
 
@@ -451,7 +455,14 @@ export default function TradingChart() {
         {/* Data Viewer Button */}
         <div className="flex items-center justify-between gap-4">
           <span>Data:</span>
-          <DataViewer />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs hover:bg-muted"
+            onClick={() => dataViewerRef?.current?.open()}
+          >
+            View
+          </Button>
         </div>
 
         {/* Processing Status (only show when processing) */}

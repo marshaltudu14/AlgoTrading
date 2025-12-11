@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, forwardRef, useImperativeHandle, useMemo } from "react";
 import { useCandleStore } from "@/stores/candleStore";
 import {
   Table,
@@ -10,21 +10,62 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
-type DataType = 'raw' | 'processed';
+type DataType = "raw" | "processed";
+const ROWS_PER_PAGE = 100;
 
-export function DataViewer() {
+export interface DataViewerRef {
+  open: () => void;
+}
+
+export const DataViewer = forwardRef<DataViewerRef>((props, ref) => {
   const [open, setOpen] = useState(false);
-  const [dataType, setDataType] = useState<DataType>('processed');
+  const [dataType, setDataType] = useState<DataType>("processed");
+  const [currentPage, setCurrentPage] = useState(1);
   const { candles, processedCandles, getFeatureNames } = useCandleStore();
 
+  // Expose open function to parent
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => setOpen(true),
+    }),
+    []
+  );
+
   // Get current data based on selection
-  const currentData = dataType === 'raw' ? candles : processedCandles;
+  const currentData = dataType === "raw" ? candles : processedCandles;
   const rowCount = currentData.length;
+
+  // Calculate pagination
+  const totalPages = Math.ceil(rowCount / ROWS_PER_PAGE);
+
+  // Get data for current page (show last page first, most recent data)
+  const paginatedData = useMemo(() => {
+    if (rowCount === 0) return [];
+
+    // Start from the end (most recent data)
+    const startIndex = Math.max(0, rowCount - currentPage * ROWS_PER_PAGE);
+    const endIndex = rowCount - (currentPage - 1) * ROWS_PER_PAGE;
+
+    return currentData.slice(startIndex, endIndex).reverse();
+  }, [currentData, currentPage, rowCount]);
 
   // Get ALL column names including OHLC, datetime, volume, and all features
   const getColumns = () => {
@@ -34,126 +75,156 @@ export function DataViewer() {
     const allColumns = Object.keys(currentData[0]);
 
     // If it's processed data, ensure we're showing all features
-    if (dataType === 'processed') {
+    if (dataType === "processed") {
       const featureNames = getFeatureNames();
       // Combine base columns with features and ensure all are unique
-      const baseColumns = ['timestamp', 'open', 'high', 'low', 'close'];
+      const baseColumns = ["timestamp", "open", "high", "low", "close"];
       if (currentData[0]?.volume !== undefined) {
-        baseColumns.push('volume');
+        baseColumns.push("volume");
       }
-      const allUniqueColumns = [...new Set([...baseColumns, ...featureNames, ...allColumns])];
-      return allUniqueColumns.sort();
+      const allUniqueColumns = [
+        ...new Set([...baseColumns, ...featureNames, ...allColumns]),
+      ];
+      return allUniqueColumns;
     }
 
-    return allColumns.sort();
+    return allColumns;
   };
 
   const columns = getColumns();
 
   // Format value for display
-  const formatValue = (value: any, key: string) => {
+  const formatValue = (value: unknown, key: string): string => {
     // Format timestamp as readable datetime
-    if (key === 'timestamp' && typeof value === 'number') {
+    if (key === "timestamp" && typeof value === "number") {
       return new Date(value * 1000).toLocaleString();
     }
 
-    if (typeof value === 'number') {
-      if (isNaN(value)) return 'NaN';
-      if (value === null || value === undefined) return '-';
+    if (typeof value === "number") {
+      if (isNaN(value)) return "NaN";
+      if (value === null || value === undefined) return "-";
       // Format to appropriate decimal places
-      if (key.includes('pct') || key.includes('rsi') || key.includes('adx')) {
+      if (key.includes("pct") || key.includes("rsi") || key.includes("adx")) {
         return value.toFixed(2);
       }
       return value.toFixed(4);
     }
 
-    return value || '-';
+    return String(value || "-");
   };
 
-  if (!open) {
-    return (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="h-6 px-2 text-xs hover:bg-muted"
-        onClick={() => setOpen(true)}
-      >
-        View
-      </Button>
-    );
-  }
-
   return (
-    <div className="fixed inset-0 z-50 bg-background">
-      {/* Header with controls */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-4">
-          <span className="font-medium">{rowCount.toLocaleString()} rows</span>
-          <span className="text-muted-foreground text-sm">
-            {dataType === 'raw' ? 'Raw data' : 'Processed data'}
-          </span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center space-x-2">
-            <Label htmlFor="data-type-switch" className="text-sm">
-              Raw
-            </Label>
-            <Switch
-              id="data-type-switch"
-              checked={dataType === 'processed'}
-              onCheckedChange={(checked) =>
-                setDataType(checked ? 'processed' : 'raw')
-              }
-            />
-            <Label htmlFor="data-type-switch" className="text-sm">
-              Processed
-            </Label>
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetContent side="bottom" className="h-[90vh] pt-8">
+        <SheetHeader>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-4">
+              <span>{rowCount.toLocaleString()} total rows</span>
+              <span className="text-muted-foreground text-sm font-normal">
+                Showing {Math.min(ROWS_PER_PAGE, rowCount)} of{" "}
+                {rowCount.toLocaleString()} (
+                {dataType === "raw" ? "Raw" : "Processed"})
+              </span>
+            </SheetTitle>
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="data-type-switch" className="text-sm">
+                Raw
+              </Label>
+              <Switch
+                id="data-type-switch"
+                checked={dataType === "processed"}
+                onCheckedChange={(checked) => {
+                  setDataType(checked ? "processed" : "raw");
+                  setCurrentPage(1); // Reset to first page when switching data type
+                }}
+              />
+              <Label htmlFor="data-type-switch" className="text-sm">
+                Processed
+              </Label>
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setOpen(false)}
-            className="h-8 w-8 p-0"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+        </SheetHeader>
 
-      {/* Table container */}
-      <div className="overflow-auto" style={{ height: 'calc(100vh - 80px)' }}>
-        <Table>
-          <TableHeader className="sticky top-0 bg-background border-b z-10">
-            <TableRow>
-              {columns.map((column) => (
-                <TableHead
-                  key={column}
-                  className="whitespace-nowrap text-xs font-medium p-2 min-w-[100px]"
-                >
-                  {column}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentData.map((row, index) => (
-              <TableRow
-                key={index}
-                className={index === currentData.length - 1 ? "bg-muted/30" : ""}
-              >
+        <div className="overflow-auto h-[calc(90vh-180px)]">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background border-b z-10">
+              <TableRow>
                 {columns.map((column) => (
-                  <TableCell
+                  <TableHead
                     key={column}
-                    className="whitespace-nowrap text-xs p-2 font-mono"
+                    className="whitespace-nowrap text-xs font-medium p-2 min-w-[100px]"
                   >
-                    {formatValue(row[column as keyof typeof row], column)}
-                  </TableCell>
+                    {column}
+                  </TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </div>
+            </TableHeader>
+            <TableBody>
+              {paginatedData.map((row, index) => (
+                <TableRow
+                  key={index}
+                  className={
+                    index === 0 ? "bg-muted/30" : "" // Highlight most recent row
+                  }
+                >
+                  {columns.map((column) => (
+                    <TableCell
+                      key={column}
+                      className="whitespace-nowrap text-xs p-2 font-mono"
+                    >
+                      {formatValue(
+                        (row as unknown as Record<string, unknown>)[column],
+                        column
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center items-center gap-2 pt-4 border-t">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className={
+                      currentPage === 1
+                        ? "pointer-events-none opacity-50"
+                        : "cursor-pointer"
+                    }
+                  />
+                </PaginationItem>
+
+                <PaginationItem>
+                  <PaginationLink>
+                    Page {currentPage} of {totalPages}
+                  </PaginationLink>
+                </PaginationItem>
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                    }
+                    className={
+                      currentPage === totalPages
+                        ? "pointer-events-none opacity-50"
+                        : "cursor-pointer"
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
+      </SheetContent>
+    </Sheet>
   );
-}
+});
+
+DataViewer.displayName = "DataViewer";
