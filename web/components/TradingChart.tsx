@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { createChart, IChartApi, UTCTimestamp, ColorType, CandlestickSeries } from "lightweight-charts";
 import { useTheme } from "next-themes";
-import { ZoomIn, ZoomOut, RefreshCw } from "lucide-react";
+import { ZoomIn, ZoomOut, RefreshCw, Brain, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTradingStore } from "@/stores/tradingStore";
+import { useCandleStore } from "@/stores/candleStore";
 
 interface ChartData {
   time: UTCTimestamp;
@@ -30,17 +31,83 @@ export default function TradingChart() {
     fetchCandleData
   } = useTradingStore();
 
-  console.log('TradingChart state:', { isLoading, error, candleDataLength: candleData.length });
+  // Memoize fetchCandleData to prevent unnecessary re-renders
+  const memoizedFetchCandleData = useCallback(() => {
+    fetchCandleData();
+  }, [fetchCandleData]);
+
+  const {
+    processedCandles,
+    isProcessing,
+    error: processingError,
+    getFeatureNames,
+    getExpectedFeatureCount
+  } = useCandleStore();
+
+  console.log('TradingChart state:', {
+    isLoading,
+    error,
+    candleDataLength: candleData.length,
+    processedCandlesLength: processedCandles.length,
+    isProcessing
+  });
 
   // Perform the initial fetch on mount
   useEffect(() => {
     console.log('TradingChart mounted, fetching data...');
-    fetchCandleData();
-  }, [fetchCandleData]);
+    memoizedFetchCandleData();
+  }, [memoizedFetchCandleData]);
 
-  // Show loading state when the store is loading (this includes the initial load)
-  const shouldShowLoading = isLoading;
-  const shouldShowNoData = candleData.length === 0 && !isLoading && !error;
+  // Process features when raw data is available and not already processing
+  useEffect(() => {
+    console.log('[TradingChart useEffect] Checking if should process:', {
+      candleDataLength: candleData.length,
+      processedCandlesLength: processedCandles.length,
+      isProcessing,
+      hasProcessingError: !!processingError,
+      candleStoreState: useCandleStore.getState()
+    });
+
+    // Only process if we have raw data but no processed data, and we're not currently processing
+    if (candleData.length > 0 && processedCandles.length === 0 && !isProcessing && !processingError) {
+      console.log('[TradingChart useEffect] Conditions met, calling processFeatures...');
+      // Get the fresh state each time
+      const state = useCandleStore.getState();
+      console.log('[TradingChart useEffect] Fresh candleStore state:', {
+        candlesLength: state.candles.length,
+        processedCandlesLength: state.processedCandles.length,
+        isProcessing: state.isProcessing,
+        error: state.error
+      });
+
+      if (!state.isProcessing && state.candles.length > 0 && state.processedCandles.length === 0) {
+        console.log('[TradingChart useEffect] Actually calling processFeatures now');
+        state.processFeatures();
+      } else {
+        console.log('[TradingChart useEffect] Not processing, conditions not met:', {
+          isProcessing: state.isProcessing,
+          hasCandles: state.candles.length > 0,
+          hasNoProcessedCandles: state.processedCandles.length === 0
+        });
+      }
+    } else {
+      console.log('[TradingChart useEffect] Conditions not met:', {
+        hasCandleData: candleData.length > 0,
+        hasNoProcessedCandles: processedCandles.length === 0,
+        isNotProcessing: !isProcessing,
+        hasNoError: !processingError
+      });
+    }
+  }, [candleData.length, isProcessing, processedCandles.length, processingError]); // Include all dependencies
+
+  // Show loading states - only show chart when processing is complete
+  const isLoadingData = isLoading;
+  const isProcessingData = isProcessing;
+  const shouldShowLoading = isLoadingData || isProcessingData;
+  // Only show no data state if not loading AND not processing AND no data exists
+  const shouldShowNoData = !isLoadingData && !isProcessingData && candleData.length === 0 && !error;
+  // Only show chart when processing is complete
+  const shouldShowChart = !isLoadingData && !isProcessingData && processedCandles.length > 0 && !error;
 
   const handleZoomIn = () => {
     if (chartRef.current) {
@@ -80,10 +147,11 @@ export default function TradingChart() {
     }
   };
 
-  // Convert store data to chart format
+  // Use processed candles for chart display when processing is complete
   // Timestamps from Fyers API are in seconds and already have the correct time
   // No timezone conversion needed - use timestamps as received from API
-  const chartData: ChartData[] = candleData.map((candle) => ({
+  const dataToDisplay = shouldShowChart ? processedCandles : [];
+  const chartData: ChartData[] = dataToDisplay.map((candle) => ({
     // Use timestamp as-is (in seconds) for lightweight-charts
     time: candle.timestamp as UTCTimestamp,
     open: candle.open,
@@ -92,10 +160,14 @@ export default function TradingChart() {
     close: candle.close,
   }));
 
+  // Get feature count for display
+  const featureCount = processedCandles.length > 0 ? getFeatureNames().length : 0;
+  const expectedFeatureCount = getExpectedFeatureCount();
+
   
   // Initialize and update chart
   useEffect(() => {
-    if (!chartContainerRef.current || isLoading || chartData.length === 0) return;
+    if (!chartContainerRef.current || !shouldShowChart || chartData.length === 0) return;
 
     // Create chart
     const chart = createChart(chartContainerRef.current, {
@@ -226,7 +298,9 @@ export default function TradingChart() {
       <div className="flex items-center justify-center w-full h-full">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading chart data...</p>
+          <p className="text-muted-foreground">
+            {isLoadingData ? 'Fetching chart data...' : 'Processing technical indicators...'}
+          </p>
         </div>
       </div>
     );
@@ -262,39 +336,84 @@ export default function TradingChart() {
 
   return (
     <div className="relative w-full h-full">
-      <div
-        ref={chartContainerRef}
-        className="w-full h-full"
-        style={{ width: "100%", height: "100%" }}
-      />
+      {/* Only show chart when processing is complete */}
+      {shouldShowChart && (
+        <div
+          ref={chartContainerRef}
+          className="w-full h-full"
+          style={{ width: "100%", height: "100%" }}
+        />
+      )}
 
-      
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-1 flex items-center gap-1 z-50">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleZoomOut}
-          className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleReset}
-          className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
-        >
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleZoomIn}
-          className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </Button>
+      {/* Processing Status and Feature Info */}
+      <div className="absolute top-4 right-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-2 text-xs space-y-1 z-50">
+        {/* Processing Status */}
+        <div className="flex items-center gap-2">
+          {isProcessing ? (
+            <>
+              <Activity className="h-3 w-3 animate-spin" />
+              <span className="text-muted-foreground">Processing features...</span>
+            </>
+          ) : processedCandles.length > 0 ? (
+            <>
+              <Brain className="h-3 w-3 text-green-500" />
+              <span className="text-green-500">Features ready</span>
+            </>
+          ) : candleData.length > 0 ? (
+            <>
+              <Brain className="h-3 w-3 text-yellow-500" />
+              <span className="text-yellow-500">Ready to process</span>
+            </>
+          ) : null}
+        </div>
+
+        {/* Feature Count */}
+        {featureCount > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Features:</span>
+            <span className={`font-medium ${featureCount === expectedFeatureCount ? 'text-green-500' : 'text-yellow-500'}`}>
+              {featureCount}/{expectedFeatureCount}
+            </span>
+          </div>
+        )}
+
+        {/* Processing Error */}
+        {processingError && (
+          <div className="text-destructive text-xs">
+            Error: {processingError}
+          </div>
+        )}
       </div>
+
+      {/* Chart Controls - Only show when chart is visible */}
+      {shouldShowChart && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-1 flex items-center gap-1 z-50">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleZoomOut}
+            className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleZoomIn}
+            className="h-8 w-8 p-0 hover:bg-muted cursor-pointer"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

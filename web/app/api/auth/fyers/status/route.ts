@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
         console.error('Error parsing user profile:', e);
       }
 
+      // For now, just check if tokens exist
+      // Actual validation happens on the client side when needed
       return NextResponse.json({
         authenticated: true,
         appId,

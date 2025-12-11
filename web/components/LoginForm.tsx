@@ -10,12 +10,14 @@ import { toast } from "sonner";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Eye, EyeOff, Key, Lock } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
+import { useRouter } from "next/navigation";
 
 export default function LoginForm() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
+  const router = useRouter();
 
-  const { login, isLoading, error: authError, setError } = useAuthStore();
+  const { login, isLoading, error: authError, setError, isAuthenticated, checkAuthStatus } = useAuthStore();
 
   const [formData, setFormData] = useState({
     appId: "TS79V3NXK1-100",
@@ -33,6 +35,30 @@ export default function LoginForm() {
       toast.error(authError);
     }
   }, [error, authError]);
+
+  // Check if user is already authenticated and redirect to dashboard
+  useEffect(() => {
+    // Only check once on mount to avoid infinite loops
+    const checkAuth = async () => {
+      // Check if we have auth cookies
+      const cookies = document.cookie.split(';').map(c => c.trim());
+      const hasAccessToken = cookies.some(c => c.startsWith('fyers_access_token='));
+      const hasAppId = cookies.some(c => c.startsWith('fyers_app_id='));
+
+      if (hasAccessToken && hasAppId && !isAuthenticated) {
+        await checkAuthStatus();
+      }
+    };
+
+    checkAuth();
+  }, [checkAuthStatus, isAuthenticated]); // Add dependencies
+
+  // Redirect to dashboard if authenticated (but not if already on dashboard)
+  useEffect(() => {
+    if (isAuthenticated && window.location.pathname === '/') {
+      router.push('/dashboard');
+    }
+  }, [isAuthenticated, router]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

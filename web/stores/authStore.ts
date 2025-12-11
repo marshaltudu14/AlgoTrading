@@ -137,6 +137,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       if (response.ok) {
         const data = await response.json();
+
+        // Let middleware handle auth errors - no redirect logic here
+
         if (data.authenticated) {
           set({
             isAuthenticated: true,
