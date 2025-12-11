@@ -69,6 +69,21 @@ export async function GET(
 
     // Transform data to match expected format and remove duplicates
     const candles = data.candles || [];
+    
+    console.log(`Received ${candles.length} candles from Fyers API`);
+    if (candles.length > 0) {
+      // Log first and last candle for debugging
+      const firstCandle = candles[0];
+      const lastCandle = candles[candles.length - 1];
+      console.log(`First candle - Timestamp: ${firstCandle[0]}, OHLC: [${firstCandle[1]}, ${firstCandle[2]}, ${firstCandle[3]}, ${firstCandle[4]}]`);
+      console.log(`Last candle - Timestamp: ${lastCandle[0]}, OHLC: [${lastCandle[1]}, ${lastCandle[2]}, ${lastCandle[3]}, ${lastCandle[4]}]`);
+      
+      // Convert timestamp to human-readable format for debugging
+      const firstCandleDate = new Date(firstCandle[0] * 1000); // Convert seconds to milliseconds
+      console.log(`First candle timestamp as date: ${firstCandleDate.toString()}`);
+      console.log(`First candle in IST: ${firstCandleDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+    }
+
     const dataMap = new Map<number, [number, number, number, number, number]>();
 
     // Use a Map to automatically handle duplicates
@@ -97,6 +112,15 @@ export async function GET(
         volume,
       }))
       .sort((a, b) => a.timestamp - b.timestamp);
+
+    console.log(`Returning ${uniqueData.length} unique candles to client`);
+    if (uniqueData.length > 0) {
+      const firstDataPoint = uniqueData[0];
+      const firstDate = new Date(firstDataPoint.timestamp * 1000);
+      console.log(`First returned candle timestamp: ${firstDataPoint.timestamp}`);
+      console.log(`First returned candle as date: ${firstDate.toString()}`);
+      console.log(`First returned candle in IST: ${firstDate.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
+    }
 
     return NextResponse.json({
       success: true,

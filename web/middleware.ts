@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
 
   // Define public paths that don't require authentication
   const publicPaths = ['/', '/callback'];
-  const apiPaths = ['/api/auth/fyers/initiate', '/api/auth/fyers/callback', '/api/auth/fyers/validate', '/api/auth/fyers/refresh'];
+  const apiPaths = ['/api/auth/fyers/initiate', '/api/auth/fyers/callback', '/api/auth/fyers/validate', '/api/auth/fyers/refresh', '/api/auth/fyers/status'];
 
   // Check if the path is public or an API route
   const isPublicPath = publicPaths.includes(path);

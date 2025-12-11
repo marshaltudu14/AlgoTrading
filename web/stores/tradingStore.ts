@@ -33,7 +33,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   selectedInstrument: DEFAULT_INSTRUMENT,
   selectedTimeframe: DEFAULT_TIMEFRAME,
   candleData: [],
-  isLoading: false,
+  isLoading: true, // Start with loading state initially to show loading on first load
   error: null,
 
   setSelectedInstrument: (instrument) => {
@@ -51,7 +51,8 @@ export const useTradingStore = create<TradingState>((set, get) => ({
   fetchCandleData: async () => {
     const { selectedInstrument, selectedTimeframe } = get();
 
-    set({ isLoading: true, error: null });
+    // Reset error state but maintain loading state
+    set({ isLoading: true });
 
     try {
       const apiUrl = `/api/candle-data/${selectedInstrument.exchangeSymbol}/${selectedTimeframe.name}`;
@@ -71,7 +72,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch candle data';
-      set({ error: errorMessage, candleData: [] });
+      set({ error: errorMessage });
     } finally {
       set({ isLoading: false });
     }

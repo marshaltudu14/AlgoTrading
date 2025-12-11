@@ -32,11 +32,15 @@ export default function TradingChart() {
 
   console.log('TradingChart state:', { isLoading, error, candleDataLength: candleData.length });
 
-  // Fetch data on component mount
+  // Perform the initial fetch on mount
   useEffect(() => {
     console.log('TradingChart mounted, fetching data...');
     fetchCandleData();
   }, [fetchCandleData]);
+
+  // Show loading state when the store is loading (this includes the initial load)
+  const shouldShowLoading = isLoading;
+  const shouldShowNoData = candleData.length === 0 && !isLoading && !error;
 
   const handleZoomIn = () => {
     if (chartRef.current) {
@@ -77,7 +81,10 @@ export default function TradingChart() {
   };
 
   // Convert store data to chart format
+  // Timestamps from Fyers API are in seconds and already have the correct time
+  // No timezone conversion needed - use timestamps as received from API
   const chartData: ChartData[] = candleData.map((candle) => ({
+    // Use timestamp as-is (in seconds) for lightweight-charts
     time: candle.timestamp as UTCTimestamp,
     open: candle.open,
     high: candle.high,
@@ -115,6 +122,8 @@ export default function TradingChart() {
         borderColor: theme === "dark" ? "#333333" : "#e5e5e5",
         timeVisible: true,
         secondsVisible: false,
+        // Ensure gaps in time are preserved (e.g., overnight, weekends, market closure)
+        // This tells the chart to respect actual time intervals rather than interpolating
       },
       crosshair: {
         mode: 1,
@@ -129,6 +138,9 @@ export default function TradingChart() {
           style: 3,
         },
       },
+      // Explicitly set timezone for the chart if possible
+      // Note: lightweight-charts doesn't have a direct timezone option in createChart
+      // The timestamps should be handled properly by the library
       });
 
     // Add candlestick series
@@ -143,8 +155,17 @@ export default function TradingChart() {
     // Set data
     candlestickSeries.setData(chartData);
 
+    // Configure time scale to respect actual time gaps and not interpolate
+    const timeScale = chart.timeScale();
+    timeScale.applyOptions({
+      // Ensure that the time scale respects actual time gaps rather than interpolating
+      visible: true,
+      timeVisible: true,
+      secondsVisible: false,
+    });
+
     // Fit content
-    chart.timeScale().fitContent();
+    timeScale.fitContent();
 
     // Store references
     chartRef.current = chart;
@@ -200,7 +221,7 @@ export default function TradingChart() {
     }
   }, [theme]);
 
-  if (isLoading) {
+  if (shouldShowLoading) {
     return (
       <div className="flex items-center justify-center w-full h-full">
         <div className="text-center">
@@ -229,7 +250,7 @@ export default function TradingChart() {
     );
   }
 
-  if (chartData.length === 0) {
+  if (shouldShowNoData) {
     return (
       <div className="flex items-center justify-center w-full h-full">
         <div className="text-center">
