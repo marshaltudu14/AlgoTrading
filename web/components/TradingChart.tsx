@@ -17,8 +17,7 @@ interface ChartData {
 }
 
 export default function TradingChart() {
-  console.log('=== TradingChart render ===');
-
+  
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<unknown | null>(null);
@@ -44,59 +43,23 @@ export default function TradingChart() {
     getExpectedFeatureCount
   } = useCandleStore();
 
-  console.log('TradingChart state:', {
-    isLoading,
-    error,
-    candleDataLength: candleData.length,
-    processedCandlesLength: processedCandles.length,
-    isProcessing
-  });
-
+  
   // Perform the initial fetch on mount
   useEffect(() => {
-    console.log('TradingChart mounted, fetching data...');
-    memoizedFetchCandleData();
+        memoizedFetchCandleData();
   }, [memoizedFetchCandleData]);
 
   // Process features when raw data is available and not already processing
   useEffect(() => {
-    console.log('[TradingChart useEffect] Checking if should process:', {
-      candleDataLength: candleData.length,
-      processedCandlesLength: processedCandles.length,
-      isProcessing,
-      hasProcessingError: !!processingError,
-      candleStoreState: useCandleStore.getState()
-    });
-
+    
     // Only process if we have raw data but no processed data, and we're not currently processing
     if (candleData.length > 0 && processedCandles.length === 0 && !isProcessing && !processingError) {
-      console.log('[TradingChart useEffect] Conditions met, calling processFeatures...');
       // Get the fresh state each time
       const state = useCandleStore.getState();
-      console.log('[TradingChart useEffect] Fresh candleStore state:', {
-        candlesLength: state.candles.length,
-        processedCandlesLength: state.processedCandles.length,
-        isProcessing: state.isProcessing,
-        error: state.error
-      });
 
       if (!state.isProcessing && state.candles.length > 0 && state.processedCandles.length === 0) {
-        console.log('[TradingChart useEffect] Actually calling processFeatures now');
         state.processFeatures();
-      } else {
-        console.log('[TradingChart useEffect] Not processing, conditions not met:', {
-          isProcessing: state.isProcessing,
-          hasCandles: state.candles.length > 0,
-          hasNoProcessedCandles: state.processedCandles.length === 0
-        });
       }
-    } else {
-      console.log('[TradingChart useEffect] Conditions not met:', {
-        hasCandleData: candleData.length > 0,
-        hasNoProcessedCandles: processedCandles.length === 0,
-        isNotProcessing: !isProcessing,
-        hasNoError: !processingError
-      });
     }
   }, [candleData.length, isProcessing, processedCandles.length, processingError]); // Include all dependencies
 

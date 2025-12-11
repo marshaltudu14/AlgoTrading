@@ -416,11 +416,12 @@ export const useCandleStore = create<CandleState>((set, get) => ({
       });
     });
 
-    return Array.from(allFeatureKeys);
+    return Array.from(allFeatureKeys).sort();
   },
 
-  // Get expected feature count (should match Python implementation)
+  // Get expected feature count (actual features being generated)
   getExpectedFeatureCount: () => {
-    return 36; // Total features found in Python CSV output
+    const featureNames = get().getFeatureNames();
+    return featureNames.length;
   }
 }));
