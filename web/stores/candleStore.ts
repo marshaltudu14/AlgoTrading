@@ -406,30 +406,6 @@ export const useCandleStore = create<CandleState>((set, get) => ({
     const { processedCandles } = get();
     if (processedCandles.length === 0) return [];
 
-    // Define all expected features based on Python CSV output
-    const expectedFeatures = [
-      // Moving Averages
-      'dist_sma_5', 'dist_sma_10', 'dist_sma_20', 'dist_sma_50', 'dist_sma_100', 'dist_sma_200',
-      'dist_ema_5', 'dist_ema_10', 'dist_ema_20', 'dist_ema_50', 'dist_ema_100', 'dist_ema_200',
-      // MACD
-      'macd_pct', 'macd_signal_pct', 'macd_hist_pct',
-      // RSI
-      'rsi_14', 'rsi_21',
-      // ADX
-      'adx', 'di_plus', 'di_minus',
-      // ATR
-      'atr_pct', 'atr',
-      // Bollinger Bands
-      'bb_width_pct', 'bb_position',
-      // Trend Strength
-      'trend_slope', 'trend_strength', 'trend_direction',
-      // Price Action
-      'price_change_pct', 'price_change_abs', 'hl_range_pct', 'body_size_pct',
-      'upper_shadow_pct', 'lower_shadow_pct',
-      // Volatility
-      'volatility_10', 'volatility_20'
-    ];
-
     // Check which features are actually present in any candle
     const allFeatureKeys = new Set<string>();
     processedCandles.forEach(candle => {

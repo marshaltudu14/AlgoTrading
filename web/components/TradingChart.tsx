@@ -346,7 +346,7 @@ export default function TradingChart() {
       )}
 
       {/* Processing Status and Feature Info */}
-      <div className="absolute top-4 right-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-2 text-xs space-y-1 z-50">
+      <div className="absolute top-4 left-4 bg-background/80 backdrop-blur-sm border border-border rounded-lg p-2 text-xs space-y-1 z-50">
         {/* Processing Status */}
         <div className="flex items-center gap-2">
           {isProcessing ? (
