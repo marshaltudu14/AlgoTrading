@@ -12,9 +12,11 @@ import { useBacktestStore } from "@/stores/backtestStore";
 import { useTradingContext } from "@/components/TradingProvider";
 import { INSTRUMENTS } from "@/config/instruments";
 import { DataViewerRef } from "@/components/DataViewer";
+import { BacktestDataViewerRef } from "@/components/BacktestDataViewer";
 
 interface TradingChartProps {
   dataViewerRef?: React.RefObject<DataViewerRef | null>;
+  backtestDataViewerRef?: React.RefObject<BacktestDataViewerRef | null>;
 }
 
 interface ChartData {
@@ -25,8 +27,8 @@ interface ChartData {
   close: number;
 }
 
-export default function TradingChart({ dataViewerRef }: TradingChartProps) {
-  
+export default function TradingChart({ dataViewerRef, backtestDataViewerRef }: TradingChartProps) {
+
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<unknown | null>(null);
@@ -480,6 +482,21 @@ export default function TradingChart({ dataViewerRef }: TradingChartProps) {
             View
           </Button>
         </div>
+
+        {/* Backtest Data Viewer Button - Only show in backtest mode */}
+        {isBacktestMode && backtestResults?.trades && backtestResults.trades.length > 0 && (
+          <div className="flex items-center justify-between gap-4">
+            <span>Trades:</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs hover:bg-muted"
+              onClick={() => backtestDataViewerRef?.current?.open()}
+            >
+              View
+            </Button>
+          </div>
+        )}
 
         {/* Processing Status (only show when processing) */}
         {isProcessing && (
