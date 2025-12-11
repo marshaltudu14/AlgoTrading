@@ -97,18 +97,10 @@ export default function TradingChart() {
   let displaySymbol = symbol;
   let displayTimeframe = timeframe;
 
-  console.log("📊 TradingChart state:", {
-    isBacktestMode,
-    isBacktestLoading,
-    hasBacktestResults: !!backtestResults,
-    hasCandleData: !!backtestResults?.candleData,
-    chartDataLength: chartDataSource.length
-  });
-
+  
   if (isBacktestMode && backtestResults?.candleData) {
     // Use backtest candle data when in backtest mode
     const backtestCandles = backtestResults.candleData as { timestamp: number; open: number; high: number; low: number; close: number }[];
-    console.log(`🔄 Using backtest data: ${backtestCandles.length} candles`);
     chartDataSource = backtestCandles;
     displaySymbol = config.symbol;
     displayTimeframe = config.timeframe;
@@ -389,7 +381,6 @@ export default function TradingChart() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                console.log("Stopping backtest and fetching real data...");
                 const { stopBacktest } = useBacktestStore.getState();
                 stopBacktest();
                 // Fetch fresh data for real trading
@@ -403,7 +394,7 @@ export default function TradingChart() {
           </div>
 
           {/* Backtest Results */}
-          {backtestResults?.metrics && (
+          {backtestResults && (backtestResults.metrics as any) && typeof backtestResults.metrics === 'object' && (
             <div className="border-t pt-1 mt-1 space-y-1">
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">Trades:</span>
@@ -415,7 +406,7 @@ export default function TradingChart() {
               </div>
               <div className="flex justify-between gap-4">
                 <span className="text-muted-foreground">P&L:</span>
-                <span className={`font-medium ${(backtestResults.metrics as { totalPL?: number }).totalPL >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                <span className={`font-medium $((backtestResults.metrics as { totalPL?: number }).totalPL ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'`}>
                   ₹{((backtestResults.metrics as { totalPL?: number }).totalPL || 0).toFixed(0)}
                 </span>
               </div>

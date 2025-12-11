@@ -182,6 +182,31 @@ export default function BacktestDialog() {
         const results = await runBacktestWithEngine(candleData);
         console.log("📈 Backtest results:", results);
 
+        // Get processed candles for saving
+        const processedCandles = useCandleStore.getState().processedCandles;
+
+        // Save processed data to CSV for comparison
+        try {
+          const saveResponse = await fetch('/api/save-processed-data', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              processedCandles,
+              symbol: config.symbol.replace(':', '-'), // Format for filename
+              timeframe: config.timeframe
+            })
+          });
+
+          if (saveResponse.ok) {
+            const saveResult = await saveResponse.json();
+            console.log("✅ Saved processed data:", saveResult.message);
+          }
+        } catch (error) {
+          console.error("⚠️ Failed to save processed data:", error);
+        }
+
         // Store results with both raw and processed candle data
         setBacktestResults({
           trades: results.trades,
@@ -197,7 +222,7 @@ export default function BacktestDialog() {
             }))
           },
           candleData,
-          processedCandles: useCandleStore.getState().processedCandles
+          processedCandles
         });
         console.log("✅ Backtest completed successfully!");
 

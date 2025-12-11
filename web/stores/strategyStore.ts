@@ -164,16 +164,15 @@ class RuleBasedStrategies {
 
   /**
    * Trend Following Strategy
-   * Uses ADX and trend direction
+   * Uses trend direction and strength
    */
   static trendFollowing(candle: ProcessedCandleData): StrategySignal {
     const trendStrength = candle.trend_strength;
     const trendDirection = candle.trend_direction;
-    const adx = candle.adx;
     const priceChange = candle.price_change_pct;
 
     if (trendStrength === undefined || trendDirection === undefined ||
-        adx === undefined || priceChange === undefined) {
+        priceChange === undefined) {
       return { signal: 'HOLD', confidence: 0 };
     }
 
@@ -181,14 +180,14 @@ class RuleBasedStrategies {
     let confidence = 0;
 
     // Strong uptrend
-    if (trendDirection > 0 && trendStrength > 0.5 && adx > 25 && priceChange > 0) {
+    if (trendDirection > 0 && trendStrength > 0.5 && priceChange > 0) {
       signal = 'BUY';
-      confidence = Math.min(0.9, (trendStrength + adx/100) / 2);
+      confidence = Math.min(0.9, trendStrength);
     }
     // Strong downtrend
-    else if (trendDirection < 0 && trendStrength > 0.5 && adx > 25 && priceChange < 0) {
+    else if (trendDirection < 0 && trendStrength > 0.5 && priceChange < 0) {
       signal = 'SELL';
-      confidence = Math.min(0.9, (trendStrength + adx/100) / 2);
+      confidence = Math.min(0.9, trendStrength);
     }
 
     return {
@@ -197,7 +196,6 @@ class RuleBasedStrategies {
       details: {
         trendStrength: trendStrength.toFixed(3),
         trendDirection: trendDirection,
-        adx: adx.toFixed(1),
         priceChange: priceChange.toFixed(2)
       }
     };

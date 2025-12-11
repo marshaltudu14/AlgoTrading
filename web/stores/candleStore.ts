@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as technicalIndicators from 'technicalindicators';
+import { SMA, EMA, RSI, MACD, BollingerBands, ATR } from 'trading-signals';
 
 // Types for candle data
 export interface CandleData {
@@ -8,6 +8,7 @@ export interface CandleData {
   high: number;
   low: number;
   close: number;
+  volume?: number;
 }
 
 export interface ProcessedCandleData extends CandleData {
@@ -34,11 +35,7 @@ export interface ProcessedCandleData extends CandleData {
   rsi_14?: number;
   rsi_21?: number;
 
-  // ADX and Directional Indicators
-  adx?: number;
-  di_plus?: number;
-  di_minus?: number;
-
+  
   // ATR (percentage and raw)
   atr_pct?: number;
   atr?: number;
@@ -63,6 +60,9 @@ export interface ProcessedCandleData extends CandleData {
   // Volatility
   volatility_10?: number;
   volatility_20?: number;
+
+  // Volume
+  volume?: number;
 }
 
 export interface CandleState {
@@ -85,48 +85,6 @@ export interface CandleState {
   getExpectedFeatureCount: () => number;
 }
 
-// Helper function to calculate trend strength (replicated from Python)
-const calculateTrendStrength = (close: number[], period: number) => {
-  const trendSlope: number[] = [];
-  const trendStrength: number[] = [];
-
-  for (let i = period - 1; i < close.length; i++) {
-    const window = close.slice(i - period + 1, i + 1);
-    const x = Array.from({ length: period }, (_, idx) => idx);
-
-    // Calculate slope using linear regression
-    const n = period;
-    const sumX = x.reduce((a, b) => a + b, 0);
-    const sumY = window.reduce((a, b) => a + b, 0);
-    const sumXY = x.reduce((sum, xi, idx) => sum + xi * window[idx], 0);
-    const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
-
-    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-    trendSlope.push(slope);
-
-    // Calculate R-squared
-    const meanY = sumY / n;
-    // yMean is not needed for the calculation
-
-    let ssRes = 0;
-    let ssTot = 0;
-    for (let j = 0; j < period; j++) {
-      const yPred = slope * x[j] + (sumY - slope * sumX) / n;
-      ssRes += Math.pow(window[j] - yPred, 2);
-      ssTot += Math.pow(window[j] - meanY, 2);
-    }
-
-    const rSquared = ssTot > 0 ? 1 - (ssRes / ssTot) : 0;
-    trendStrength.push(rSquared);
-  }
-
-  // Pad the beginning with undefined values
-  return {
-    trendSlope: Array(period - 1).fill(undefined).concat(trendSlope),
-    trendStrength: Array(period - 1).fill(undefined).concat(trendStrength),
-    trendDirection: trendSlope.map(s => s > 0 ? 1 : -1)
-  };
-};
 
 export const useCandleStore = create<CandleState>((set, get) => ({
   // Initial state
@@ -138,8 +96,24 @@ export const useCandleStore = create<CandleState>((set, get) => ({
 
   // Set raw candle data
   setCandles: (candles) => {
+    // Filter out all rows with any NaN/null values before processing
+    const cleanCandles = candles.filter(candle =>
+      candle.timestamp &&
+      !isNaN(candle.timestamp) &&
+      !isNaN(candle.open) &&
+      !isNaN(candle.high) &&
+      !isNaN(candle.low) &&
+      !isNaN(candle.close) &&
+      candle.open > 0 &&
+      candle.high > 0 &&
+      candle.low > 0 &&
+      candle.close > 0 &&
+      candle.high >= candle.low
+    );
+
+    
     set({
-      candles,
+      candles: cleanCandles,
       processedCandles: [], // Reset processed data
       error: null
     });
@@ -161,31 +135,52 @@ export const useCandleStore = create<CandleState>((set, get) => ({
     set({ isProcessing: true, error: null });
 
     try {
-      // Extract OHLC arrays
-      const open = candles.map(c => c.open);
-      const high = candles.map(c => c.high);
-      const low = candles.map(c => c.low);
-      const close = candles.map(c => c.close);
+      // Filter out invalid candles before processing
+      const validCandles = candles.filter(candle =>
+        candle.timestamp &&
+        !isNaN(candle.timestamp) &&
+        !isNaN(candle.open) &&
+        !isNaN(candle.high) &&
+        !isNaN(candle.low) &&
+        !isNaN(candle.close) &&
+        candle.open > 0 &&
+        candle.high > 0 &&
+        candle.low > 0 &&
+        candle.close > 0 &&
+        candle.high >= candle.low
+      );
 
-      // Initialize features object
-      const features: Partial<ProcessedCandleData>[] = new Array(candles.length);
+            
+      // Extract OHLC arrays from valid candles only
+      const open = validCandles.map(c => c.open);
+      const high = validCandles.map(c => c.high);
+      const low = validCandles.map(c => c.low);
+      const close = validCandles.map(c => c.close);
+
+      // Initialize features object with same length as valid candles
+      const features: Partial<ProcessedCandleData>[] = new Array(validCandles.length);
 
       // 1. Moving Averages - Calculate distances (matching Python CSV output)
+      // Backend uses [5, 10, 20, 50, 100, 200] for both SMA and EMA (from settings.yaml)
       const smaPeriods = [5, 10, 20, 50, 100, 200];
       const emaPeriods = [5, 10, 20, 50, 100, 200];
 
       // SMA
       for (const period of smaPeriods) {
-        const sma = technicalIndicators.SMA.calculate({
-          period,
-          values: close
-        });
+        const sma = new SMA(period);
+        const smaValues: (number | null)[] = [];
+
+        // Calculate SMA for each candle
+        for (const price of close) {
+          const result = sma.add(price);
+          smaValues.push(result);
+        }
 
         // Pad with undefined at the beginning
-        const smaPadded = Array(period - 1).fill(undefined).concat(sma);
+        const smaPadded = Array(period - 1).fill(undefined).concat(smaValues);
 
-        for (let i = 0; i < candles.length; i++) {
-          if (smaPadded[i] !== undefined) {
+        for (let i = 0; i < validCandles.length; i++) {
+          if (smaPadded[i] !== undefined && smaPadded[i] !== null) {
             const dist = ((close[i] - smaPadded[i]) / smaPadded[i]) * 100;
             features[i] = features[i] || {};
             const key = `dist_sma_${period}` as keyof ProcessedCandleData;
@@ -196,15 +191,19 @@ export const useCandleStore = create<CandleState>((set, get) => ({
 
       // EMA
       for (const period of emaPeriods) {
-        const ema = technicalIndicators.EMA.calculate({
-          period,
-          values: close
-        });
+        const ema = new EMA(period);
+        const emaValues: (number | null)[] = [];
 
-        const emaPadded = Array(period - 1).fill(undefined).concat(ema);
+        // Calculate EMA for each candle
+        for (const price of close) {
+          const result = ema.add(price);
+          emaValues.push(result);
+        }
 
-        for (let i = 0; i < candles.length; i++) {
-          if (emaPadded[i] !== undefined) {
+        const emaPadded = Array(period - 1).fill(undefined).concat(emaValues);
+
+        for (let i = 0; i < validCandles.length; i++) {
+          if (emaPadded[i] !== undefined && emaPadded[i] !== null) {
             const dist = ((close[i] - emaPadded[i]) / emaPadded[i]) * 100;
             features[i] = features[i] || {};
             const key = `dist_ema_${period}` as keyof ProcessedCandleData;
@@ -214,37 +213,41 @@ export const useCandleStore = create<CandleState>((set, get) => ({
       }
 
       // 2. MACD (percentage)
-      const macdData = technicalIndicators.MACD.calculate({
-        values: close,
-        fastPeriod: 12,
-        slowPeriod: 26,
-        signalPeriod: 9,
-        SimpleMAOscillator: false,
-        SimpleMASignal: false
-      });
+      const macd = new MACD(new EMA(12), new EMA(26), new EMA(9));
 
-      const macdPadded = Array(25).fill(undefined).concat(macdData);
-      for (let i = 0; i < candles.length; i++) {
-        if (macdPadded[i] !== undefined) {
-          const macd = macdPadded[i] as { MACD: number; signal: number; histogram: number };
+      const macdData: Array<{macd?: number, signal?: number, histogram?: number} | null> = [];
+      for (const price of close) {
+        const result = macd.add(price);
+        macdData.push(result);
+      }
+
+      // MACD has a warmup period of 26+9 = 35
+      const macdPadded = Array(35).fill(undefined).concat(macdData);
+      for (let i = 0; i < validCandles.length; i++) {
+        if (macdPadded[i] !== undefined && macdPadded[i] !== null) {
+          const macdResult = macdPadded[i] as { macd: number; signal: number; histogram: number };
           features[i] = features[i] || {};
-          features[i].macd_pct = (macd.MACD / close[i]) * 100;
-          features[i].macd_signal_pct = (macd.signal / close[i]) * 100;
-          features[i].macd_hist_pct = (macd.histogram / close[i]) * 100;
+
+          features[i].macd_pct = (macdResult.macd / close[i]) * 100;
+          features[i].macd_signal_pct = (macdResult.signal / close[i]) * 100;
+          features[i].macd_hist_pct = (macdResult.histogram / close[i]) * 100;
         }
       }
 
       // 3. RSI
       const rsiPeriods = [14, 21];
       for (const period of rsiPeriods) {
-        const rsi = technicalIndicators.RSI.calculate({
-          period,
-          values: close
-        });
+        const rsi = new RSI(period);
+        const rsiValues: (number | null)[] = [];
 
-        const rsiPadded = Array(period - 1).fill(undefined).concat(rsi);
-        for (let i = 0; i < candles.length; i++) {
-          if (rsiPadded[i] !== undefined) {
+        for (const price of close) {
+          const result = rsi.add(price);
+          rsiValues.push(result);
+        }
+
+        const rsiPadded = Array(period - 1).fill(undefined).concat(rsiValues);
+        for (let i = 0; i < validCandles.length; i++) {
+          if (rsiPadded[i] !== undefined && rsiPadded[i] !== null) {
             features[i] = features[i] || {};
             const key = `rsi_${period}` as keyof ProcessedCandleData;
             features[i][key] = rsiPadded[i];
@@ -252,93 +255,119 @@ export const useCandleStore = create<CandleState>((set, get) => ({
         }
       }
 
-      // 4. ADX and Directional Indicators
-      const adxData = technicalIndicators.ADX.calculate({
-        period: 14,
-        high,
-        low,
-        close
-      });
+  
+      // 4. ATR (percentage)
+      const atr = new ATR(14);
+      const atrValues: (number | null)[] = [];
 
-      const adxPadded = Array(13).fill(undefined).concat(adxData);
-      for (let i = 0; i < candles.length; i++) {
-        if (adxPadded[i] !== undefined) {
-          const adx = adxPadded[i] as { ADX: number; DI_Plus: number; DI_Minus: number };
-          features[i] = features[i] || {};
-          features[i].adx = adx.ADX;
-          features[i].di_plus = adx.DI_Plus;
-          features[i].di_minus = adx.DI_Minus;
-        }
+      for (let i = 0; i < validCandles.length; i++) {
+        const result = atr.add({
+          high: high[i],
+          low: low[i],
+          close: close[i]
+        });
+        atrValues.push(result);
       }
 
-      // 5. ATR (percentage)
-      const atrData = technicalIndicators.ATR.calculate({
-        period: 14,
-        high,
-        low,
-        close
-      });
-
-      const atrPadded = Array(13).fill(undefined).concat(atrData);
-      for (let i = 0; i < candles.length; i++) {
-        if (atrPadded[i] !== undefined) {
+      const atrPadded = Array(14).fill(undefined).concat(atrValues);
+      for (let i = 0; i < validCandles.length; i++) {
+        if (atrPadded[i] !== undefined && atrPadded[i] !== null) {
           features[i] = features[i] || {};
           features[i].atr = atrPadded[i];
           features[i].atr_pct = (atrPadded[i] / close[i]) * 100;
         }
       }
 
-      // 6. Bollinger Bands (width and position)
-      const bbData = technicalIndicators.BollingerBands.calculate({
-        period: 20,
-        stdDev: 2,
-        values: close
-      });
+      // 5. Bollinger Bands (width and position)
+      const bb = new BollingerBands(20, 2);
+      const bbData: (null | {upper: number, middle: number, lower: number})[] = [];
 
-      const bbPadded = Array(19).fill(undefined).concat(bbData);
-      for (let i = 0; i < candles.length; i++) {
-        if (bbPadded[i] !== undefined) {
-          const bb = bbPadded[i] as { upper: number; middle: number; lower: number };
+      for (const price of close) {
+        const result = bb.add(price);
+        bbData.push(result);
+      }
+
+      const bbPadded = Array(20).fill(undefined).concat(bbData);
+      for (let i = 0; i < validCandles.length; i++) {
+        if (bbPadded[i] !== undefined && bbPadded[i] !== null) {
+          const bbResult = bbPadded[i] as { upper: number; middle: number; lower: number };
           features[i] = features[i] || {};
-          features[i].bb_width_pct = ((bb.upper - bb.lower) / bb.middle) * 100;
-          features[i].bb_position = (close[i] - bb.lower) / (bb.upper - bb.lower);
+          features[i].bb_width_pct = ((bbResult.upper - bbResult.lower) / bbResult.middle) * 100;
+          features[i].bb_position = (close[i] - bbResult.lower) / (bbResult.upper - bbResult.lower);
         }
       }
 
-      // 7. Trend Strength
-      const trendData = calculateTrendStrength(close, 20);
+      // 7. Trend Strength (exactly matching backend calculation)
+      const trendPeriod = 20;
+      const trendSlope: number[] = [];
+      const trendStrength: number[] = [];
+
+      for (let i = trendPeriod - 1; i < close.length; i++) {
+        const window = close.slice(i - trendPeriod + 1, i + 1);
+        const x = Array.from({ length: trendPeriod }, (_, idx) => idx);
+
+        // Calculate slope using linear regression (exactly like backend)
+        const n = trendPeriod;
+        const sumX = x.reduce((a, b) => a + b, 0);
+        const sumY = window.reduce((a, b) => a + b, 0);
+        const sumXY = x.reduce((sum, xi, idx) => sum + xi * window[idx], 0);
+        const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        trendSlope.push(slope);
+
+        // Calculate R-squared
+        const meanY = sumY / n;
+        let ssRes = 0;
+        let ssTot = 0;
+        for (let j = 0; j < trendPeriod; j++) {
+          const yPred = slope * x[j] + (sumY - slope * sumX) / n;
+          ssRes += Math.pow(window[j] - yPred, 2);
+          ssTot += Math.pow(window[j] - meanY, 2);
+        }
+
+        const rSquared = ssTot > 0 ? 1 - (ssRes / ssTot) : 0;
+        trendStrength.push(rSquared);
+      }
+
+      const trendDirection = trendSlope.map(s => s > 0 ? 1 : -1);
+
+      const trendSlopePadded = Array(trendPeriod - 1).fill(undefined).concat(trendSlope);
+      const trendStrengthPadded = Array(trendPeriod - 1).fill(undefined).concat(trendStrength);
+      const trendDirectionPadded = Array(trendPeriod - 1).fill(undefined).concat(trendDirection);
+
       for (let i = 0; i < candles.length; i++) {
-        if (trendData.trendSlope[i] !== undefined) {
+        if (trendSlopePadded[i] !== undefined) {
           features[i] = features[i] || {};
-          features[i].trend_slope = trendData.trendSlope[i];
-          features[i].trend_strength = trendData.trendStrength[i];
-          features[i].trend_direction = trendData.trendDirection[i];
+          features[i].trend_slope = trendSlopePadded[i];
+          features[i].trend_strength = trendStrengthPadded[i];
+          features[i].trend_direction = trendDirectionPadded[i];
         }
       }
 
-      // 8. Price Action Features
+      // 8. Price Action Features (exactly matching backend)
       for (let i = 0; i < candles.length; i++) {
         features[i] = features[i] || {};
 
-        // Price change
+        // Price change (exactly like backend: pct_change() * 100)
         const priceChange = i > 0 ? ((close[i] - close[i - 1]) / close[i - 1]) * 100 : 0;
         features[i].price_change_pct = priceChange;
         features[i].price_change_abs = Math.abs(priceChange);
 
-        // High-Low range
+        // High-Low range (exactly like backend)
         features[i].hl_range_pct = ((high[i] - low[i]) / close[i]) * 100;
 
-        // Body size
-        features[i].body_size_pct = (Math.abs(close[i] - open[i]) / close[i]) * 100;
+        // Body size (exactly like backend)
+        features[i].body_size_pct = Math.abs(close[i] - open[i]) / close[i] * 100;
 
-        // Shadows
+        // Shadows (exactly like backend)
         const upperShadow = high[i] - Math.max(open[i], close[i]);
         const lowerShadow = Math.min(open[i], close[i]) - low[i];
         features[i].upper_shadow_pct = (upperShadow / close[i]) * 100;
         features[i].lower_shadow_pct = (lowerShadow / close[i]) * 100;
       }
 
-      // 9. Volatility
+      // 9. Volatility (exactly matching backend: std / mean * 100)
       for (const period of [10, 20]) {
         for (let i = period - 1; i < candles.length; i++) {
           const window = close.slice(i - period + 1, i + 1);
@@ -353,28 +382,70 @@ export const useCandleStore = create<CandleState>((set, get) => ({
         }
       }
 
-      // Combine candles with features
-      const processedCandles: ProcessedCandleData[] = candles.map((candle, index) => ({
-        ...candle,
-        ...features[index]
-      }));
+  
+    
+      // Combine valid candles with features
+      const processedCandles: ProcessedCandleData[] = validCandles.map((candle, index) => {
+        const featureData = features[index];
+        const processedCandle: ProcessedCandleData = {
+          timestamp: candle.timestamp,
+          open: candle.open,
+          high: candle.high,
+          low: candle.low,
+          close: candle.close,
+          // Include volume if it exists (backend CSV doesn't have volume)
+          ...(candle.volume !== undefined ? { volume: candle.volume } : {}),
+          // Add all features (some may be undefined)
+          ...(featureData || {})
+        };
 
-      // Filter out candles with undefined features (initial periods)
-      // Only require basic OHLCV data - some indicators need initial periods
-      const validCandles = processedCandles.filter(
-        candle =>
-          candle.open !== undefined &&
-          candle.high !== undefined &&
-          candle.low !== undefined &&
-          candle.close !== undefined
-      );
+        return processedCandle;
+      });
+
+      // Filter out rows where ANY column is null/undefined/NaN (strict filtering like backend.dropna())
+      const cleanProcessedCandles = processedCandles.filter(candle => {
+        // Check ALL properties in the candle
+        for (const key in candle) {
+          const value = candle[key as keyof ProcessedCandleData];
+
+          // Skip undefined volume field if not present
+          if (key === 'volume' && value === undefined) {
+            continue;
+          }
+
+          // For numeric fields, check for null/undefined/NaN
+          if (typeof value === 'number') {
+            if (isNaN(value) || value === null || value === undefined) {
+              return false;
+            }
+          }
+          // For non-numeric fields, check for null/undefined
+          else if (value === null || value === undefined) {
+            return false;
+          }
+        }
+
+        // Additional OHLC validation
+        if (candle.open <= 0 || candle.high <= 0 || candle.low <= 0 || candle.close <= 0) {
+          return false;
+        }
+
+        // Ensure high >= low
+        if (candle.high < candle.low) {
+          return false;
+        }
+
+        return true;
+      });
 
       set({
-        processedCandles: validCandles,
+        processedCandles: cleanProcessedCandles,
         isProcessing: false
       });
 
     } catch (error) {
+      console.error('Processing failed:', error);
+      console.error('Error details:', error instanceof Error ? error.stack : error);
       set({
         error: error instanceof Error ? error.message : 'Failed to process features',
         isProcessing: false

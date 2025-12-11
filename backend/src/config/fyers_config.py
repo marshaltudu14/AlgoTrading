@@ -6,7 +6,7 @@ Contains all hardcoded credentials and settings for Fyers API access
 # Fyers API Credentials
 APP_ID = "TS79V3NXK1-100"
 SECRET_KEY = "KQCPB0FJ74"
-REDIRECT_URI = "https://google.com"
+REDIRECT_URI = "http://192.168.31.23:3001"
 FYERS_USER = "XM22383"
 FYERS_PIN = "4628"
 FYERS_TOTP = "EAQD6K4IUYOEGPJNVE6BMPTUSDCWIOHW"

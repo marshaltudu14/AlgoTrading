@@ -77,8 +77,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
       // Check if it's an authentication error
       if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
-        console.log('[tradingStore] Authentication error detected, clearing auth state...');
-
+        
         // Clear auth state in authStore
         const authStore = useAuthStore.getState();
         authStore.setError('Authentication expired. Please login again.');

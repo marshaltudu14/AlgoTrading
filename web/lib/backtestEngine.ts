@@ -1,6 +1,14 @@
 import { ProcessedCandleData } from '../stores/candleStore';
 import { StrategySignal } from '../stores/strategyStore';
 
+// Exit details interface
+interface ExitDetails {
+  targetPrice?: number;
+  stopLossPrice?: number;
+  exitPrice?: number;
+  exitReason?: string;
+}
+
 // Trade configuration matching Python implementation
 export interface BacktestConfig {
   targetPnL: number;        // Target profit in Rs (per position) - Default: 500
@@ -100,13 +108,11 @@ export class BacktestEngine {
     lotSize: number,
     targetPnL?: number,
     stopLossPnL?: number
-  ): { isWin: boolean; pnlPoints: number; barsHeld: number; exitDetails: unknown } {
+  ): { isWin: boolean; pnlPoints: number; barsHeld: number; exitDetails: ExitDetails } {
     let barsHeld = 0;
-    const exitDetails: unknown = {
+    const exitDetails: ExitDetails = {
       exitPrice: entryPrice,
-      targetPrice: null,
-      stopLossPrice: null,
-      exitReason: null
+      exitReason: undefined
     };
 
     // Use provided P&L targets or fall back to defaults
@@ -350,14 +356,14 @@ export class BacktestEngine {
           exitTime,
           position,
           entryPrice: Math.round(entryPrice * 100) / 100,
-          exitPrice: Math.round(result.exitDetails.exitPrice * 100) / 100,
+          exitPrice: Math.round((result.exitDetails.exitPrice ?? entryPrice) * 100) / 100,
           targetPrice: result.exitDetails.targetPrice,
           stopLossPrice: result.exitDetails.stopLossPrice,
           lotSize: currentLotSize,
           pnlPoints: Math.round(result.pnlPoints * 100) / 100,
           pnlCurrency: Math.round(netPnL * 100) / 100,
           barsHeld: result.barsHeld,
-          exitReason: result.exitDetails.exitReason,
+          exitReason: result.exitDetails.exitReason ?? 'UNKNOWN',
           confidence: Math.round(entryConfidence * 1000) / 10,
           capital
         };

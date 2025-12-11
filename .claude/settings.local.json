@@ -71,7 +71,10 @@
       "Bash(git reset:*)",
       "Bash(ls:*)",
       "Bash(git checkout:*)",
-      "mcp__playwright__browser_handle_dialog"
+      "mcp__playwright__browser_handle_dialog",
+      "Bash(bc:*)",
+      "Bash(python3:*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
