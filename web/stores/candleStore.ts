@@ -12,10 +12,18 @@ export interface CandleData {
 
 export interface ProcessedCandleData extends CandleData {
   // Distance from Moving Averages (percentage)
+  dist_sma_5?: number;
+  dist_sma_10?: number;
   dist_sma_20?: number;
   dist_sma_50?: number;
+  dist_sma_100?: number;
   dist_sma_200?: number;
+  dist_ema_5?: number;
+  dist_ema_10?: number;
   dist_ema_20?: number;
+  dist_ema_50?: number;
+  dist_ema_100?: number;
+  dist_ema_200?: number;
 
   // MACD (percentage)
   macd_pct?: number;
@@ -24,6 +32,7 @@ export interface ProcessedCandleData extends CandleData {
 
   // RSI
   rsi_14?: number;
+  rsi_21?: number;
 
   // ADX and Directional Indicators
   adx?: number;
@@ -129,43 +138,26 @@ export const useCandleStore = create<CandleState>((set, get) => ({
 
   // Set raw candle data
   setCandles: (candles) => {
-    console.log('[candleStore] setCandles called:', {
-      candlesLength: candles.length,
-      currentProcessedCandlesLength: get().processedCandles.length,
-      isCurrentlyProcessing: get().isProcessing
-    });
-
     set({
       candles,
       processedCandles: [], // Reset processed data
       error: null
     });
-
-    console.log('[candleStore] setCandles complete - processedCandles reset');
   },
 
   // Process features from raw candle data
   processFeatures: () => {
     const { candles, isProcessing } = get();
 
-    console.log('[candleStore] processFeatures called:', {
-      candlesLength: candles.length,
-      isProcessing,
-      hasCandles: candles.length > 0
-    });
-
     if (candles.length === 0) {
-      console.log('[candleStore] No candle data to process');
       set({ error: 'No candle data to process' });
       return;
     }
 
     if (isProcessing) {
-      console.log('[candleStore] Already processing, skipping');
       return; // Already processing, don't start again
     }
 
-    console.log('[candleStore] Starting feature processing...');
     set({ isProcessing: true, error: null });
 
     try {
@@ -178,9 +170,9 @@ export const useCandleStore = create<CandleState>((set, get) => ({
       // Initialize features object
       const features: Partial<ProcessedCandleData>[] = new Array(candles.length);
 
-      // 1. Moving Averages - Calculate distances
-      const smaPeriods = [20, 50, 200];
-      const emaPeriods = [20];
+      // 1. Moving Averages - Calculate distances (matching Python CSV output)
+      const smaPeriods = [5, 10, 20, 50, 100, 200];
+      const emaPeriods = [5, 10, 20, 50, 100, 200];
 
       // SMA
       for (const period of smaPeriods) {
@@ -243,16 +235,20 @@ export const useCandleStore = create<CandleState>((set, get) => ({
       }
 
       // 3. RSI
-      const rsi14 = technicalIndicators.RSI.calculate({
-        period: 14,
-        values: close
-      });
+      const rsiPeriods = [14, 21];
+      for (const period of rsiPeriods) {
+        const rsi = technicalIndicators.RSI.calculate({
+          period,
+          values: close
+        });
 
-      const rsiPadded = Array(13).fill(undefined).concat(rsi14);
-      for (let i = 0; i < candles.length; i++) {
-        if (rsiPadded[i] !== undefined) {
-          features[i] = features[i] || {};
-          features[i].rsi_14 = rsiPadded[i];
+        const rsiPadded = Array(period - 1).fill(undefined).concat(rsi);
+        for (let i = 0; i < candles.length; i++) {
+          if (rsiPadded[i] !== undefined) {
+            features[i] = features[i] || {};
+            const key = `rsi_${period}` as keyof ProcessedCandleData;
+            features[i][key] = rsiPadded[i];
+          }
         }
       }
 
@@ -373,23 +369,12 @@ export const useCandleStore = create<CandleState>((set, get) => ({
           candle.close !== undefined
       );
 
-      console.log('[candleStore] Processing complete:', {
-        totalProcessed: processedCandles.length,
-        validCandles: validCandles.length,
-        featuresPerCandle: validCandles.length > 0 ? Object.keys(validCandles[0]).filter(k => !['timestamp', 'open', 'high', 'low', 'close'].includes(k)).length : 0
-      });
-
       set({
         processedCandles: validCandles,
         isProcessing: false
       });
 
     } catch (error) {
-      console.error('[candleStore] Error processing features:', error);
-      console.error('[candleStore] Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      });
       set({
         error: error instanceof Error ? error.message : 'Failed to process features',
         isProcessing: false
@@ -421,14 +406,45 @@ export const useCandleStore = create<CandleState>((set, get) => ({
     const { processedCandles } = get();
     if (processedCandles.length === 0) return [];
 
-    const latestCandle = processedCandles[processedCandles.length - 1];
-    return Object.keys(latestCandle).filter(
-      key => !['timestamp', 'open', 'high', 'low', 'close'].includes(key)
-    );
+    // Define all expected features based on Python CSV output
+    const expectedFeatures = [
+      // Moving Averages
+      'dist_sma_5', 'dist_sma_10', 'dist_sma_20', 'dist_sma_50', 'dist_sma_100', 'dist_sma_200',
+      'dist_ema_5', 'dist_ema_10', 'dist_ema_20', 'dist_ema_50', 'dist_ema_100', 'dist_ema_200',
+      // MACD
+      'macd_pct', 'macd_signal_pct', 'macd_hist_pct',
+      // RSI
+      'rsi_14', 'rsi_21',
+      // ADX
+      'adx', 'di_plus', 'di_minus',
+      // ATR
+      'atr_pct', 'atr',
+      // Bollinger Bands
+      'bb_width_pct', 'bb_position',
+      // Trend Strength
+      'trend_slope', 'trend_strength', 'trend_direction',
+      // Price Action
+      'price_change_pct', 'price_change_abs', 'hl_range_pct', 'body_size_pct',
+      'upper_shadow_pct', 'lower_shadow_pct',
+      // Volatility
+      'volatility_10', 'volatility_20'
+    ];
+
+    // Check which features are actually present in any candle
+    const allFeatureKeys = new Set<string>();
+    processedCandles.forEach(candle => {
+      Object.keys(candle).forEach(key => {
+        if (!['timestamp', 'open', 'high', 'low', 'close', 'volume'].includes(key)) {
+          allFeatureKeys.add(key);
+        }
+      });
+    });
+
+    return Array.from(allFeatureKeys);
   },
 
   // Get expected feature count (should match Python implementation)
   getExpectedFeatureCount: () => {
-    return 26; // Total features generated by Python implementation
+    return 36; // Total features found in Python CSV output
   }
 }));
