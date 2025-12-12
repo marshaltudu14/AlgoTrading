@@ -40,12 +40,8 @@ export default function LoginForm() {
   useEffect(() => {
     // Only check once on mount to avoid infinite loops
     const checkAuth = async () => {
-      // Check if we have auth cookies
-      const cookies = document.cookie.split(';').map(c => c.trim());
-      const hasAccessToken = cookies.some(c => c.startsWith('fyers_access_token='));
-      const hasAppId = cookies.some(c => c.startsWith('fyers_app_id='));
-
-      if (hasAccessToken && hasAppId && !isAuthenticated) {
+      // Check auth status via server-side session
+      if (!isAuthenticated) {
         await checkAuthStatus();
       }
     };

@@ -15,13 +15,3 @@ export const FYERS_ENDPOINTS = {
   TRADEBOOK: `${FYERS_API_BASE}/tradebook`,
   HISTORY: 'https://api-t1.fyers.in/data/history',
 } as const;
-
-// Cookie Constants
-export const COOKIE_NAMES = {
-  AUTH_STATE: 'fyers_auth_state',
-  AUTH_CODE: 'fyers_auth_code',
-  ACCESS_TOKEN: 'fyers_access_token',
-  REFRESH_TOKEN: 'fyers_refresh_token',
-  APP_ID: 'fyers_app_id',
-  USER_PROFILE: 'fyers_user_profile',
-} as const;

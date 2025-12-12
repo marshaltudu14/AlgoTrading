@@ -77,8 +77,6 @@ export default function BacktestDialog() {
 
   
   const runBacktestWithEngine = async (candleData: CandleData[]) => {
-    console.log("🎯 Starting backtest with proper feature processing");
-
     try {
       // Use candleStore to process features
       const { setCandles, processFeatures } = useCandleStore.getState();
@@ -92,7 +90,6 @@ export default function BacktestDialog() {
 
       // Get processed candles from the store
       const finalProcessedCandles = useCandleStore.getState().processedCandles;
-      console.log(`✅ Processed ${finalProcessedCandles.length} candles with features`);
 
       // Get the strategy function
       const { getSignal } = useStrategyStore.getState();
@@ -107,10 +104,7 @@ export default function BacktestDialog() {
       });
 
       // Run the backtest
-      console.log("🚀 Running backtest engine...");
       const results: BacktestResults = await engine.runBacktest(finalProcessedCandles, getSignal);
-
-      console.log(`✅ Backtest complete: ${results.trades.length} trades, Total P&L: ₹${results.metrics.totalPnL.toFixed(0)}`);
 
       return results;
 
@@ -142,12 +136,10 @@ export default function BacktestDialog() {
 
   const handleStartBacktest = async () => {
     if (validateForm()) {
-      console.log("🚀 Starting backtest with config:", config);
       startBacktest();
 
       try {
         // Fetch historical data
-        console.log(`📊 Fetching ${config.durationInDays} days of data for ${config.symbol} (${config.timeframe}M)`);
         const response = await fetch(
           `/api/candle-data/${config.symbol}/${config.timeframe}?days=${config.durationInDays}`,
           {
@@ -158,33 +150,20 @@ export default function BacktestDialog() {
           }
         );
 
-        console.log("📥 Response status:", response.status);
-
         if (!response.ok) {
           throw new Error(`Failed to fetch historical data: ${response.statusText}`);
         }
 
         const data = await response.json();
-        console.log("📊 Fetched data:", data);
 
         if (!data.success) {
           throw new Error(data.error || 'Failed to fetch historical data');
         }
 
         const candleData: CandleData[] = data.data;
-        console.log(`✅ Got ${candleData.length} candles`);
-
-        // Execute backtest
-        console.log("⚙️ Running backtest...");
-        console.log("📊 Sample candle data:", candleData.slice(0, 2));
-
-        // Note: The strategy expects processed candles with features, but we have raw candles
-        // We need to process them first or the backtest should handle this internally
-        console.log("📝 Note: Strategy requires processed candles with features");
 
         // Run backtest using the engine
         const results = await runBacktestWithEngine(candleData);
-        console.log("📈 Backtest results:", results);
 
         // Get processed candles for saving
         const processedCandles = useCandleStore.getState().processedCandles;
@@ -204,8 +183,7 @@ export default function BacktestDialog() {
           });
 
           if (saveResponse.ok) {
-            const saveResult = await saveResponse.json();
-            console.log("✅ Saved processed data:", saveResult.message);
+            await saveResponse.json();
           }
         } catch (error) {
           console.error("⚠️ Failed to save processed data:", error);
@@ -228,7 +206,6 @@ export default function BacktestDialog() {
           candleData,
           processedCandles
         });
-        console.log("✅ Backtest completed successfully!");
 
       } catch (error) {
         console.error('❌ Backtest error:', error);

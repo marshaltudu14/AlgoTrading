@@ -31,15 +31,28 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      // Store credentials in cookies for callback
-      document.cookie = `fyers_temp_app_id=${appId}; path=/; max-age=${60 * 10}; samesite=lax`;
-      document.cookie = `fyers_temp_secret=${secretKey}; path=/; max-age=${60 * 10}; samesite=lax`;
+      // Store credentials in server-side session
+      const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          appId,
+          secretKey,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create session');
+      }
 
       // Create redirect URL dynamically
       const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/api/auth/fyers/callback`;
 
       // Call the initiate API
-      const response = await fetch('/api/auth/fyers/initiate', {
+      const initiateResponse = await fetch('/api/auth/fyers/initiate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,9 +63,9 @@ export const useAuthStore = create<AuthState>((set) => ({
         }),
       });
 
-      const data = await response.json();
+      const data = await initiateResponse.json();
 
-      if (response.ok) {
+      if (initiateResponse.ok) {
         // Redirect to Fyers for authentication
         window.location.href = data.authUrl;
       } else {
@@ -60,7 +73,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     } catch (error) {
       console.error('Login error:', error);
-      set({ error: 'Network error. Please try again.', isLoading: false });
+      set({ error: error instanceof Error ? error.message : 'Network error. Please try again.', isLoading: false });
     }
   },
 
@@ -104,48 +117,59 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  logout: () => {
-    // Clear cookies by setting them to expire
-    document.cookie = 'fyers_access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    document.cookie = 'fyers_refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    document.cookie = 'fyers_app_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    document.cookie = 'fyers_user_profile=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+  logout: async () => {
+    try {
+      // Delete server-side session
+      await fetch('/api/auth/session', {
+        method: 'DELETE',
+        credentials: 'include',
+      });
 
-    // Clear sessionStorage
-    sessionStorage.clear();
+      // Clear local state
+      set({
+        isAuthenticated: false,
+        isLoading: false,
+        user: null,
+        appId: null,
+        accessToken: null,
+        error: null,
+      });
 
-    set({
-      isAuthenticated: false,
-      isLoading: false,
-      user: null,
-      appId: null,
-      accessToken: null,
-      error: null,
-    });
-
-    // Redirect to login
-    window.location.href = '/';
+      // Redirect to login
+      window.location.href = '/';
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still clear local state and redirect even if server fails
+      set({
+        isAuthenticated: false,
+        isLoading: false,
+        user: null,
+        appId: null,
+        accessToken: null,
+        error: null,
+      });
+      window.location.href = '/';
+    }
   },
 
   checkAuthStatus: async () => {
     try {
-      // Check auth status via API since httpOnly cookies aren't accessible via document.cookie
-      const response = await fetch('/api/auth/fyers/status', {
+      // Check auth status via session API
+      const response = await fetch('/api/auth/session', {
         method: 'GET',
         credentials: 'include',
       });
 
       if (response.ok) {
         const data = await response.json();
+        const session = data.session;
 
-        // Let middleware handle auth errors - no redirect logic here
-
-        if (data.authenticated) {
+        if (session && session.isAuthenticated) {
           set({
             isAuthenticated: true,
-            user: data.profile,
-            appId: data.appId,
-            accessToken: data.access_token || null,
+            user: session.profile,
+            appId: session.appId,
+            accessToken: session.accessToken,
           });
         } else {
           set({
@@ -175,7 +199,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  
+
   setError: (error: string | null) => {
     set({ error });
   },

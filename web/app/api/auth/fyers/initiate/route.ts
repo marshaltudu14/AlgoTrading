@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FYERS_ENDPOINTS, COOKIE_NAMES } from '@/lib/constants';
+import { FYERS_ENDPOINTS } from '@/lib/constants';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,20 +16,21 @@ export async function POST(request: NextRequest) {
     const state = Math.random().toString(36).substring(2, 15) +
                   Math.random().toString(36).substring(2, 15);
 
-    // Store state in session/cookie for verification later
-    const response = NextResponse.json({
-      authUrl: `${FYERS_ENDPOINTS.GENERATE_AUTHCODE}?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUrl)}&response_type=code&state=${state}`
-    });
+    // Update session with auth state
+    const { updateSession } = await import('@/lib/server-session');
+    const sessionUpdated = await updateSession({ authState: state });
 
-    // Set state in a secure cookie
-    response.cookies.set(COOKIE_NAMES.AUTH_STATE, state, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 10 // 10 minutes
-    });
+    if (!sessionUpdated) {
+      return NextResponse.json(
+        { error: 'No active session found' },
+        { status: 401 }
+      );
+    }
 
-    return response;
+    // Return auth URL
+    const authUrl = `${FYERS_ENDPOINTS.GENERATE_AUTHCODE}?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUrl)}&response_type=code&state=${state}`;
+
+    return NextResponse.json({ authUrl });
   } catch (error) {
     console.error('Error initiating auth:', error);
     return NextResponse.json(

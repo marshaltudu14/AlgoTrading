@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { FYERS_ENDPOINTS, COOKIE_NAMES } from '@/lib/constants';
+import { FYERS_ENDPOINTS } from '@/lib/constants';
 
 interface CandleData {
   timestamp: number;
@@ -98,17 +98,19 @@ export async function GET(
     const { symbol, timeframe } = await params;
     const { searchParams } = new URL(request.url);
 
-    // Get access token and app_id from cookies
-    const cookieStore = request.cookies;
-    const accessToken = cookieStore.get(COOKIE_NAMES.ACCESS_TOKEN)?.value;
-    const appId = cookieStore.get(COOKIE_NAMES.APP_ID)?.value;
+    // Get access token and app_id from session
+    const { getSession } = await import('@/lib/server-session');
+    const session = await getSession();
 
-    if (!accessToken || !appId) {
+    if (!session || !session.isAuthenticated || !session.accessToken || !session.appId) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       );
     }
+
+    const accessToken = session.accessToken;
+    const appId = session.appId;
 
     // Get days from query params or default to 15 days
     let days = parseInt(searchParams.get('days') || '15');
@@ -145,14 +147,10 @@ export async function GET(
       // For > 100 days, split into multiple chunks
       const dateRanges = splitDateRange(startDate, endDate);
 
-      console.log(`Fetching data for ${days} days in ${dateRanges.length} chunks`);
-
       for (let i = 0; i < dateRanges.length; i++) {
         const range = dateRanges[i];
         const rangeFrom = range.startDate.toISOString().split('T')[0];
         const rangeTo = range.endDate.toISOString().split('T')[0];
-
-        console.log(`Fetching chunk ${i + 1}/${dateRanges.length}: ${rangeFrom} to ${rangeTo}`);
 
         try {
           const candleData = await fetchCandleData(url, appId, accessToken, rangeFrom, rangeTo);

@@ -25,7 +25,15 @@ export default function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     // Only handle redirects after auth check is complete
-    if (!hasCheckedAuth) return;
+    if (!hasCheckedAuth) {
+      return;
+    }
+
+    // If user is on callback page and authenticated, redirect to dashboard
+    if (pathname === '/callback' && isAuthenticated) {
+      router.replace('/dashboard');
+      return;
+    }
 
     // If user is on login page but already authenticated, redirect to dashboard
     if (pathname === '/' && isAuthenticated) {
@@ -35,11 +43,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
 
     // If user is on dashboard routes but not authenticated, redirect to login
     if (pathname.startsWith('/dashboard') && !isAuthenticated) {
-      // Check for temp credentials (OAuth in progress)
-      const tempAppId = document.cookie.includes('fyers_temp_app_id');
-      if (!tempAppId) {
-        router.replace('/');
-      }
+      router.replace('/');
     }
   }, [isAuthenticated, pathname, hasCheckedAuth, router]);
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAuthCode } from '@/lib/auth-utils';
-import { COOKIE_NAMES } from '@/lib/constants';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,19 +15,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get temporary credentials from cookies
-    const cookieStore = request.cookies;
-    const tempAppId = cookieStore.get('fyers_temp_app_id')?.value;
-    const tempSecret = cookieStore.get('fyers_temp_secret')?.value;
+    // Get session data
+    const { getSession, updateSession } = await import('@/lib/server-session');
+    const sessionData = await getSession();
 
-    if (!tempAppId || !tempSecret) {
+    if (!sessionData) {
+      return NextResponse.redirect(
+        new URL('/?error=Session expired. Please login again.', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001')
+      );
+    }
+
+    const { appId, secretKey } = sessionData;
+
+    if (!appId || !secretKey) {
       return NextResponse.redirect(
         new URL('/?error=Missing authentication credentials', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001')
       );
     }
 
     // Validate the authorization code
-    const result = await validateAuthCode(auth_code, tempAppId, tempSecret);
+    const result = await validateAuthCode(auth_code, appId, secretKey);
 
     if (!result.success) {
       return NextResponse.redirect(
@@ -36,45 +42,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Update session with tokens
+    await updateSession({
+      accessToken: result.access_token,
+      refreshToken: result.refresh_token,
+      profile: result.profile,
+    });
+
     // Create response - redirect to the callback page which will handle the final redirect
-    const response = NextResponse.redirect(
+    return NextResponse.redirect(
       new URL('/callback', process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001')
     );
-
-    // Set secure cookies with authentication data
-    response.cookies.set(COOKIE_NAMES.ACCESS_TOKEN, result.access_token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-
-    response.cookies.set(COOKIE_NAMES.REFRESH_TOKEN, result.refresh_token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-
-    response.cookies.set(COOKIE_NAMES.APP_ID, result.appId || '', {
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-
-    response.cookies.set(COOKIE_NAMES.USER_PROFILE, JSON.stringify(result.profile), {
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
-    });
-
-    // Clear temporary cookies
-    response.cookies.set('fyers_temp_app_id', '', {
-      expires: new Date(0),
-    });
-    response.cookies.set('fyers_temp_secret', '', {
-      expires: new Date(0),
-    });
-
-    return response;
   } catch (error) {
     console.error('Callback error:', error);
     return NextResponse.redirect(

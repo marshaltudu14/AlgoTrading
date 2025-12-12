@@ -1,28 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { COOKIE_NAMES } from '@/lib/constants';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const cookieStore = request.cookies;
-    const accessToken = cookieStore.get(COOKIE_NAMES.ACCESS_TOKEN)?.value;
-    const appId = cookieStore.get(COOKIE_NAMES.APP_ID)?.value;
-    const userProfile = cookieStore.get(COOKIE_NAMES.USER_PROFILE)?.value;
+    const { getSession } = await import('@/lib/server-session');
+    const session = await getSession();
 
-    if (accessToken && appId) {
-      let profile = null;
-      try {
-        profile = userProfile ? JSON.parse(userProfile) : null;
-      } catch (e) {
-        console.error('Error parsing user profile:', e);
-      }
-
-      // For now, just check if tokens exist
-      // Actual validation happens on the client side when needed
+    if (session && session.isAuthenticated) {
+      // Return session data
       return NextResponse.json({
         authenticated: true,
-        appId,
-        access_token: accessToken,
-        profile,
+        appId: session.appId,
+        access_token: session.accessToken,
+        profile: session.profile,
       });
     }
 
