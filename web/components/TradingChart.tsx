@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { createChart, IChartApi, UTCTimestamp, ColorType, CandlestickSeries } from "lightweight-charts";
+import { createChart, IChartApi, UTCTimestamp, ColorType, ISeriesApi, CandlestickSeries, HistogramSeries } from "lightweight-charts";
 import { useTheme } from "next-themes";
 import { ZoomIn, ZoomOut, RefreshCw, AlertCircle, CheckCircle, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,11 +27,18 @@ interface ChartData {
   close: number;
 }
 
+interface VolumeData {
+  time: UTCTimestamp;
+  value: number;
+  color: string;
+}
+
 export default function TradingChart({ dataViewerRef, backtestDataViewerRef }: TradingChartProps) {
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<unknown | null>(null);
+  const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const { theme } = useTheme();
   const {
     candleData,
@@ -157,26 +164,47 @@ export default function TradingChart({ dataViewerRef, backtestDataViewerRef }: T
   };
 
   // Use data source for chart display when processing is complete
-  // Timestamps from Fyers API are in seconds and already have the correct time
-  // No timezone conversion needed - use timestamps as received from API
+  // Convert epoch to correct format for lightweight-charts
   const dataToDisplay = shouldShowChart ? chartDataSource : [];
-  const chartData: ChartData[] = dataToDisplay.map((candle) => ({
-    // Use timestamp as-is (in seconds) for lightweight-charts
-    time: candle.timestamp as UTCTimestamp,
-    open: candle.open,
-    high: candle.high,
-    low: candle.low,
-    close: candle.close,
-  }));
+
+  const chartData: ChartData[] = dataToDisplay.map((candle) => {
+    // Add IST offset (+5.5 hours = 19800 seconds) to convert UTC epoch to IST epoch
+    // This makes lightweight-charts display the correct IST time when it treats timestamps as UTC
+    const istTimestamp = candle.timestamp + 19800;
+
+    return {
+      time: Math.floor(istTimestamp) as unknown as UTCTimestamp,
+      open: candle.open,
+      high: candle.high,
+      low: candle.low,
+      close: candle.close,
+    };
+  });
+
+  // Prepare volume data
+  const volumeData: VolumeData[] = dataToDisplay.map((candle) => {
+    const isUp = candle.close >= candle.open;
+
+    // Add IST offset (+5.5 hours = 19800 seconds) to match candle data
+    const istTimestamp = candle.timestamp + 19800;
+
+    return {
+      time: Math.floor(istTimestamp) as unknown as UTCTimestamp,
+      value: candle.volume || 0,
+      color: isUp
+        ? (theme === "dark" ? "rgba(0, 208, 132, 0.5)" : "rgba(16, 185, 129, 0.5)")
+        : (theme === "dark" ? "rgba(244, 67, 54, 0.5)" : "rgba(239, 68, 68, 0.5)")
+    };
+  });
 
   // Get feature count for display
   const featureCount = processedCandles.length > 0 ? getFeatureNames().length : 0;
   const expectedFeatureCount = getExpectedFeatureCount();
 
   
-  // Initialize and update chart
+  // Initialize chart once
   useEffect(() => {
-    if (!chartContainerRef.current || !shouldShowChart || chartData.length === 0) return;
+    if (!chartContainerRef.current) return;
 
     // Create chart
     const chart = createChart(chartContainerRef.current, {
@@ -189,10 +217,10 @@ export default function TradingChart({ dataViewerRef, backtestDataViewerRef }: T
       },
       grid: {
         vertLines: {
-          color: theme === "dark" ? "#333333" : "#e5e5e5",
+          visible: false,
         },
         horzLines: {
-          color: theme === "dark" ? "#333333" : "#e5e5e5",
+          visible: false,
         },
       },
       rightPriceScale: {
@@ -203,26 +231,10 @@ export default function TradingChart({ dataViewerRef, backtestDataViewerRef }: T
         borderColor: theme === "dark" ? "#333333" : "#e5e5e5",
         timeVisible: true,
         secondsVisible: false,
-        // Ensure gaps in time are preserved (e.g., overnight, weekends, market closure)
-        // This tells the chart to respect actual time intervals rather than interpolating
       },
-      crosshair: {
-        mode: 0, // Normal crosshair mode (no magnet/snap)
-        vertLine: {
-          color: theme === "dark" ? "#444444" : "#cccccc",
-          width: 1,
-          style: 3,
-        },
-        horzLine: {
-          color: theme === "dark" ? "#444444" : "#cccccc",
-          width: 1,
-          style: 3,
-        },
-      },
-      // Explicitly set timezone for the chart if possible
-      // Note: lightweight-charts doesn't have a direct timezone option in createChart
-      // The timestamps should be handled properly by the library
-      });
+      // Let the library handle auto-sizing
+      autoSize: true,
+    });
 
     // Add candlestick series
     const candlestickSeries = chart.addSeries(CandlestickSeries, {
@@ -233,34 +245,77 @@ export default function TradingChart({ dataViewerRef, backtestDataViewerRef }: T
       wickDownColor: theme === "dark" ? "#f44336" : "#ef4444",
     });
 
-    // Set data
-    candlestickSeries.setData(chartData);
+    // Add volume histogram series
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      priceFormat: {
+        type: 'volume',
+      },
+      priceScaleId: '', // overlay on the chart
+      lastValueVisible: false,
+      priceLineVisible: false,
+    });
 
-    // Configure time scale to respect actual time gaps and not interpolate
+    // Configure price scale for candlestick series (top 70% of chart)
+    candlestickSeries.priceScale().applyOptions({
+      scaleMargins: {
+        top: 0.1,
+        bottom: 0.3,
+      },
+    });
+
+    // Configure price scale for volume series (bottom 30% of chart)
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: {
+        top: 0.7,
+        bottom: 0,
+      },
+    });
+
+    // Configure time scale
     const timeScale = chart.timeScale();
     timeScale.applyOptions({
-      // Ensure that the time scale respects actual time gaps rather than interpolating
       visible: true,
       timeVisible: true,
       secondsVisible: false,
-      // Disable auto scaling to prevent scroll reset
-      lockVisibleTimeRangeOnResize: true,
     });
 
+    
     // Store references
     chartRef.current = chart;
-    seriesRef.current = candlestickSeries;
+    candlestickSeriesRef.current = candlestickSeries;
+    volumeSeriesRef.current = volumeSeries;
 
     return () => {
       if (chartRef.current) {
         chartRef.current.remove();
+        chartRef.current = null;
+        candlestickSeriesRef.current = null;
+        volumeSeriesRef.current = null;
       }
     };
-  }, [chartData, theme, shouldShowChart]);
+  }, [theme, shouldShowChart]);
+
+  // Update data when it changes
+  useEffect(() => {
+    if (chartRef.current && candlestickSeriesRef.current && volumeSeriesRef.current && shouldShowChart && chartData.length > 0) {
+      // Save current visible range
+      const timeScale = chartRef.current.timeScale();
+      const visibleRange = timeScale.getVisibleRange();
+
+      // Update data
+      candlestickSeriesRef.current.setData(chartData);
+      volumeSeriesRef.current.setData(volumeData);
+
+      // Restore visible range if it existed
+      if (visibleRange) {
+        timeScale.setVisibleRange(visibleRange);
+      }
+    }
+  }, [chartData, volumeData, shouldShowChart]);
 
   // Update chart theme when theme changes
   useEffect(() => {
-    if (chartRef.current && seriesRef.current) {
+    if (chartRef.current && candlestickSeriesRef.current && volumeSeriesRef.current) {
       // Update chart colors for theme
       chartRef.current.applyOptions({
         layout: {
@@ -287,9 +342,8 @@ export default function TradingChart({ dataViewerRef, backtestDataViewerRef }: T
         },
         });
 
-      // Update series colors for theme
-      if (seriesRef.current && typeof seriesRef.current === 'object' && 'applyOptions' in seriesRef.current) {
-        (seriesRef.current as { applyOptions: (options: unknown) => void }).applyOptions({
+      // Update candlestick series colors for theme
+      candlestickSeriesRef.current.applyOptions({
         upColor: theme === "dark" ? "#00d084" : "#10b981",
         downColor: theme === "dark" ? "#f44336" : "#ef4444",
         borderDownColor: theme === "dark" ? "#f44336" : "#ef4444",
@@ -297,9 +351,21 @@ export default function TradingChart({ dataViewerRef, backtestDataViewerRef }: T
         wickDownColor: theme === "dark" ? "#f44336" : "#ef4444",
         wickUpColor: theme === "dark" ? "#00d084" : "#10b981",
       });
-      }
+
+      // Update volume data colors for theme
+      const newVolumeData = volumeData.map(item => {
+        const chartItem = chartData.find(c => c.time === item.time);
+        const isUp = chartItem ? chartItem.close >= chartItem.open : true;
+        return {
+          ...item,
+          color: isUp
+            ? (theme === "dark" ? "rgba(0, 208, 132, 0.5)" : "rgba(16, 185, 129, 0.5)")
+            : (theme === "dark" ? "rgba(244, 67, 54, 0.5)" : "rgba(239, 68, 68, 0.5)")
+        };
+      });
+      volumeSeriesRef.current.setData(newVolumeData);
     }
-  }, [theme]);
+  }, [theme, volumeData, chartData]);
 
   if (shouldShowLoading) {
     return (

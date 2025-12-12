@@ -74,7 +74,8 @@
       "mcp__playwright__browser_handle_dialog",
       "Bash(bc:*)",
       "Bash(python3:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"
